@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { SetBudgetDrawer } from "@/components/set-budget-drawer";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import api from "@/lib/axios";
 import * as LucideIcons from "lucide-react";
@@ -53,6 +54,9 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [payingBudget, setPayingBudget] = useState<any | null>(null);
+  const [tempBankBin, setTempBankBin] = useState("970415");
+  const [tempBankAccount, setTempBankAccount] = useState("");
+  const [tempAccountName, setTempAccountName] = useState("");
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -462,7 +466,13 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                   </span>
                   {b.type !== "FLEXIBLE" && !isPaid && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); setPayingBudget(b); }}
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setPayingBudget(b); 
+                        setTempBankBin(b.payeeBankBin || "970415");
+                        setTempBankAccount(b.payeeBankAccount || "");
+                        setTempAccountName(b.payeeAccountName || "");
+                      }}
                       disabled={isQuickPaying === b.budgetId}
                       className="bg-[#2BA76F] hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-sm shadow-emerald-500/20"
                     >
@@ -529,9 +539,9 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
       {payingBudget && (() => {
         const remaining = Math.max(0, payingBudget.limitAmount - payingBudget.spentAmount);
         
-        const billerName = payingBudget.payeeAccountName || "Người nhận (Chưa cấu hình)";
-        const accountNo = payingBudget.payeeBankAccount || "000000000000";
-        const bankBin = payingBudget.payeeBankBin || "970415"; // Default to VietinBank if missing
+        const billerName = tempAccountName || "Người nhận (Chưa điền)";
+        const accountNo = tempBankAccount || "000000000000";
+        const bankBin = tempBankBin || "970415"; // Default to VietinBank if missing
 
         const bankNameMap: Record<string, string> = {
           "970436": "Vietcombank",
@@ -553,49 +563,78 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
 
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-            <div className="bg-white rounded-3xl p-6 w-full max-w-[360px] shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col items-center">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-[360px] shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col items-center max-h-[90vh] overflow-y-auto">
               
               {/* Header */}
-              <div className="w-12 h-12 bg-emerald-100 text-[#2BA76F] rounded-full flex items-center justify-center mb-3">
+              <div className="w-12 h-12 bg-emerald-100 text-[#2BA76F] rounded-full flex items-center justify-center mb-3 shrink-0">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <h3 className="text-[19px] font-extrabold text-slate-800 mb-1 text-center">Thanh toán chuyển khoản</h3>
-              <p className="text-[12px] text-slate-400 text-center mb-4">Mở ứng dụng ngân hàng quét mã VietQR để thanh toán</p>
+              <h3 className="text-[19px] font-extrabold text-slate-800 mb-1 text-center shrink-0">Thanh toán chuyển khoản</h3>
+              <p className="text-[12px] text-slate-400 text-center mb-4 shrink-0">Mở ứng dụng ngân hàng quét mã VietQR để thanh toán</p>
               
               {/* QR Code Frame */}
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4 flex flex-col items-center">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4 flex flex-col items-center shrink-0">
                 <img 
                   src={qrUrl} 
                   alt="VietQR" 
                   className="w-48 h-48 object-contain rounded-lg shadow-sm"
                 />
-                <span className="text-[11px] font-bold text-[#2BA76F] mt-2 bg-emerald-50 px-2.5 py-1 rounded-full">
+                <span className="text-[11px] font-bold text-[#2BA76F] mt-2 bg-emerald-50 px-2.5 py-1 rounded-full text-center">
                   Tự động nhập: {new Intl.NumberFormat("vi-VN").format(remaining)}đ
                 </span>
               </div>
 
-              {/* Transaction Details */}
-              <div className="w-full bg-slate-50 rounded-2xl p-4 text-[12px] space-y-2 mb-6 border border-slate-100">
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Đơn vị nhận:</span>
-                  <span className="text-slate-800 font-bold">{billerName}</span>
+              {/* Editable Transaction Details */}
+              <div className="w-full bg-slate-50 rounded-2xl p-4 text-[12px] space-y-3 mb-6 border border-slate-100 shrink-0">
+                
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-slate-500 font-medium text-[11px]">Ngân hàng nhận</span>
+                  <div className="bg-white rounded-lg border border-slate-200">
+                    <Select value={tempBankBin} onValueChange={setTempBankBin}>
+                      <SelectTrigger className="w-full h-9 border-none bg-transparent focus:ring-0 shadow-none text-slate-800 font-bold text-[12px]">
+                        <SelectValue placeholder="Chọn Ngân hàng" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[160px]">
+                        <SelectItem value="970436">Vietcombank</SelectItem>
+                        <SelectItem value="970415">VietinBank</SelectItem>
+                        <SelectItem value="970418">BIDV</SelectItem>
+                        <SelectItem value="970405">Agribank</SelectItem>
+                        <SelectItem value="970422">MBBank</SelectItem>
+                        <SelectItem value="970407">Techcombank</SelectItem>
+                        <SelectItem value="970432">VPBank</SelectItem>
+                        <SelectItem value="970416">ACB</SelectItem>
+                        <SelectItem value="970423">TPBank</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Ngân hàng:</span>
-                  <span className="text-slate-800 font-bold">{bankName}</span>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-slate-500 font-medium text-[11px]">Số tài khoản nhận</span>
+                  <input
+                    type="text"
+                    value={tempBankAccount}
+                    onChange={(e) => setTempBankAccount(e.target.value)}
+                    placeholder="Nhập số tài khoản"
+                    className="w-full h-9 px-3 rounded-lg border border-slate-200 focus:ring-0 text-[12px] font-bold text-slate-800 outline-none"
+                  />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Số tài khoản:</span>
-                  <span className="text-slate-800 font-bold tracking-wider">{accountNo}</span>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-slate-500 font-medium text-[11px]">Tên đơn vị nhận</span>
+                  <input
+                    type="text"
+                    value={tempAccountName}
+                    onChange={(e) => setTempAccountName(e.target.value)}
+                    placeholder="Nhập tên người nhận"
+                    className="w-full h-9 px-3 rounded-lg border border-slate-200 focus:ring-0 text-[12px] font-bold text-slate-800 outline-none"
+                  />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-medium">Nội dung chuyển:</span>
-                  <span className="text-slate-800 font-bold truncate max-w-[180px]">{transferNote}</span>
-                </div>
-                <div className="border-t border-slate-200/60 my-1.5 pt-2 flex justify-between items-center">
-                  <span className="text-slate-400 font-bold">Số tiền:</span>
+
+                <div className="border-t border-slate-200/60 mt-2 pt-2 flex justify-between items-center">
+                  <span className="text-slate-400 font-bold text-[12px]">Số tiền cần thanh toán:</span>
                   <span className="text-[16px] font-black text-rose-600">
                     {new Intl.NumberFormat("vi-VN").format(remaining)}đ
                   </span>

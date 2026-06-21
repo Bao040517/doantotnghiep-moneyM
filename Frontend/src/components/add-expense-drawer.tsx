@@ -173,15 +173,22 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
 
       const lines = parsedText.split('\n').map((l: string) => l.trim()).filter(Boolean);
       let maxAmount = 0;
-      const numberRegex = /\b\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?\b/g;
       
       lines.forEach((line: string) => {
-        const matches = line.match(numberRegex);
+        // Remove spaces around commas and dots
+        const cleanedLine = line.replace(/\s*([.,])\s*/g, '$1');
+        
+        // Find all sequences of digits, dots, and commas
+        const matches = cleanedLine.match(/[\d.,]+/g);
         if (matches) {
           matches.forEach((m: string) => {
-            const intVal = parseInt(m.replace(/[.,\s]/g, ""), 10);
-            if (intVal > maxAmount) {
-              maxAmount = intVal;
+            // Remove leading/trailing dots/commas, then remove all dots/commas inside
+            const cleanStr = m.replace(/^[.,]+|[.,]+$/g, '').replace(/[.,]/g, '');
+            if (cleanStr.length > 0) {
+              const intVal = parseInt(cleanStr, 10);
+              if (intVal > maxAmount) {
+                maxAmount = intVal;
+              }
             }
           });
         }

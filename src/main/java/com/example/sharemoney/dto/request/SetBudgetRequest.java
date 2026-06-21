@@ -35,4 +35,10 @@ public class SetBudgetRequest {
 
     @com.fasterxml.jackson.annotation.JsonProperty("isMandatory")
     private boolean isMandatory;
+
+    private String payeeBankBin;
+
+    private String payeeBankAccount;
+
+    private String payeeAccountName;
 }

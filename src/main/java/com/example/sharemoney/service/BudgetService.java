@@ -105,6 +105,9 @@ public class BudgetService {
         budget.setRecurring(req.isRecurring());
         budget.setDueDayOfMonth(req.getDueDayOfMonth());
         budget.setIsMandatory(req.isMandatory());
+        budget.setPayeeBankBin(req.getPayeeBankBin());
+        budget.setPayeeBankAccount(req.getPayeeBankAccount());
+        budget.setPayeeAccountName(req.getPayeeAccountName());
         budgetRepository.save(budget);
 
         // Tính số đã chi thực tế để trả về response
@@ -152,6 +155,9 @@ public class BudgetService {
                             .isRecurring(prev.isRecurring())
                             .dueDayOfMonth(prev.getDueDayOfMonth())
                             .isMandatory(prev.getIsMandatory() != null ? prev.getIsMandatory() : false)
+                            .payeeBankBin(prev.getPayeeBankBin())
+                            .payeeBankAccount(prev.getPayeeBankAccount())
+                            .payeeAccountName(prev.getPayeeAccountName())
                             .build();
 
                     if (prev.isRollover()) {
@@ -257,6 +263,9 @@ public class BudgetService {
                 .isRecurring(budget.isRecurring())
                 .dueDayOfMonth(budget.getDueDayOfMonth())
                 .isMandatory(budget.getIsMandatory() != null ? budget.getIsMandatory() : false)
+                .payeeBankBin(budget.getPayeeBankBin())
+                .payeeBankAccount(budget.getPayeeBankAccount())
+                .payeeAccountName(budget.getPayeeAccountName())
                 .build();
     }
 

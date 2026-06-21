@@ -52,6 +52,9 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
   const [isRecurring, setIsRecurring] = useState(false);
   const [isMandatory, setIsMandatory] = useState(false);
   const [dueDateString, setDueDateString] = useState("");
+  const [payeeBankBin, setPayeeBankBin] = useState("");
+  const [payeeBankAccount, setPayeeBankAccount] = useState("");
+  const [payeeAccountName, setPayeeAccountName] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -76,6 +79,9 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
         } else {
            setDueDateString("");
         }
+        setPayeeBankBin(editBudget.payeeBankBin || "");
+        setPayeeBankAccount(editBudget.payeeBankAccount || "");
+        setPayeeAccountName(editBudget.payeeAccountName || "");
       } else {
         setName("");
         setAmount("");
@@ -85,6 +91,9 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
         setIsRecurring(false);
         setIsMandatory(false);
         setDueDateString("");
+        setPayeeBankBin("");
+        setPayeeBankAccount("");
+        setPayeeAccountName("");
       }
       api.get("/categories")
         .then(res => setCategories(res.data.filter((c: Category) => c.type === "EXPENSE" && c.name !== "Mục tiêu tiết kiệm")))
@@ -114,7 +123,10 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
         type: type,
         isRecurring,
         isMandatory,
-        dueDayOfMonth: dueDateString ? parseInt(dueDateString.split("-")[2], 10) : null
+        dueDayOfMonth: dueDateString ? parseInt(dueDateString.split("-")[2], 10) : null,
+        payeeBankBin,
+        payeeBankAccount,
+        payeeAccountName
       };
       if (editBudget?.budgetId) {
         payload.id = editBudget.budgetId;
@@ -223,6 +235,52 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
                   Cố định
                 </button>
               </div>
+
+              {/* Payee Info for BILL type */}
+              {type === "BILL" && (
+                <div className="bg-slate-50 p-4 rounded-[20px] border border-slate-100 shadow-sm space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <h4 className="text-[14px] font-bold text-slate-700 mb-1">Thông tin thanh toán (Người nhận)</h4>
+                  
+                  <div className="bg-white rounded-xl border border-slate-200">
+                    <Select value={payeeBankBin} onValueChange={setPayeeBankBin}>
+                      <SelectTrigger className="w-full h-11 border-none bg-transparent focus:ring-0 shadow-none text-slate-800 font-medium">
+                        <SelectValue placeholder="Chọn Ngân hàng nhận" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px]">
+                        <SelectItem value="970436">Vietcombank</SelectItem>
+                        <SelectItem value="970415">VietinBank</SelectItem>
+                        <SelectItem value="970418">BIDV</SelectItem>
+                        <SelectItem value="970405">Agribank</SelectItem>
+                        <SelectItem value="970422">MBBank</SelectItem>
+                        <SelectItem value="970407">Techcombank</SelectItem>
+                        <SelectItem value="970432">VPBank</SelectItem>
+                        <SelectItem value="970416">ACB</SelectItem>
+                        <SelectItem value="970423">TPBank</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="bg-white rounded-xl border border-slate-200 p-2.5">
+                    <input
+                      type="text"
+                      value={payeeBankAccount}
+                      onChange={(e) => setPayeeBankAccount(e.target.value)}
+                      placeholder="Số tài khoản nhận"
+                      className="w-full border-none focus:ring-0 text-[15px] font-medium text-slate-800 placeholder-slate-400 bg-transparent outline-none p-0"
+                    />
+                  </div>
+
+                  <div className="bg-white rounded-xl border border-slate-200 p-2.5">
+                    <input
+                      type="text"
+                      value={payeeAccountName}
+                      onChange={(e) => setPayeeAccountName(e.target.value)}
+                      placeholder="Tên người nhận (Đơn vị)"
+                      className="w-full border-none focus:ring-0 text-[15px] font-medium text-slate-800 placeholder-slate-400 bg-transparent outline-none p-0"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Toggles Section */}
               <div className="space-y-4 px-2 pt-2 pb-2">

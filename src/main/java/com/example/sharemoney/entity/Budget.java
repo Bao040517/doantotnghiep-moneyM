@@ -67,6 +67,15 @@ public class Budget {
     @Builder.Default
     private Boolean isMandatory = false;
 
+    @Column(name = "payee_bank_bin")
+    private String payeeBankBin;
+
+    @Column(name = "payee_bank_account")
+    private String payeeBankAccount;
+
+    @Column(name = "payee_account_name")
+    private String payeeAccountName;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

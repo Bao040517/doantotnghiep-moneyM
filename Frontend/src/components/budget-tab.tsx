@@ -26,6 +26,9 @@ interface BudgetSummary {
   isRecurring: boolean;
   dueDayOfMonth?: number | null;
   isMandatory?: boolean;
+  payeeBankBin?: string;
+  payeeBankAccount?: string;
+  payeeAccountName?: string;
 }
 
 interface BudgetTabProps {
@@ -49,6 +52,7 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [payingBudget, setPayingBudget] = useState<any | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -458,7 +462,7 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                   </span>
                   {b.type !== "FLEXIBLE" && !isPaid && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleQuickPay(b); }}
+                      onClick={(e) => { e.stopPropagation(); setPayingBudget(b); }}
                       disabled={isQuickPaying === b.budgetId}
                       className="bg-[#2BA76F] hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-sm shadow-emerald-500/20"
                     >
@@ -520,6 +524,108 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
           </div>
         </div>
       )}
+
+      {/* Bank Transfer Modal for Bill Payment */}
+      {payingBudget && (() => {
+        const remaining = Math.max(0, payingBudget.limitAmount - payingBudget.spentAmount);
+        
+        const billerName = payingBudget.payeeAccountName || "Người nhận (Chưa cấu hình)";
+        const accountNo = payingBudget.payeeBankAccount || "000000000000";
+        const bankBin = payingBudget.payeeBankBin || "970415"; // Default to VietinBank if missing
+
+        const bankNameMap: Record<string, string> = {
+          "970436": "Vietcombank",
+          "970415": "VietinBank",
+          "970418": "BIDV",
+          "970405": "Agribank",
+          "970422": "MBBank",
+          "970407": "Techcombank",
+          "970432": "VPBank",
+          "970416": "ACB",
+          "970423": "TPBank"
+        };
+        const bankName = bankNameMap[bankBin] || "Ngân hàng khác";
+        
+        const transferNote = `Thanh toan ${payingBudget.name || payingBudget.categoryName}`;
+        
+        // Use VietQR API with dynamic values
+        const qrUrl = `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent(transferNote)}&accountName=${encodeURIComponent(billerName)}`;
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-3xl p-6 w-full max-w-[360px] shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col items-center">
+              
+              {/* Header */}
+              <div className="w-12 h-12 bg-emerald-100 text-[#2BA76F] rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h3 className="text-[19px] font-extrabold text-slate-800 mb-1 text-center">Thanh toán chuyển khoản</h3>
+              <p className="text-[12px] text-slate-400 text-center mb-4">Mở ứng dụng ngân hàng quét mã VietQR để thanh toán</p>
+              
+              {/* QR Code Frame */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4 flex flex-col items-center">
+                <img 
+                  src={qrUrl} 
+                  alt="VietQR" 
+                  className="w-48 h-48 object-contain rounded-lg shadow-sm"
+                />
+                <span className="text-[11px] font-bold text-[#2BA76F] mt-2 bg-emerald-50 px-2.5 py-1 rounded-full">
+                  Tự động nhập: {new Intl.NumberFormat("vi-VN").format(remaining)}đ
+                </span>
+              </div>
+
+              {/* Transaction Details */}
+              <div className="w-full bg-slate-50 rounded-2xl p-4 text-[12px] space-y-2 mb-6 border border-slate-100">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Đơn vị nhận:</span>
+                  <span className="text-slate-800 font-bold">{billerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Ngân hàng:</span>
+                  <span className="text-slate-800 font-bold">{bankName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Số tài khoản:</span>
+                  <span className="text-slate-800 font-bold tracking-wider">{accountNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Nội dung chuyển:</span>
+                  <span className="text-slate-800 font-bold truncate max-w-[180px]">{transferNote}</span>
+                </div>
+                <div className="border-t border-slate-200/60 my-1.5 pt-2 flex justify-between items-center">
+                  <span className="text-slate-400 font-bold">Số tiền:</span>
+                  <span className="text-[16px] font-black text-rose-600">
+                    {new Intl.NumberFormat("vi-VN").format(remaining)}đ
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 w-full">
+                <button 
+                  onClick={() => setPayingBudget(null)}
+                  className="flex-1 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[14px] transition-colors"
+                >
+                  Đóng
+                </button>
+                <button 
+                  onClick={async () => {
+                    const budgetToPay = payingBudget;
+                    setPayingBudget(null);
+                    await handleQuickPay(budgetToPay);
+                  }}
+                  className="flex-1 py-3.5 rounded-2xl bg-[#2BA76F] hover:bg-emerald-600 text-white font-bold text-[14px] transition-colors shadow-[0_4px_12px_rgba(43,167,111,0.2)]"
+                >
+                  Xác nhận đã chuyển (Ghi nhận)
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
     </section>
   );
 }

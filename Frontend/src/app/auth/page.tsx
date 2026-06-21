@@ -69,18 +69,18 @@ export default function AuthPage() {
         {/* Footer buttons */}
         <footer className="w-full max-w-md px-8 flex flex-col gap-3">
           <button
-            onClick={() => setTab("register")}
+            onClick={() => setTab("login")}
             className="w-full py-4 rounded-full text-xl font-bold text-white shadow-lg transition-all active:scale-95"
             style={{ backgroundColor: "#6ebda9" }}
           >
-            Bắt đầu ngay
+            Đăng nhập
           </button>
           <button
-            onClick={() => setTab("login")}
+            onClick={() => setTab("register")}
             className="w-full py-3 text-xl font-bold transition-opacity hover:opacity-70"
             style={{ color: "#437d6e" }}
           >
-            Đăng nhập
+            Đăng ký
           </button>
         </footer>
       </div>
@@ -94,10 +94,10 @@ export default function AuthPage() {
       style={{ background: "linear-gradient(to bottom, #e2f8f4 0%, #cff1e9 100%)" }}
     >
       {/* Back */}
-      <div className="w-full max-w-md px-6 pt-5">
+      <div className="w-full max-w-md px-6 pt-5 relative z-10">
         <button
           onClick={() => { setTab("welcome"); setError(""); }}
-          className="text-[#437d6e] font-semibold flex items-center gap-1"
+          className="text-[#437d6e] font-semibold flex items-center gap-1 hover:opacity-80 active:scale-95 transition-all"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />

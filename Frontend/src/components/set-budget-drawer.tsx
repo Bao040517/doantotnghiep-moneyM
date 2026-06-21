@@ -241,23 +241,26 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
                 <div className="bg-slate-50 p-4 rounded-[20px] border border-slate-100 shadow-sm space-y-3 animate-in fade-in slide-in-from-top-2">
                   <h4 className="text-[14px] font-bold text-slate-700 mb-1">Thông tin thanh toán (Người nhận)</h4>
                   
-                  <div className="bg-white rounded-xl border border-slate-200">
-                    <Select value={payeeBankBin} onValueChange={setPayeeBankBin}>
-                      <SelectTrigger className="w-full h-11 border-none bg-transparent focus:ring-0 shadow-none text-slate-800 font-medium">
-                        <SelectValue placeholder="Chọn Ngân hàng nhận" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[200px]">
-                        <SelectItem value="970436">Vietcombank</SelectItem>
-                        <SelectItem value="970415">VietinBank</SelectItem>
-                        <SelectItem value="970418">BIDV</SelectItem>
-                        <SelectItem value="970405">Agribank</SelectItem>
-                        <SelectItem value="970422">MBBank</SelectItem>
-                        <SelectItem value="970407">Techcombank</SelectItem>
-                        <SelectItem value="970432">VPBank</SelectItem>
-                        <SelectItem value="970416">ACB</SelectItem>
-                        <SelectItem value="970423">TPBank</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="bg-white rounded-xl border border-slate-200 relative">
+                    <select 
+                      value={payeeBankBin} 
+                      onChange={(e) => setPayeeBankBin(e.target.value)}
+                      className="w-full h-11 px-3 border-none bg-transparent focus:ring-0 text-slate-800 font-medium text-[15px] outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="" disabled>Chọn Ngân hàng nhận</option>
+                      <option value="970436">Vietcombank</option>
+                      <option value="970415">VietinBank</option>
+                      <option value="970418">BIDV</option>
+                      <option value="970405">Agribank</option>
+                      <option value="970422">MBBank</option>
+                      <option value="970407">Techcombank</option>
+                      <option value="970432">VPBank</option>
+                      <option value="970416">ACB</option>
+                      <option value="970423">TPBank</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
                   </div>
                   
                   <div className="bg-white rounded-xl border border-slate-200 p-2.5">

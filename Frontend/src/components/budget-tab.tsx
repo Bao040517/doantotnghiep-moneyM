@@ -57,6 +57,7 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
   const [tempBankBin, setTempBankBin] = useState("970415");
   const [tempBankAccount, setTempBankAccount] = useState("");
   const [tempAccountName, setTempAccountName] = useState("");
+  const [tempAmount, setTempAmount] = useState("");
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -112,10 +113,10 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
 
   const [isQuickPaying, setIsQuickPaying] = useState<string | null>(null);
 
-  const handleQuickPay = async (b: any) => {
+  const handleQuickPay = async (b: any, customAmount?: number) => {
     try {
       setIsQuickPaying(b.budgetId);
-      const remaining = Math.max(0, b.limitAmount - b.spentAmount);
+      const remaining = customAmount !== undefined ? customAmount : Math.max(0, b.limitAmount - b.spentAmount);
       if (remaining <= 0) return;
       
       const res = await api.get('/wallets/me');
@@ -472,6 +473,7 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                         setTempBankBin(b.payeeBankBin || "970415");
                         setTempBankAccount(b.payeeBankAccount || "");
                         setTempAccountName(b.payeeAccountName || "");
+                        setTempAmount(new Intl.NumberFormat("vi-VN").format(Math.max(0, b.limitAmount - b.spentAmount)));
                       }}
                       disabled={isQuickPaying === b.budgetId}
                       className="bg-[#2BA76F] hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-sm shadow-emerald-500/20"
@@ -526,41 +528,8 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
               </button>
               <button 
                 onClick={confirmDelete}
-                className="flex-1 py-3.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-[15px] transition-colors shadow-[0_4px_12px_rgba(244,63,94,0.3)]"
-              >
-                Xóa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bank Transfer Modal for Bill Payment */}
+                className="flex-1 py-3.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-bold text      {/* Bank Transfer Modal for Bill Payment */}
       {payingBudget && (() => {
-        const remaining = Math.max(0, payingBudget.limitAmount - payingBudget.spentAmount);
-        
-        const billerName = tempAccountName || "Người nhận (Chưa điền)";
-        const accountNo = tempBankAccount || "000000000000";
-        const bankBin = tempBankBin || "970415"; // Default to VietinBank if missing
-
-        const bankNameMap: Record<string, string> = {
-          "970436": "Vietcombank",
-          "970415": "VietinBank",
-          "970418": "BIDV",
-          "970405": "Agribank",
-          "970422": "MBBank",
-          "970407": "Techcombank",
-          "970432": "VPBank",
-          "970416": "ACB",
-          "970423": "TPBank"
-        };
-        const bankName = bankNameMap[bankBin] || "Ngân hàng khác";
-        
-        const transferNote = `Thanh toan ${payingBudget.name || payingBudget.categoryName}`;
-        
-        // Use VietQR API with dynamic values
-        const qrUrl = `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact2.png?amount=${remaining}&addInfo=${encodeURIComponent(transferNote)}&accountName=${encodeURIComponent(billerName)}`;
-
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
             <div className="bg-white rounded-3xl p-6 w-full max-w-[360px] shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col items-center max-h-[90vh] overflow-y-auto">
@@ -571,32 +540,20 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <h3 className="text-[19px] font-extrabold text-slate-800 mb-1 text-center shrink-0">Thanh toán chuyển khoản</h3>
-              <p className="text-[12px] text-slate-400 text-center mb-4 shrink-0">Mở ứng dụng ngân hàng quét mã VietQR để thanh toán</p>
-              
-              {/* QR Code Frame */}
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4 flex flex-col items-center shrink-0">
-                <img 
-                  src={qrUrl} 
-                  alt="VietQR" 
-                  className="w-48 h-48 object-contain rounded-lg shadow-sm"
-                />
-                <span className="text-[11px] font-bold text-[#2BA76F] mt-2 bg-emerald-50 px-2.5 py-1 rounded-full text-center">
-                  Tự động nhập: {new Intl.NumberFormat("vi-VN").format(remaining)}đ
-                </span>
-              </div>
+              <h3 className="text-[19px] font-extrabold text-slate-800 mb-1 text-center shrink-0">Xác nhận giao dịch</h3>
+              <p className="text-[12px] text-slate-400 text-center mb-4 shrink-0">Điền thông tin và số tiền bạn đã thanh toán</p>
 
               {/* Editable Transaction Details */}
               <div className="w-full bg-slate-50 rounded-2xl p-4 text-[12px] space-y-3 mb-6 border border-slate-100 shrink-0">
                 
                 <div className="flex flex-col gap-1.5">
                   <span className="text-slate-500 font-medium text-[11px]">Ngân hàng nhận</span>
-                  <div className="bg-white rounded-lg border border-slate-200">
+                  <div className="bg-white rounded-lg border border-slate-200 relative">
                     <Select value={tempBankBin} onValueChange={setTempBankBin}>
                       <SelectTrigger className="w-full h-9 border-none bg-transparent focus:ring-0 shadow-none text-slate-800 font-bold text-[12px]">
                         <SelectValue placeholder="Chọn Ngân hàng" />
                       </SelectTrigger>
-                      <SelectContent className="max-h-[160px]">
+                      <SelectContent className="max-h-[250px] z-[200]">
                         <SelectItem value="970436">Vietcombank</SelectItem>
                         <SelectItem value="970415">VietinBank</SelectItem>
                         <SelectItem value="970418">BIDV</SelectItem>
@@ -633,11 +590,22 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                   />
                 </div>
 
-                <div className="border-t border-slate-200/60 mt-2 pt-2 flex justify-between items-center">
-                  <span className="text-slate-400 font-bold text-[12px]">Số tiền cần thanh toán:</span>
-                  <span className="text-[16px] font-black text-rose-600">
-                    {new Intl.NumberFormat("vi-VN").format(remaining)}đ
-                  </span>
+                <div className="border-t border-slate-200/60 mt-2 pt-3 flex flex-col gap-1.5">
+                  <span className="text-slate-500 font-bold text-[12px]">Số tiền thực tế:</span>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={tempAmount}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "");
+                        if (!raw) { setTempAmount(""); return; }
+                        setTempAmount(new Intl.NumberFormat("vi-VN").format(parseInt(raw, 10)));
+                      }}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:border-[#2BA76F] focus:ring-1 focus:ring-[#2BA76F] text-[16px] font-black text-rose-600 outline-none transition-all pr-8"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-rose-600 font-black">đ</span>
+                  </div>
                 </div>
               </div>
 
@@ -651,16 +619,20 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                 </button>
                 <button 
                   onClick={async () => {
+                    const rawAmount = parseInt(tempAmount.replace(/\D/g, ""), 10);
+                    if (!rawAmount || rawAmount <= 0) {
+                      toast.error("Vui lòng nhập số tiền hợp lệ");
+                      return;
+                    }
                     const budgetToPay = payingBudget;
                     setPayingBudget(null);
-                    await handleQuickPay(budgetToPay);
+                    await handleQuickPay(budgetToPay, rawAmount);
                   }}
                   className="flex-1 py-3.5 rounded-2xl bg-[#2BA76F] hover:bg-emerald-600 text-white font-bold text-[14px] transition-colors shadow-[0_4px_12px_rgba(43,167,111,0.2)]"
                 >
                   Xác nhận đã chuyển (Ghi nhận)
                 </button>
               </div>
-
             </div>
           </div>
         );

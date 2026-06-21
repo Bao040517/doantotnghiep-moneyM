@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Receipt, Utensils, Car, Home, Gamepad2, ShoppingBag, Pill, Package } from "lucide-react";
+import { Loader2, Receipt, Utensils, Car, Home, Gamepad2, ShoppingBag, Pill, Package, Camera } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -76,6 +76,10 @@ const CATEGORIES = [
 export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating }: AddExpenseDrawerProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  const [currency, setCurrency] = useState("VND");
+  const [exchangeRate, setExchangeRate] = useState(1);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   // By default, split equally among all members (including payer)
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>(members.map(m => m.user.id));
@@ -119,6 +123,91 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
     }
   };
 
+  useEffect(() => {
+    if (currency === "VND") {
+      setExchangeRate(1);
+      return;
+    }
+    const fetchRate = async () => {
+      try {
+        const res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${currency.toLowerCase()}.json`);
+        const data = await res.json();
+        if (data[currency.toLowerCase()] && data[currency.toLowerCase()].vnd) {
+          setExchangeRate(data[currency.toLowerCase()].vnd);
+        }
+      } catch (e) {
+        console.error("Failed to fetch exchange rate", e);
+      }
+    };
+    fetchRate();
+  }, [currency]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsOcrLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("apikey", "helloworld");
+      formData.append("language", "eng");
+      formData.append("isOverlayRequired", "false");
+
+      const res = await fetch("https://api.ocr.space/parse/image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.IsErroredOnProcessing) {
+        toast.error("Không thể đọc được ảnh này.");
+        return;
+      }
+
+      const parsedText = data.ParsedResults?.[0]?.ParsedText || "";
+      if (!parsedText) {
+        toast.error("Không tìm thấy chữ trong ảnh.");
+        return;
+      }
+
+      const lines = parsedText.split('\n').map((l: string) => l.trim()).filter(Boolean);
+      let maxAmount = 0;
+      const numberRegex = /\b\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?\b/g;
+      
+      lines.forEach((line: string) => {
+        const matches = line.match(numberRegex);
+        if (matches) {
+          matches.forEach((m: string) => {
+            const intVal = parseInt(m.replace(/[.,\s]/g, ""), 10);
+            if (intVal > maxAmount) {
+              maxAmount = intVal;
+            }
+          });
+        }
+      });
+
+      if (maxAmount > 0) {
+        form.setValue("amount", new Intl.NumberFormat("vi-VN").format(maxAmount));
+        toast.success("Đã trích xuất số tiền: " + new Intl.NumberFormat("vi-VN").format(maxAmount) + "đ");
+      } else {
+        toast.error("Không tìm thấy tổng tiền hợp lệ.");
+      }
+
+      const potentialTitle = lines.find((l: string) => isNaN(Number(l.replace(/\D/g, ""))) && l.length > 3 && l.length < 50);
+      if (potentialTitle) {
+         form.setValue("title", potentialTitle);
+      }
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi khi kết nối đến dịch vụ quét ảnh OCR.");
+    } finally {
+      setIsOcrLoading(false);
+      e.target.value = ''; 
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
     try {
       setIsLoading(true);
@@ -135,10 +224,15 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
         return;
       }
 
+      let finalAmount = Number(values.amount.replace(/\D/g, ""));
+      if (currency !== "VND" && exchangeRate > 0) {
+        finalAmount = Math.round(finalAmount * exchangeRate);
+      }
+
       await api.post(`/groups/${groupId}/expenses`, {
         paidBy: values.paidBy,
         title: values.title,
-        amount: Number(values.amount.replace(/\D/g, "")),
+        amount: finalAmount,
         category: values.category,
         splitUserIds: selectedUserIds
       });
@@ -210,31 +304,78 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
               )}
             />
 
-            {/* Amount */}
+            {/* Amount & Currency & OCR */}
             <FormField
               control={form.control}
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="block text-sm text-gray-800 font-medium mb-1">Số tiền (VND)</FormLabel>
+                  <div className="flex justify-between items-center mb-1">
+                    <FormLabel className="block text-sm text-gray-800 font-medium">Số tiền</FormLabel>
+                    
+                    <div className="relative">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleFileUpload}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        disabled={isOcrLoading}
+                      />
+                      <button type="button" disabled={isOcrLoading} className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors disabled:opacity-50">
+                        {isOcrLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                        {isOcrLoading ? "Đang quét..." : "Quét hóa đơn"}
+                      </button>
+                    </div>
+                  </div>
+                  
                   <FormControl>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      className="w-full bg-[#eafaf1] border border-[#d4efdf] rounded-2xl px-4 py-3.5 text-gray-700 font-medium focus:outline-none focus:border-[#27AE60] focus:ring-1 focus:ring-[#27AE60]"
-                      placeholder="0"
-                      value={field.value}
-                      onChange={(e) => {
-                        let rawValue = e.target.value.replace(/\D/g, "");
-                        if (rawValue === "") {
-                          field.onChange("");
-                          return;
-                        }
-                        const formatted = new Intl.NumberFormat("vi-VN").format(parseInt(rawValue, 10));
-                        field.onChange(formatted);
-                      }}
-                    />
+                    <div className="flex gap-2 relative">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="w-full bg-[#eafaf1] border border-[#d4efdf] rounded-2xl px-4 py-3.5 text-gray-700 font-medium text-[16px] focus:outline-none focus:border-[#27AE60] focus:ring-1 focus:ring-[#27AE60]"
+                          placeholder="0"
+                          value={field.value}
+                          onChange={(e) => {
+                            let rawValue = e.target.value.replace(/\D/g, "");
+                            if (rawValue === "") {
+                              field.onChange("");
+                              return;
+                            }
+                            const formatted = new Intl.NumberFormat("vi-VN").format(parseInt(rawValue, 10));
+                            field.onChange(formatted);
+                          }}
+                        />
+                      </div>
+                      
+                      <div className="relative w-28 bg-[#eafaf1] border border-[#d4efdf] rounded-2xl overflow-hidden flex items-center">
+                        <select
+                          value={currency}
+                          onChange={(e) => setCurrency(e.target.value)}
+                          className="w-full h-full px-3 bg-transparent font-bold text-gray-700 appearance-none outline-none focus:ring-0 cursor-pointer text-[14px]"
+                        >
+                          <option value="VND">VND</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="JPY">JPY</option>
+                          <option value="THB">THB</option>
+                          <option value="KRW">KRW</option>
+                          <option value="SGD">SGD</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                          <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                        </div>
+                      </div>
+                    </div>
                   </FormControl>
+                  
+                  {currency !== "VND" && exchangeRate > 0 && field.value && (
+                    <p className="text-xs text-emerald-600 font-medium flex justify-end mt-1">
+                      ≈ {new Intl.NumberFormat("vi-VN").format(Math.round(Number(field.value.replace(/\D/g, "")) * exchangeRate))} đ 
+                      (1 {currency} = {new Intl.NumberFormat("vi-VN").format(Math.round(exchangeRate))} đ)
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

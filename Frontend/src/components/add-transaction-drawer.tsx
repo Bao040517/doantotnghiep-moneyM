@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { Camera, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
 
 interface AddTransactionDrawerProps {
@@ -46,6 +47,10 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  const [currency, setCurrency] = useState("VND");
+  const [exchangeRate, setExchangeRate] = useState(1);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -93,6 +98,91 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
     setAmount(formatted);
   };
 
+  useEffect(() => {
+    if (currency === "VND") {
+      setExchangeRate(1);
+      return;
+    }
+    const fetchRate = async () => {
+      try {
+        const res = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${currency.toLowerCase()}.json`);
+        const data = await res.json();
+        if (data[currency.toLowerCase()] && data[currency.toLowerCase()].vnd) {
+          setExchangeRate(data[currency.toLowerCase()].vnd);
+        }
+      } catch (e) {
+        console.error("Failed to fetch exchange rate", e);
+      }
+    };
+    fetchRate();
+  }, [currency]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsOcrLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("apikey", "helloworld");
+      formData.append("language", "eng");
+      formData.append("isOverlayRequired", "false");
+
+      const res = await fetch("https://api.ocr.space/parse/image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.IsErroredOnProcessing) {
+        toast.error("Không thể đọc được ảnh này.");
+        return;
+      }
+
+      const parsedText = data.ParsedResults?.[0]?.ParsedText || "";
+      if (!parsedText) {
+        toast.error("Không tìm thấy chữ trong ảnh.");
+        return;
+      }
+
+      const lines = parsedText.split('\n').map((l: string) => l.trim()).filter(Boolean);
+      let maxAmount = 0;
+      const numberRegex = /\b\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?\b/g;
+      
+      lines.forEach((line: string) => {
+        const matches = line.match(numberRegex);
+        if (matches) {
+          matches.forEach((m: string) => {
+            const intVal = parseInt(m.replace(/[.,\s]/g, ""), 10);
+            if (intVal > maxAmount) {
+              maxAmount = intVal;
+            }
+          });
+        }
+      });
+
+      if (maxAmount > 0) {
+        setAmount(new Intl.NumberFormat("vi-VN").format(maxAmount));
+        toast.success("Đã trích xuất số tiền: " + new Intl.NumberFormat("vi-VN").format(maxAmount) + "đ");
+      } else {
+        toast.error("Không tìm thấy tổng tiền hợp lệ.");
+      }
+
+      const potentialTitle = lines.find((l: string) => isNaN(Number(l.replace(/\D/g, ""))) && l.length > 3 && l.length < 50);
+      if (potentialTitle) {
+         setNote(potentialTitle);
+      }
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi khi kết nối đến dịch vụ quét ảnh OCR.");
+    } finally {
+      setIsOcrLoading(false);
+      e.target.value = ''; 
+    }
+  };
+
   const filteredCategories = categories.filter(c => c.type === type);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,11 +191,21 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
       toast.error("Không tìm thấy ví hợp lệ");
       return;
     }
-    const rawAmount = amount.replace(/\D/g, "");
+
+    let rawAmount = Number(amount.replace(/\D/g, ""));
     if (!rawAmount) {
       toast.error("Vui lòng nhập số tiền");
       return;
     }
+    
+    const applyExchangeRate = (val: number) => {
+      if (currency !== "VND" && exchangeRate > 0) {
+        return Math.round(val * exchangeRate);
+      }
+      return val;
+    };
+
+    rawAmount = applyExchangeRate(rawAmount);
 
     let payloadCategoryId = categoryId;
     let payloadSplits = undefined;
@@ -113,11 +213,11 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
     if (isSplit) {
       const splitsData = splits.map(s => ({
         categoryId: s.categoryId,
-        amount: Number(s.amount.replace(/\D/g, "")),
+        amount: applyExchangeRate(Number(s.amount.replace(/\D/g, ""))),
         note: s.note || undefined
       }));
       const totalSplit = splitsData.reduce((acc, curr) => acc + curr.amount, 0);
-      if (totalSplit !== Number(rawAmount)) {
+      if (totalSplit !== rawAmount) {
         toast.error(`Tổng chia nhỏ (${totalSplit}) không khớp với tổng tiền (${rawAmount})`);
         return;
       }
@@ -149,14 +249,14 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
         await api.post(`/groups/${selectedGroupId}/expenses`, {
           paidBy: paidById,
           title: note || categoryName,
-          amount: Number(rawAmount),
+          amount: rawAmount,
           category: categoryName,
           splitUserIds: splitUserIds
         });
         toast.success("Đã thêm khoản chi nhóm (tự động chia đều)!");
       } else {
         await api.post(`/transactions/${walletId}`, {
-          amount: Number(rawAmount),
+          amount: rawAmount,
           categoryId: payloadCategoryId,
           note: note || undefined,
           payeeName: payeeName || undefined,
@@ -193,24 +293,68 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
             <form id="add-transaction-form" onSubmit={handleSubmit} className="space-y-4">
               
               <div className="space-y-2">
-                <Label htmlFor="amount" className="text-sm font-semibold text-gray-700">
-                  Số tiền (VNĐ) <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">
-                    ₫
-                  </span>
-                  <Input
-                    id="amount"
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={amount}
-                    onChange={handleAmountChange}
-                    className="pl-8 text-lg font-bold"
-                    required
-                  />
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="amount" className="text-sm font-semibold text-gray-700">
+                    Số tiền <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      disabled={isOcrLoading}
+                    />
+                    <button type="button" disabled={isOcrLoading} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors disabled:opacity-50 ${type === "INCOME" ? "text-emerald-600 bg-emerald-50 hover:bg-emerald-100" : "text-rose-600 bg-rose-50 hover:bg-rose-100"}`}>
+                      {isOcrLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                      {isOcrLoading ? "Đang quét..." : "Quét hóa đơn"}
+                    </button>
+                  </div>
                 </div>
+                
+                <div className="flex gap-2 relative">
+                  <div className="relative flex-1">
+                    <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-semibold ${type === "INCOME" ? "text-emerald-500" : "text-rose-500"}`}>
+                      {currency === "VND" ? "₫" : currency === "USD" ? "$" : currency === "EUR" ? "€" : currency === "JPY" ? "¥" : currency === "THB" ? "฿" : currency}
+                    </span>
+                    <Input
+                      id="amount"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={amount}
+                      onChange={handleAmountChange}
+                      className={`pl-8 text-lg font-bold border-gray-200 focus-visible:ring-1 ${type === "INCOME" ? "focus-visible:ring-emerald-500" : "focus-visible:ring-rose-500"}`}
+                      required
+                    />
+                  </div>
+                  
+                  <div className={`relative w-24 border rounded-md overflow-hidden flex items-center ${type === "INCOME" ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
+                    <select
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="w-full h-full px-2 bg-transparent font-bold text-gray-700 appearance-none outline-none focus:ring-0 cursor-pointer text-sm"
+                    >
+                      <option value="VND">VND</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="JPY">JPY</option>
+                      <option value="THB">THB</option>
+                      <option value="KRW">KRW</option>
+                      <option value="SGD">SGD</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                  </div>
+                </div>
+                
+                {currency !== "VND" && exchangeRate > 0 && amount && (
+                  <p className={`text-xs font-medium flex justify-end mt-1 ${type === "INCOME" ? "text-emerald-600" : "text-rose-600"}`}>
+                    ≈ {new Intl.NumberFormat("vi-VN").format(Math.round(Number(amount.replace(/\D/g, "")) * exchangeRate))} đ 
+                    (1 {currency} = {new Intl.NumberFormat("vi-VN").format(Math.round(exchangeRate))} đ)
+                  </p>
+                )}
               </div>
 
                 {!isSplit && (

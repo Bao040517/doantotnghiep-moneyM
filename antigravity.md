@@ -9,6 +9,31 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 4. **Chia tiền nhóm (Group Split):** Tạo hóa đơn chung, thuật toán Greedy chia nợ tối ưu.
 5. **Thanh toán nợ (Debt Settlement):** Nhắc nợ, tạo mã QR VietQR, và quy trình Xác nhận.
 
+### Session [2026-06-21] - VietQR & Editable Payment Info
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Nâng cấp Thanh toán Ngân sách (Budget) - Giao diện Nhập liệu linh hoạt:**
+   - **Mục tiêu:** Nhấn mạnh vai trò của ứng dụng là trung gian quản lý và ghi nhận giao dịch thay vì ví điện tử giữ tiền trực tiếp.
+   - **Backend:** Mở rộng `Budget` entity và các DTO (`BudgetRequest`, `BudgetResponse`) bằng 3 trường dữ liệu mới: `payeeBankBin`, `payeeBankAccount`, `payeeAccountName`. Cập nhật `BudgetService.java` để map dữ liệu khi tạo mới, cập nhật và gia hạn ngân sách tự động.
+   - **Frontend:** Sửa đổi `set-budget-drawer.tsx` bổ sung form nhập thông tin người nhận khi chọn loại ngân sách "Cố định". Nâng cấp popup "Trả ngay" (`budget-tab.tsx`) loại bỏ giao diện mã QR cứng nhắc, thay thế bằng Form nhập liệu cho phép tự do chỉnh sửa Ngân hàng, Số tài khoản, Tên người nhận và **Số tiền thực tế thanh toán**.
+   - **UX/UI Fixes:** 
+     - Chuyển đổi Component `Select` của Radix UI thành thẻ `<select>` native để khắc phục triệt để lỗi không mở được dropdown do z-index và lỗi hiển thị mã BIN thay vì Tên Ngân hàng.
+     - Cài đặt **Inline Validation**: tự động báo lỗi viền đỏ và highlight nhãn trực tiếp trên các trường thông tin nếu bị bỏ trống, gỡ bỏ thông báo toast chung chung.
+
+**2. Nâng cấp Thanh toán Nợ nhóm (Group Debt) - Form thông minh & Logic Ẩn/Hiện QR:**
+   - **Giao diện (`settle-debt-dialog.tsx`):** Đồng bộ hóa trải nghiệm với Ngân sách bằng cách bổ sung Form điền thông tin và Số tiền thanh toán.
+   - **Logic sinh QR Động:** Hệ thống thông minh nhận diện:
+     - Nếu người nhận đã cấu hình tài khoản từ trước: Hiển thị ngay mã VietQR (hoặc mã QR tĩnh cá nhân) cho người trả quét.
+     - Nếu người trả phải **tự nhập tay** thông tin ngân hàng của người nhận: Form sẽ tự động giấu đi toàn bộ khối sinh mã QR và thuần túy hoạt động như một biểu mẫu ghi nhận biên lai giao dịch.
+   - **UX/UI:** Áp dụng Native Select và Inline Validation giống hệt module Ngân sách.
+
+**3. Quản lý Git & Triển khai:**
+   - Tất cả thay đổi mã nguồn được quản lý phiên bản với lịch sử rõ ràng, commit theo từng bước chi tiết (UI features, error fixes, UI changes).
+   - Đã push thành công toàn bộ code lên nhánh `feature/vietqr-budget` trên Github repository (`origin feature/vietqr-budget`).
+
+---
+
 ### Session [2026-06-19] - Cash Basis Alignment, Tab-Linked Charts & Clickable Debt Drawer
 
 **✅ Đã hoàn thành (Compact Procedure):**

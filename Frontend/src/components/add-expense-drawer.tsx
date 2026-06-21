@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Receipt, Utensils, Car, Home, Gamepad2, ShoppingBag, Pill, Package, Camera } from "lucide-react";
+import { Loader2, Receipt, Utensils, Car, Home, Gamepad2, ShoppingBag, Pill, Package } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -79,7 +79,6 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
   
   const [currency, setCurrency] = useState("VND");
   const [exchangeRate, setExchangeRate] = useState(1);
-  const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   // By default, split equally among all members (including payer)
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>(members.map(m => m.user.id));
@@ -142,78 +141,7 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
     fetchRate();
   }, [currency]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    setIsOcrLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("apikey", "helloworld");
-      formData.append("language", "eng");
-      formData.append("isOverlayRequired", "false");
-
-      const res = await fetch("https://api.ocr.space/parse/image", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-
-      if (data.IsErroredOnProcessing) {
-        toast.error("Không thể đọc được ảnh này.");
-        return;
-      }
-
-      const parsedText = data.ParsedResults?.[0]?.ParsedText || "";
-      if (!parsedText) {
-        toast.error("Không tìm thấy chữ trong ảnh.");
-        return;
-      }
-
-      const lines = parsedText.split('\n').map((l: string) => l.trim()).filter(Boolean);
-      let maxAmount = 0;
-      
-      lines.forEach((line: string) => {
-        // Remove spaces around commas and dots
-        const cleanedLine = line.replace(/\s*([.,])\s*/g, '$1');
-        
-        // Find all sequences of digits, dots, and commas
-        const matches = cleanedLine.match(/[\d.,]+/g);
-        if (matches) {
-          matches.forEach((m: string) => {
-            // Remove leading/trailing dots/commas, then remove all dots/commas inside
-            const cleanStr = m.replace(/^[.,]+|[.,]+$/g, '').replace(/[.,]/g, '');
-            if (cleanStr.length > 0) {
-              const intVal = parseInt(cleanStr, 10);
-              if (intVal > maxAmount) {
-                maxAmount = intVal;
-              }
-            }
-          });
-        }
-      });
-
-      if (maxAmount > 0) {
-        form.setValue("amount", new Intl.NumberFormat("vi-VN").format(maxAmount));
-        toast.success("Đã trích xuất số tiền: " + new Intl.NumberFormat("vi-VN").format(maxAmount) + "đ");
-      } else {
-        toast.error("Không tìm thấy tổng tiền hợp lệ.");
-      }
-
-      const potentialTitle = lines.find((l: string) => isNaN(Number(l.replace(/\D/g, ""))) && l.length > 3 && l.length < 50);
-      if (potentialTitle) {
-         form.setValue("title", potentialTitle);
-      }
-
-    } catch (err) {
-      console.error(err);
-      toast.error("Lỗi khi kết nối đến dịch vụ quét ảnh OCR.");
-    } finally {
-      setIsOcrLoading(false);
-      e.target.value = ''; 
-    }
-  };
 
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
     try {
@@ -311,29 +239,13 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
               )}
             />
 
-            {/* Amount & Currency & OCR */}
+            {/* Amount & Currency */}
             <FormField
               control={form.control}
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <div className="flex justify-between items-center mb-1">
-                    <FormLabel className="block text-sm text-gray-800 font-medium">Số tiền</FormLabel>
-                    
-                    <div className="relative">
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleFileUpload}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        disabled={isOcrLoading}
-                      />
-                      <button type="button" disabled={isOcrLoading} className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors disabled:opacity-50">
-                        {isOcrLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-                        {isOcrLoading ? "Đang quét..." : "Quét hóa đơn"}
-                      </button>
-                    </div>
-                  </div>
+                  <FormLabel className="block text-sm text-gray-800 font-medium mb-1">Số tiền</FormLabel>
                   
                   <FormControl>
                     <div className="flex gap-2 relative">

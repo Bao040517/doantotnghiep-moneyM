@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Camera, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
 
 interface AddTransactionDrawerProps {
@@ -50,7 +49,6 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
   
   const [currency, setCurrency] = useState("VND");
   const [exchangeRate, setExchangeRate] = useState(1);
-  const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -117,78 +115,7 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
     fetchRate();
   }, [currency]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    setIsOcrLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("apikey", "helloworld");
-      formData.append("language", "eng");
-      formData.append("isOverlayRequired", "false");
-
-      const res = await fetch("https://api.ocr.space/parse/image", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-
-      if (data.IsErroredOnProcessing) {
-        toast.error("Không thể đọc được ảnh này.");
-        return;
-      }
-
-      const parsedText = data.ParsedResults?.[0]?.ParsedText || "";
-      if (!parsedText) {
-        toast.error("Không tìm thấy chữ trong ảnh.");
-        return;
-      }
-
-      const lines = parsedText.split('\n').map((l: string) => l.trim()).filter(Boolean);
-      let maxAmount = 0;
-      
-      lines.forEach((line: string) => {
-        // Remove spaces around commas and dots
-        const cleanedLine = line.replace(/\s*([.,])\s*/g, '$1');
-        
-        // Find all sequences of digits, dots, and commas
-        const matches = cleanedLine.match(/[\d.,]+/g);
-        if (matches) {
-          matches.forEach((m: string) => {
-            // Remove leading/trailing dots/commas, then remove all dots/commas inside
-            const cleanStr = m.replace(/^[.,]+|[.,]+$/g, '').replace(/[.,]/g, '');
-            if (cleanStr.length > 0) {
-              const intVal = parseInt(cleanStr, 10);
-              if (intVal > maxAmount) {
-                maxAmount = intVal;
-              }
-            }
-          });
-        }
-      });
-
-      if (maxAmount > 0) {
-        setAmount(new Intl.NumberFormat("vi-VN").format(maxAmount));
-        toast.success("Đã trích xuất số tiền: " + new Intl.NumberFormat("vi-VN").format(maxAmount) + "đ");
-      } else {
-        toast.error("Không tìm thấy tổng tiền hợp lệ.");
-      }
-
-      const potentialTitle = lines.find((l: string) => isNaN(Number(l.replace(/\D/g, ""))) && l.length > 3 && l.length < 50);
-      if (potentialTitle) {
-         setNote(potentialTitle);
-      }
-
-    } catch (err) {
-      console.error(err);
-      toast.error("Lỗi khi kết nối đến dịch vụ quét ảnh OCR.");
-    } finally {
-      setIsOcrLoading(false);
-      e.target.value = ''; 
-    }
-  };
 
   const filteredCategories = categories.filter(c => c.type === type);
 
@@ -300,24 +227,9 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
             <form id="add-transaction-form" onSubmit={handleSubmit} className="space-y-4">
               
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="amount" className="text-sm font-semibold text-gray-700">
-                    Số tiền <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="relative">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={handleFileUpload}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      disabled={isOcrLoading}
-                    />
-                    <button type="button" disabled={isOcrLoading} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors disabled:opacity-50 ${type === "INCOME" ? "text-emerald-600 bg-emerald-50 hover:bg-emerald-100" : "text-rose-600 bg-rose-50 hover:bg-rose-100"}`}>
-                      {isOcrLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-                      {isOcrLoading ? "Đang quét..." : "Quét hóa đơn"}
-                    </button>
-                  </div>
-                </div>
+                <Label htmlFor="amount" className="text-sm font-semibold text-gray-700">
+                  Số tiền <span className="text-red-500">*</span>
+                </Label>
                 
                 <div className="flex gap-2 relative">
                   <div className="relative flex-1">

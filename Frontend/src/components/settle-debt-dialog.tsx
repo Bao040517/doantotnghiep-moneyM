@@ -30,17 +30,39 @@ interface SettleDebtDialogProps {
 export function SettleDebtDialog({ groupId, toUser, amount, onSettle }: SettleDebtDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
+  const [activeTab, setActiveTab] = useState("transfer");
+
+  const [tempBankBin, setTempBankBin] = useState(toUser.bankBin || "");
+  const [tempBankAccount, setTempBankAccount] = useState(toUser.bankAccountNo || "");
+  const [tempAccountName, setTempAccountName] = useState(toUser.name || "");
+  const [tempAmount, setTempAmount] = useState(amount.toString());
+  const [errors, setErrors] = useState<any>({});
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
   };
 
   const handleConfirm = async () => {
+    const rawAmount = parseInt(tempAmount.replace(/\D/g, ""), 10);
+    
+    let newErrors: any = {};
+    if (activeTab === "transfer") {
+      if (!tempBankBin) newErrors.bankBin = true;
+      if (!tempBankAccount.trim()) newErrors.bankAccount = true;
+      if (!tempAccountName.trim()) newErrors.accountName = true;
+    }
+    if (!rawAmount || rawAmount <= 0) newErrors.amount = true;
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
     setIsSettling(true);
     try {
       await api.post(`/groups/${groupId}/debts/notify-payment`, {
         toUserId: toUser.id,
-        amount: amount
+        amount: rawAmount
       });
       toast.success(`Đã gửi thông báo cho ${toUser.name}. Vui lòng chờ xác nhận!`);
       setOpen(false);
@@ -56,12 +78,14 @@ export function SettleDebtDialog({ groupId, toUser, amount, onSettle }: SettleDe
   let qrString = "";
   let hasDynamicQr = false;
   
-  if (toUser.bankBin && toUser.bankAccountNo) {
+  const rawAmount = parseInt(tempAmount.replace(/\D/g, ""), 10) || 0;
+
+  if (tempBankBin && tempBankAccount) {
     try {
       const qr = QRPay.initVietQR({
-        bankBin: toUser.bankBin,
-        bankNumber: toUser.bankAccountNo,
-        amount: amount.toString(),
+        bankBin: tempBankBin,
+        bankNumber: tempBankAccount,
+        amount: rawAmount > 0 ? rawAmount.toString() : amount.toString(),
         purpose: `Thanh toan no cho ${toUser.name}`.substring(0, 50),
       });
       qrString = qr.build();
@@ -103,7 +127,7 @@ export function SettleDebtDialog({ groupId, toUser, amount, onSettle }: SettleDe
           </div>
         </div>
 
-        <Tabs defaultValue="transfer" className="w-full flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="transfer" className="flex items-center">
               <QrCode className="w-4 h-4 mr-2" /> Chuyển khoản
@@ -113,44 +137,105 @@ export function SettleDebtDialog({ groupId, toUser, amount, onSettle }: SettleDe
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="transfer" className="mt-4">
-            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
+          <TabsContent value="transfer" className="mt-4 space-y-4">
+            <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
               {hasDynamicQr ? (
-                <div className="text-center space-y-4">
-                  <p className="text-sm text-slate-500 mb-2">Quét mã QR dưới đây bằng ứng dụng ngân hàng</p>
-                  <div className="bg-white p-4 rounded-xl shadow-sm inline-block border border-slate-100">
+                <div className="text-center space-y-2">
+                  <div className="bg-white p-3 rounded-xl shadow-sm inline-block border border-slate-100">
                     <QRCodeSVG 
                       value={qrString}
-                      size={200}
+                      size={160}
                       level={"M"}
                       includeMargin={false}
                     />
                   </div>
-                  <p className="text-xs font-semibold text-emerald-600">Đã tích hợp tự động nhập số tiền: {formatCurrency(amount)}</p>
-                  <p className="text-[10px] text-slate-400">QR sinh ra hoàn toàn offline (Không qua bên thứ 3)</p>
+                  <p className="text-xs font-semibold text-emerald-600">Quét mã VietQR (Tự động cập nhật)</p>
                 </div>
               ) : toUser.bankQrUrl ? (
-                <div className="text-center space-y-4">
-                  <p className="text-sm text-slate-500 mb-2">Quét mã QR cá nhân của {toUser.name}</p>
-                  <div className="bg-white p-3 rounded-xl shadow-sm inline-block border border-slate-100">
+                <div className="text-center space-y-2">
+                  <div className="bg-white p-2 rounded-xl shadow-sm inline-block border border-slate-100">
                     <img 
                       src={toUser.bankQrUrl} 
                       alt="Bank QR" 
-                      className="w-48 h-48 object-cover rounded-lg"
+                      className="w-40 h-40 object-cover rounded-lg"
                     />
                   </div>
-                  <p className="text-xs text-rose-500">Lưu ý: Bạn phải tự nhập số tiền {formatCurrency(amount)}</p>
-                  <p className="text-[10px] text-slate-400">Ảnh QR tĩnh do người dùng tải lên</p>
+                  <p className="text-xs font-semibold text-rose-500">Mã QR tĩnh từ ảnh cá nhân</p>
                 </div>
               ) : (
-                <div className="text-center py-6">
-                  <QrCode className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Chưa có thông tin nhận tiền</p>
-                  <p className="text-xs text-slate-500 mt-1 max-w-[200px] mx-auto">
-                    {toUser.name} chưa cấu hình STK Ngân hàng hoặc mã QR. Hãy trả bằng tiền mặt.
-                  </p>
+                <div className="text-center py-2">
+                  <QrCode className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-[12px] font-medium text-slate-500">Hãy nhập thông tin bên dưới để tạo QR</p>
                 </div>
               )}
+            </div>
+
+            {/* Editable Transaction Details */}
+            <div className="w-full bg-slate-50 rounded-2xl p-4 text-[12px] space-y-3 border border-slate-100 dark:bg-slate-900 dark:border-slate-800">
+                <div className="flex flex-col gap-1.5">
+                  <span className={`font-medium text-[11px] ${errors.bankBin ? 'text-rose-500' : 'text-slate-500'}`}>Ngân hàng nhận</span>
+                  <div className={`bg-white dark:bg-slate-950 rounded-lg border relative ${errors.bankBin ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200 dark:border-slate-700'}`}>
+                    <select 
+                      value={tempBankBin} 
+                      onChange={(e) => { setTempBankBin(e.target.value); setErrors((prev: any) => ({...prev, bankBin: false})); }}
+                      className="w-full h-9 px-3 border-none bg-transparent focus:ring-0 text-slate-800 dark:text-white font-bold text-[12px] outline-none appearance-none cursor-pointer"
+                    >
+                      <option value="" disabled>Chọn Ngân hàng</option>
+                      <option value="970436">Vietcombank</option>
+                      <option value="970415">VietinBank</option>
+                      <option value="970418">BIDV</option>
+                      <option value="970405">Agribank</option>
+                      <option value="970422">MBBank</option>
+                      <option value="970407">Techcombank</option>
+                      <option value="970432">VPBank</option>
+                      <option value="970416">ACB</option>
+                      <option value="970423">TPBank</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className={`font-medium text-[11px] ${errors.bankAccount ? 'text-rose-500' : 'text-slate-500'}`}>Số tài khoản nhận</span>
+                  <input
+                    type="text"
+                    value={tempBankAccount}
+                    onChange={(e) => { setTempBankAccount(e.target.value); setErrors((prev: any) => ({...prev, bankAccount: false})); }}
+                    placeholder="Nhập số tài khoản"
+                    className={`w-full h-9 px-3 rounded-lg border bg-white dark:bg-slate-950 focus:ring-0 text-[12px] font-bold text-slate-800 dark:text-white outline-none transition-colors ${errors.bankAccount ? 'border-rose-500 ring-1 ring-rose-500/20 placeholder-rose-300' : 'border-slate-200 dark:border-slate-700'}`}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className={`font-medium text-[11px] ${errors.accountName ? 'text-rose-500' : 'text-slate-500'}`}>Tên người nhận</span>
+                  <input
+                    type="text"
+                    value={tempAccountName}
+                    onChange={(e) => { setTempAccountName(e.target.value); setErrors((prev: any) => ({...prev, accountName: false})); }}
+                    placeholder="Nhập tên người nhận"
+                    className={`w-full h-9 px-3 rounded-lg border bg-white dark:bg-slate-950 focus:ring-0 text-[12px] font-bold text-slate-800 dark:text-white outline-none transition-colors ${errors.accountName ? 'border-rose-500 ring-1 ring-rose-500/20 placeholder-rose-300' : 'border-slate-200 dark:border-slate-700'}`}
+                  />
+                </div>
+
+                <div className="border-t border-slate-200/60 dark:border-slate-800 mt-2 pt-3 flex flex-col gap-1.5">
+                  <span className={`font-bold text-[12px] ${errors.amount ? 'text-rose-500' : 'text-slate-500'}`}>Số tiền thực tế:</span>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={tempAmount ? new Intl.NumberFormat("vi-VN").format(parseInt(tempAmount, 10)) : ""}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "");
+                        setTempAmount(raw);
+                        setErrors((prev: any) => ({...prev, amount: false}));
+                      }}
+                      className={`w-full h-10 px-3 rounded-lg border bg-white dark:bg-slate-950 focus:ring-1 text-[16px] font-black text-rose-600 outline-none transition-all pr-8 ${errors.amount ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700 focus:border-emerald-600 focus:ring-emerald-600'}`}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-rose-600 font-black">đ</span>
+                  </div>
+                </div>
             </div>
           </TabsContent>
           

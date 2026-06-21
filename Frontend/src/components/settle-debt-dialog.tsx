@@ -80,7 +80,9 @@ export function SettleDebtDialog({ groupId, toUser, amount, onSettle }: SettleDe
   
   const rawAmount = parseInt(tempAmount.replace(/\D/g, ""), 10) || 0;
 
-  if (tempBankBin && tempBankAccount) {
+  const isManualInput = !toUser.bankBin || !toUser.bankAccountNo || tempBankBin !== toUser.bankBin || tempBankAccount !== toUser.bankAccountNo;
+
+  if (!isManualInput && tempBankBin && tempBankAccount) {
     try {
       const qr = QRPay.initVietQR({
         bankBin: tempBankBin,
@@ -138,37 +140,34 @@ export function SettleDebtDialog({ groupId, toUser, amount, onSettle }: SettleDe
           </TabsList>
           
           <TabsContent value="transfer" className="mt-4 space-y-4">
-            <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
-              {hasDynamicQr ? (
-                <div className="text-center space-y-2">
-                  <div className="bg-white p-3 rounded-xl shadow-sm inline-block border border-slate-100">
-                    <QRCodeSVG 
-                      value={qrString}
-                      size={160}
-                      level={"M"}
-                      includeMargin={false}
-                    />
+            {!isManualInput && (hasDynamicQr || toUser.bankQrUrl) && (
+              <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
+                {hasDynamicQr ? (
+                  <div className="text-center space-y-2">
+                    <div className="bg-white p-3 rounded-xl shadow-sm inline-block border border-slate-100">
+                      <QRCodeSVG 
+                        value={qrString}
+                        size={160}
+                        level={"M"}
+                        includeMargin={false}
+                      />
+                    </div>
+                    <p className="text-xs font-semibold text-emerald-600">Quét mã VietQR (Tự động cập nhật)</p>
                   </div>
-                  <p className="text-xs font-semibold text-emerald-600">Quét mã VietQR (Tự động cập nhật)</p>
-                </div>
-              ) : toUser.bankQrUrl ? (
-                <div className="text-center space-y-2">
-                  <div className="bg-white p-2 rounded-xl shadow-sm inline-block border border-slate-100">
-                    <img 
-                      src={toUser.bankQrUrl} 
-                      alt="Bank QR" 
-                      className="w-40 h-40 object-cover rounded-lg"
-                    />
+                ) : (
+                  <div className="text-center space-y-2">
+                    <div className="bg-white p-2 rounded-xl shadow-sm inline-block border border-slate-100">
+                      <img 
+                        src={toUser.bankQrUrl!} 
+                        alt="Bank QR" 
+                        className="w-40 h-40 object-cover rounded-lg"
+                      />
+                    </div>
+                    <p className="text-xs font-semibold text-rose-500">Mã QR tĩnh từ ảnh cá nhân</p>
                   </div>
-                  <p className="text-xs font-semibold text-rose-500">Mã QR tĩnh từ ảnh cá nhân</p>
-                </div>
-              ) : (
-                <div className="text-center py-2">
-                  <QrCode className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-[12px] font-medium text-slate-500">Hãy nhập thông tin bên dưới để tạo QR</p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* Editable Transaction Details */}
             <div className="w-full bg-slate-50 rounded-2xl p-4 text-[12px] space-y-3 border border-slate-100 dark:bg-slate-900 dark:border-slate-800">

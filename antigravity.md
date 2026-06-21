@@ -9,6 +9,17 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 4. **Chia tiền nhóm (Group Split):** Tạo hóa đơn chung, thuật toán Greedy chia nợ tối ưu.
 5. **Thanh toán nợ (Debt Settlement):** Nhắc nợ, tạo mã QR VietQR, và quy trình Xác nhận.
 
+### Session [2026-06-21] - Refactor Authentication Service
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Tách logic Authentication ra khỏi Controller:**
+   - **Backend:** Tạo mới [AuthService.java](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/src/main/java/com/example/sharemoney/service/AuthService.java) chuyển toàn bộ nghiệp vụ đăng nhập (`login`) và đăng ký (`register`) từ controller xuống lớp dịch vụ (Service layer).
+   - **Controller:** Rút gọn [AuthController.java](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/src/main/java/com/example/sharemoney/controller/AuthController.java) để chỉ nhận Request và gọi trực tiếp `AuthService`.
+   - **Branch:** Đã push code lên nhánh mới `feature/auth-service` trên GitHub.
+
+---
+
 ### Session [2026-06-19] - Cash Basis Alignment, Tab-Linked Charts & Clickable Debt Drawer
 
 **✅ Đã hoàn thành (Compact Procedure):**

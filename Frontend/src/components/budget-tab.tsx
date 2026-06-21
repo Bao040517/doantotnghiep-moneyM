@@ -58,6 +58,7 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
   const [tempBankAccount, setTempBankAccount] = useState("");
   const [tempAccountName, setTempAccountName] = useState("");
   const [tempAmount, setTempAmount] = useState("");
+  const [errors, setErrors] = useState<any>({});
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -474,6 +475,7 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                         setTempBankAccount(b.payeeBankAccount || "");
                         setTempAccountName(b.payeeAccountName || "");
                         setTempAmount(new Intl.NumberFormat("vi-VN").format(Math.max(0, b.limitAmount - b.spentAmount)));
+                        setErrors({});
                       }}
                       disabled={isQuickPaying === b.budgetId}
                       className="bg-[#2BA76F] hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-sm shadow-emerald-500/20"
@@ -556,11 +558,11 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
               <div className="w-full bg-slate-50 rounded-2xl p-4 text-[12px] space-y-3 mb-6 border border-slate-100 shrink-0">
                 
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-slate-500 font-medium text-[11px]">Ngân hàng nhận</span>
-                  <div className="bg-white rounded-lg border border-slate-200 relative">
+                  <span className={`font-medium text-[11px] ${errors.bankBin ? 'text-rose-500' : 'text-slate-500'}`}>Ngân hàng nhận</span>
+                  <div className={`bg-white rounded-lg border relative ${errors.bankBin ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200'}`}>
                     <select 
                       value={tempBankBin} 
-                      onChange={(e) => setTempBankBin(e.target.value)}
+                      onChange={(e) => { setTempBankBin(e.target.value); setErrors((prev: any) => ({...prev, bankBin: false})); }}
                       className="w-full h-9 px-3 border-none bg-transparent focus:ring-0 text-slate-800 font-bold text-[12px] outline-none appearance-none cursor-pointer"
                     >
                       <option value="" disabled>Chọn Ngân hàng</option>
@@ -581,29 +583,29 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-slate-500 font-medium text-[11px]">Số tài khoản nhận</span>
+                  <span className={`font-medium text-[11px] ${errors.bankAccount ? 'text-rose-500' : 'text-slate-500'}`}>Số tài khoản nhận</span>
                   <input
                     type="text"
                     value={tempBankAccount}
-                    onChange={(e) => setTempBankAccount(e.target.value)}
+                    onChange={(e) => { setTempBankAccount(e.target.value); setErrors((prev: any) => ({...prev, bankAccount: false})); }}
                     placeholder="Nhập số tài khoản"
-                    className="w-full h-9 px-3 rounded-lg border border-slate-200 focus:ring-0 text-[12px] font-bold text-slate-800 outline-none"
+                    className={`w-full h-9 px-3 rounded-lg border focus:ring-0 text-[12px] font-bold text-slate-800 outline-none transition-colors ${errors.bankAccount ? 'border-rose-500 ring-1 ring-rose-500/20 placeholder-rose-300' : 'border-slate-200'}`}
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-slate-500 font-medium text-[11px]">Tên đơn vị nhận</span>
+                  <span className={`font-medium text-[11px] ${errors.accountName ? 'text-rose-500' : 'text-slate-500'}`}>Tên đơn vị nhận</span>
                   <input
                     type="text"
                     value={tempAccountName}
-                    onChange={(e) => setTempAccountName(e.target.value)}
+                    onChange={(e) => { setTempAccountName(e.target.value); setErrors((prev: any) => ({...prev, accountName: false})); }}
                     placeholder="Nhập tên người nhận"
-                    className="w-full h-9 px-3 rounded-lg border border-slate-200 focus:ring-0 text-[12px] font-bold text-slate-800 outline-none"
+                    className={`w-full h-9 px-3 rounded-lg border focus:ring-0 text-[12px] font-bold text-slate-800 outline-none transition-colors ${errors.accountName ? 'border-rose-500 ring-1 ring-rose-500/20 placeholder-rose-300' : 'border-slate-200'}`}
                   />
                 </div>
 
                 <div className="border-t border-slate-200/60 mt-2 pt-3 flex flex-col gap-1.5">
-                  <span className="text-slate-500 font-bold text-[12px]">Số tiền thực tế:</span>
+                  <span className={`font-bold text-[12px] ${errors.amount ? 'text-rose-500' : 'text-slate-500'}`}>Số tiền thực tế:</span>
                   <div className="relative">
                     <input
                       type="text"
@@ -611,10 +613,10 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                       value={tempAmount}
                       onChange={(e) => {
                         const raw = e.target.value.replace(/\D/g, "");
-                        if (!raw) { setTempAmount(""); return; }
-                        setTempAmount(new Intl.NumberFormat("vi-VN").format(parseInt(raw, 10)));
+                        setTempAmount(raw ? new Intl.NumberFormat("vi-VN").format(parseInt(raw, 10)) : "");
+                        setErrors((prev: any) => ({...prev, amount: false}));
                       }}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-300 focus:border-[#2BA76F] focus:ring-1 focus:ring-[#2BA76F] text-[16px] font-black text-rose-600 outline-none transition-all pr-8"
+                      className={`w-full h-10 px-3 rounded-lg border focus:ring-1 text-[16px] font-black text-rose-600 outline-none transition-all pr-8 ${errors.amount ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 focus:border-[#2BA76F] focus:ring-[#2BA76F]'}`}
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-rose-600 font-black">đ</span>
                   </div>
@@ -631,15 +633,19 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                 </button>
                 <button 
                   onClick={async () => {
-                    if (!tempBankBin || !tempBankAccount.trim() || !tempAccountName.trim()) {
-                      toast.error("Vui lòng nhập đầy đủ thông tin Ngân hàng, STK và Tên người nhận");
-                      return;
-                    }
                     const rawAmount = parseInt(tempAmount.replace(/\D/g, ""), 10);
-                    if (!rawAmount || rawAmount <= 0) {
-                      toast.error("Vui lòng nhập số tiền hợp lệ");
+                    
+                    let newErrors: any = {};
+                    if (!tempBankBin) newErrors.bankBin = true;
+                    if (!tempBankAccount.trim()) newErrors.bankAccount = true;
+                    if (!tempAccountName.trim()) newErrors.accountName = true;
+                    if (!rawAmount || rawAmount <= 0) newErrors.amount = true;
+
+                    if (Object.keys(newErrors).length > 0) {
+                      setErrors(newErrors);
                       return;
                     }
+
                     const budgetToPay = payingBudget;
                     setPayingBudget(null);
                     await handleQuickPay(budgetToPay, rawAmount);

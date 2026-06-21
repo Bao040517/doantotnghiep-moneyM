@@ -528,7 +528,16 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
               </button>
               <button 
                 onClick={confirmDelete}
-                className="flex-1 py-3.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-bold text      {/* Bank Transfer Modal for Bill Payment */}
+                className="flex-1 py-3.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-[15px] transition-colors shadow-[0_4px_12px_rgba(244,63,94,0.3)]"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Transfer Modal for Bill Payment */}
       {payingBudget && (() => {
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">

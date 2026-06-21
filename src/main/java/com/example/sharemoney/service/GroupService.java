@@ -1,0 +1,172 @@
+package com.example.sharemoney.service;
+
+import com.example.sharemoney.dto.request.AddMemberRequest;
+import com.example.sharemoney.dto.request.CreateGroupRequest;
+import com.example.sharemoney.dto.response.GroupDetailResponse;
+import com.example.sharemoney.dto.response.GroupResponse;
+import com.example.sharemoney.dto.response.UserSummaryResponse;
+import com.example.sharemoney.entity.Group;
+import com.example.sharemoney.entity.GroupMember;
+import com.example.sharemoney.entity.User;
+import com.example.sharemoney.exception.AppException;
+import com.example.sharemoney.exception.ErrorCode;
+import com.example.sharemoney.repository.GroupMemberRepository;
+import com.example.sharemoney.repository.GroupRepository;
+import com.example.sharemoney.repository.UserRepository;
+import com.example.sharemoney.security.SecurityUtils;
+import java.util.List;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class GroupService {
+
+    private final GroupRepository groupRepository;
+    private final GroupMemberRepository groupMemberRepository;
+    private final UserRepository userRepository;
+
+    // ─────────────────────────────────────────────────────────────
+    // Tạo nhóm mới + tự động thêm người tạo làm "owner"
+    // ─────────────────────────────────────────────────────────────
+    @Transactional
+    public GroupResponse createGroup(CreateGroupRequest req) {
+        UUID currentUserId = SecurityUtils.getCurrentUserId();
+        User creator =
+                userRepository
+                        .findById(currentUserId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        Group group =
+                Group.builder()
+                        .name(req.getName())
+                        .description(req.getDescription())
+                        .creator(creator)
+                        .build();
+        groupRepository.save(group);
+
+        GroupMember ownerMember =
+                GroupMember.builder().group(group).user(creator).role("owner").build();
+        groupMemberRepository.save(ownerMember);
+
+        return toGroupResponse(group, 1);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Lấy danh sách nhóm mà user đang tham gia
+    // ─────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<GroupResponse> getUserGroups(UUID userId) {
+        userRepository
+                .findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        List<com.example.sharemoney.entity.GroupMember> memberships = groupMemberRepository.findByUser_Id(userId);
+        if (memberships.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        List<UUID> groupIds = memberships.stream().map(gm -> gm.getGroup().getId()).toList();
+        List<Object[]> memberCounts = groupMemberRepository.countMembersByGroupIds(groupIds);
+        java.util.Map<UUID, Long> countMap = memberCounts.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        arr -> (UUID) arr[0],
+                        arr -> (Long) arr[1]
+                ));
+
+        return memberships.stream()
+                .map(
+                        gm -> {
+                            Group g = gm.getGroup();
+                            int count = countMap.getOrDefault(g.getId(), 0L).intValue();
+                            return toGroupResponse(g, count);
+                        })
+                .toList();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Lấy chi tiết 1 nhóm (kiểm tra user có phải thành viên không)
+    // ─────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public GroupDetailResponse getGroupDetail(UUID groupId, UUID userId) {
+        Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId)) {
+            throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        List<GroupDetailResponse.MemberResponse> members =
+                groupMemberRepository.findByGroup_Id(groupId).stream()
+                        .map(
+                                gm ->
+                                        GroupDetailResponse.MemberResponse.builder()
+                                                .id(gm.getId())
+                                                .user(toUserSummary(gm.getUser()))
+                                                .role(gm.getRole())
+                                                .joinedAt(gm.getJoinedAt())
+                                                .build())
+                        .toList();
+
+        return GroupDetailResponse.builder()
+                .id(group.getId())
+                .name(group.getName())
+                .description(group.getDescription())
+                .creator(toUserSummary(group.getCreator()))
+                .members(members)
+                .createdAt(group.getCreatedAt())
+                .build();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Thêm thành viên vào nhóm
+    // ─────────────────────────────────────────────────────────────
+    @Transactional
+    public void addMember(UUID groupId, AddMemberRequest req) {
+        Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+        // Validate: chỉ thành viên nhóm mới được thêm người mới
+        UUID currentUserId = SecurityUtils.getCurrentUserId();
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, currentUserId)) {
+            throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        User newUser =
+                userRepository
+                        .findById(req.getUserId())
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, newUser.getId())) {
+            throw new AppException(ErrorCode.ALREADY_GROUP_MEMBER);
+        }
+
+        GroupMember member =
+                GroupMember.builder().group(group).user(newUser).role("member").build();
+        groupMemberRepository.save(member);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Helper methods
+    // ─────────────────────────────────────────────────────────────
+    private GroupResponse toGroupResponse(Group group, int memberCount) {
+        return GroupResponse.builder()
+                .id(group.getId())
+                .name(group.getName())
+                .description(group.getDescription())
+                .creator(toUserSummary(group.getCreator()))
+                .memberCount(memberCount)
+                .createdAt(group.getCreatedAt())
+                .build();
+    }
+
+    private UserSummaryResponse toUserSummary(User user) {
+        return UserMapper.toUserSummary(user);
+    }
+}

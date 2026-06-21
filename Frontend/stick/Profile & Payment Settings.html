@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Profile &amp; Settings</title>
+    <!-- Tailwind CSS CDN with plugins -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Font Awesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <style data-purpose="custom-colors">
+        :root {
+            --app-bg-light: #e6f7f2;
+            --header-bg: #b5efe2;
+            --accent-green: #38b2ac;
+        }
+
+        body {
+            background-color: var(--app-bg-light);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+    </style>
+    <style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+
+<body class="flex flex-col min-h-screen">
+    <!-- BEGIN: Header -->
+    <header class="bg-[#b5efe2] pt-12 pb-4 px-4 flex items-center justify-between sticky top-0 z-10"
+        data-purpose="main-header">
+        <button aria-label="Go back" class="text-gray-700 text-xl w-10">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <h1 class="text-lg font-semibold text-gray-800 flex-1 text-center">Profile &amp; Settings</h1>
+        <div class="w-10"></div> <!-- Spacer for centering title -->
+    </header>
+    <!-- END: Header -->
+    <!-- BEGIN: Main Content -->
+    <main class="flex-1 px-4 py-6 space-y-6 overflow-y-auto pb-24">
+        <!-- BEGIN: User Profile Section -->
+        <section class="flex items-center space-x-4" data-purpose="user-info">
+            <div class="relative">
+                <!-- Profile Avatar Placeholder -->
+                <div class="w-20 h-20 rounded-full bg-teal-100 overflow-hidden border-2 border-white shadow-sm">
+                    <img alt="User Avatar" class="w-full h-full object-cover"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7PjVEw_UPDxYbcEDa_Snk1M9pDQHz3CCaxzhpj5T8IPeMEcT57XeVn76_bwxHyAXOvul1UD7Rb9wB7zPnA4FY8-_-X0Ms8ZxBrerzqgdeZmOdgXSsPtIS1kQGSDBU9fAMC7drSnb1Tpu8j5GV1hf-Zjhggep5K-LqlsUSXbxAnLLK8HISKUL_wbDXdjBw9x09oUt3HFr-9xqoaq7lEtfxopiymKRqEcslCSiDp1lr4BwygQS4e-s5e3UqNogd6lqZ_AYtFI9fNHc" />
+                </div>
+                <!-- Camera Icon Overlay -->
+                <div
+                    class="absolute bottom-0 right-0 bg-gray-500 text-white rounded-full p-1 border-2 border-white text-[10px] w-6 h-6 flex items-center justify-center">
+                    <i class="fa-solid fa-camera"></i>
+                </div>
+            </div>
+            <div class="flex flex-col">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl font-bold text-gray-800">Alex Nguyen</span>
+                    <i class="fa-solid fa-pen text-gray-400 text-xs"></i>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-gray-600">alex.nguyen@email.com</span>
+                    <i class="fa-solid fa-pen text-gray-400 text-xs"></i>
+                </div>
+            </div>
+        </section>
+        <!-- END: User Profile Section -->
+        <!-- BEGIN: Configuration Section -->
+        <section class="space-y-3" data-purpose="configuration-form">
+            <h2 class="text-lg font-bold text-gray-800 ml-1">Cấu hình nhận tiền</h2>
+            <div class="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+                <!-- Bank Selection -->
+                <div class="space-y-1">
+                    <label class="block text-sm font-semibold text-gray-700">Ngân hàng (Bank)</label>
+                    <div class="relative">
+                        <select
+                            class="w-full border-gray-300 rounded-xl py-3 px-4 text-gray-400 appearance-none focus:ring-teal-500 focus:border-teal-500">
+                            <option disabled="" selected="" value="">Chọn Ngân hàng</option>
+                            <option value="vcb">Vietcombank</option>
+                            <option value="tcb">Techcombank</option>
+                        </select>
+                        <div
+                            class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- Account Number -->
+                <div class="space-y-1">
+                    <label class="block text-sm font-semibold text-gray-700">Số tài khoản (Account Number)</label>
+                    <input
+                        class="w-full border-gray-300 rounded-xl py-3 px-4 text-gray-800 placeholder-gray-300 focus:ring-teal-500 focus:border-teal-500"
+                        placeholder="Nhập số tài khoản" type="text" />
+                </div>
+                <!-- QR Generation Help & Button -->
+                <div class="space-y-3 pt-1">
+                    <p class="text-sm text-gray-600">Tự động tạo VietQR để nhận tiền.</p>
+                    <button
+                        class="w-full bg-[#f2f2f2] text-gray-800 font-semibold py-4 rounded-xl active:bg-gray-200 transition-colors">
+                        Tạo mã VietQR ngay
+                    </button>
+                </div>
+            </div>
+        </section>
+        <!-- END: Configuration Section -->
+        <!-- BEGIN: Settings Section -->
+        <section data-purpose="mode-toggle">
+            <div class="bg-white rounded-2xl p-5 shadow-sm flex items-center justify-between">
+                <span class="text-lg font-semibold text-gray-800">Dark/Light Mode</span>
+                <!-- Custom Toggle Switch -->
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input class="sr-only peer" type="checkbox" value="" />
+                    <div
+                        class="w-14 h-8 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-teal-500">
+                    </div>
+                </label>
+            </div>
+        </section>
+        <!-- END: Settings Section -->
+    </main>
+    <!-- END: Main Content -->
+    <!-- BEGIN: Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-3 flex justify-between items-center z-20"
+        data-purpose="bottom-nav">
+        <a class="flex flex-col items-center text-gray-400" href="#">
+            <i class="fa-solid fa-house text-xl"></i>
+        </a>
+        <a class="flex flex-col items-center text-gray-400" href="#">
+            <i class="fa-solid fa-user-group text-xl"></i>
+        </a>
+        <a class="flex flex-col items-center text-gray-400" href="#">
+            <i class="fa-solid fa-list-ul text-xl"></i>
+        </a>
+        <a class="flex flex-col items-center text-[#38b2ac]" href="#">
+            <i class="fa-solid fa-user text-xl"></i>
+            <span class="text-[10px] mt-1 font-medium">Profile</span>
+        </a>
+    </nav>
+    <!-- END: Bottom Navigation -->
+</body>
+
+</html>

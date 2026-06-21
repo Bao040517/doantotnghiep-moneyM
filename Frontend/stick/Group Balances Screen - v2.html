@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Group Balances Mockup</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Google Fonts for typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <style data-purpose="base-typography">
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #D3F2E1;
+            /* Outer background color from image */
+        }
+    </style>
+    <style data-purpose="custom-colors">
+        /* Custom palette based on the image */
+        .bg-app-cream {
+            background-color: #FFF9EF;
+        }
+
+        .bg-column-green {
+            background-color: #E2F6F1;
+        }
+
+        .bg-column-orange {
+            background-color: #FFEDE1;
+        }
+
+        .bg-header-green {
+            background-color: #7ED3B2;
+        }
+
+        .bg-header-orange {
+            background-color: #FF9E7D;
+        }
+
+        .text-amount-green {
+            color: #7ED3B2;
+        }
+
+        .text-amount-orange {
+            color: #FF9E7D;
+        }
+
+        .border-active-tab {
+            border-bottom: 3px solid #333333;
+        }
+    </style>
+    <style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+
+<body class="flex justify-center items-center min-h-screen p-4">
+    <!-- BEGIN: MobileDeviceContainer -->
+    <!-- Mimicking a mobile screen container -->
+    <div
+        class="w-full max-w-[375px] h-[812px] bg-app-cream rounded-[40px] shadow-2xl overflow-hidden flex flex-col relative border-[8px] border-white">
+        <!-- BEGIN: StatusBar -->
+        <div class="flex justify-between items-center px-8 pt-4 pb-2 text-sm font-semibold"
+            data-purpose="mobile-status-bar">
+            <span>9:41</span>
+            <div class="flex items-center space-x-1.5">
+                <svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24">
+                    <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z">
+                    </path>
+                </svg>
+                <svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24">
+                    <path d="M1 12h22v2H1zM1 7h22v2H1zM1 17h22v2H1z"></path>
+                </svg>
+                <div class="w-6 h-3 border-2 border-black rounded-sm relative">
+                    <div class="absolute inset-y-0.5 left-0.5 right-1.5 bg-black"></div>
+                </div>
+            </div>
+        </div>
+        <!-- END: StatusBar -->
+        <!-- BEGIN: Header -->
+        <header class="px-6 py-4">
+            <div class="flex justify-between items-center mb-6">
+                <button class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15.75 19.5L8.25 12l7.5-7.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                </button>
+                <h1 class="text-xl font-bold text-gray-800">Group Balances</h1>
+                <button class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" stroke-linecap="round"
+                            stroke-linejoin="round"></path>
+                    </svg>
+                </button>
+            </div>
+            <!-- Tabs -->
+            <nav class="flex justify-between text-sm font-medium text-gray-500 border-b border-gray-200">
+                <div class="pb-2 px-1 text-gray-900 border-active-tab">Bảng Phong Thần</div>
+                <div class="pb-2 px-1">Chi tiêu</div>
+                <div class="pb-2 px-1">Hoạt động</div>
+                <div class="pb-2 px-1">Cài đặt</div>
+            </nav>
+        </header>
+        <!-- END: Header -->
+        <!-- BEGIN: MainContent -->
+        <main class="flex-1 flex overflow-hidden">
+            <!-- BEGIN: LeftColumn (Ai nợ bạn) -->
+            <section class="flex-1 bg-column-green flex flex-col items-center pb-10 overflow-y-auto no-scrollbar"
+                data-purpose="creditors-list">
+                <div
+                    class="bg-header-green text-white w-full text-center py-3 rounded-tl-[32px] font-bold mb-6 text-lg">
+                    Ai nợ bạn
+                </div>
+                <!-- User Card 1 -->
+                <div class="w-40 bg-white rounded-2xl p-4 mb-4 shadow-sm flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full mb-2 bg-no-repeat bg-center"
+                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC03E-hSzfvd766hM5_jthDe9fR56iOKoZK4k-G6ClPAiWCxI01ekVVOCNSQf6vc4au_MpJZ9sM4Rkz-hsi-56WtHUF3t6Fs0rnNsxk8pg1oWHg66LpZK8O_y1lPk1Gk81SkB9sxRqnx4m6OwuAtepVcb1KqRNp7ocjd4nBQ2giNPtAcRe4QgKg84BejjhQhY5JQHlCmWeJmdFAqi0hA7DXs-Rd-Y47VUXxSLjLGeBQ3ZMkgQX_VrHqlxxfb3fkzxa51i7Q8GLoyCU'); background-size: 200% 200%; background-position: 0% 0%;">
+                    </div>
+                    <p class="font-semibold text-gray-800 text-sm">Minh Trang</p>
+                    <p class="text-2xl font-black text-amount-green my-2">250k</p>
+                    <button
+                        class="bg-header-green bg-opacity-40 text-white font-bold py-1.5 px-4 rounded-xl text-xs w-full">Nhắc
+                        nợ</button>
+                </div>
+                <!-- User Card 2 -->
+                <div class="w-40 bg-white rounded-2xl p-4 mb-4 shadow-sm flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full mb-2 bg-no-repeat bg-center"
+                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC03E-hSzfvd766hM5_jthDe9fR56iOKoZK4k-G6ClPAiWCxI01ekVVOCNSQf6vc4au_MpJZ9sM4Rkz-hsi-56WtHUF3t6Fs0rnNsxk8pg1oWHg66LpZK8O_y1lPk1Gk81SkB9sxRqnx4m6OwuAtepVcb1KqRNp7ocjd4nBQ2giNPtAcRe4QgKg84BejjhQhY5JQHlCmWeJmdFAqi0hA7DXs-Rd-Y47VUXxSLjLGeBQ3ZMkgQX_VrHqlxxfb3fkzxa51i7Q8GLoyCU'); background-size: 200% 200%; background-position: 100% 0%;">
+                    </div>
+                    <p class="font-semibold text-gray-800 text-sm">Đức Anh</p>
+                    <p class="text-2xl font-black text-amount-green my-2">180k</p>
+                    <button
+                        class="bg-header-green bg-opacity-40 text-white font-bold py-1.5 px-4 rounded-xl text-xs w-full">Nhắc
+                        nợ</button>
+                </div>
+                <!-- User Card 3 (Repeat for scrolling demo) -->
+                <div class="w-40 bg-white rounded-2xl p-4 mb-4 shadow-sm flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full mb-2 bg-no-repeat bg-center"
+                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC03E-hSzfvd766hM5_jthDe9fR56iOKoZK4k-G6ClPAiWCxI01ekVVOCNSQf6vc4au_MpJZ9sM4Rkz-hsi-56WtHUF3t6Fs0rnNsxk8pg1oWHg66LpZK8O_y1lPk1Gk81SkB9sxRqnx4m6OwuAtepVcb1KqRNp7ocjd4nBQ2giNPtAcRe4QgKg84BejjhQhY5JQHlCmWeJmdFAqi0hA7DXs-Rd-Y47VUXxSLjLGeBQ3ZMkgQX_VrHqlxxfb3fkzxa51i7Q8GLoyCU'); background-size: 200% 200%; background-position: 100% 0%;">
+                    </div>
+                    <p class="font-semibold text-gray-800 text-sm">Đức Anh</p>
+                    <p class="text-2xl font-black text-amount-green my-2">180k</p>
+                    <button
+                        class="bg-header-green bg-opacity-40 text-white font-bold py-1.5 px-4 rounded-xl text-xs w-full">Nhắc
+                        nợ</button>
+                </div>
+                <!-- User Card 4 -->
+                <div class="w-40 bg-white rounded-2xl p-4 mb-4 shadow-sm flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full mb-2 bg-no-repeat bg-center"
+                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC03E-hSzfvd766hM5_jthDe9fR56iOKoZK4k-G6ClPAiWCxI01ekVVOCNSQf6vc4au_MpJZ9sM4Rkz-hsi-56WtHUF3t6Fs0rnNsxk8pg1oWHg66LpZK8O_y1lPk1Gk81SkB9sxRqnx4m6OwuAtepVcb1KqRNp7ocjd4nBQ2giNPtAcRe4QgKg84BejjhQhY5JQHlCmWeJmdFAqi0hA7DXs-Rd-Y47VUXxSLjLGeBQ3ZMkgQX_VrHqlxxfb3fkzxa51i7Q8GLoyCU'); background-size: 200% 200%; background-position: 0% 0%;">
+                    </div>
+                    <p class="font-semibold text-gray-800 text-sm">Minh Trang</p>
+                    <p class="text-2xl font-black text-amount-green my-2">250k</p>
+                    <button
+                        class="bg-header-green bg-opacity-40 text-white font-bold py-1.5 px-4 rounded-xl text-xs w-full">Nhắc
+                        nợ</button>
+                </div>
+            </section>
+            <!-- END: LeftColumn -->
+            <!-- BEGIN: RightColumn (Bạn nợ ai) -->
+            <section class="flex-1 bg-column-orange flex flex-col items-center pb-10 overflow-y-auto no-scrollbar"
+                data-purpose="debtors-list">
+                <div
+                    class="bg-header-orange text-white w-full text-center py-3 rounded-tr-[32px] font-bold mb-6 text-lg">
+                    Bạn nợ ai
+                </div>
+                <!-- User Card 1 -->
+                <div class="w-40 bg-white rounded-2xl p-4 mb-4 shadow-sm flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full mb-2 bg-no-repeat bg-center"
+                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC03E-hSzfvd766hM5_jthDe9fR56iOKoZK4k-G6ClPAiWCxI01ekVVOCNSQf6vc4au_MpJZ9sM4Rkz-hsi-56WtHUF3t6Fs0rnNsxk8pg1oWHg66LpZK8O_y1lPk1Gk81SkB9sxRqnx4m6OwuAtepVcb1KqRNp7ocjd4nBQ2giNPtAcRe4QgKg84BejjhQhY5JQHlCmWeJmdFAqi0hA7DXs-Rd-Y47VUXxSLjLGeBQ3ZMkgQX_VrHqlxxfb3fkzxa51i7Q8GLoyCU'); background-size: 200% 200%; background-position: 100% 100%;">
+                    </div>
+                    <p class="font-semibold text-gray-800 text-sm">Hoàng Nam</p>
+                    <p class="text-2xl font-black text-amount-orange my-2">120k</p>
+                    <button
+                        class="bg-header-orange text-white font-bold py-1.5 px-4 rounded-xl text-xs w-full shadow-md">Trả
+                        nợ</button>
+                </div>
+                <!-- User Card 2 -->
+                <div class="w-40 bg-white rounded-2xl p-4 mb-4 shadow-sm flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full mb-2 bg-no-repeat bg-center"
+                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC03E-hSzfvd766hM5_jthDe9fR56iOKoZK4k-G6ClPAiWCxI01ekVVOCNSQf6vc4au_MpJZ9sM4Rkz-hsi-56WtHUF3t6Fs0rnNsxk8pg1oWHg66LpZK8O_y1lPk1Gk81SkB9sxRqnx4m6OwuAtepVcb1KqRNp7ocjd4nBQ2giNPtAcRe4QgKg84BejjhQhY5JQHlCmWeJmdFAqi0hA7DXs-Rd-Y47VUXxSLjLGeBQ3ZMkgQX_VrHqlxxfb3fkzxa51i7Q8GLoyCU'); background-size: 200% 200%; background-position: 0% 100%;">
+                    </div>
+                    <p class="font-semibold text-gray-800 text-sm">Thảo Vân</p>
+                    <p class="text-2xl font-black text-amount-orange my-2">95k</p>
+                    <button
+                        class="bg-header-orange text-white font-bold py-1.5 px-4 rounded-xl text-xs w-full shadow-md">Trả
+                        nợ</button>
+                </div>
+                <!-- User Card 3 -->
+                <div class="w-40 bg-white rounded-2xl p-4 mb-4 shadow-sm flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full mb-2 bg-no-repeat bg-center"
+                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC03E-hSzfvd766hM5_jthDe9fR56iOKoZK4k-G6ClPAiWCxI01ekVVOCNSQf6vc4au_MpJZ9sM4Rkz-hsi-56WtHUF3t6Fs0rnNsxk8pg1oWHg66LpZK8O_y1lPk1Gk81SkB9sxRqnx4m6OwuAtepVcb1KqRNp7ocjd4nBQ2giNPtAcRe4QgKg84BejjhQhY5JQHlCmWeJmdFAqi0hA7DXs-Rd-Y47VUXxSLjLGeBQ3ZMkgQX_VrHqlxxfb3fkzxa51i7Q8GLoyCU'); background-size: 200% 200%; background-position: 100% 100%;">
+                    </div>
+                    <p class="font-semibold text-gray-800 text-sm">Hoàng Nam</p>
+                    <p class="text-2xl font-black text-amount-orange my-2">120k</p>
+                    <button
+                        class="bg-header-orange text-white font-bold py-1.5 px-4 rounded-xl text-xs w-full shadow-md">Trả
+                        nợ</button>
+                </div>
+                <!-- User Card 4 -->
+                <div class="w-40 bg-white rounded-2xl p-4 mb-4 shadow-sm flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full mb-2 bg-no-repeat bg-center"
+                        style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC03E-hSzfvd766hM5_jthDe9fR56iOKoZK4k-G6ClPAiWCxI01ekVVOCNSQf6vc4au_MpJZ9sM4Rkz-hsi-56WtHUF3t6Fs0rnNsxk8pg1oWHg66LpZK8O_y1lPk1Gk81SkB9sxRqnx4m6OwuAtepVcb1KqRNp7ocjd4nBQ2giNPtAcRe4QgKg84BejjhQhY5JQHlCmWeJmdFAqi0hA7DXs-Rd-Y47VUXxSLjLGeBQ3ZMkgQX_VrHqlxxfb3fkzxa51i7Q8GLoyCU'); background-size: 200% 200%; background-position: 0% 100%;">
+                    </div>
+                    <p class="font-semibold text-gray-800 text-sm">Thảo Vân</p>
+                    <p class="text-2xl font-black text-amount-orange my-2">95k</p>
+                    <button
+                        class="bg-header-orange text-white font-bold py-1.5 px-4 rounded-xl text-xs w-full shadow-md">Trả
+                        nợ</button>
+                </div>
+            </section>
+            <!-- END: RightColumn -->
+        </main>
+        <!-- END: MainContent -->
+    </div>
+    <!-- END: MobileDeviceContainer -->
+    <style data-purpose="utility-styles">
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+    </style>
+</body>
+
+</html><!-- MISSING_IMAGES:
+- TEMP_USER_1: Profile picture for Minh Trang
+- TEMP_USER_2: Profile picture for Đức Anh
+- TEMP_USER_3: Profile picture for Hoàng Nam
+- TEMP_USER_4: Profile picture for Thảo Vân
+-->

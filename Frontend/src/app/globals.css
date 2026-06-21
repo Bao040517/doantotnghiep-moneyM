@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+:root {
+  --app-bg: #FDF9F0;
+  --mint-bg: #B3E5D1;
+  --mint-primary: #7CD6BD;
+  --mint-dark: #5eb291;
+  --card-bg: #FFF9EF;
+  --card-border: #ffd8c2;
+  --orange-accent: #FF9E7D;
+  --orange-light: #FFEDE1;
+  --tab-active: #45b39d;
+  --tab-inactive: #8e8e93;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100dvh;
+  background-color: var(--app-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--text-primary);
+}
+
+/* Mobile-first: center and constrain to 430px */
+#__next, main {
+  min-height: 100dvh;
+}
+
+/* Hide scrollbars */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Card style matching design */
+.sm-card {
+  background-color: var(--card-bg);
+  border: 2px solid var(--card-border);
+  border-radius: 2.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+/* Bottom nav safe area */
+.bottom-nav-padding { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }

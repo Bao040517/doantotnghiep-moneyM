@@ -1,0 +1,152 @@
+{
+  "info": {
+    "name": "ShareMoney API Collection",
+    "description": "Bộ sưu tập Postman cho hệ thống ShareMoney Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Auth & User",
+      "item": [
+        {
+          "name": "Đăng ký (Register)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type","value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"User A\",\n    \"email\": \"test_postman_1@test.com\",\n    \"password\": \"password123\"\n}"
+            },
+            "url": {"raw": "http://localhost:8080/api/auth/register","host": ["http","localhost:8080"],"path": ["api","auth","register"]}
+          }
+        },
+        {
+          "name": "Đăng nhập (Login)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type","value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"test_postman_1@test.com\",\n    \"password\": \"password123\"\n}"
+            },
+            "url": {"raw": "http://localhost:8080/api/auth/login","host": ["http","localhost:8080"],"path": ["api","auth","login"]}
+          }
+        },
+        {
+          "name": "Cập nhật SĐT",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type","value": "application/json"},
+              {"key": "Authorization","value": "Bearer {{jwt_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"0987654321\"\n}"
+            },
+            "url": {"raw": "http://localhost:8080/api/users/me/phone","host": ["http","localhost:8080"],"path": ["api","users","me","phone"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Categories & Wallets",
+      "item": [
+        {
+          "name": "Lấy danh mục hệ thống",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization","value": "Bearer {{jwt_token}}"}],
+            "url": {"raw": "http://localhost:8080/api/categories","host": ["http","localhost:8080"],"path": ["api","categories"]}
+          }
+        },
+        {
+          "name": "Lấy Ví mặc định",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization","value": "Bearer {{jwt_token}}"}],
+            "url": {"raw": "http://localhost:8080/api/wallets/me","host": ["http","localhost:8080"],"path": ["api","wallets","me"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Transactions (Giao dịch)",
+      "item": [
+        {
+          "name": "Tạo giao dịch mới",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type","value": "application/json"},
+              {"key": "Authorization","value": "Bearer {{jwt_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 500000,\n    \"categoryId\": \"<thay_bang_id_danh_muc>\",\n    \"note\": \"Ăn tối\",\n    \"transactionDate\": \"2026-06-13T10:00:00Z\"\n}"
+            },
+            "url": {"raw": "http://localhost:8080/api/transactions/<thay_bang_id_vi>","host": ["http","localhost:8080"],"path": ["api","transactions","<thay_bang_id_vi>"]}
+          }
+        },
+        {
+          "name": "Lấy danh sách giao dịch",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization","value": "Bearer {{jwt_token}}"}],
+            "url": {"raw": "http://localhost:8080/api/transactions","host": ["http","localhost:8080"],"path": ["api","transactions"]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Groups & Debts (Nhóm & Nợ)",
+      "item": [
+        {
+          "name": "Tạo Nhóm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type","value": "application/json"},
+              {"key": "Authorization","value": "Bearer {{jwt_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Chuyến đi Đà Lạt\",\n    \"description\": \"Chơi lễ\"\n}"
+            },
+            "url": {"raw": "http://localhost:8080/api/groups","host": ["http","localhost:8080"],"path": ["api","groups"]}
+          }
+        },
+        {
+          "name": "Tạo Khoản chi chung",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type","value": "application/json"},
+              {"key": "Authorization","value": "Bearer {{jwt_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"paidBy\": \"<id_nguoi_tra>\",\n    \"title\": \"Ăn Lẩu\",\n    \"amount\": 500000,\n    \"category\": \"Ăn uống\",\n    \"splitUserIds\": [\"<id_nguoi_1>\", \"<id_nguoi_2>\"]\n}"
+            },
+            "url": {"raw": "http://localhost:8080/api/groups/<id_nhom>/expenses","host": ["http","localhost:8080"],"path": ["api","groups","<id_nhom>","expenses"]}
+          }
+        },
+        {
+          "name": "Xem Sổ Nợ Nhóm",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization","value": "Bearer {{jwt_token}}"}],
+            "url": {"raw": "http://localhost:8080/api/groups/<id_nhom>/debts","host": ["http","localhost:8080"],"path": ["api","groups","<id_nhom>","debts"]}
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "jwt_token",
+      "value": "paste_your_token_here",
+      "type": "string"
+    }
+  ]
+}

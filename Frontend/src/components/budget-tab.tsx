@@ -631,6 +631,10 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                 </button>
                 <button 
                   onClick={async () => {
+                    if (!tempBankBin || !tempBankAccount.trim() || !tempAccountName.trim()) {
+                      toast.error("Vui lòng nhập đầy đủ thông tin Ngân hàng, STK và Tên người nhận");
+                      return;
+                    }
                     const rawAmount = parseInt(tempAmount.replace(/\D/g, ""), 10);
                     if (!rawAmount || rawAmount <= 0) {
                       toast.error("Vui lòng nhập số tiền hợp lệ");

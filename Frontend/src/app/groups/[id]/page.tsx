@@ -64,6 +64,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [debts, setDebts] = useState<any>(null);
   const [pendingDebtors, setPendingDebtors] = useState<string[]>([]);
+  const [pendingSentCreditors, setPendingSentCreditors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null);
   const [activeTab, setActiveTab] = useState<"expenses" | "balances" | "members" | "history">("expenses");
@@ -73,11 +74,12 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
 
   const fetchGroupData = async () => {
     try {
-      const [groupRes, expensesRes, debtsRes, pendingRes] = await Promise.all([
+      const [groupRes, expensesRes, debtsRes, pendingRes, pendingSentRes] = await Promise.all([
         api.get(`/groups/${id}`),
         api.get(`/groups/${id}/expenses`),
         api.get(`/groups/${id}/debts`),
-        api.get(`/groups/${id}/debts/pending`)
+        api.get(`/groups/${id}/debts/pending`),
+        api.get(`/groups/${id}/debts/pending-sent`)
       ]);
       setGroup(groupRes.data);
       const sortedExpenses = (expensesRes.data || []).sort((a: any, b: any) => {
@@ -88,6 +90,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       setExpenses(sortedExpenses);
       setDebts(debtsRes.data);
       setPendingDebtors(pendingRes.data || []);
+      setPendingSentCreditors(pendingSentRes.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -399,18 +402,29 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="p-3 space-y-3">
                   {myDebts.length === 0 ? (
                     <p className="text-center text-xs text-gray-400 py-4">Bạn không nợ ai 😎</p>
-                  ) : myDebts.map((t: any, i: number) => (
-                    <div key={i} className="bg-white rounded-2xl p-3 flex flex-col items-center text-center shadow-sm">
-                      <div className="w-12 h-12 rounded-full bg-[#FFEDE1] flex items-center justify-center mb-2 font-bold text-[#FF9E7D]">
+                  ) : myDebts.map((t: any, i: number) => {
+                    const isPendingSent = pendingSentCreditors.includes(t.to.id);
+                    return (
+                    <div key={i} className={`bg-white rounded-2xl p-3 flex flex-col items-center text-center shadow-sm ${isPendingSent ? 'border-2 border-amber-300 bg-amber-50' : 'border border-transparent'}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 font-bold ${isPendingSent ? 'bg-amber-100 text-amber-600' : 'bg-[#FFEDE1] text-[#FF9E7D]'}`}>
                         {t.to.name.charAt(0)}
                       </div>
                       <p className="text-xs font-semibold text-gray-700">{t.to.name}</p>
-                      <p className="text-lg font-black my-1" style={{ color: "#FF9E7D" }}>
+                      <p className={`text-lg font-black my-1 ${isPendingSent ? 'text-amber-500' : 'text-[#FF9E7D]'}`}>
                         {new Intl.NumberFormat("vi-VN").format(t.amount)}đ
                       </p>
-                      <SettleDebtDialog groupId={id} toUser={t.to} amount={t.amount} onSettle={fetchGroupData} />
+                      {isPendingSent ? (
+                        <button disabled className="w-full mt-2 text-xs font-bold py-1.5 px-4 rounded-xl shadow-sm flex items-center justify-center gap-1 bg-amber-200 text-amber-700 cursor-not-allowed">
+                          <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                          Đang chờ xác nhận
+                        </button>
+                      ) : (
+                        <div className="w-full mt-2">
+                          <SettleDebtDialog groupId={id} toUser={t.to} amount={t.amount} onSettle={fetchGroupData} />
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             </div>

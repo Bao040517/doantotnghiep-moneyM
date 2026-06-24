@@ -66,6 +66,7 @@ export default function DashboardPage() {
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showQuickAction, setShowQuickAction] = useState(false);
   const [showTxDrawer, setShowTxDrawer] = useState(false);
+  const [txType, setTxType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
   const [activeTab, setActiveTab] = useState<"groups" | "report" | "profile" | "dashboard" | "savings" | "history" | "budget">("dashboard");
   const [walletId, setWalletId] = useState<string | undefined>(undefined);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -74,12 +75,14 @@ export default function DashboardPage() {
   const [phoneForm, setPhoneForm] = useState("");
   const [isSubmittingPhone, setIsSubmittingPhone] = useState(false);
   const [phoneError, setPhoneError] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const router = useRouter();
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("vi-VN").format(amount) + "đ";
 
   const fetchData = async () => {
+    setRefreshTrigger(prev => prev + 1);
     try {
       const [groupsRes] = await Promise.all([
         api.get("/groups"),
@@ -118,6 +121,9 @@ export default function DashboardPage() {
 
       const balanceRes = await api.get("/wallets/total-balance").catch(() => ({ data: { totalBalance: 0 } }));
       setWalletBalance(balanceRes.data.totalBalance);
+
+      const walletRes = await api.get("/wallets/me").catch(() => ({ data: { id: undefined } }));
+      setWalletId(walletRes.data.id);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -206,7 +212,7 @@ export default function DashboardPage() {
             </button>
             <h1 className="text-xl font-extrabold text-gray-800">Thống kê</h1>
           </header>
-          <ReportTab onBack={() => setActiveTab("dashboard")} />
+          <ReportTab onBack={() => setActiveTab("dashboard")} refreshTrigger={refreshTrigger} />
         </>
       ) : activeTab === "history" ? (
         <>
@@ -538,13 +544,24 @@ export default function DashboardPage() {
             <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">Bạn muốn làm gì?</h3>
             <div className="space-y-3">
               <button
-                onClick={() => { setShowQuickAction(false); setShowTxDrawer(true); }}
+                onClick={() => { setTxType("EXPENSE"); setShowQuickAction(false); setShowTxDrawer(true); }}
+                className="w-full flex items-center p-4 bg-rose-50 border border-rose-100 rounded-2xl hover:bg-rose-100 transition-colors"
+              >
+                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl shadow-sm mr-4">💸</div>
+                <div className="text-left">
+                  <p className="font-bold text-rose-800">Ghi Chi Tiêu</p>
+                  <p className="text-xs text-rose-600">Bạn vừa mua sắm hay trả tiền gì đó?</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => { setTxType("INCOME"); setShowQuickAction(false); setShowTxDrawer(true); }}
                 className="w-full flex items-center p-4 bg-emerald-50 border border-emerald-100 rounded-2xl hover:bg-emerald-100 transition-colors"
               >
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl shadow-sm mr-4">💰</div>
                 <div className="text-left">
-                  <p className="font-bold text-emerald-800">Ghi chép Cá nhân</p>
-                  <p className="text-xs text-emerald-600">Thêm khoản thu nhập hoặc chi tiêu</p>
+                  <p className="font-bold text-emerald-800">Ghi Thu Nhập</p>
+                  <p className="text-xs text-emerald-600">Bạn vừa nhận lương hay được cho tiền?</p>
                 </div>
               </button>
 
@@ -634,6 +651,15 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Transaction Drawer */}
+      <AddTransactionDrawer
+        open={showTxDrawer}
+        onOpenChange={setShowTxDrawer}
+        walletId={walletId}
+        type={txType}
+        onCreated={fetchData}
+      />
     </div>
   );
 }

@@ -19,6 +19,8 @@ interface MonthData {
   expense: number;
   net: number;
   debtPayment: number;
+  categoryExpenses?: Record<string, number>;
+  categoryIncomes?: Record<string, number>;
 }
 
 interface MonthlySummary {
@@ -48,6 +50,7 @@ interface BudgetSummary {
 
 interface ReportTabProps {
   onBack?: () => void;
+  refreshTrigger?: number;
 }
 
 /* ─── Helpers ─── */
@@ -59,23 +62,41 @@ const CHART_COLORS = [
 ];
 
 /* ─── SVG Line Chart ─── */
-function LineChart({ months, type }: { months: MonthData[]; type: "expense" | "income" }) {
+function LineChart({ months, type, categories }: { months: MonthData[]; type: "expense" | "income"; categories: CategoryBreakdown[] }) {
   if (months.length === 0) return null;
 
   const W = 320, H = 140, PAD_LEFT = 48, PAD_RIGHT = 16, PAD_TOP = 16, PAD_BOTTOM = 32;
   const chartW = W - PAD_LEFT - PAD_RIGHT;
   const chartH = H - PAD_TOP - PAD_BOTTOM;
 
+  const isExpense = type === "expense";
+
   const incomes  = months.map(m => Number(m.income)  || 0);
   const expenses = months.map(m => Number(m.expense) || 0);
   const nets     = months.map(m => Number(m.net)     || 0);
   const debts    = months.map(m => Number(m.debtPayment) || 0);
 
-  const isExpense = type === "expense";
+  const topCats = categories.slice(0, 5);
+  const categoryLines = topCats.map((cat, i) => {
+    const vals = months.map(m => {
+      const map = isExpense ? m.categoryExpenses : m.categoryIncomes;
+      return map ? (Number(map[cat.categoryName]) || 0) : 0;
+    });
+    return {
+      name: cat.categoryName,
+      color: CHART_COLORS[i % CHART_COLORS.length],
+      vals
+    };
+  });
 
-  const allVals = isExpense
-    ? [...expenses, ...debts]
-    : [...incomes, ...nets.filter(v => v > 0)];
+  const allVals: number[] = [];
+  if (isExpense) {
+     categoryLines.forEach(cl => allVals.push(...cl.vals));
+     allVals.push(...debts);
+  } else {
+     categoryLines.forEach(cl => allVals.push(...cl.vals));
+     allVals.push(...nets.filter(v => v > 0));
+  }
 
   const maxVal  = Math.max(...allVals, 1);
   const minVal  = isExpense ? 0 : Math.min(...nets.filter(v => v < 0), 0);
@@ -114,29 +135,21 @@ function LineChart({ months, type }: { months: MonthData[]; type: "expense" | "i
             stroke="#cbd5e1" strokeWidth={1} />
         )}
 
-        {/* Income lines */}
-        {!isExpense && (
-          <>
-            {/* Income line */}
-            <polyline points={polyline(incomes)} fill="none"
-              stroke="#10b981" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-            {/* Net line */}
-            <polyline points={polyline(nets)} fill="none"
-              stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 3"
-              strokeLinejoin="round" strokeLinecap="round" />
-          </>
-        )}
+        {/* Category lines */}
+        {categoryLines.map(cl => (
+          <polyline key={cl.name} points={polyline(cl.vals)} fill="none"
+              stroke={cl.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        ))}
 
-        {/* Expense lines */}
+        {/* Debt / Net lines */}
+        {!isExpense && (
+          <polyline points={polyline(nets)} fill="none"
+            stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 3"
+            strokeLinejoin="round" strokeLinecap="round" />
+        )}
         {isExpense && (
-          <>
-            {/* Expense line */}
-            <polyline points={polyline(expenses)} fill="none"
-              stroke="#f43f5e" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-            {/* Debt line */}
-            <polyline points={polyline(debts)} fill="none"
-              stroke="#a855f7" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-          </>
+          <polyline points={polyline(debts)} fill="none"
+            stroke="#a855f7" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         )}
 
         {/* Dots & hover targets */}
@@ -145,70 +158,61 @@ function LineChart({ months, type }: { months: MonthData[]; type: "expense" | "i
             style={{ cursor: "pointer" }}>
             <rect x={xOf(i) - 14} y={PAD_TOP} width={28} height={chartH} fill="transparent" />
             
-            {/* Dots for Income tab */}
+            {/* Category dots */}
+            {categoryLines.map(cl => (
+               <circle key={cl.name} cx={xOf(i)} cy={yOf(cl.vals[i])} r={hovered === i ? 4 : 2.5}
+                  fill={cl.color} stroke="#fff" strokeWidth={1.5} style={{ transition: "r 0.15s" }} />
+            ))}
+
+            {/* Net / Debt dots */}
             {!isExpense && (
-              <>
-                {/* Income dot */}
-                <circle cx={xOf(i)} cy={yOf(incomes[i])} r={hovered === i ? 4 : 2.5}
-                  fill="#10b981" stroke="#fff" strokeWidth={1.5} style={{ transition: "r 0.15s" }} />
-                {/* Net dot */}
                 <circle cx={xOf(i)} cy={yOf(nets[i])} r={hovered === i ? 4 : 2.5}
                   fill="#f59e0b" stroke="#fff" strokeWidth={1.5} style={{ transition: "r 0.15s" }} />
-              </>
             )}
-
-            {/* Dots for Expense tab */}
             {isExpense && (
-              <>
-                {/* Expense dot */}
-                <circle cx={xOf(i)} cy={yOf(expenses[i])} r={hovered === i ? 4 : 2.5}
-                  fill="#f43f5e" stroke="#fff" strokeWidth={1.5} style={{ transition: "r 0.15s" }} />
-                {/* Debt dot */}
                 <circle cx={xOf(i)} cy={yOf(debts[i])} r={hovered === i ? 4 : 2.5}
                   fill="#a855f7" stroke="#fff" strokeWidth={1.5} style={{ transition: "r 0.15s" }} />
-              </>
             )}
 
             {/* Hover tooltip */}
-            {hovered === i && (
-              <g>
-                <rect x={xOf(i) - 44} y={PAD_TOP - 2} width={88} height={isExpense && debts[i] > 0 ? 34 : 24}
-                  rx={6} fill="#1e293b" opacity={0.92} />
-                
-                {!isExpense && (
-                  <>
-                    <text x={xOf(i)} y={PAD_TOP + 11} textAnchor="middle"
-                      fontSize={7.5} fill="#10b981" fontFamily="sans-serif">
-                      Thu: +{fmt(incomes[i])}đ
-                    </text>
-                    <text x={xOf(i)} y={PAD_TOP + 20} textAnchor="middle"
-                      fontSize={7.5} fill="#f59e0b" fontFamily="sans-serif">
-                      T.Kiệm: {nets[i] >= 0 ? "+" : ""}{fmt(nets[i])}đ
-                    </text>
-                  </>
-                )}
+            {hovered === i && (() => {
+               const activeCats = categoryLines.filter(cl => cl.vals[i] > 0);
+               const showDebt = isExpense && debts[i] > 0;
+               const tooltipH = (activeCats.length + (isExpense ? (showDebt ? 1 : 0) : 1)) * 13 + 10;
+               const ttW = 100;
+               let ttX = xOf(i) - ttW/2;
+               if (ttX < 0) ttX = 0;
+               if (ttX + ttW > W) ttX = W - ttW;
+               const ttY = Math.max(0, Math.min(PAD_TOP - 2, H - tooltipH - 10));
 
-                {isExpense && (
-                  <>
-                    <text x={xOf(i)} y={PAD_TOP + 11} textAnchor="middle"
-                      fontSize={7.5} fill="#f43f5e" fontFamily="sans-serif">
-                      Chi: -{fmt(expenses[i])}đ
-                    </text>
-                    {debts[i] > 0 ? (
-                      <text x={xOf(i)} y={PAD_TOP + 22} textAnchor="middle"
-                        fontSize={7.5} fill="#a855f7" fontFamily="sans-serif">
-                        Nợ: -{fmt(debts[i])}đ
-                      </text>
-                    ) : (
-                      <text x={xOf(i)} y={PAD_TOP + 20} textAnchor="middle"
-                        fontSize={7.5} fill="#94a3b8" fontFamily="sans-serif">
-                        Nợ: 0đ
-                      </text>
+               return (
+                  <g>
+                    <rect x={ttX} y={ttY} width={ttW} height={tooltipH}
+                      rx={6} fill="#1e293b" opacity={0.92} />
+                    
+                    {activeCats.map((cl, idx) => (
+                        <text key={cl.name} x={ttX + ttW/2} y={ttY + 14 + idx * 13} textAnchor="middle"
+                          fontSize={8} fill={cl.color} fontFamily="sans-serif" fontWeight="bold">
+                          {cl.name}: {isExpense ? "-" : "+"}{fmt(cl.vals[i])}đ
+                        </text>
+                    ))}
+                    
+                    {!isExpense && (
+                        <text x={ttX + ttW/2} y={ttY + 14 + activeCats.length * 13} textAnchor="middle"
+                          fontSize={8} fill="#f59e0b" fontFamily="sans-serif" fontWeight="bold">
+                          T.Kiệm: {nets[i] >= 0 ? "+" : ""}{fmt(nets[i])}đ
+                        </text>
                     )}
-                  </>
-                )}
-              </g>
-            )}
+
+                    {showDebt && (
+                        <text x={ttX + ttW/2} y={ttY + 14 + activeCats.length * 13} textAnchor="middle"
+                            fontSize={8} fill="#a855f7" fontFamily="sans-serif" fontWeight="bold">
+                            Nợ: -{fmt(debts[i])}đ
+                        </text>
+                    )}
+                  </g>
+               );
+            })()}
 
             {/* X-axis label */}
             <text x={xOf(i)} y={H - 4} textAnchor="middle"
@@ -218,25 +222,30 @@ function LineChart({ months, type }: { months: MonthData[]; type: "expense" | "i
       </svg>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-1 justify-center">
-        {(!isExpense
-          ? [
-              { color: "#10b981", label: "Thu nhập" },
-              { color: "#f59e0b", label: "Tiết kiệm", dashed: true },
-            ]
-          : [
-              { color: "#f43f5e", label: "Chi tiêu" },
-              { color: "#a855f7", label: "Trả nợ" },
-            ]
-        ).map(({ color, label, dashed }) => (
-          <div key={label} className="flex items-center gap-1">
-            <svg width={20} height={8}>
-              <line x1={0} y1={4} x2={20} y2={4} stroke={color} strokeWidth={2}
-                strokeDasharray={dashed ? "4 2" : undefined} />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 justify-center px-4">
+        {categoryLines.map(cl => (
+          <div key={cl.name} className="flex items-center gap-1">
+            <svg width={16} height={8}>
+              <line x1={0} y1={4} x2={16} y2={4} stroke={cl.color} strokeWidth={2} />
             </svg>
-            <span className="text-[10px] text-slate-500 font-medium">{label}</span>
+            <span className="text-[10px] text-slate-500 font-medium">{cl.name}</span>
           </div>
         ))}
+        {!isExpense ? (
+          <div className="flex items-center gap-1">
+            <svg width={16} height={8}>
+              <line x1={0} y1={4} x2={16} y2={4} stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 2" />
+            </svg>
+            <span className="text-[10px] text-slate-500 font-medium">Tiết kiệm</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <svg width={16} height={8}>
+              <line x1={0} y1={4} x2={16} y2={4} stroke="#a855f7" strokeWidth={2} />
+            </svg>
+            <span className="text-[10px] text-slate-500 font-medium">Trả nợ</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -303,7 +312,7 @@ function CategoryItem({
 }
 
 /* ─── Main Component ─── */
-export function ReportTab({ onBack }: ReportTabProps) {
+export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
   const now = new Date();
   const [selectedYear,  setSelectedYear]  = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -358,7 +367,7 @@ export function ReportTab({ onBack }: ReportTabProps) {
           } else {
             const existing = groupedBudgetsMap.get(cid);
             existing.limitAmount = Number(existing.limitAmount || 0) + Number(b.limitAmount || 0);
-            existing.rolloverAmount = Number(existing.rolloverAmount || 0) + Number(b.rolloverAmount || 0);
+
             if (b.type === 'FLEXIBLE') {
                existing.flexibleSpent = Number(b.spentAmount || 0);
             } else if (b.type === 'BILL') {
@@ -380,7 +389,7 @@ export function ReportTab({ onBack }: ReportTabProps) {
       }
     };
     fetchData();
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, refreshTrigger]);
 
   const changeMonth = (offset: number) => {
     let m = selectedMonth + offset;
@@ -613,7 +622,7 @@ export function ReportTab({ onBack }: ReportTabProps) {
                   {summary.months[0]?.label} → {summary.months[summary.months.length - 1]?.label}
                 </span>
               </div>
-              <LineChart months={summary.months} type={activeTab} />
+              <LineChart months={summary.months} type={activeTab} categories={activeBreakdown} />
             </div>
           )}
         </div>

@@ -151,7 +151,7 @@ export function EditTransactionDrawer({ transaction, open, onOpenChange, onUpdat
                     inputMode="numeric"
                     value={amount}
                     onChange={handleAmountChange}
-                    className="pl-8 text-lg font-bold"
+                    className="pl-8 text-lg font-bold border-gray-200 focus-visible:ring-1 focus-visible:ring-emerald-500"
                     disabled={isLinked}
                     required
                   />

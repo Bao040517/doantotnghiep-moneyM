@@ -23,11 +23,8 @@ import org.hibernate.annotations.CreationTimestamp;
  * Giao dịch thanh toán giữa 2 thành viên trong nhóm. Được tạo khi Greedy algorithm xác định ai cần
  * trả cho ai bao nhiêu. status: "pending" | "completed"
  *
- * @deprecated Entity này hiện chưa được sử dụng trong bất kỳ Service/Repository nào.
- * Hệ thống đang dùng ConcurrentHashMap in-memory (DebtService.pendingPayments) thay thế.
- * Dữ liệu pending sẽ mất khi server restart. Cần migrate sang dùng bảng này trong tương lai.
+ * Hệ thống dùng bảng này để lưu trạng thái "pending" khi thanh toán.
  */
-@Deprecated
 @Entity
 @Table(name = "payments")
 @Getter

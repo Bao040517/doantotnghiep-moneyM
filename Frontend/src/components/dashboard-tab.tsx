@@ -30,72 +30,93 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const [txSummary, setTxSummary] = useState({ totalIncome: 0, totalExpense: 0 });
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+  const [topExpenseCategories, setTopExpenseCategories] = useState<any[]>([]);
 
   const fetchData = async () => {
     try {
       const now = new Date();
-      const [totalBalanceRes, walletRes, budgetRes, debtRes, txRes] = await Promise.allSettled([
+      const [totalBalanceRes, walletRes, budgetRes, debtRes, txRes, catBreakdownRes] = await Promise.allSettled([
         api.get("/wallets/total-balance"),
         api.get("/wallets/me"),
         api.get(`/budgets/summary?year=${now.getFullYear()}&month=${now.getMonth() + 1}`),
         api.get("/groups/debts/summary"),
-        api.get(`/transactions/summary/monthly?year=${now.getFullYear()}&month=${now.getMonth() + 1}`)
+        api.get(`/transactions/summary/monthly?year=${now.getFullYear()}&month=${now.getMonth() + 1}`),
+        api.get(`/transactions/summary/category?year=${now.getFullYear()}&month=${now.getMonth() + 1}`)
       ]);
 
       let wBalance = 0;
       let unpaidBudgets = 0;
       let tOwing = 0;
 
+      let tb = 0;
       if (totalBalanceRes.status === "fulfilled") {
-        const tb = totalBalanceRes.value.data?.totalBalance || 0;
-        setTotalWalletBalance(tb);
-        wBalance = tb;
+        tb = totalBalanceRes.value.data?.totalBalance || 0;
       }
+
+      let txInc = 0;
+      let txExp = 0;
+      if (txRes.status === "fulfilled") {
+        txInc = txRes.value.data?.currentMonth?.totalIncome || 0;
+        txExp = txRes.value.data?.currentMonth?.totalExpense || 0;
+        setTxSummary({ totalIncome: txInc, totalExpense: txExp });
+      }
+
+      if (catBreakdownRes.status === "fulfilled") {
+        setTopExpenseCategories(catBreakdownRes.value.data || []);
+      }
+
+      // Handle testing scenarios where balance is 0 but there are transactions
+      if (tb === 0 && (txInc > 0 || txExp > 0)) {
+        tb = txInc - txExp;
+      }
+
+      setTotalWalletBalance(tb);
+      wBalance = tb;
+
       if (walletRes.status === "fulfilled") {
         setWallet(walletRes.value.data);
       }
+
       if (budgetRes.status === "fulfilled") {
-        setBudgets(budgetRes.value.data || []);
-        const categoryMap = new Map<string, { flexLimit: number, flexSpent: number, billLimit: number, billSpent: number }>();
-        (budgetRes.value.data || []).forEach((b: any) => {
+        const data = budgetRes.value.data || [];
+        setBudgets(data);
+        const effCategoryMap = new Map<string, { flexLimit: number; flexSpent: number; billLimit: number; billSpent: number }>();
+        data.forEach((b: any) => {
           const cat = b.categoryId;
-          if (!categoryMap.has(cat)) categoryMap.set(cat, { flexLimit: 0, flexSpent: 0, billLimit: 0, billSpent: 0 });
-          const entry = categoryMap.get(cat)!;
+          if (!effCategoryMap.has(cat)) effCategoryMap.set(cat, { flexLimit: 0, flexSpent: 0, billLimit: 0, billSpent: 0 });
+          const entry = effCategoryMap.get(cat)!;
           if (b.type === "FLEXIBLE") {
             entry.flexLimit += b.limitAmount;
-            entry.flexSpent = b.spentAmount; // Fix duplication
+            entry.flexSpent = b.spentAmount;
           } else {
             entry.billLimit += b.limitAmount;
             entry.billSpent += b.spentAmount;
           }
         });
-
-        unpaidBudgets = 0;
-        categoryMap.forEach(entry => {
-          const effLimit = Math.max(entry.flexLimit, entry.billLimit);
-          const effSpent = entry.flexSpent + entry.billSpent;
-          unpaidBudgets += Math.max(0, effLimit - effSpent);
+        
+        let totalBudgetLimit = 0;
+        let totalBudgetSpent = 0;
+        effCategoryMap.forEach(entry => {
+          totalBudgetLimit += Math.max(entry.flexLimit, entry.billLimit);
+          totalBudgetSpent += Math.min(entry.flexLimit, entry.flexSpent) + Math.min(entry.billLimit, entry.billSpent);
         });
+        
+        unpaidBudgets = Math.max(0, totalBudgetLimit - totalBudgetSpent);
+        setUnpaidBudgetsAmount(unpaidBudgets);
       }
+
       if (debtRes.status === "fulfilled") {
         const data = debtRes.value.data;
         tOwing = data?.totalOwing || 0;
-        setDebtSummary({ totalOwed: data?.totalOwed || 0, totalOwing: tOwing });
+        setDebtSummary({ totalOwing: tOwing, totalOwed: data?.totalOwed || 0 });
         setDebtDetails(data?.details || []);
       }
-      if (txRes.status === "fulfilled") {
-        setTxSummary({ 
-          totalIncome: txRes.value.data?.currentMonth?.totalIncome || 0, 
-          totalExpense: txRes.value.data?.currentMonth?.totalExpense || 0 
-        });
-      }
 
-      setUnpaidBudgetsAmount(unpaidBudgets);
-      const rawSafe = Math.max(0, wBalance - unpaidBudgets - tOwing);
+      const rawSafe = wBalance - unpaidBudgets - tOwing;
       setRawSafeToSpend(rawSafe);
-      const calcAutoSavings = rawSafe * 0.4;
+      const calcAutoSavings = Math.max(0, rawSafe * 0.4);
       setAutoSavings(calcAutoSavings);
-      setSafeToSpend(rawSafe - calcAutoSavings);
+      setSafeToSpend(rawSafe);
 
     } catch (error) {
       console.error(error);
@@ -137,11 +158,22 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   });
   const budgetPct = totalBudgetLimit > 0 ? Math.min(100, (totalBudgetSpent / totalBudgetLimit) * 100) : 0;
 
+  const currentUser = typeof window !== "undefined" ? (() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        return JSON.parse(userStr);
+      } catch (e) {}
+    }
+    return { id: "", name: "", avatarUrl: null };
+  })() : { id: "", name: "", avatarUrl: null };
+
   const myDebts = debtDetails
     .filter((d: any) => d.type === "OWING")
     .map((d: any) => ({
       groupId: d.groupId,
       groupName: d.groupName,
+      from: currentUser,
       to: d.counterparty,
       amount: d.amount,
     }));
@@ -152,6 +184,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       groupId: d.groupId,
       groupName: d.groupName,
       from: d.counterparty,
+      to: currentUser,
       amount: d.amount,
     }));
 
@@ -313,24 +346,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               </p>
             </div>
           </GlobalDebtsDrawer>
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-xs">🌱</div>
-              <span className="text-gray-500 font-medium text-[12px]">Dành cho Tiết kiệm (40%)</span>
-            </div>
-            <p className="text-[15px] font-bold text-emerald-500">
-              {showBalance ? (autoSavings > 0 ? "-" : "") + fmt(autoSavings) : "••••••••"}
-            </p>
-          </div>
-          <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-[#e8f5f1] text-[#45b39d] rounded-full flex items-center justify-center text-xs">🐷</div>
-              <span className="text-gray-600 font-bold text-[13px]">Tiền rảnh rỗi (Heo đất)</span>
-            </div>
-            <p className="text-[15px] font-bold text-[#45b39d]">
-              {showBalance ? fmt(safeToSpend || 0) : "••••••••"}
-            </p>
-          </div>
+
+
         </div>
       </div>
 
@@ -346,12 +363,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Nạp vào ví</span>
           </button>
           
-          <button onClick={() => toast.info("Tính năng đang phát triển", { description: "Tính năng Rút tiền sẽ sớm ra mắt nhé!" })} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
-            <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
-            </div>
-            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Rút tiền</span>
-          </button>
+
           
           <button onClick={() => setIsTransferModalOpen(true)} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
             <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
@@ -368,18 +380,20 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Ngân sách</span>
           </button>
 
-          <button onClick={() => onNavigate?.('savings')} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
-            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-xl">
-              🌱
-            </div>
-            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Tiết kiệm</span>
-          </button>
+
 
           <button onClick={() => onNavigate?.('groups')} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
             <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             </div>
             <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Nhóm</span>
+          </button>
+
+          <button onClick={() => onNavigate?.('savings')} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
+            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-xl">
+              🌱
+            </div>
+            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Tiết kiệm</span>
           </button>
         </div>
 
@@ -415,7 +429,90 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-4 text-center font-medium relative z-10">Nhấn để xem chi tiết Ngân sách & Giao dịch</p>
+
+          {/* Top 5 Spending Categories */}
+          {topExpenseCategories.length > 0 && (
+            <div className="mt-6 pt-5 border-t border-gray-100 relative z-10">
+              <h4 className="text-[14px] font-extrabold text-gray-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                🏆 Bảng xếp hạng chi tiêu
+              </h4>
+              <div className="space-y-3">
+                {topExpenseCategories.slice(0, 5).map((cat, idx) => {
+                  const maxAmount = topExpenseCategories[0].totalAmount;
+                  const barWidth = maxAmount > 0 ? (cat.totalAmount / maxAmount) * 100 : 0;
+                  const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+                  const colors = [
+                    "bg-yellow-50 text-yellow-600 border-yellow-200",
+                    "bg-slate-50 text-slate-500 border-slate-200",
+                    "bg-orange-50 text-orange-500 border-orange-200",
+                    "bg-gray-50 text-gray-400 border-gray-100",
+                    "bg-gray-50 text-gray-400 border-gray-100"
+                  ];
+                  return (
+                    <div key={idx} className="relative bg-white rounded-2xl p-3 border border-gray-100 shadow-sm overflow-hidden flex flex-col justify-center">
+                      <div className="absolute top-0 left-0 bottom-0 bg-rose-50/60 -z-10 transition-all duration-1000" style={{ width: `${barWidth}%` }} />
+                      
+                      <div className="flex items-center justify-between z-10">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[18px] shrink-0 border shadow-sm ${colors[idx]}`}>
+                            {medals[idx]}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[14px] font-bold text-gray-800 leading-tight flex items-center gap-1.5">
+                              {cat.categoryName}
+                              {idx === 0 && <span className="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-md uppercase font-black">Vô địch 💸</span>}
+                            </span>
+                            <span className="text-[11px] font-medium text-gray-500 mt-0.5">Chiếm {cat.percentage.toFixed(1)}% tháng này</span>
+                          </div>
+                        </div>
+                        <span className={`text-[15px] font-black tracking-tight ${idx === 0 ? "text-rose-600" : "text-gray-700"}`}>
+                          -{fmt(cat.totalAmount)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* ─── AT-RISK BUDGETS ─── */}
+        {budgets.filter(b => b.type === "FLEXIBLE" && b.limitAmount > 0 && (b.spentAmount / b.limitAmount) >= 0.8).length > 0 && (
+          <div className="mb-10 -mt-6">
+            <h4 className="text-[13px] font-bold text-rose-500 mb-3 ml-2 uppercase tracking-wide flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              Cảnh báo vượt hạn mức
+            </h4>
+            <div className="flex overflow-x-auto gap-3 pb-4 no-scrollbar -mx-5 px-5">
+              {budgets.filter(b => b.type === "FLEXIBLE" && b.limitAmount > 0 && (b.spentAmount / b.limitAmount) >= 0.8)
+                .sort((a, b) => (b.spentAmount / b.limitAmount) - (a.spentAmount / a.limitAmount))
+                .map((b, idx) => {
+                const pct = Math.round((b.spentAmount / b.limitAmount) * 100);
+                const isOver = b.spentAmount > b.limitAmount || pct >= 100;
+                return (
+                  <div key={idx} onClick={() => onNavigate?.('budget')} className={`shrink-0 w-48 rounded-2xl p-4 border active:scale-95 transition-all cursor-pointer ${isOver ? 'bg-rose-50 border-rose-100 shadow-[0_4px_12px_rgba(244,63,94,0.15)]' : 'bg-amber-50 border-amber-100 shadow-[0_4px_12px_rgba(245,158,11,0.15)]'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isOver ? 'bg-rose-200/50 text-rose-600' : 'bg-amber-200/50 text-amber-600'}`}>
+                        <span className="text-[15px]">{isOver ? '🔥' : '⚠️'}</span>
+                      </div>
+                      <span className={`text-[14px] font-bold truncate ${isOver ? 'text-rose-700' : 'text-amber-700'}`}>{b.name || b.categoryName || "Khoản chi"}</span>
+                    </div>
+                    <div className="w-full bg-white/50 h-1.5 rounded-full overflow-hidden mb-1.5">
+                      <div className={`h-full rounded-full ${isOver ? 'bg-rose-500' : 'bg-amber-500'}`} style={{width: `${Math.min(100, pct)}%`}} />
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] font-medium">
+                      <span className={isOver ? 'text-rose-500' : 'text-amber-600'}>{pct}%</span>
+                      <span className={isOver ? 'text-rose-600 font-bold' : 'text-amber-700 font-bold'}>
+                        {isOver ? `Vượt ${fmt(b.spentAmount - b.limitAmount)}` : `Còn ${fmt(b.limitAmount - b.spentAmount)}`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ─── FINANCIAL HEALTH ─── */}
         <div className="mb-10">

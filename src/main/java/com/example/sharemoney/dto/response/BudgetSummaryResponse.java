@@ -22,8 +22,7 @@ public class BudgetSummaryResponse {
     private int percentage;         // 0-100+ (có thể > 100 nếu vượt ngân sách)
     private String status;          // "OK" | "WARNING" | "OVER"
 
-    private boolean isRollover;
-    private BigDecimal rolloverAmount;
+
     private BigDecimal availableAmount;
     
     private String type;

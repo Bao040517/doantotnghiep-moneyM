@@ -39,10 +39,7 @@ public class DebtService {
     private final NotificationService notificationService;
     private final com.example.sharemoney.repository.ExpenseRepository expenseRepository;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
-
-    // In-memory set để lưu trạng thái "Đã báo thanh toán" (Dùng cho demo)
-    // Format: groupId_debtorId_creditorId
-    public static final Set<String> pendingPayments = ConcurrentHashMap.newKeySet();
+    private final com.example.sharemoney.repository.PaymentRepository paymentRepository;
 
     // ─────────────────────────────────────────────────────────────
     // Entry point: tính toán nợ + chạy Greedy cho 1 nhóm
@@ -241,8 +238,16 @@ public class DebtService {
         User creditor = userRepository.findById(request.getToUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        // Lưu vào set pending
-        pendingPayments.add(groupId.toString() + "_" + debtorId.toString() + "_" + creditor.getId().toString());
+        // Lưu vào cơ sở dữ liệu thay vì in-memory
+        com.example.sharemoney.entity.Payment payment = paymentRepository.findByGroup_IdAndPayer_IdAndReceiver_IdAndStatus(groupId, debtorId, creditor.getId(), "pending")
+                .orElseGet(() -> com.example.sharemoney.entity.Payment.builder()
+                        .group(groupRepository.findById(groupId).orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND)))
+                        .payer(debtor)
+                        .receiver(creditor)
+                        .status("pending")
+                        .build());
+        payment.setAmount(request.getAmount());
+        paymentRepository.save(payment);
 
         java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("vi-VN"));
         String amountString = formatter.format(request.getAmount());
@@ -298,8 +303,12 @@ public class DebtService {
         java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("vi-VN"));
         String amountString = formatter.format(request.getAmount());
 
-        // Xóa khỏi set pending nếu có
-        pendingPayments.remove(groupId.toString() + "_" + debtor.getId().toString() + "_" + creditor.getId().toString());
+        // Đánh dấu pending payment thành completed nếu có
+        paymentRepository.findByGroup_IdAndPayer_IdAndReceiver_IdAndStatus(groupId, debtor.getId(), creditor.getId(), "pending")
+                .ifPresent(p -> {
+                    p.setStatus("completed");
+                    paymentRepository.save(p);
+                });
 
         // Bắn Notification (WebSocket) cho người trả
         String message = String.format("🎉 %s đã xác nhận nhận được %s từ bạn!", creditor.getName(), amountString);
@@ -351,9 +360,14 @@ public class DebtService {
     }
 
     public List<String> getPendingDebtors(UUID groupId, UUID creditorId) {
-        return pendingPayments.stream()
-                .filter(p -> p.startsWith(groupId.toString() + "_") && p.endsWith("_" + creditorId.toString()))
-                .map(p -> p.split("_")[1])
+        return paymentRepository.findByGroup_IdAndReceiver_IdAndStatus(groupId, creditorId, "pending").stream()
+                .map(p -> p.getPayer().getId().toString())
+                .toList();
+    }
+
+    public List<String> getPendingSent(UUID groupId, UUID debtorId) {
+        return paymentRepository.findByGroup_IdAndPayer_IdAndStatus(groupId, debtorId, "pending").stream()
+                .map(p -> p.getReceiver().getId().toString())
                 .toList();
     }
 

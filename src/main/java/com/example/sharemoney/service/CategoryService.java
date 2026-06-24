@@ -33,10 +33,17 @@ public class CategoryService {
                     .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
             categories = List.of(
-                    Category.builder().user(user).name("Ăn uống").type(TransactionType.EXPENSE).iconName("🍔").build(),
-                    Category.builder().user(user).name("Di chuyển").type(TransactionType.EXPENSE).iconName("🚗").build(),
-                    Category.builder().user(user).name("Mua sắm").type(TransactionType.EXPENSE).iconName("🛍️").build(),
-                    Category.builder().user(user).name("Hóa đơn").type(TransactionType.EXPENSE).iconName("🧾").build(),
+                    Category.builder().user(user).name("Ăn uống").type(TransactionType.EXPENSE).iconName("🍽️").build(),
+                    Category.builder().user(user).name("Chi tiêu hàng ngày").type(TransactionType.EXPENSE).iconName("🧴").build(),
+                    Category.builder().user(user).name("Quần áo").type(TransactionType.EXPENSE).iconName("👕").build(),
+                    Category.builder().user(user).name("Mỹ phẩm").type(TransactionType.EXPENSE).iconName("💄").build(),
+                    Category.builder().user(user).name("Phí giao lưu").type(TransactionType.EXPENSE).iconName("🥂").build(),
+                    Category.builder().user(user).name("Y tế").type(TransactionType.EXPENSE).iconName("💊").build(),
+                    Category.builder().user(user).name("Giáo dục").type(TransactionType.EXPENSE).iconName("📚").build(),
+                    Category.builder().user(user).name("Tiền điện").type(TransactionType.EXPENSE).iconName("💡").build(),
+                    Category.builder().user(user).name("Đi lại").type(TransactionType.EXPENSE).iconName("🚆").build(),
+                    Category.builder().user(user).name("Phí liên lạc").type(TransactionType.EXPENSE).iconName("📱").build(),
+                    Category.builder().user(user).name("Tiền nhà").type(TransactionType.EXPENSE).iconName("🏠").build(),
                     Category.builder().user(user).name("Trả nợ nhóm").type(TransactionType.TRANSFER).iconName("💸").build(),
                     Category.builder().user(user).name("Nhận tiền nhóm").type(TransactionType.TRANSFER).iconName("⬅️").build(),
                     Category.builder().user(user).name("Xóa nợ nhóm").type(TransactionType.TRANSFER).iconName("✅").build(),

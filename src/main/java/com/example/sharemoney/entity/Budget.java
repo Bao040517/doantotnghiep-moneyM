@@ -46,11 +46,7 @@ public class Budget {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "is_rollover", nullable = false)
-    private boolean isRollover;
 
-    @Column(name = "rollover_amount", precision = 15, scale = 2)
-    private BigDecimal rolloverAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)

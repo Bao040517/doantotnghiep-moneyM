@@ -324,6 +324,15 @@ public class TransactionService {
             BigDecimal net = income.subtract(expense);
 
             String label = "T" + targetYM.getMonthValue() + "/" + targetYM.getYear();
+            
+            List<CategoryBreakdownResponse> catBreakdown = getCategoryBreakdownByType(userId, targetYM.getYear(), targetYM.getMonthValue(), TransactionType.EXPENSE);
+            java.util.Map<String, BigDecimal> catExpenses = catBreakdown.stream()
+                .collect(Collectors.toMap(CategoryBreakdownResponse::getCategoryName, CategoryBreakdownResponse::getTotalAmount, (v1, v2) -> v1));
+
+            List<CategoryBreakdownResponse> incBreakdown = getCategoryBreakdownByType(userId, targetYM.getYear(), targetYM.getMonthValue(), TransactionType.INCOME);
+            java.util.Map<String, BigDecimal> catIncomes = incBreakdown.stream()
+                .collect(Collectors.toMap(CategoryBreakdownResponse::getCategoryName, CategoryBreakdownResponse::getTotalAmount, (v1, v2) -> v1));
+
             months.add(MonthlySummaryResponse.MonthData.builder()
                     .label(label)
                     .year(targetYM.getYear())
@@ -332,6 +341,8 @@ public class TransactionService {
                     .expense(expense)
                     .net(net)
                     .debtPayment(debtPayment)
+                    .categoryExpenses(catExpenses)
+                    .categoryIncomes(catIncomes)
                     .build());
         }
 

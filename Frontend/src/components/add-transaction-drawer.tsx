@@ -46,7 +46,7 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   const [currency, setCurrency] = useState("VND");
   const [exchangeRate, setExchangeRate] = useState(1);
 
@@ -131,7 +131,7 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
       toast.error("Vui lòng nhập số tiền");
       return;
     }
-    
+
     const applyExchangeRate = (val: number) => {
       if (currency !== "VND" && exchangeRate > 0) {
         return Math.round(val * exchangeRate);
@@ -175,7 +175,7 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
         const groupDetail = await api.get(`/groups/${selectedGroupId}`);
         const members = groupDetail.data.members || [];
         const splitUserIds = members.map((m: any) => m.user.id);
-        
+
         const currentUserStr = localStorage.getItem("user");
         let paidById = currentUserStr ? JSON.parse(currentUserStr).id : "";
         const categoryName = filteredCategories.find(c => c.id === payloadCategoryId)?.name || "Khác";
@@ -225,16 +225,16 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
           </DrawerHeader>
           <div className="p-4 pb-0">
             <form id="add-transaction-form" onSubmit={handleSubmit} className="space-y-4">
-              
+
               <div className="space-y-2">
                 <Label htmlFor="amount" className="text-sm font-semibold text-gray-700">
                   Số tiền <span className="text-red-500">*</span>
                 </Label>
-                
+
                 <div className="flex gap-2 relative">
                   <div className="relative flex-1">
                     <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-semibold ${type === "INCOME" ? "text-emerald-500" : "text-rose-500"}`}>
-                      {currency === "VND" ? "₫" : currency === "USD" ? "$" : currency === "EUR" ? "€" : currency === "JPY" ? "¥" : currency === "THB" ? "฿" : currency}
+                      {currency === "VND" ? "₫" : currency === "USD" ? "$" : currency === "EUR" ? "€" : currency === "JPY" ? "¥" : currency === "THB" ? "฿" : currency === "KRW" ? "₩" : currency === "SGD" ? "S$" : currency}
                     </span>
                     <Input
                       id="amount"
@@ -243,11 +243,11 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
                       placeholder="0"
                       value={amount}
                       onChange={handleAmountChange}
-                      className={`pl-8 text-lg font-bold border-gray-200 focus-visible:ring-1 ${type === "INCOME" ? "focus-visible:ring-emerald-500" : "focus-visible:ring-rose-500"}`}
+                      className={`pl-10 text-lg font-bold border-gray-200 focus-visible:ring-1 ${type === "INCOME" ? "focus-visible:ring-emerald-500" : "focus-visible:ring-rose-500"}`}
                       required
                     />
                   </div>
-                  
+
                   <div className={`relative w-24 border rounded-md overflow-hidden flex items-center ${type === "INCOME" ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
                     <select
                       value={currency}
@@ -263,153 +263,153 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
                       <option value="SGD">SGD</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                     </div>
                   </div>
                 </div>
-                
+
                 {currency !== "VND" && exchangeRate > 0 && amount && (
                   <p className={`text-xs font-medium flex justify-end mt-1 ${type === "INCOME" ? "text-emerald-600" : "text-rose-600"}`}>
-                    ≈ {new Intl.NumberFormat("vi-VN").format(Math.round(Number(amount.replace(/\D/g, "")) * exchangeRate))} đ 
+                    ≈ {new Intl.NumberFormat("vi-VN").format(Math.round(Number(amount.replace(/\D/g, "")) * exchangeRate))} đ
                     (1 {currency} = {new Intl.NumberFormat("vi-VN").format(Math.round(exchangeRate))} đ)
                   </p>
                 )}
               </div>
 
-                {!isSplit && (
-                  <div className="space-y-2">
-                    <Label htmlFor="category" className="text-sm font-semibold text-gray-700">
-                      Danh mục <span className="text-red-500">*</span>
-                    </Label>
-                    <Select value={categoryId} onValueChange={(val) => { if (val) { setCategoryId(val); setLinkedBudgetId(""); } }}>
-                      <SelectTrigger className="w-full">
-                        {categoryId 
-                          ? (() => {
-                              const c = filteredCategories.find(cat => cat.id === categoryId);
-                              return c ? (
-                                <span className="flex items-center gap-2">
-                                  {c.iconName} {c.name}
-                                </span>
-                              ) : <span className="text-gray-400">Chọn danh mục</span>;
-                            })()
-                          : <span className="text-gray-400">Chọn danh mục</span>
-                        }
-                      </SelectTrigger>
-                      <SelectContent portal={false} className="z-[100]">
-                        {filteredCategories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.iconName} {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+              {!isSplit && (
+                <div className="space-y-2">
+                  <Label htmlFor="category" className="text-sm font-semibold text-gray-700">
+                    Danh mục <span className="text-red-500">*</span>
+                  </Label>
+                  <Select value={categoryId} onValueChange={(val) => { if (val) { setCategoryId(val); setLinkedBudgetId(""); } }}>
+                    <SelectTrigger className="w-full">
+                      {categoryId
+                        ? (() => {
+                          const c = filteredCategories.find(cat => cat.id === categoryId);
+                          return c ? (
+                            <span className="flex items-center gap-2">
+                              {c.iconName} {c.name}
+                            </span>
+                          ) : <span className="text-gray-400">Chọn danh mục</span>;
+                        })()
+                        : <span className="text-gray-400">Chọn danh mục</span>
+                      }
+                    </SelectTrigger>
+                    <SelectContent portal={false} className="z-[100]">
+                      {filteredCategories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.iconName} {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-                {!isSplit && categoryId && budgets.filter(b => b.categoryId === categoryId).length > 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="linkedBill" className="text-sm font-semibold text-gray-700">
-                      Trừ vào ngân sách (Tùy chọn)
-                    </Label>
-                    <Select value={linkedBudgetId} onValueChange={(val) => setLinkedBudgetId(val && val !== "none" ? val : "")}>
-                      <SelectTrigger className="w-full">
-                        {linkedBudgetId 
-                          ? (() => {
-                              const b = budgets.find(bud => bud.budgetId === linkedBudgetId);
-                              return b ? <span>{b.name}</span> : <span className="text-gray-400">Không liên kết</span>;
-                            })()
-                          : <span className="text-gray-400">Không liên kết</span>
-                        }
-                      </SelectTrigger>
-                      <SelectContent portal={false} className="z-[100]">
-                        <SelectItem value="none">Không liên kết</SelectItem>
-                        {budgets.filter(b => b.categoryId === categoryId).map((b) => (
-                          <SelectItem key={b.budgetId} value={b.budgetId}>
-                            {b.name} ({new Intl.NumberFormat("vi-VN").format(b.limitAmount)}đ)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+              {!isSplit && categoryId && budgets.filter(b => b.categoryId === categoryId).length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="linkedBill" className="text-sm font-semibold text-gray-700">
+                    Trừ vào ngân sách (Tùy chọn)
+                  </Label>
+                  <Select value={linkedBudgetId} onValueChange={(val) => setLinkedBudgetId(val && val !== "none" ? val : "")}>
+                    <SelectTrigger className="w-full">
+                      {linkedBudgetId
+                        ? (() => {
+                          const b = budgets.find(bud => bud.budgetId === linkedBudgetId);
+                          return b ? <span>{b.name}</span> : <span className="text-gray-400">Không liên kết</span>;
+                        })()
+                        : <span className="text-gray-400">Không liên kết</span>
+                      }
+                    </SelectTrigger>
+                    <SelectContent portal={false} className="z-[100]">
+                      <SelectItem value="none">Không liên kết</SelectItem>
+                      {budgets.filter(b => b.categoryId === categoryId).map((b) => (
+                        <SelectItem key={b.budgetId} value={b.budgetId}>
+                          {b.name} ({new Intl.NumberFormat("vi-VN").format(b.limitAmount)}đ)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-                {isSplit && (
-                  <div className="space-y-3 border border-gray-200 p-3 rounded-lg bg-gray-50">
-                    <Label className="text-sm font-semibold text-gray-700 flex justify-between">
-                      <span>Chi tiết chia nhỏ</span>
-                      <span className="text-xs text-gray-500 font-normal">
-                        Còn lại: {new Intl.NumberFormat("vi-VN").format(Math.max(0, Number(amount.replace(/\D/g,"")) - splits.reduce((acc, s) => acc + Number(s.amount.replace(/\D/g,"")), 0)))}đ
-                      </span>
-                    </Label>
-                    {splits.map((split, index) => (
-                      <div key={index} className="space-y-2 pb-3 border-b border-gray-200 last:border-0 last:pb-0">
-                        <div className="flex gap-2">
-                          <Select 
-                            value={split.categoryId} 
-                            onValueChange={(val) => {
-                              const newSplits = [...splits];
-                              newSplits[index].categoryId = val || "";
-                              setSplits(newSplits);
-                            }}
-                          >
-                            <SelectTrigger className="w-1/2">
-                              {split.categoryId 
-                                ? (() => {
-                                    const c = filteredCategories.find(cat => cat.id === split.categoryId);
-                                    return c ? <span className="truncate">{c.iconName} {c.name}</span> : <span>Chọn DM</span>;
-                                  })()
-                                : <span className="text-gray-400">Chọn DM</span>
-                              }
-                            </SelectTrigger>
-                            <SelectContent portal={false} className="z-[100]">
-                              {filteredCategories.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                  {c.iconName} {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="Số tiền"
-                            value={split.amount}
-                            className="w-1/2"
-                            onChange={(e) => {
-                              let raw = e.target.value.replace(/\D/g, "");
-                              const newSplits = [...splits];
-                              newSplits[index].amount = raw ? new Intl.NumberFormat("vi-VN").format(parseInt(raw, 10)) : "";
-                              setSplits(newSplits);
-                            }}
-                          />
-                        </div>
-                        {index > 0 && (
-                          <div className="flex justify-end">
-                            <button 
-                              type="button" 
-                              onClick={() => {
-                                const newSplits = [...splits];
-                                newSplits.splice(index, 1);
-                                setSplits(newSplits);
-                              }}
-                              className="text-xs text-red-500 hover:text-red-700 font-medium"
-                            >
-                              Xóa dòng này
-                            </button>
-                          </div>
-                        )}
+              {isSplit && (
+                <div className="space-y-3 border border-gray-200 p-3 rounded-lg bg-gray-50">
+                  <Label className="text-sm font-semibold text-gray-700 flex justify-between">
+                    <span>Chi tiết chia nhỏ</span>
+                    <span className="text-xs text-gray-500 font-normal">
+                      Còn lại: {new Intl.NumberFormat("vi-VN").format(Math.max(0, Number(amount.replace(/\D/g, "")) - splits.reduce((acc, s) => acc + Number(s.amount.replace(/\D/g, "")), 0)))}đ
+                    </span>
+                  </Label>
+                  {splits.map((split, index) => (
+                    <div key={index} className="space-y-2 pb-3 border-b border-gray-200 last:border-0 last:pb-0">
+                      <div className="flex gap-2">
+                        <Select
+                          value={split.categoryId}
+                          onValueChange={(val) => {
+                            const newSplits = [...splits];
+                            newSplits[index].categoryId = val || "";
+                            setSplits(newSplits);
+                          }}
+                        >
+                          <SelectTrigger className="w-1/2">
+                            {split.categoryId
+                              ? (() => {
+                                const c = filteredCategories.find(cat => cat.id === split.categoryId);
+                                return c ? <span className="truncate">{c.iconName} {c.name}</span> : <span>Chọn DM</span>;
+                              })()
+                              : <span className="text-gray-400">Chọn DM</span>
+                            }
+                          </SelectTrigger>
+                          <SelectContent portal={false} className="z-[100]">
+                            {filteredCategories.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.iconName} {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="Số tiền"
+                          value={split.amount}
+                          className="w-1/2"
+                          onChange={(e) => {
+                            let raw = e.target.value.replace(/\D/g, "");
+                            const newSplits = [...splits];
+                            newSplits[index].amount = raw ? new Intl.NumberFormat("vi-VN").format(parseInt(raw, 10)) : "";
+                            setSplits(newSplits);
+                          }}
+                        />
                       </div>
-                    ))}
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => setSplits([...splits, { categoryId: "", amount: "", note: "" }])}
-                      className="w-full text-sm border-dashed border-gray-300"
-                    >
-                      + Thêm hạng mục
-                    </Button>
-                  </div>
-                )}
+                      {index > 0 && (
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newSplits = [...splits];
+                              newSplits.splice(index, 1);
+                              setSplits(newSplits);
+                            }}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium"
+                          >
+                            Xóa dòng này
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSplits([...splits, { categoryId: "", amount: "", note: "" }])}
+                    className="w-full text-sm border-dashed border-gray-300"
+                  >
+                    + Thêm hạng mục
+                  </Button>
+                </div>
+              )}
 
               {!isSplit && (
                 <div className="space-y-2">
@@ -476,11 +476,11 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
                       <Label className="text-sm font-semibold text-gray-700">Chọn nhóm</Label>
                       <Select value={selectedGroupId} onValueChange={(val) => setSelectedGroupId(val || "")}>
                         <SelectTrigger className="w-full">
-                          {selectedGroupId 
+                          {selectedGroupId
                             ? (() => {
-                                const g = groups.find(x => x.id === selectedGroupId);
-                                return g ? <span>{g.name}</span> : <span className="text-gray-400">Chọn nhóm</span>;
-                              })()
+                              const g = groups.find(x => x.id === selectedGroupId);
+                              return g ? <span>{g.name}</span> : <span className="text-gray-400">Chọn nhóm</span>;
+                            })()
                             : <span className="text-gray-400">Chọn nhóm</span>
                           }
                         </SelectTrigger>
@@ -513,15 +513,14 @@ export function AddTransactionDrawer({ walletId, type, open, onOpenChange, onCre
             </form>
           </div>
           <DrawerFooter>
-            <Button 
-              type="submit" 
-              form="add-transaction-form" 
+            <Button
+              type="submit"
+              form="add-transaction-form"
               disabled={loading}
-              className={`w-full py-6 text-base font-bold shadow-md rounded-xl ${
-                type === "INCOME" 
-                  ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white" 
+              className={`w-full py-6 text-base font-bold shadow-md rounded-xl ${type === "INCOME"
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
                   : "bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white"
-              }`}
+                }`}
             >
               {loading ? "Đang xử lý..." : "Lưu giao dịch"}
             </Button>

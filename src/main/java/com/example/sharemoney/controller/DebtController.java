@@ -80,4 +80,14 @@ public class DebtController {
         UUID creditorId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.ok(debtService.getPendingDebtors(groupId, creditorId));
     }
+
+    /**
+     * GET /api/groups/{groupId}/debts/pending-sent
+     * Lấy danh sách ID của những chủ nợ mà người dùng (với tư cách là con nợ) đã bấm "Báo đã chuyển tiền"
+     */
+    @GetMapping("/pending-sent")
+    public ResponseEntity<List<String>> getPendingSent(@PathVariable UUID groupId) {
+        UUID debtorId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(debtService.getPendingSent(groupId, debtorId));
+    }
 }

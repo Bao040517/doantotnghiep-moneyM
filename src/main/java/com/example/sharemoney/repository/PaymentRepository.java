@@ -22,4 +22,8 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     // BE-2: Top1 derived queries — DB does the MIN/MAX, not Java stream
     java.util.Optional<Payment> findTop1ByPayer_IdAndStatusOrderByAmountAsc(UUID payerId, String status);
     java.util.Optional<Payment> findTop1ByPayer_IdAndStatusOrderByAmountDesc(UUID payerId, String status);
+
+    java.util.Optional<Payment> findByGroup_IdAndPayer_IdAndReceiver_IdAndStatus(UUID groupId, UUID payerId, UUID receiverId, String status);
+    List<Payment> findByGroup_IdAndReceiver_IdAndStatus(UUID groupId, UUID receiverId, String status);
+    List<Payment> findByGroup_IdAndPayer_IdAndStatus(UUID groupId, UUID payerId, String status);
 }

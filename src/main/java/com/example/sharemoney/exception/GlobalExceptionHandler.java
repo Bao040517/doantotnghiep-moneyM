@@ -21,6 +21,13 @@ public class GlobalExceptionHandler {
                 .body(buildBody(ex.getErrorCode().getStatus().value(), ex.getMessage()));
     }
 
+    /** Bắt lỗi 404 để không bị bắt bởi Exception.class (trả về 500) */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        return ResponseEntity.status(404)
+                .body(buildBody(404, "Không tìm thấy tài nguyên."));
+    }
+
     /** Bắt lỗi @Valid — trả về field-level errors */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(

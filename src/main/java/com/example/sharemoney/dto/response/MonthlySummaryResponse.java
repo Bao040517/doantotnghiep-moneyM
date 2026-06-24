@@ -30,6 +30,8 @@ public class MonthlySummaryResponse {
         private BigDecimal expense;
         private BigDecimal net;
         private BigDecimal debtPayment;
+        private java.util.Map<String, BigDecimal> categoryExpenses;
+        private java.util.Map<String, BigDecimal> categoryIncomes;
     }
 
     @Data

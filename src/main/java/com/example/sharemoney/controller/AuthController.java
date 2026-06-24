@@ -40,12 +40,11 @@ public class AuthController {
             throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        User user =
-                User.builder()
-                        .name(request.getName())
-                        .email(request.getEmail())
-                        .passwordHash(passwordEncoder.encode(request.getPassword()))
-                        .build();
+        User user = User.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .build();
 
         userRepository.save(user);
 
@@ -58,10 +57,9 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         try {
-            Authentication authentication =
-                    authenticationManager.authenticate(
-                            new UsernamePasswordAuthenticationToken(
-                                    request.getEmail(), request.getPassword()));
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(), request.getPassword()));
 
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
             String token = jwtUtil.generateToken(userDetails);

@@ -25,7 +25,7 @@ public class SetBudgetRequest {
 
     private int year;   // 0 = năm hiện tại
 
-    private boolean isRollover;
+
 
     private String type = "FLEXIBLE";
 

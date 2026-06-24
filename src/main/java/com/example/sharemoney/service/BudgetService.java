@@ -54,29 +54,7 @@ public class BudgetService {
         Category category = categoryRepository.findById(req.getCategoryId())
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 
-        BigDecimal rolloverAmt = BigDecimal.ZERO;
 
-        if (req.isRollover()) {
-            int prevMonth = month == 1 ? 12 : month - 1;
-            int prevYear = month == 1 ? year - 1 : year;
-            
-            // Tìm budget của tháng trước cho cùng user và category và name
-            List<Budget> prevBudgets = budgetRepository.findByUser_IdAndMonthAndYear(userId, prevMonth, prevYear);
-            Budget prevBudget = prevBudgets.stream()
-                .filter(b -> b.getCategory().getId().equals(category.getId()) && java.util.Objects.equals(b.getName(), req.getName()))
-                .findFirst().orElse(null);
-                
-            if (prevBudget != null) {
-                BigDecimal prevSpent = transactionRepository
-                    .sumExpenseByCategoryAndMonth(userId, category.getId(), prevYear, prevMonth);
-                if (prevSpent == null) prevSpent = BigDecimal.ZERO;
-                
-                BigDecimal prevTotalLimit = prevBudget.getLimitAmount().add(
-                    prevBudget.getRolloverAmount() != null ? prevBudget.getRolloverAmount() : BigDecimal.ZERO
-                );
-                rolloverAmt = prevTotalLimit.subtract(prevSpent);
-            }
-        }
 
         Budget budget;
         if (req.getId() != null) {
@@ -95,8 +73,7 @@ public class BudgetService {
 
         budget.setLimitAmount(req.getLimitAmount());
         budget.setName(req.getName());
-        budget.setRollover(req.isRollover());
-        budget.setRolloverAmount(rolloverAmt);
+
         try {
             budget.setType(com.example.sharemoney.entity.BudgetType.valueOf(req.getType().toUpperCase()));
         } catch (Exception e) {
@@ -150,7 +127,7 @@ public class BudgetService {
                             .year(y)
                             .limitAmount(prev.getLimitAmount())
                             .name(prev.getName())
-                            .isRollover(prev.isRollover())
+
                             .type(prev.getType())
                             .isRecurring(prev.isRecurring())
                             .dueDayOfMonth(prev.getDueDayOfMonth())
@@ -160,16 +137,7 @@ public class BudgetService {
                             .payeeAccountName(prev.getPayeeAccountName())
                             .build();
 
-                    if (prev.isRollover()) {
-                        BigDecimal prevSpent = transactionRepository
-                            .sumExpenseByCategoryAndMonth(userId, prev.getCategory().getId(), prevYear, prevMonth);
-                        if (prevSpent == null) prevSpent = BigDecimal.ZERO;
-                        
-                        BigDecimal prevTotalLimit = prev.getLimitAmount().add(
-                            prev.getRolloverAmount() != null ? prev.getRolloverAmount() : BigDecimal.ZERO
-                        );
-                        newBudget.setRolloverAmount(prevTotalLimit.subtract(prevSpent));
-                    }
+
 
                     try {
                         budgetRepository.saveAndFlush(newBudget);
@@ -230,8 +198,7 @@ public class BudgetService {
     private BudgetSummaryResponse toSummaryResponse(Budget budget, BigDecimal spent) {
         if (spent == null) spent = BigDecimal.ZERO;
 
-        BigDecimal rolloverAmt = budget.getRolloverAmount() != null ? budget.getRolloverAmount() : BigDecimal.ZERO;
-        BigDecimal totalLimit = budget.getLimitAmount().add(rolloverAmt);
+        BigDecimal totalLimit = budget.getLimitAmount();
 
         int percentage = totalLimit.compareTo(BigDecimal.ZERO) <= 0
                 ? (spent.compareTo(BigDecimal.ZERO) > 0 ? 100 : 0)
@@ -256,8 +223,7 @@ public class BudgetService {
                 .spentAmount(spent)
                 .percentage(percentage)
                 .status(status)
-                .isRollover(budget.isRollover())
-                .rolloverAmount(rolloverAmt)
+
                 .availableAmount(available)
                 .type(budget.getType().name())
                 .isRecurring(budget.isRecurring())

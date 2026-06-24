@@ -9,6 +9,133 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 4. **Chia tiền nhóm (Group Split):** Tạo hóa đơn chung, thuật toán Greedy chia nợ tối ưu.
 5. **Thanh toán nợ (Debt Settlement):** Nhắc nợ, tạo mã QR VietQR, và quy trình Xác nhận.
 
+### Session [2026-06-24] - Cập nhật Danh mục & Tối giản hóa Cơ chế Ngân sách
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Mở rộng Hệ thống Danh mục Mặc định (Category System):**
+   - **Thay đổi:** Cập nhật logic backend (`CategoryService.java`) và cơ sở dữ liệu mẫu (`seed_data.sql`) để thay thế danh mục cũ bằng hệ thống danh mục mới trực quan và phong phú hơn.
+   - **Chi tiết:** Các danh mục mới được tự động khởi tạo cho mọi người dùng gồm: Ăn uống (🍽️), Chi tiêu hàng ngày (🧴), Quần áo (👕), Mỹ phẩm (💄), Phí giao lưu (🥂), Y tế (💊), Giáo dục (📚), Tiền điện (💡), Đi lại (🚆), Phí liên lạc (📱), Tiền nhà (🏠).
+
+**2. Gỡ bỏ Thông tin Thanh toán Tích hợp (Payment Info Removal):**
+   - **Vấn đề:** Biểu mẫu tạo ngân sách cố định chứa quá nhiều trường điền thông tin tài khoản ngân hàng, trong khi người dùng ưu tiên thanh toán qua ứng dụng ngân hàng riêng.
+   - **Giải pháp:** Xóa bỏ hoàn toàn các form nhập thông tin người nhận khỏi giao diện (`set-budget-drawer.tsx`). Giúp tối ưu hóa trải nghiệm tạo ngân sách, hướng ứng dụng tập trung thuần túy vào quản lý sổ sách thay vì luồng thanh toán vật lý.
+
+**3. Xóa bỏ Cơ chế Cộng dồn Ngân sách (Rollover Elimination):**
+   - **Vấn đề:** Việc số dư ngân sách tự động cộng dồn sang tháng sau gây khó hiểu và nhầm lẫn cho người dùng khi theo dõi định mức chi tiêu hàng tháng.
+   - **Giải pháp:** Gỡ bỏ hoàn toàn logic "Chuyển sang tháng sau" (`isRollover` & `rolloverAmount`) từ Backend (`BudgetService`, Entity, DTOs) đến Frontend (xóa bỏ nút gạt toggle ở UI và logic tính gộp ở tab Báo cáo). Hệ thống quay về cơ chế **Kế toán hàng tháng độc lập (Strict Monthly Basis)**.
+
+---
+
+### Session [2026-06-23] - Nâng cấp Điểm Sức khỏe Tài chính & Kế hoạch Phân trang Backend
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Cải tiến Trực quan hóa Điểm Sức khỏe Tài chính (Financial Health Score):**
+   - **Vấn đề:** Điểm số thô hiển thị dưới dạng phân số (VD: 25/25) khá khô khan và khó hình dung đối với người dùng cuối.
+   - **Giải pháp:** Thiết kế lại hoàn toàn hệ thống chấm điểm trong `financial-health-card.tsx`. Chuyển đổi sang thang điểm 10 vạch trực quan.
+   - Bổ sung các nhãn đánh giá thân thiện dựa trên mức điểm: "Cảnh báo" (đỏ), "Tạm ổn" (cam), "Khá tốt" (vàng), "Tuyệt vời" (xanh lá), giúp trải nghiệm người dùng sinh động và dễ hiểu hơn.
+
+**2. Rà soát Chuyên sâu Backend (Deep Audit) & Sửa Sai Lầm Đánh Giá:**
+   - Đã thực hiện rà soát lại toàn bộ hệ thống `DebtService` và `ExpenseService`.
+   - Xác nhận hệ thống của người dùng đã tự thân tích hợp xuất sắc hai logic phức tạp: **Thuật toán đồ thị (Greedy / Max Flow)** để tối giản nợ chéo, và **API Tỷ giá thời gian thực (Multi-currency)** cho các giao dịch ngoại tệ. Đã đính chính lại những đánh giá sai lầm trước đó của AI.
+
+**3. Đề xuất Kế hoạch Tối ưu hóa Hiệu năng Backend (Pagination):**
+   - **Phát hiện (Bottleneck):** Các Repository như `TransactionRepository` và `ExpenseRepository` đang tải toàn bộ dữ liệu (List) vào bộ nhớ trong mỗi lần gọi API. Điều này sẽ gây tràn RAM (Out Of Memory) và giật lag hệ thống khi dữ liệu phình to.
+   - **Hành động:** Thiết lập và trình bày `implementation_plan.md` cho việc chuyển đổi toàn bộ `List<T>` sang `Page<T>` (Spring Data JPA) kết hợp `Pageable`, và cơ chế Cuộn tải thêm (Infinite Scroll) dưới Frontend.
+
+**4. Khảo sát Tính năng Quét Hóa Đơn AI (OCR / Gemini):**
+   - Lên phương án kiến trúc dùng LLM/OCR để đọc ảnh hóa đơn giấy và điền tự động vào Form.
+   - Trạng thái: **Tạm dừng (Paused)** theo yêu cầu của người dùng để ưu tiên ổn định các tính năng cốt lõi trước.
+
+---
+### Session [2026-06-23] - Triển khai VPS & Đóng gói Docker (Deployment)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Khảo sát & Xây dựng Chiến lược Triển khai (Deployment Strategy):**
+   - Đã phân tích kiến trúc mã nguồn (Spring Boot + Next.js + PostgreSQL) và đề xuất phương án triển khai tối ưu để phục vụ bảo vệ đồ án.
+   - Quyết định: Người dùng chọn Phương án 2 (Thuê VPS + Docker) để đảm bảo hiệu năng, tính ổn định (không bị sleep) và sự chuyên nghiệp.
+
+**2. Đóng gói ứng dụng với Docker (Dockerization):**
+   - Thiết lập `Dockerfile` cho Backend Spring Boot (Maven 3.9, JDK 17 Alpine).
+   - Thiết lập `Dockerfile` cho Frontend Next.js (Node 20 Alpine), xử lý truyền biến môi trường `NEXT_PUBLIC_API_URL` lúc build.
+   - Viết cấu hình `docker-compose.yml` liên kết cả 3 containers (Frontend, Backend, DB PostgreSQL) và thiết lập ánh xạ cổng cũng như Volume lưu trữ vĩnh viễn dữ liệu.
+
+**3. Hướng dẫn Deploy lên VPS:**
+   - Biên soạn cẩm nang triển khai 7 bước chi tiết: Cài đặt Docker, Clone code, cấu hình file `.env` bảo mật, và lệnh khởi chạy một chạm `docker compose up -d --build`.
+
+**🚀 Session tiếp theo cần làm gì?**
+1. **Thiết lập Tên miền & SSL (Nginx):** Trỏ domain về IP của VPS và cài đặt chứng chỉ bảo mật HTTPS (Let's Encrypt) bằng Nginx để nâng tầm chuyên nghiệp.
+2. **Nạp dữ liệu mẫu (Seed Data):** Copy file `seed_data.sql` lên VPS và import vào PostgreSQL để có sẵn dữ liệu phong phú phục vụ buổi bảo vệ đồ án.
+3. **Theo dõi & Fix bug thực tế:** Xem log Docker để đảm bảo không có container nào sập và kiểm tra luồng API trên môi trường Production.
+
+---
+
+### Session [2026-06-22] - Khắc phục Lỗi hiển thị Số liệu Dashboard, Thiết kế lại Sức khỏe tài chính & Di chuyển Tiết kiệm (Current)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Khắc phục lỗi hiển thị & Sửa lỗi TypeScript của Dashboard:**
+   - Đã gỡ bỏ lệnh gọi hàm `setBudgetSummary` thừa gây lỗi `ReferenceError` làm gián đoạn toàn bộ tiến trình nạp dữ liệu Dashboard.
+   - Sửa đổi ánh xạ thuộc tính trong `setDebtSummary` từ `totalOwedToMe` thành `totalOwed` cho đồng bộ với API và hiển thị UI.
+   - Sửa lỗi kiểu dữ liệu TypeScript của `myDebts` và `owedToMe` bằng cách truyền đối tượng `currentUser` (lấy từ `localStorage`) vào các trường `from` và `to` tương ứng của `GlobalDebtTransaction`.
+
+**2. Thiết kế trực quan hóa Sức khỏe Tài chính (`financial-health-card.tsx`):**
+   - Thay thế biểu đồ bán nguyệt (semicircle gauge chart) cũ thành vòng tròn tiến độ (circular progress chart) nằm gọn gàng cạnh danh sách phân tích 4 chỉ số cốt lõi: **Tỷ lệ tích lũy (Savings)**, **Tuân thủ ngân sách (Budget)**, **Kiểm soát nợ (Debt)**, và **Quỹ dự phòng (Emergency)**.
+   - Tích hợp thang điểm động `/25` cho từng danh mục kèm theo thanh tiến trình mini tự động đổi màu sắc cảnh báo theo hiệu năng (Xanh lá $\ge 20$, Vàng/Cam $\ge 10$, Đỏ $< 10$).
+
+**3. Khôi phục & Tái cấu trúc tính năng "Tiết kiệm" (Mục tiêu tích lũy Heo Đất):**
+   - **Khôi phục hoàn toàn:** Khôi phục toàn bộ các file backend và frontend liên quan đến `SavingsGoal` đã bị xóa nhầm trước đó bằng Git (CSDL, REST APIs, Repository, Service, Controller, các drawer tạo/sửa mục tiêu và `savings-tab`).
+   - **Sửa lỗi API 404:** Biên dịch lại và khởi động lại máy chủ Spring Boot để nạp đầy đủ các API endpoint mới được khôi phục, giải quyết triệt để lỗi Axios 404 khi gọi `/api/savings-goals` từ frontend.
+    - **Giao diện Dashboard:** Loại bỏ hoàn toàn các hàng liên quan đến phân bổ tiết kiệm và tiền rảnh rỗi (gồm cả "Dành cho Tiết kiệm (40%)", "Tiền rảnh rỗi (Heo đất)" và "Số tiền có thể tiêu") khỏi thẻ ví chính trên Dashboard để tối giản hóa giao diện, giữ cho thẻ ví chỉ hiển thị Tổng số dư và các khoản giữ chỗ (Ngân sách/Nợ).
+    - **Khôi phục dữ liệu:** Chèn lại 10 mục tiêu tiết kiệm mặc định từ `seed_data.sql` trực tiếp vào tài khoản thử nghiệm của người dùng (`Test1@gmail.com`) trong PostgreSQL để hiển thị đầy đủ thông tin trong tab Tiết kiệm.
+   - Đã kiểm tra build Next.js thành công 100% không phát sinh lỗi biên dịch.
+
+---
+
+### Session [2026-06-22] - Xóa Bỏ Heo Đất & Tính năng Ghi Chép Nhanh (Quick Add)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Gỡ bỏ hoàn toàn Tính năng "Heo đất" (Savings Goal):**
+   - Theo yêu cầu tối giản hóa của người dùng, toàn bộ logic và giao diện liên quan đến "Heo đất" đã được gỡ bỏ khỏi hệ thống.
+   - **Backend:** Xóa entity `SavingsGoal`, các repository, service, và controller liên quan. Sửa đổi `BudgetService` để không còn tự động trích 40% tiền nhàn rỗi. 100% dòng tiền nhàn rỗi hiện tại được tính là "Có thể tiêu".
+   - **Frontend:** Dọn dẹp sạch sẽ tab "Tiết kiệm", xóa các widget "Heo đất" trên màn hình Dashboard và giải quyết các lỗi dependency phát sinh sau khi xóa code.
+
+**2. Khảo sát Tích hợp API Ngân hàng (Webhook):**
+   - Khảo sát các dịch vụ trung gian (Casso, SePay, PayOS) và giới thiệu các gói Free.
+   - Tư vấn các giải pháp DIY (Tự làm) không qua trung gian: Viết app Android đọc Notification/SMS, hoặc cấu hình Backend đọc Email thông báo biến động số dư.
+
+**3. Hoàn thiện tính năng "Ghi chép nhanh" (Quick Add Transaction):**
+   - **Giao diện:** Tối ưu hóa nút dấu `+` (Quick Action). Tách nút "Ghi chép cá nhân" thành 2 nút chuyên biệt: **"Ghi Chi Tiêu"** và **"Ghi Thu Nhập"**, đáp ứng hoàn hảo Use-case "vừa mua một món đồ xong nhớ ra cần ghi lại".
+   - **Logic:** Nhúng `AddTransactionDrawer` trực tiếp vào `page.tsx`. Tự động fetch `walletId` của Ví mặc định ngay khi load ứng dụng.
+   - **Đồng bộ Thời gian thực (Real-time Sync):** Triển khai cơ chế `refreshTrigger` truyền thẳng vào màn hình Thống kê (`ReportTab`). Khi có giao dịch mới được tạo, biểu đồ Cơ cấu tài chính và Line Chart sẽ lập tức gọi API vẽ lại màn hình mà không cần refresh.
+
+---
+
+### Session [2026-06-22] - Multi-currency Integration & OCR Validation
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Khảo sát & Đề xuất Tích hợp Public APIs:**
+   - Đã tư vấn và phân tích danh sách các API công khai từ nguồn Public APIs.
+   - Đề xuất hai tính năng giá trị nhất để tích hợp vào đồ án PFM ShareMoney: **Tỷ giá đa tiền tệ** (Currency Exchange API) và **Quét hóa đơn bằng ảnh** (OCR.Space API).
+
+**2. Triển khai Tỷ giá Đa tiền tệ (Currency Exchange API):**
+   - **Giao diện:** Bổ sung native `<select>` dropdown cho phép người dùng lựa chọn đơn vị tiền tệ (VND, USD, EUR, THB, JPY...) bên cạnh trường nhập số tiền trong 2 màn hình Thêm chi tiêu nhóm (`add-expense-drawer.tsx`) và Thêm giao dịch cá nhân (`add-transaction-drawer.tsx`).
+   - **Xử lý Logic:** Gọi API miễn phí `currency-api` theo thời gian thực mỗi khi thay đổi loại tiền tệ. Tự động tính nhẩm tỷ giá và hiển thị số tiền quy đổi ước tính ra VNĐ ngay bên dưới biểu mẫu.
+   - **Dữ liệu:** Tự động quy đổi và làm tròn ngoại tệ thành VNĐ dựa trên tỷ giá lấy từ API trước khi submit xuống Backend (`amount: Math.round(finalAmount * exchangeRate)`), đảm bảo hệ thống lưu trữ đồng nhất về chuẩn VNĐ.
+
+**3. Thử nghiệm OCR & Quyết định Gỡ bỏ do Tính Chính xác:**
+   - **Triển khai ban đầu:** Đã hoàn tất chức năng Upload ảnh chụp hóa đơn, truyền dữ liệu lên API OCR.Space miễn phí. Triển khai thuật toán xử lý chuỗi (Regex) loại bỏ khoảng trắng dư thừa do lỗi OCR và tìm số tiền lớn nhất trên hóa đơn.
+   - **Loại bỏ tính năng:** Dù thuật toán đã tối ưu nhưng API công khai đọc thông tin hình ảnh không ổn định (thường xuyên sai số và tốn thời gian phản hồi). Dựa trên yêu cầu của người dùng, toàn bộ logic OCR, nút `Camera` và các State liên quan đã được tháo dỡ sạch sẽ khỏi hệ thống để đảm bảo trải nghiệm nhập liệu nhanh gọn không bị gián đoạn.
+
+**4. Quản lý Git & Triển khai:**
+   - Tiến trình code, bug fix cho OCR, và thao tác gỡ OCR đã được commit tách bạch và push gọn gàng lên nhánh `feature/vietqr-budget`.
+
+---
+
 ### Session [2026-06-21] - VietQR & Editable Payment Info
 
 **✅ Đã hoàn thành (Compact Procedure):**
@@ -330,9 +457,9 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 
 **🚀 Bước tiếp theo (Deployment & Bảo vệ):**
 1. Review lại file báo cáo luận văn, nhấn mạnh vào sự chuyển đổi sang hệ thống PFM và Super-app design.
-2. Đẩy Database Postgres lên cloud (Supabase/Render/Neon) và nạp `seed_data.sql`.
-3. Deploy Backend lên Render (cấu hình biến môi trường kết nối DB cloud).
-4. Deploy Frontend lên Vercel. Cấu hình biến môi trường `NEXT_PUBLIC_API_URL` trỏ về domain Render.
+2. Thiết lập Tên miền và chứng chỉ HTTPS trên VPS qua Nginx.
+3. Import dữ liệu mẫu (`seed_data.sql`) vào Database trên VPS.
+4. Chạy kiểm thử API và luồng dữ liệu trên môi trường VPS Production trước khi nộp cho giáo viên.
 
 **💡 Điểm sáng kỹ thuật (Killer features cho buổi bảo vệ):**
 - **Dự báo Dòng tiền 6 Tháng (Cash Flow Forecasting)**

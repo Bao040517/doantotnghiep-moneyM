@@ -1,0 +1,1 @@
+﻿const { Client } = require('pg'); const client = new Client({ connectionString: 'postgresql://postgres:admin@localhost:5432/share-money' }); client.connect().then(() => client.query('SELECT email FROM users WHERE id = \'5525a0cf-8e6e-42c9-ad86-66438588f1d7\'').then(res => { console.log(res.rows); client.end(); })).catch(console.error);

@@ -27,4 +27,14 @@ public class AiController {
             @Valid @RequestBody AiMessageRequest request) {
         return ResponseEntity.ok(geminiService.generateDebtMessage(request));
     }
+
+    /**
+     * POST /api/ai/scan-receipt
+     * Quét hóa đơn và trả về ScanReceiptResponse
+     */
+    @PostMapping(value = "/scan-receipt", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<com.example.sharemoney.dto.response.ScanReceiptResponse> scanReceipt(
+            @org.springframework.web.bind.annotation.RequestParam("image") org.springframework.web.multipart.MultipartFile image) {
+        return ResponseEntity.ok(geminiService.scanReceipt(image));
+    }
 }

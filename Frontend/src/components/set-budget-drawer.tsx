@@ -47,14 +47,11 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [isRollover, setIsRollover] = useState(false);
+
   const [type, setType] = useState("FLEXIBLE");
   const [isRecurring, setIsRecurring] = useState(false);
   const [isMandatory, setIsMandatory] = useState(false);
   const [dueDateString, setDueDateString] = useState("");
-  const [payeeBankBin, setPayeeBankBin] = useState("");
-  const [payeeBankAccount, setPayeeBankAccount] = useState("");
-  const [payeeAccountName, setPayeeAccountName] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -66,7 +63,7 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
         setName(editBudget.name || "");
         setAmount(new Intl.NumberFormat("vi-VN").format(editBudget.limitAmount));
         setCategoryId(editBudget.categoryId);
-        setIsRollover(editBudget.isRollover || false);
+
         setType(editBudget.type || "FLEXIBLE");
         setIsRecurring(editBudget.isRecurring || false);
         setIsMandatory(editBudget.isMandatory || false);
@@ -79,21 +76,15 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
         } else {
            setDueDateString("");
         }
-        setPayeeBankBin(editBudget.payeeBankBin || "");
-        setPayeeBankAccount(editBudget.payeeBankAccount || "");
-        setPayeeAccountName(editBudget.payeeAccountName || "");
       } else {
         setName("");
         setAmount("");
         setCategoryId("");
-        setIsRollover(false);
+
         setType("FLEXIBLE");
         setIsRecurring(false);
         setIsMandatory(false);
         setDueDateString("");
-        setPayeeBankBin("");
-        setPayeeBankAccount("");
-        setPayeeAccountName("");
       }
       api.get("/categories")
         .then(res => setCategories(res.data.filter((c: Category) => c.type === "EXPENSE" && c.name !== "Mục tiêu tiết kiệm")))
@@ -119,14 +110,11 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
         limitAmount: Number(raw), 
         month, 
         year, 
-        isRollover,
+
         type: type,
         isRecurring,
         isMandatory,
-        dueDayOfMonth: dueDateString ? parseInt(dueDateString.split("-")[2], 10) : null,
-        payeeBankBin,
-        payeeBankAccount,
-        payeeAccountName
+        dueDayOfMonth: dueDateString ? parseInt(dueDateString.split("-")[2], 10) : null
       };
       if (editBudget?.budgetId) {
         payload.id = editBudget.budgetId;
@@ -236,77 +224,9 @@ export function SetBudgetDrawer({ open, onOpenChange, onSaved, year, month, edit
                 </button>
               </div>
 
-              {/* Payee Info for BILL type */}
-              {type === "BILL" && (
-                <div className="bg-slate-50 p-4 rounded-[20px] border border-slate-100 shadow-sm space-y-3 animate-in fade-in slide-in-from-top-2">
-                  <h4 className="text-[14px] font-bold text-slate-700 mb-1">Thông tin thanh toán (Người nhận)</h4>
-                  
-                  <div className="bg-white rounded-xl border border-slate-200 relative">
-                    <select 
-                      value={payeeBankBin} 
-                      onChange={(e) => setPayeeBankBin(e.target.value)}
-                      className="w-full h-11 px-3 border-none bg-transparent focus:ring-0 text-slate-800 font-medium text-[15px] outline-none appearance-none cursor-pointer"
-                    >
-                      <option value="" disabled>Chọn Ngân hàng nhận</option>
-                      <option value="970436">Vietcombank</option>
-                      <option value="970415">VietinBank</option>
-                      <option value="970418">BIDV</option>
-                      <option value="970405">Agribank</option>
-                      <option value="970422">MBBank</option>
-                      <option value="970407">Techcombank</option>
-                      <option value="970432">VPBank</option>
-                      <option value="970416">ACB</option>
-                      <option value="970423">TPBank</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-xl border border-slate-200 p-2.5">
-                    <input
-                      type="text"
-                      value={payeeBankAccount}
-                      onChange={(e) => setPayeeBankAccount(e.target.value)}
-                      placeholder="Số tài khoản nhận"
-                      className="w-full border-none focus:ring-0 text-[15px] font-medium text-slate-800 placeholder-slate-400 bg-transparent outline-none p-0"
-                    />
-                  </div>
-
-                  <div className="bg-white rounded-xl border border-slate-200 p-2.5">
-                    <input
-                      type="text"
-                      value={payeeAccountName}
-                      onChange={(e) => setPayeeAccountName(e.target.value)}
-                      placeholder="Tên người nhận (Đơn vị)"
-                      className="w-full border-none focus:ring-0 text-[15px] font-medium text-slate-800 placeholder-slate-400 bg-transparent outline-none p-0"
-                    />
-                  </div>
-                </div>
-              )}
-
               {/* Toggles Section */}
               <div className="space-y-4 px-2 pt-2 pb-2">
-                {/* Toggle 1: Rollover */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[17px] text-gray-800 font-medium">Chuyển sang tháng sau</span>
-                      <button type="button" onClick={() => toggleTooltip("rollover")} className="w-[18px] h-[18px] rounded-full bg-slate-200 text-slate-500 text-[11px] flex items-center justify-center font-bold pb-px hover:bg-slate-300 transition-colors">?</button>
-                    </div>
-                    <div className="relative inline-block w-12 h-7 align-middle select-none">
-                      <input type="checkbox" checked={isRollover} onChange={() => setIsRollover(!isRollover)} className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer opacity-0 z-10" id="toggle1" />
-                      <label htmlFor="toggle1" className={`toggle-label block overflow-hidden h-7 rounded-full cursor-pointer relative transition-colors duration-300 ${isRollover ? 'bg-[#a7f3d0]' : 'bg-gray-200'}`}>
-                        <span className={`absolute top-[2px] left-[2px] w-[24px] h-[24px] bg-white rounded-full transition-transform duration-300 shadow-[0_2px_4px_rgba(0,0,0,0.1)] ${isRollover ? 'translate-x-[20px]' : 'translate-x-0'}`} />
-                      </label>
-                    </div>
-                  </div>
-                  {activeTooltip === "rollover" && (
-                    <div className="text-[13px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-100 animate-in fade-in slide-in-from-top-1">
-                      Số dư còn lại của ngân sách sẽ được cộng dồn sang tháng tiếp theo.
-                    </div>
-                  )}
-                </div>
+
                 {/* Toggle 2: Mandatory */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex justify-between items-center">

@@ -12,4 +12,7 @@ public class WalletResponse {
     private String name;
     private BigDecimal balance;
     private String currency;
+    private String bankBin;
+    private String bankAccountNo;
+    private String bankAccountName;
 }

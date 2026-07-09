@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Receipt, Utensils, Car, Home, Gamepad2, ShoppingBag, Pill, Package } from "lucide-react";
+import { Loader2, Receipt, Utensils, Car, Home, Gamepad2, ShoppingBag, Pill, Package, ScanLine } from "lucide-react";
 import { toast } from "sonner";
+import { ReceiptScanner } from "@/components/receipt-scanner";
 
 import {
   Dialog,
@@ -76,6 +77,8 @@ const CATEGORIES = [
 export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating }: AddExpenseDrawerProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [customSplitAmounts, setCustomSplitAmounts] = useState<Record<string, number> | null>(null);
   
   const [currency, setCurrency] = useState("VND");
   const [exchangeRate, setExchangeRate] = useState(1);
@@ -99,6 +102,8 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
     if (open) {
       setSelectedUserIds(members.map(m => m.user.id));
       setSplitMode("all");
+      setShowScanner(false);
+      setCustomSplitAmounts(null);
       const userStr = localStorage.getItem("user");
       if (userStr) {
         const currentUser = JSON.parse(userStr);
@@ -113,6 +118,27 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
       }
     }
   }, [open, members, form]);
+
+  // Xử lý khi Scanner trả về kết quả Itemized Split
+  const handleScanConfirm = (data: { title: string; amount: number; splitAmounts: Record<string, number> }) => {
+    // Điền tự động vào form
+    form.setValue("title", data.title);
+    form.setValue("amount", new Intl.NumberFormat("vi-VN").format(data.amount));
+    
+    // Lưu custom split amounts
+    setCustomSplitAmounts(data.splitAmounts);
+    
+    // Cập nhật danh sách user được chọn (chỉ những người có số tiền > 0)
+    const assignedUserIds = Object.entries(data.splitAmounts)
+      .filter(([, amount]) => amount > 0)
+      .map(([userId]) => userId);
+    setSelectedUserIds(assignedUserIds);
+    setSplitMode("custom");
+    
+    // Đóng scanner, hiện lại form
+    setShowScanner(false);
+    toast.success(`Đã nhận diện ${Object.keys(data.splitAmounts).length} người từ hóa đơn!`);
+  };
 
   const toggleUser = (userId: string) => {
     if (selectedUserIds.includes(userId)) {
@@ -164,13 +190,20 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
         finalAmount = Math.round(finalAmount * exchangeRate);
       }
 
-      await api.post(`/groups/${groupId}/expenses`, {
+      const payload: any = {
         paidBy: values.paidBy,
         title: values.title,
         amount: finalAmount,
         category: values.category,
-        splitUserIds: selectedUserIds
-      });
+        splitUserIds: selectedUserIds,
+      };
+
+      // Nếu có custom split amounts (từ Receipt Scanner), gửi kèm
+      if (customSplitAmounts) {
+        payload.splitAmounts = customSplitAmounts;
+      }
+
+      await api.post(`/groups/${groupId}/expenses`, payload);
 
       toast.success("Đã thêm khoản chi mới!");
       form.reset();
@@ -214,9 +247,47 @@ export function AddExpenseDrawer({ groupId, members, onExpenseCreated, floating 
             </DialogTitle>
           </div>
           <DialogDescription className="text-sm text-gray-600">
-            Nhập thông tin hoá đơn để tự động chia đều cho nhóm.
+            Nhập thông tin hoá đơn hoặc quét ảnh để chia tiền theo từng món.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Nút Quét hóa đơn AI */}
+        {!showScanner && !customSplitAmounts && (
+          <button
+            type="button"
+            onClick={() => setShowScanner(true)}
+            className="w-full mb-1 py-3 rounded-2xl border-2 border-dashed border-[#b8e6d0] text-[#27AE60] font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#f0faf5] transition-all active:scale-[0.98]"
+          >
+            <ScanLine className="w-5 h-5" />
+            📸 Quét hóa đơn bằng AI
+          </button>
+        )}
+
+        {/* Badge khi đã quét xong */}
+        {customSplitAmounts && (
+          <div className="flex items-center justify-between bg-[#f0faf5] border border-[#d1f2e6] rounded-2xl px-4 py-2.5 mb-1">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">✅</span>
+              <span className="text-sm font-bold text-[#1e7e5d]">Đã chia tiền theo món</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setCustomSplitAmounts(null); setShowScanner(true); }}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Quét lại
+            </button>
+          </div>
+        )}
+
+        {/* Receipt Scanner */}
+        {showScanner && (
+          <ReceiptScanner
+            members={members}
+            onConfirm={handleScanConfirm}
+            onCancel={() => setShowScanner(false)}
+          />
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">

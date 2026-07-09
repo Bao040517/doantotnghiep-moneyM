@@ -13,6 +13,7 @@ import { SavingsTab } from "@/components/savings-tab";
 import { NotificationsDrawer } from "@/components/notifications-drawer";
 import { HistoryTab } from "@/components/history-tab";
 import { BudgetTab } from "@/components/budget-tab";
+import { AdvisorTab } from "@/components/advisor-tab";
 
 interface UserSummary {
   id: string;
@@ -67,7 +68,7 @@ export default function DashboardPage() {
   const [showQuickAction, setShowQuickAction] = useState(false);
   const [showTxDrawer, setShowTxDrawer] = useState(false);
   const [txType, setTxType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
-  const [activeTab, setActiveTab] = useState<"groups" | "report" | "profile" | "dashboard" | "savings" | "history" | "budget">("dashboard");
+  const [activeTab, setActiveTab] = useState<"groups" | "report" | "profile" | "dashboard" | "savings" | "history" | "budget" | "advisor">("dashboard");
   const [walletId, setWalletId] = useState<string | undefined>(undefined);
   const [walletBalance, setWalletBalance] = useState(0);
   const [detailedDebts, setDetailedDebts] = useState<{ myDebts: GlobalDebtTransaction[], owedToMe: GlobalDebtTransaction[] }>({ myDebts: [], owedToMe: [] });
@@ -122,8 +123,10 @@ export default function DashboardPage() {
       const balanceRes = await api.get("/wallets/total-balance").catch(() => ({ data: { totalBalance: 0 } }));
       setWalletBalance(balanceRes.data.totalBalance);
 
-      const walletRes = await api.get("/wallets/me").catch(() => ({ data: { id: undefined } }));
-      setWalletId(walletRes.data.id);
+      const walletRes = await api.get("/wallets/me").catch(() => ({ data: [{ id: undefined }] }));
+      const walletData = walletRes.data;
+      const defaultWallet = Array.isArray(walletData) && walletData.length > 0 ? walletData[0] : walletData;
+      setWalletId(defaultWallet?.id || null);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -242,6 +245,21 @@ export default function DashboardPage() {
           <div className="px-5 pb-28">
             <BudgetTab year={new Date().getFullYear()} month={new Date().getMonth() + 1} walletBalance={walletBalance} />
           </div>
+        </>
+      ) : activeTab === "advisor" ? (
+        <>
+          <header className="sticky top-0 z-50 px-5 pt-4 pb-3 flex items-center gap-2" style={{ backgroundColor: "rgba(232, 245, 241, 0.95)", backdropFilter: "blur(8px)" }}>
+            <button onClick={() => setActiveTab("dashboard")} className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-700 active:scale-95 shrink-0">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div className="flex-1 flex flex-col justify-center">
+              <h1 className="text-xl font-extrabold text-gray-800">Tư vấn Tài chính</h1>
+              <p className="text-[11px] text-gray-500 font-medium leading-none">Phân tích thông minh dựa trên dữ liệu</p>
+            </div>
+          </header>
+          <AdvisorTab />
         </>
       ) : activeTab !== "profile" ? (
         <>
@@ -504,15 +522,15 @@ export default function DashboardPage() {
           </svg>
         </button>
 
-        {/* History */}
+        {/* Advisor (Tư vấn) */}
         <button
-          onClick={() => setActiveTab("history")}
+          onClick={() => setActiveTab("advisor")}
           className="flex flex-col items-center gap-1"
         >
-          <svg className={`w-6 h-6 ${activeTab === "history" ? "text-[#45b39d]" : "text-gray-400"}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg className={`w-6 h-6 ${activeTab === "advisor" ? "text-[#45b39d]" : "text-gray-400"}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
           </svg>
-          <span className={`text-[10px] font-medium ${activeTab === "history" ? "text-[#45b39d]" : "text-gray-400"}`}>Lịch sử</span>
+          <span className={`text-[10px] font-medium ${activeTab === "advisor" ? "text-[#45b39d]" : "text-gray-400"}`}>Tư vấn</span>
         </button>
 
         {/* Profile */}

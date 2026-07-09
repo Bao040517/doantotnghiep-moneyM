@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -29,4 +30,10 @@ public class UpdateExpenseRequest {
     private String category;
 
     private List<UUID> splitUserIds;
+
+    /**
+     * Tùy chọn: Số tiền nợ cụ thể cho từng người (Custom Split / Itemized Split).
+     * Key = userId, Value = số tiền nợ.
+     */
+    private Map<UUID, BigDecimal> splitAmounts;
 }

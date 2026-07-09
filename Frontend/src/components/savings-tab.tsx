@@ -20,6 +20,22 @@ export interface SavingsGoal {
   status: "IN_PROGRESS" | "COMPLETED";
 }
 
+interface CutSuggestion {
+  categoryName: string;
+  currentSpent: number;
+  suggestedLimit: number;
+  savingsIfCut: number;
+  tip: string;
+}
+
+interface SavingsSuggestion {
+  idleAmount: number;
+  suggestedSaveAmount: number;
+  potentialMonthlySave: number;
+  message: string;
+  cutSuggestions: CutSuggestion[];
+}
+
 const EMOJIS = ["🛩️", "💻", "🛡️", "🏠", "📱", "🚗", "🎓", "🎮"];
 
 const PRIORITY_LEVELS: Record<number, { label: string; icon: string; pct: number; color: string }> = {
@@ -37,6 +53,7 @@ export function SavingsTab() {
   const [safeToSpend, setSafeToSpend] = useState<number | null>(null);
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [savingsSuggestion, setSavingsSuggestion] = useState<SavingsSuggestion | null>(null);
 
   const [showAddDrawer, setShowAddDrawer] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
@@ -65,11 +82,22 @@ export function SavingsTab() {
   const fetchData = async () => {
     try {
       const now = new Date();
-      const [goalsRes, totalBalanceRes, budgetRes, debtRes] = await Promise.all([
+      
+      let insightsPromise = Promise.resolve({ data: null });
+      if (typeof window !== 'undefined') {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          insightsPromise = api.get(`/advisor/insights/${user.id}`).catch(() => ({ data: null }));
+        }
+      }
+
+      const [goalsRes, totalBalanceRes, budgetRes, debtRes, insightsRes] = await Promise.all([
         api.get("/savings-goals"),
         api.get("/wallets/total-balance"),
         api.get(`/budgets/summary?year=${now.getFullYear()}&month=${now.getMonth() + 1}`),
-        api.get("/groups/debts/summary")
+        api.get("/groups/debts/summary"),
+        insightsPromise
       ]);
       const goalsList = Array.isArray(goalsRes.data) ? goalsRes.data : goalsRes.data.data || [];
       setGoals(goalsList);
@@ -79,7 +107,12 @@ export function SavingsTab() {
 
       const unpaidBudgets = (budgetRes.data || []).reduce((sum: number, b: any) => sum + Math.max(0, b.limitAmount - b.spentAmount), 0);
       const totalOwing = debtRes.data?.totalOwing || 0;
-      setSafeToSpend(Math.max(0, walletBal - unpaidBudgets - totalOwing));
+      const totalSavings = goalsList.reduce((sum: number, g: any) => sum + (g.currentAmount || 0), 0);
+      setSafeToSpend(Math.max(0, walletBal - unpaidBudgets - totalOwing - totalSavings));
+
+      if ((insightsRes.data as any)?.savingsSuggestion) {
+        setSavingsSuggestion((insightsRes.data as any).savingsSuggestion);
+      }
     } catch (error) {
       console.error("Failed to fetch savings data", error);
     } finally {
@@ -106,6 +139,55 @@ export function SavingsTab() {
   return (
     <div className="w-full pb-28 relative">
       <main className="px-5 mt-4 w-full">
+        {/* ═══ SECTION: Advisor Savings ═══ */}
+        {savingsSuggestion && (
+          <div className="space-y-4 mb-6 animate-in fade-in duration-300">
+            {/* Hero card */}
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-[24px] p-6 text-white relative overflow-hidden shadow-xl">
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/10 blur-2xl -mr-8 -mt-8" />
+              <h3 className="text-lg font-black mb-1 relative z-10">💰 Gợi ý Tiết kiệm</h3>
+              <p className="text-white/90 text-sm relative z-10 leading-relaxed mb-4">{savingsSuggestion.message}</p>
+              <div className="grid grid-cols-2 gap-3 relative z-10">
+                <div className="bg-white/15 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+                  <p className="text-white/70 text-[11px] font-bold uppercase">Tiền nhàn rỗi</p>
+                  <p className="text-[20px] font-black">{formatCurrency(savingsSuggestion.idleAmount)}</p>
+                </div>
+                <div className="bg-white/15 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+                  <p className="text-white/70 text-[11px] font-bold uppercase">Đề xuất tiết kiệm</p>
+                  <p className="text-[20px] font-black">{formatCurrency(savingsSuggestion.suggestedSaveAmount)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Cut suggestions */}
+            {savingsSuggestion.cutSuggestions.length > 0 && (
+              <div className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-[15px] font-extrabold text-gray-800">✂️ Gợi ý Cắt giảm</h4>
+                  <span className="text-[12px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+                    Tiết kiệm thêm {formatCurrency(savingsSuggestion.potentialMonthlySave)}/tháng
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {savingsSuggestion.cutSuggestions.map((cs, idx) => (
+                    <div key={idx} className="bg-gray-50 rounded-2xl p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="text-[14px] font-bold text-gray-800">{cs.categoryName}</p>
+                        <span className="text-[13px] font-black text-emerald-600">+{formatCurrency(cs.savingsIfCut)}</span>
+                      </div>
+                      <div className="flex gap-4 text-[12px] text-gray-500 mb-2">
+                        <span>Đang chi: <span className="font-bold text-gray-700">{formatCurrency(cs.currentSpent)}</span></span>
+                        <span>→ Nên: <span className="font-bold text-emerald-600">{formatCurrency(cs.suggestedLimit)}</span></span>
+                      </div>
+                      <p className="text-[12px] text-gray-500 bg-white rounded-xl p-2.5 border border-gray-100">💡 {cs.tip}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ─── SUMMARY CARD ─── */}
         <section className="bg-white rounded-[24px] p-4 mb-6 shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-4">
@@ -116,14 +198,14 @@ export function SavingsTab() {
           </div>
           
           {(() => {
-            const virtualAllocated = (safeToSpend || 0) * 0.4;
+            const totalActualSavings = goals.reduce((sum, goal) => sum + Number(goal.currentAmount || 0), 0);
             const totalTarget = goals.reduce((sum, goal) => sum + Number(goal.targetAmount || 0), 0);
-            const overallPercent = totalTarget > 0 ? Math.round((virtualAllocated / totalTarget) * 100) : 0;
+            const overallPercent = totalTarget > 0 ? Math.round((totalActualSavings / totalTarget) * 100) : 0;
             
             return (
               <div className="mb-4">
                 <p className="text-3xl font-black text-[#45b39d] tracking-tight flex items-baseline gap-2">
-                  {formatCurrency(virtualAllocated)}
+                  {formatCurrency(totalActualSavings)}
                   {totalTarget > 0 && (
                     <span className="text-sm font-bold text-gray-400">/ {formatCurrency(totalTarget)}</span>
                   )}
@@ -138,7 +220,7 @@ export function SavingsTab() {
                 <div className="mt-3 bg-[#e8f5f1] border border-[#45b39d]/20 rounded-xl p-2.5 flex items-start gap-2">
                   <span className="text-sm">✨</span>
                   <p className="text-[11px] text-[#2ba76f] leading-relaxed">
-                    Đây là số tiền <span className="font-bold">thực tế</span> được hệ thống tự động trích (40%) từ số dư nhàn rỗi của bạn để giữ chỗ cho các mục tiêu.
+                    Đây là tổng số tiền <span className="font-bold">thực tế</span> bạn đã tích lũy trong các quỹ tiết kiệm của mình. Mức ưu tiên bên dưới giúp hệ thống gợi ý cách phân bổ tiền nhàn rỗi.
                   </p>
                 </div>
               </div>
@@ -239,7 +321,8 @@ export function SavingsTab() {
                 {displayGoals.map((goal, idx) => {
                   const rawLevel = allocations[goal.id] || 3;
                   const level = PRIORITY_LEVELS[rawLevel] ? rawLevel : 3;
-                  const finalAllocated = allocationsMap[goal.id] || 0;
+                  const finalAllocated = Number(goal.currentAmount || 0);
+                  const suggestedAlloc = allocationsMap[goal.id] || 0;
                   const percent = Math.min(100, Math.round((finalAllocated / goal.targetAmount) * 100));
                   const icon = EMOJIS[idx % EMOJIS.length];
 

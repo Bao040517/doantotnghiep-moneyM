@@ -43,9 +43,13 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
           if (message.body) {
             const notification = JSON.parse(message.body);
             // Display toast notification
+            let icon = "🔔";
+            if (notification.type === "PAYMENT_RECEIVED") icon = "🎉";
+            else if (notification.type === "SPENDING_ANOMALY") icon = "🚨";
+            
             toast(notification.message, {
               duration: 5000,
-              icon: notification.type === "PAYMENT_RECEIVED" ? "🎉" : "🔔",
+              icon: icon,
             });
           }
         });

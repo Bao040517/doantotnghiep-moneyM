@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { TransferModal } from "@/components/transfer-modal";
 import { AddTransactionDrawer } from "@/components/add-transaction-drawer";
 import { GlobalDebtsDrawer } from "@/components/global-debts-drawer";
+import { WalletManagerDrawer } from "@/components/wallet-manager-drawer";
+
 interface DashboardTabProps {
   onNavigate?: (tab: string) => void;
 }
@@ -16,6 +18,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [showBalance, setShowBalance] = useState(false);
+  const [showWalletManager, setShowWalletManager] = useState(false);
 
   // Data states
   const [totalWalletBalance, setTotalWalletBalance] = useState<number>(0);
@@ -26,22 +29,26 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
   const [safeToSpend, setSafeToSpend] = useState<number | null>(null);
   const [autoSavings, setAutoSavings] = useState<number>(0);
   const [rawSafeToSpend, setRawSafeToSpend] = useState<number>(0);
+  const [totalSavings, setTotalSavings] = useState<number>(0);
   const [unpaidBudgetsAmount, setUnpaidBudgetsAmount] = useState<number>(0);
   const [txSummary, setTxSummary] = useState({ totalIncome: 0, totalExpense: 0 });
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [topExpenseCategories, setTopExpenseCategories] = useState<any[]>([]);
+  const [showGlobalDebts, setShowGlobalDebts] = useState(false);
+  const [debtsInitialTab, setDebtsInitialTab] = useState<"borrowed" | "lent">("lent");
 
   const fetchData = async () => {
     try {
       const now = new Date();
-      const [totalBalanceRes, walletRes, budgetRes, debtRes, txRes, catBreakdownRes] = await Promise.allSettled([
+      const [totalBalanceRes, walletRes, budgetRes, debtRes, txRes, catBreakdownRes, savingsRes] = await Promise.allSettled([
         api.get("/wallets/total-balance"),
         api.get("/wallets/me"),
         api.get(`/budgets/summary?year=${now.getFullYear()}&month=${now.getMonth() + 1}`),
         api.get("/groups/debts/summary"),
         api.get(`/transactions/summary/monthly?year=${now.getFullYear()}&month=${now.getMonth() + 1}`),
-        api.get(`/transactions/summary/category?year=${now.getFullYear()}&month=${now.getMonth() + 1}`)
+        api.get(`/transactions/summary/category?year=${now.getFullYear()}&month=${now.getMonth() + 1}`),
+        api.get("/savings-goals")
       ]);
 
       let wBalance = 0;
@@ -74,34 +81,14 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
       wBalance = tb;
 
       if (walletRes.status === "fulfilled") {
-        setWallet(walletRes.value.data);
+        const wData = walletRes.value.data?.data || walletRes.value.data;
+        setWallet(Array.isArray(wData) && wData.length > 0 ? wData[0] : wData);
       }
 
       if (budgetRes.status === "fulfilled") {
         const data = budgetRes.value.data || [];
         setBudgets(data);
-        const effCategoryMap = new Map<string, { flexLimit: number; flexSpent: number; billLimit: number; billSpent: number }>();
-        data.forEach((b: any) => {
-          const cat = b.categoryId;
-          if (!effCategoryMap.has(cat)) effCategoryMap.set(cat, { flexLimit: 0, flexSpent: 0, billLimit: 0, billSpent: 0 });
-          const entry = effCategoryMap.get(cat)!;
-          if (b.type === "FLEXIBLE") {
-            entry.flexLimit += b.limitAmount;
-            entry.flexSpent = b.spentAmount;
-          } else {
-            entry.billLimit += b.limitAmount;
-            entry.billSpent += b.spentAmount;
-          }
-        });
-        
-        let totalBudgetLimit = 0;
-        let totalBudgetSpent = 0;
-        effCategoryMap.forEach(entry => {
-          totalBudgetLimit += Math.max(entry.flexLimit, entry.billLimit);
-          totalBudgetSpent += Math.min(entry.flexLimit, entry.flexSpent) + Math.min(entry.billLimit, entry.billSpent);
-        });
-        
-        unpaidBudgets = Math.max(0, totalBudgetLimit - totalBudgetSpent);
+        unpaidBudgets = data.reduce((sum: number, b: any) => sum + Math.max(0, b.limitAmount - b.spentAmount), 0);
         setUnpaidBudgetsAmount(unpaidBudgets);
       }
 
@@ -112,11 +99,19 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         setDebtDetails(data?.details || []);
       }
 
+      let tSavings = 0;
+      if (savingsRes.status === "fulfilled") {
+        const goals = savingsRes.value.data || [];
+        const total = goals.reduce((sum: number, g: any) => sum + (g.currentAmount || 0), 0);
+        setTotalSavings(total);
+        tSavings = total;
+      }
+
       const rawSafe = wBalance - unpaidBudgets - tOwing;
       setRawSafeToSpend(rawSafe);
       const calcAutoSavings = Math.max(0, rawSafe * 0.4);
       setAutoSavings(calcAutoSavings);
-      setSafeToSpend(rawSafe);
+      setSafeToSpend(Math.max(0, rawSafe));
 
     } catch (error) {
       console.error(error);
@@ -137,25 +132,8 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
   const isPositive = true; // Safe to spend is always >= 0
 
-  const effCategoryMap = new Map<string, { flexLimit: number, flexSpent: number, billLimit: number, billSpent: number }>();
-  budgets.forEach(b => {
-    const cat = b.categoryId;
-    if (!effCategoryMap.has(cat)) effCategoryMap.set(cat, { flexLimit: 0, flexSpent: 0, billLimit: 0, billSpent: 0 });
-    const entry = effCategoryMap.get(cat)!;
-    if (b.type === "FLEXIBLE") {
-      entry.flexLimit += b.limitAmount;
-      entry.flexSpent = b.spentAmount; // DONT use += because spentAmount is already the total for the whole category
-    } else {
-      entry.billLimit += b.limitAmount;
-      entry.billSpent += b.spentAmount; // Bills are unique to the budget, so += is correct
-    }
-  });
-  let totalBudgetLimit = 0;
-  let totalBudgetSpent = 0;
-  effCategoryMap.forEach(entry => {
-    totalBudgetLimit += Math.max(entry.flexLimit, entry.billLimit);
-    totalBudgetSpent += Math.min(entry.flexLimit, entry.flexSpent) + Math.min(entry.billLimit, entry.billSpent);
-  });
+  const totalBudgetLimit = budgets.reduce((sum: number, b: any) => sum + (b.limitAmount || 0), 0);
+  const totalBudgetSpent = budgets.reduce((sum: number, b: any) => sum + Math.min(b.spentAmount || 0, b.limitAmount || 0), 0);
   const budgetPct = totalBudgetLimit > 0 ? Math.min(100, (totalBudgetSpent / totalBudgetLimit) * 100) : 0;
 
   const currentUser = typeof window !== "undefined" ? (() => {
@@ -163,7 +141,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     if (userStr) {
       try {
         return JSON.parse(userStr);
-      } catch (e) {}
+      } catch (e) { }
     }
     return { id: "", name: "", avatarUrl: null };
   })() : { id: "", name: "", avatarUrl: null };
@@ -192,9 +170,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
     <div className="w-full pb-28 relative min-h-screen bg-[#f5f6f8]">
       {/* Overscroll cover hack: Lấp đầy khoảng trắng khi vuốt quá đà */}
       <div className="absolute top-[-100vh] left-0 right-0 h-[100vh] bg-[#1a1a2e]" />
-      
+
       {/* ─── ENTIRE HEADER BLOCK ─── */}
-      <div 
+      <div
         className="relative rounded-b-[2.5rem] pt-4 px-5 pb-8 overflow-hidden z-0 shadow-sm"
         style={{ background: "linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)" }}
       >
@@ -214,9 +192,9 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           </div>
           <button onClick={() => setShowBalance(!showBalance)} className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white active:scale-95 transition-transform">
             {showBalance ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
             )}
           </button>
         </div>
@@ -224,7 +202,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
         {/* ─── SAFE TO SPEND HERO ─── */}
         <div className="relative z-10 mb-6">
           <div className="flex justify-between items-center mb-1">
-            <p className="text-white/70 text-[13px] font-bold tracking-wide uppercase">Tiền rảnh rỗi (Có thể tiêu)</p>
+            <p className="text-white/70 text-[13px] font-bold tracking-wide uppercase">Số dư khả dụng</p>
             {safeToSpend !== null && (
               <span className="text-white/50 text-[11px] bg-white/10 px-2 py-0.5 rounded-full">
                 {/* Calculate days left dynamically */}
@@ -242,63 +220,63 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             </h2>
             <div className="flex items-center gap-2">
               <div className="px-3 py-1.5 bg-white/10 rounded-xl inline-flex items-center backdrop-blur-sm border border-white/5 shadow-sm">
-                <span className="text-white/80 text-[13px] font-medium mr-2">Hôm nay được tiêu:</span>
+                <span className="text-white/80 text-[13px] font-medium mr-2">Hạn mức hôm nay:</span>
                 <span className="text-[#4ade80] text-[16px] font-bold">
                   {showBalance ? (safeToSpend !== null ? fmt(safeToSpend / (() => {
-                      const today = new Date();
-                      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                      return end.getDate() - today.getDate() + 1;
-                    })()) : "...") : "••••••••"}
+                    const today = new Date();
+                    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    return end.getDate() - today.getDate() + 1;
+                  })()) : "...") : "••••••••"}
                 </span>
               </div>
             </div>
           </div>
 
           {/* ─── MONTHLY CASH FLOW ─── */}
-          {/* ─── MONTHLY CASH FLOW (4 METRICS) ─── */}
+          {/* ─── WEALTH SNAPSHOT (4 METRICS) ─── */}
           <div className="grid grid-cols-2 gap-3 mt-4">
-            {/* Đã Thu */}
+            {/* Tổng tiền các ví */}
+            <div onClick={() => setShowWalletManager(true)} className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5 cursor-pointer active:scale-95 transition-transform group hover:bg-white/20">
+              <div className="flex items-center gap-1.5 mb-1 text-white/70">
+                <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Tổng tiền các ví</span>
+              </div>
+              <p className="text-white font-extrabold text-[15px]">{showBalance ? fmt(totalWalletBalance) : "••••••"}</p>
+            </div>
+            
+            {/* Tổng tiền tiết kiệm */}
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5">
               <div className="flex items-center gap-1.5 mb-1 text-white/70">
                 <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                  <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider">Đã Thu (Thực tế)</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Tổng tiền tiết kiệm</span>
               </div>
-              <p className="text-white font-extrabold text-[15px]">{showBalance ? fmt(txSummary.totalIncome) : "••••••"}</p>
-            </div>
-            
-            {/* Đã Chi */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1 text-white/70">
-                <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center">
-                  <svg className="w-3 h-3 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider">Đã Chi (Thực tế)</span>
-              </div>
-              <p className="text-white font-extrabold text-[15px]">{showBalance ? fmt(txSummary.totalExpense) : "••••••"}</p>
+              <p className="text-white font-extrabold text-[15px]">{showBalance ? fmt(totalSavings) : "••••••"}</p>
             </div>
 
-            {/* Tổng Thu */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1 text-white/70">
-                <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center">
-                  <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider">Tổng Thu (Cần thu)</span>
-              </div>
-              <p className="text-white font-extrabold text-[15px]">{showBalance ? fmt(txSummary.totalIncome + debtSummary.totalOwed) : "••••••"}</p>
-            </div>
-
-            {/* Tổng Chi */}
+            {/* Nợ cần thu */}
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5">
               <div className="flex items-center gap-1.5 mb-1 text-white/70">
                 <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center">
-                  <svg className="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                  <svg className="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M7 11l5-5m0 0l5 5m-5-5v12"/></svg>
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider">Tổng Chi (Cần trả)</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Nợ cần thu</span>
               </div>
-              <p className="text-white font-extrabold text-[15px]">{showBalance ? fmt(txSummary.totalExpense + debtSummary.totalOwing) : "••••••"}</p>
+              <p className="text-white font-extrabold text-[15px]">{showBalance ? fmt(debtSummary.totalOwed) : "••••••"}</p>
+            </div>
+
+            {/* Nợ phải trả */}
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5">
+              <div className="flex items-center gap-1.5 mb-1 text-white/70">
+                <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 13l-5 5m0 0l-5-5m5 5V6"/></svg>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Nợ phải trả</span>
+              </div>
+              <p className="text-white font-extrabold text-[15px]">{showBalance ? fmt(debtSummary.totalOwing) : "••••••"}</p>
             </div>
           </div>
         </div>
@@ -334,7 +312,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
               </p>
             </div>
           </GlobalDebtsDrawer>
-          
+
           <GlobalDebtsDrawer myDebts={myDebts} owedToMe={owedToMe} defaultTab="owedToMe">
             <div className="flex justify-between items-center mb-3 cursor-pointer hover:bg-slate-50/80 active:opacity-75 transition-all p-1.5 -mx-1.5 rounded-xl">
               <div className="flex items-center gap-2">
@@ -347,27 +325,40 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             </div>
           </GlobalDebtsDrawer>
 
+          {/* Tiết kiệm */}
+          <div
+            className="flex justify-between items-center cursor-pointer hover:bg-slate-50/80 active:opacity-75 transition-all p-1.5 -mx-1.5 rounded-xl"
+            onClick={() => onNavigate?.('savings')}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-xs">💰</div>
+              <span className="text-gray-500 font-medium text-[12px]">Đã tiết kiệm</span>
+            </div>
+            <p className="text-[15px] font-bold text-emerald-500">
+              {showBalance ? (totalSavings > 0 ? "+" : "") + fmt(totalSavings) : "••••••••"}
+            </p>
+          </div>
 
         </div>
       </div>
 
       {/* ─── MAIN CONTENT ─── */}
       <div className="relative z-10 px-5 mt-8 space-y-8">
-        
+
         {/* ─── QUICK ACTIONS ─── */}
         <div className="grid grid-cols-3 gap-3 mb-8">
           <button onClick={() => setIsTopUpOpen(true)} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
             <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m0 0l-4-4m4 4l4-4M4 12h16" opacity="0.3"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m0 0l-4-4m4 4l4-4M4 12h16" opacity="0.3" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
             </div>
             <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Nạp vào ví</span>
           </button>
-          
 
-          
+
+
           <button onClick={() => setIsTransferModalOpen(true)} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
             <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
             </div>
             <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Chuyển khoản</span>
           </button>
@@ -375,7 +366,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           {/* Hàng 2 */}
           <button onClick={() => onNavigate?.('budget')} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
             <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
             <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Ngân sách</span>
           </button>
@@ -384,7 +375,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
           <button onClick={() => onNavigate?.('groups')} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
             <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
             </div>
             <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Nhóm</span>
           </button>
@@ -395,136 +386,143 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             </div>
             <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Tiết kiệm</span>
           </button>
+
+          <button onClick={() => onNavigate?.('history')} className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95">
+            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">Lịch sử</span>
+          </button>
         </div>
 
         {/* ─── BUDGET PROGRESS ─── */}
         <div>
           <h3 className="text-xl font-extrabold text-gray-800 mb-4 ml-2 tracking-tight">Ngân sách Tháng này</h3>
-        <div 
-          className="bg-white rounded-[28px] p-6 shadow-xl shadow-black/5 mb-10 border border-gray-100 cursor-pointer active:scale-[0.98] transition-all hover:shadow-xl relative overflow-hidden"
-          onClick={() => onNavigate?.('budget')}
-        >
-          {/* Subtle gradient background decoration */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-50 to-transparent rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-          
-          <div className="flex justify-between items-end mb-3 relative z-10">
-            <div>
-              <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Đã chi tiêu</p>
-              <p className="text-2xl font-black text-gray-800 tracking-tight">
-                {showBalance ? fmt(totalBudgetSpent) : "••••••"} <span className="text-sm text-gray-400 font-medium">/ {showBalance ? fmt(totalBudgetLimit) : "••••••"}</span>
-              </p>
-            </div>
-            <div className="bg-[#e8f5f1] text-[#45b39d] px-4 py-1.5 rounded-full text-xs font-bold shrink-0">
-              Quản lý Ngân sách
-            </div>
-          </div>
-          
-          <div className="h-4 w-full bg-gray-100 rounded-full overflow-hidden mt-4 relative z-10 shadow-inner">
-            <div 
-              className={`h-full rounded-full transition-all duration-1000 relative overflow-hidden ${budgetPct >= 100 ? "bg-red-500" : budgetPct >= 80 ? "bg-orange-500" : "bg-[#45b39d]"}`}
-              style={{ width: `${Math.min(100, budgetPct)}%` }}
-            >
-              {/* Shimmer effect inside progress bar */}
-              <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
-            </div>
-          </div>
-          <p className="text-xs text-gray-400 mt-4 text-center font-medium relative z-10">Nhấn để xem chi tiết Ngân sách & Giao dịch</p>
+          <div
+            className="bg-white rounded-[28px] p-6 shadow-xl shadow-black/5 mb-10 border border-gray-100 cursor-pointer active:scale-[0.98] transition-all hover:shadow-xl relative overflow-hidden"
+            onClick={() => onNavigate?.('budget')}
+          >
+            {/* Subtle gradient background decoration */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-50 to-transparent rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
 
-          {/* Top 5 Spending Categories */}
-          {topExpenseCategories.length > 0 && (
-            <div className="mt-6 pt-5 border-t border-gray-100 relative z-10">
-              <h4 className="text-[14px] font-extrabold text-gray-800 mb-4 uppercase tracking-wider flex items-center gap-2">
-                🏆 Bảng xếp hạng chi tiêu
-              </h4>
-              <div className="space-y-3">
-                {topExpenseCategories.slice(0, 5).map((cat, idx) => {
-                  const maxAmount = topExpenseCategories[0].totalAmount;
-                  const barWidth = maxAmount > 0 ? (cat.totalAmount / maxAmount) * 100 : 0;
-                  const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
-                  const colors = [
-                    "bg-yellow-50 text-yellow-600 border-yellow-200",
-                    "bg-slate-50 text-slate-500 border-slate-200",
-                    "bg-orange-50 text-orange-500 border-orange-200",
-                    "bg-gray-50 text-gray-400 border-gray-100",
-                    "bg-gray-50 text-gray-400 border-gray-100"
-                  ];
-                  return (
-                    <div key={idx} className="relative bg-white rounded-2xl p-3 border border-gray-100 shadow-sm overflow-hidden flex flex-col justify-center">
-                      <div className="absolute top-0 left-0 bottom-0 bg-rose-50/60 -z-10 transition-all duration-1000" style={{ width: `${barWidth}%` }} />
-                      
-                      <div className="flex items-center justify-between z-10">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[18px] shrink-0 border shadow-sm ${colors[idx]}`}>
-                            {medals[idx]}
+            <div className="flex justify-between items-end mb-3 relative z-10">
+              <div>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Đã chi tiêu</p>
+                <p className="text-2xl font-black text-gray-800 tracking-tight">
+                  {showBalance ? fmt(totalBudgetSpent) : "••••••"} <span className="text-sm text-gray-400 font-medium">/ {showBalance ? fmt(totalBudgetLimit) : "••••••"}</span>
+                </p>
+              </div>
+              <div className="bg-[#e8f5f1] text-[#45b39d] px-4 py-1.5 rounded-full text-xs font-bold shrink-0">
+                Quản lý Ngân sách
+              </div>
+            </div>
+
+            <div className="h-4 w-full bg-gray-100 rounded-full overflow-hidden mt-4 relative z-10 shadow-inner">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 relative overflow-hidden ${budgetPct >= 100 ? "bg-red-500" : budgetPct >= 80 ? "bg-orange-500" : "bg-[#45b39d]"}`}
+                style={{ width: `${Math.min(100, budgetPct)}%` }}
+              >
+                {/* Shimmer effect inside progress bar */}
+                <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-4 text-center font-medium relative z-10">Nhấn để xem chi tiết Ngân sách & Giao dịch</p>
+
+            {/* Top 5 Spending Categories */}
+            {topExpenseCategories.length > 0 && (
+              <div className="mt-6 pt-5 border-t border-gray-100 relative z-10">
+                <h4 className="text-[14px] font-extrabold text-gray-800 mb-4 uppercase tracking-wider flex items-center gap-2">
+                  🏆 Bảng xếp hạng chi tiêu
+                </h4>
+                <div className="space-y-3">
+                  {topExpenseCategories.slice(0, 5).map((cat, idx) => {
+                    const maxAmount = topExpenseCategories[0].totalAmount;
+                    const barWidth = maxAmount > 0 ? (cat.totalAmount / maxAmount) * 100 : 0;
+                    const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+                    const colors = [
+                      "bg-yellow-50 text-yellow-600 border-yellow-200",
+                      "bg-slate-50 text-slate-500 border-slate-200",
+                      "bg-orange-50 text-orange-500 border-orange-200",
+                      "bg-gray-50 text-gray-400 border-gray-100",
+                      "bg-gray-50 text-gray-400 border-gray-100"
+                    ];
+                    return (
+                      <div key={idx} className="relative bg-white rounded-2xl p-3 border border-gray-100 shadow-sm overflow-hidden flex flex-col justify-center">
+                        <div className="absolute top-0 left-0 bottom-0 bg-rose-50/60 -z-10 transition-all duration-1000" style={{ width: `${barWidth}%` }} />
+
+                        <div className="flex items-center justify-between z-10">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[18px] shrink-0 border shadow-sm ${colors[idx]}`}>
+                              {medals[idx]}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[14px] font-bold text-gray-800 leading-tight flex items-center gap-1.5">
+                                {cat.categoryName}
+                                {idx === 0 && <span className="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-md uppercase font-black">Vô địch 💸</span>}
+                              </span>
+                              <span className="text-[11px] font-medium text-gray-500 mt-0.5">Chiếm {cat.percentage.toFixed(1)}% tháng này</span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-[14px] font-bold text-gray-800 leading-tight flex items-center gap-1.5">
-                              {cat.categoryName}
-                              {idx === 0 && <span className="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-md uppercase font-black">Vô địch 💸</span>}
-                            </span>
-                            <span className="text-[11px] font-medium text-gray-500 mt-0.5">Chiếm {cat.percentage.toFixed(1)}% tháng này</span>
-                          </div>
+                          <span className={`text-[15px] font-black tracking-tight ${idx === 0 ? "text-rose-600" : "text-gray-700"}`}>
+                            -{fmt(cat.totalAmount)}
+                          </span>
                         </div>
-                        <span className={`text-[15px] font-black tracking-tight ${idx === 0 ? "text-rose-600" : "text-gray-700"}`}>
-                          -{fmt(cat.totalAmount)}
-                        </span>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ─── AT-RISK BUDGETS ─── */}
+          {budgets.filter(b => b.type === "FLEXIBLE" && b.limitAmount > 0 && (b.spentAmount / b.limitAmount) >= 0.8).length > 0 && (
+            <div className="mb-10 -mt-6">
+              <h4 className="text-[13px] font-bold text-rose-500 mb-3 ml-2 uppercase tracking-wide flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                Cảnh báo vượt hạn mức
+              </h4>
+              <div className="flex overflow-x-auto gap-3 pb-4 no-scrollbar -mx-5 px-5">
+                {budgets.filter(b => b.type === "FLEXIBLE" && b.limitAmount > 0 && (b.spentAmount / b.limitAmount) >= 0.8)
+                  .sort((a, b) => (b.spentAmount / b.limitAmount) - (a.spentAmount / a.limitAmount))
+                  .map((b, idx) => {
+                    const pct = Math.round((b.spentAmount / b.limitAmount) * 100);
+                    const isOver = b.spentAmount > b.limitAmount || pct >= 100;
+                    return (
+                      <div key={idx} onClick={() => onNavigate?.('budget')} className={`shrink-0 w-48 rounded-2xl p-4 border active:scale-95 transition-all cursor-pointer ${isOver ? 'bg-rose-50 border-rose-100 shadow-[0_4px_12px_rgba(244,63,94,0.15)]' : 'bg-amber-50 border-amber-100 shadow-[0_4px_12px_rgba(245,158,11,0.15)]'}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isOver ? 'bg-rose-200/50 text-rose-600' : 'bg-amber-200/50 text-amber-600'}`}>
+                            <span className="text-[15px]">{isOver ? '🔥' : '⚠️'}</span>
+                          </div>
+                          <span className={`text-[14px] font-bold truncate ${isOver ? 'text-rose-700' : 'text-amber-700'}`}>{b.name || b.categoryName || "Khoản chi"}</span>
+                        </div>
+                        <div className="w-full bg-white/50 h-1.5 rounded-full overflow-hidden mb-1.5">
+                          <div className={`h-full rounded-full ${isOver ? 'bg-rose-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                        </div>
+                        <div className="flex justify-between items-center text-[11px] font-medium">
+                          <span className={isOver ? 'text-rose-500' : 'text-amber-600'}>{pct}%</span>
+                          <span className={isOver ? 'text-rose-600 font-bold' : 'text-amber-700 font-bold'}>
+                            {isOver ? `Vượt ${fmt(b.spentAmount - b.limitAmount)}` : `Còn ${fmt(b.limitAmount - b.spentAmount)}`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           )}
-        </div>
 
-        {/* ─── AT-RISK BUDGETS ─── */}
-        {budgets.filter(b => b.type === "FLEXIBLE" && b.limitAmount > 0 && (b.spentAmount / b.limitAmount) >= 0.8).length > 0 && (
-          <div className="mb-10 -mt-6">
-            <h4 className="text-[13px] font-bold text-rose-500 mb-3 ml-2 uppercase tracking-wide flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-              Cảnh báo vượt hạn mức
-            </h4>
-            <div className="flex overflow-x-auto gap-3 pb-4 no-scrollbar -mx-5 px-5">
-              {budgets.filter(b => b.type === "FLEXIBLE" && b.limitAmount > 0 && (b.spentAmount / b.limitAmount) >= 0.8)
-                .sort((a, b) => (b.spentAmount / b.limitAmount) - (a.spentAmount / a.limitAmount))
-                .map((b, idx) => {
-                const pct = Math.round((b.spentAmount / b.limitAmount) * 100);
-                const isOver = b.spentAmount > b.limitAmount || pct >= 100;
-                return (
-                  <div key={idx} onClick={() => onNavigate?.('budget')} className={`shrink-0 w-48 rounded-2xl p-4 border active:scale-95 transition-all cursor-pointer ${isOver ? 'bg-rose-50 border-rose-100 shadow-[0_4px_12px_rgba(244,63,94,0.15)]' : 'bg-amber-50 border-amber-100 shadow-[0_4px_12px_rgba(245,158,11,0.15)]'}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isOver ? 'bg-rose-200/50 text-rose-600' : 'bg-amber-200/50 text-amber-600'}`}>
-                        <span className="text-[15px]">{isOver ? '🔥' : '⚠️'}</span>
-                      </div>
-                      <span className={`text-[14px] font-bold truncate ${isOver ? 'text-rose-700' : 'text-amber-700'}`}>{b.name || b.categoryName || "Khoản chi"}</span>
-                    </div>
-                    <div className="w-full bg-white/50 h-1.5 rounded-full overflow-hidden mb-1.5">
-                      <div className={`h-full rounded-full ${isOver ? 'bg-rose-500' : 'bg-amber-500'}`} style={{width: `${Math.min(100, pct)}%`}} />
-                    </div>
-                    <div className="flex justify-between items-center text-[11px] font-medium">
-                      <span className={isOver ? 'text-rose-500' : 'text-amber-600'}>{pct}%</span>
-                      <span className={isOver ? 'text-rose-600 font-bold' : 'text-amber-700 font-bold'}>
-                        {isOver ? `Vượt ${fmt(b.spentAmount - b.limitAmount)}` : `Còn ${fmt(b.limitAmount - b.spentAmount)}`}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {/* ─── FINANCIAL HEALTH ─── */}
+          <div className="mb-10">
+            <FinancialHealthCard />
           </div>
-        )}
-
-        {/* ─── FINANCIAL HEALTH ─── */}
-        <div className="mb-10">
-          <FinancialHealthCard />
-        </div>
 
         </div>
 
-        <TransferModal 
-          open={isTransferModalOpen} 
-          onOpenChange={setIsTransferModalOpen} 
-          onSuccess={fetchData} 
+        <TransferModal
+          open={isTransferModalOpen}
+          onOpenChange={setIsTransferModalOpen}
+          onSuccess={fetchData}
         />
         <AddTransactionDrawer
           walletId={wallet?.id}
@@ -533,7 +531,22 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
           onOpenChange={setIsTopUpOpen}
           onCreated={fetchData}
         />
+        <GlobalDebtsDrawer
+          open={showGlobalDebts}
+          onOpenChange={setShowGlobalDebts}
+          myDebts={myDebts}
+          owedToMe={owedToMe}
+          defaultTab={debtsInitialTab === "borrowed" ? "myDebts" : debtsInitialTab === "lent" ? "owedToMe" : undefined}
+        />
 
+        <WalletManagerDrawer
+          open={showWalletManager}
+          onOpenChange={setShowWalletManager}
+          onSaved={() => {
+            // Refresh total balance
+            api.get("/wallets/total-balance").then(res => setTotalWalletBalance(res.data.totalBalance)).catch(console.error);
+          }}
+        />
       </div>
     </div>
   );

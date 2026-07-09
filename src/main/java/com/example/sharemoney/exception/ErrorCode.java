@@ -39,6 +39,11 @@ public enum ErrorCode {
     ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy tài sản."),
     ASSET_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Bạn không có quyền thao tác trên tài sản này."),
 
+    // --- Receipt OCR ---
+    RECEIPT_SCAN_CONFIG_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Chưa cấu hình API Key cho dịch vụ quét hóa đơn."),
+    RECEIPT_SCAN_FAILED(HttpStatus.BAD_REQUEST, "Không thể đọc hóa đơn. Vui lòng thử lại với ảnh rõ hơn."),
+    CUSTOM_SPLIT_MISMATCH(HttpStatus.BAD_REQUEST, "Tổng số tiền chia tùy chỉnh không khớp với tổng tiền hóa đơn."),
+
     // --- Auth ---
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Bạn cần đăng nhập để thực hiện thao tác này."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không đúng.");

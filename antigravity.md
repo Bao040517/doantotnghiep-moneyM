@@ -8,6 +8,156 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 3. **Tiết kiệm tự động (Savings Goals):** Tự động trích tiền nhàn rỗi vào các quỹ tiết kiệm dựa trên Mức độ Ưu tiên.
 4. **Chia tiền nhóm (Group Split):** Tạo hóa đơn chung, thuật toán Greedy chia nợ tối ưu.
 5. **Thanh toán nợ (Debt Settlement):** Nhắc nợ, tạo mã QR VietQR, và quy trình Xác nhận.
+6. **Z-Score Anomaly Detection:** Thuật toán phát hiện bất thường chi tiêu theo thời gian thực.
+
+### Session [2026-07-09] - Quản lý Ngân sách Cố định & Đồng nhất Giao diện Chuyển tiền (Unified Transfer & Bank Binding)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Liên kết Ví với Tài khoản Ngân hàng (Bank Binding):**
+   - **Câu hỏi của người dùng:** "Kiểm tra toàn bộ project xem có phần nào cho thiết lập liên kết ví với tài khoản ngân hàng chưa. Vì app sẽ không làm nhiệm vụ giữ tiền của khách hàng mà đứng giữa ngân hàng và khách hàng để làm kiểm soát viên tài chính cho user nhé."
+   - **Phân tích:** Ứng dụng PFM đóng vai trò sổ tay kiểm soát, không giữ tiền thực tế. Do đó, mỗi Ví (Wallet) cần được định danh bằng một tài khoản ngân hàng thực tế để luồng tiền minh bạch.
+   - **Quyết định & Thực thi:** 
+     - Cập nhật cơ sở dữ liệu và Entity `Wallet` (Backend) bổ sung các trường `bankBin`, `bankAccountNo`, `bankAccountName`.
+     - Nâng cấp DTOs và UI tạo/sửa ví để cho phép người dùng ánh xạ Ví ảo trong ứng dụng với Tài khoản Ngân hàng thật.
+
+**2. Đồng nhất Giao diện Chuyển tiền & Tự động điền (Unified Transfer & Auto-fill):**
+   - **Câu hỏi của người dùng:** "Tôi nói tất cả các giao dịch chuyển tiền ra ngoài tài khoản đều về chung giao diện chuyển tiền mà. Nhưng suy nghĩ kịch bản xem sao cho đôi cái nó có sẵn số tiền ở đó rồi ấy nhé" và "Vì sao phải chọn ví nguồn nhỉ?"
+   - **Phân tích:** Người dùng muốn một nút "Chuyển tiền" duy nhất giải quyết mọi bài toán (cả chi tiêu thường và đóng tiền hóa đơn/ngân sách), đồng thời tối giản hóa trải nghiệm nhập liệu: tự động điền số tiền và bỏ qua các bước chọn ví không cần thiết nếu có thể.
+   - **Quyết định & Thực thi:** 
+     - Tích hợp tính năng thanh toán Ngân sách trực tiếp vào `TransferModal` chung.
+     - Xây dựng kịch bản "Có sẵn số tiền": Nếu người dùng mở form chuyển tiền và chọn một danh mục Hóa đơn cố định (VD: Tiền nhà) chưa thanh toán đủ, hệ thống tự động điền (auto-fill) số tiền còn thiếu vào biểu mẫu.
+     - Tối ưu hóa bước chọn Ví nguồn và Tài khoản đích (bỏ qua bước nhập nếu dữ liệu đã được kế thừa từ Ngân sách).
+
+**3. Khắc phục lỗi Không cập nhật Ngân sách (Budget Tracking Fixes):**
+   - **Câu hỏi của người dùng:** "Sau khi thanh toán tiền nhà rồi thì phần ngân sách này cũng phải được cập nhật đúng không?"
+   - **Phân tích:** Tiền nhà đã được thanh toán qua `TransferModal` nhưng thẻ Ngân sách không tăng mức "Đã chi". Nguyên nhân là do API Categories tự động ghi đè danh mục thành "Ăn uống" và Modal quên truyền tham số `linkedBudgetId` về Backend khi giao dịch được khởi tạo từ màn hình Dashboard. Hơn nữa, giao diện cũ chặn hiển thị số tiền "Đã chi" của các Ngân sách loại Hóa đơn (`BILL`).
+   - **Quyết định & Thực thi:**
+     - Sửa lỗi ghi đè danh mục trong `TransferModal`, bảo toàn chính xác `categoryId` và đảm bảo `linkedBudgetId` được gắn vào JSON payload đẩy xuống `TransactionService`.
+     - Cập nhật `budget-tab.tsx` hiển thị tiến độ "Đã chi: X đ" cho các loại Ngân sách `BILL` (trước đây chỉ hiển thị tổng Hạn mức).
+     - Đã build thành công Next.js và pass toàn bộ Type Check.
+
+---
+
+### Session [2026-07-07] - Cập nhật Logic Tiền nhàn rỗi & Giao diện Dashboard (Wealth Snapshot)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Chuẩn hóa Thuật toán Tiền Nhàn Rỗi (Idle Money):**
+   - **Câu hỏi của người dùng:** "Tại sao Tiền nhàn rỗi ở Dashboard và Tab Tiết kiệm lại khác nhau? Nếu tôi tiết kiệm 4.675.000đ thì số tiền nhàn rỗi còn lại có được đề xuất tiết kiệm tiếp không, hay bị lặp lại?"
+   - **Phân tích:** Ứng dụng trước đó chưa trừ "Tiền đã gửi tiết kiệm" khỏi ví tổng. Dẫn đến vòng lặp vô tận: tiền đã cất vào ống heo nhưng hệ thống vẫn coi là rảnh rỗi và tiếp tục giục đi gửi.
+   - **Giải pháp:** Cập nhật công thức lõi ở cả `FinancialAdvisorService.java` và Frontend (`dashboard-tab.tsx`, `savings-tab.tsx`): 
+     *Tiền nhàn rỗi = Tổng tiền các ví - Ngân sách chưa chi - Nợ - Tổng tiền trong Quỹ tiết kiệm*.
+   - **Kết quả:** Đảm bảo đúng chuẩn phương pháp "Phong bì" (Envelope System) trong Quản lý Tài chính Cá nhân.
+
+**2. Tái cấu trúc Dashboard (Từ Dòng tiền Tháng sang Bức tranh Tài sản):**
+   - **Câu hỏi của người dùng:** "Vì sao Tháng mới (Tháng 7) thì các số Đã thu / Đã chi lại về 0đ? Tất cả các tính năng phải dựa trên số dư hiện tại chứ không phải tính theo thời điểm!"
+   - **Phân tích:** Giao diện cũ hiển thị Dòng tiền theo tháng (Monthly Cash Flow), khiến dữ liệu reset về 0 vào ngày mùng 1 hàng tháng, gây hụt hẫng cho người dùng muốn xem bức tranh toàn cảnh.
+   - **Giải pháp:** Gỡ bỏ hoàn toàn 4 chỉ số dòng tiền tháng. Thay bằng khối **"Snapshot Tài sản" (Wealth Snapshot)** phản ánh tức thì trạng thái thực:
+     1. Tổng tiền các ví
+     2. Tổng tiền tiết kiệm
+     3. Nợ cần thu
+     4. Nợ phải trả
+   - **Kết quả:** Giao diện trực quan minh bạch. Bóc trần được điểm vô lý trong dữ liệu mẫu (Tiết kiệm > Tổng tiền ví), giúp người dùng thấu hiểu chính xác dòng tiền của mình ở thì hiện tại.
+
+---
+
+### Session [2026-07-06] - Thuật toán Z-Score Anomaly Detection & Nghiên cứu Seeder
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Phân tích Hiện trạng & Đề xuất 6 Tính năng Nâng cao:**
+   - Hoàn thành báo cáo phân tích kiến trúc hiện tại (đã có 13 tính năng Beyond CRUD).
+   - Lọc ra 6 đề xuất mới để nâng cao chất lượng đồ án, trong đó nổi bật là thuật toán phát hiện bất thường chi tiêu bằng phương pháp phân tích thống kê Z-Score.
+
+**2. Triển khai Z-Score Anomaly Detection (Real-time):**
+   - Xây dựng `AnomalyDetectionService` tự động query dữ liệu 90 ngày của từng danh mục để tìm **Mean** và **Standard Deviation**.
+   - Kích hoạt tính toán ngay khi người dùng ghi chép chi tiêu (hoặc khi hệ thống tự sinh giao dịch nhóm).
+   - Thiết lập ngưỡng báo động: Nếu $Z > 2.0$ (vượt 95% phân phối) và giao dịch > 100k, lập tức push thông báo qua WebSocket với cờ `SPENDING_ANOMALY`.
+   - Nâng cấp Frontend (Drawer Thông báo và Toast) hiển thị UI màu đỏ khẩn cấp (icon 🚨) để làm nổi bật cảnh báo.
+
+**3. Nghiên cứu Database Schema & Lên Kế hoạch Seeder:**
+   - Rà soát toàn bộ cấu trúc DB: `User`, `Wallet`, `Category`, `Transaction`, `Group`.
+   - Chốt phương án viết `DatabaseSeeder.java` (thay vì `data.sql`) để xử lý `UUID`, `BCrypt` password và sinh (generate) tự động 90 ngày dữ liệu mẫu theo phân phối chuẩn, nhằm biểu diễn hoàn hảo tính năng Z-Score cho hội đồng đánh giá.
+
+---
+
+### Session [2026-07-01] - Khắc phục lỗi 500 Internal Server Error & Fix Database Nulls
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Khắc phục lỗi Crash JPA do dữ liệu NULL ở kiểu Boolean nguyên thủy:**
+   - **Vấn đề:** Khi truy cập các tab Tư vấn, Lịch sử, Thống kê, Frontend báo lỗi "Không thể tải dữ liệu" (Axios 500 Network Error). Ở Backend, Spring Boot (JPA/Hibernate) quăng lỗi `JpaSystemException: Null value was assigned to a property [...] of primitive type`. Nguyên nhân là do các Entity như `Transaction`, `Wallet`, `Budget` định nghĩa các cột cờ (flag) bằng kiểu `boolean` nguyên thủy (chỉ nhận `true`/`false`), nhưng dữ liệu mẫu (seed data) trong PostgreSQL bị thiếu các giá trị này, dẫn đến giá trị DB là `NULL`.
+   - **Giải pháp thiết kế:** Thay vì đổi toàn bộ `boolean` thành `Boolean` (gây ảnh hưởng dây chuyền đến các Getter như `isSplit()`, `isAutoGenerated()`), tôi đã viết một Component tự động chạy lúc khởi động mang tên `DatabaseFixer.java`.
+   - **Thực thi:** Sử dụng `@PostConstruct` và `JdbcTemplate` để tự động dò quét và chạy lệnh `UPDATE` vá lại toàn bộ các trường bị `NULL` (bao gồm `exclude_from_budget`, `is_auto_generated`, `is_split` trong bảng `transactions`, `is_liability` trong bảng `wallets`, và `is_recurring`, `is_mandatory` trong bảng `budgets`) thành mặc định `false`. Server sau khi khởi động lại đã tự dọn dẹp lỗi và chạy mượt mà trở lại.
+
+---
+
+### Session [2026-06-30] - Khôi phục Cơ sở Dữ liệu & Cập nhật Dữ liệu Mẫu (Seed Data 3 Tháng)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Sửa lỗi Ràng buộc Dữ liệu (Database Constraints) khi nạp file SQL:**
+   - **Vấn đề:** Quá trình nạp file `seed_data.sql` qua pgAdmin bị thất bại và báo lỗi trắng trơn database (403 Axios Error). Nguyên nhân do cấu trúc các Entity trong Spring Boot đã được cập nhật thêm các cột bắt buộc (`NOT NULL`) như `is_liability` trong `wallets`, `is_auto_generated` trong `transactions`, và `is_mandatory`, đổi tên type thành `BILL` trong `budgets`. Nhưng file SQL cũ chưa được cập nhật theo, dẫn đến Insert bị Rollback.
+   - **Giải pháp:** Viết lại toàn bộ tool sinh dữ liệu (`generate_seed_data.js`) để bổ sung đầy đủ các trường mới khớp 100% với cấu trúc Entity hiện tại. Loại bỏ các cột thừa (như `is_rollover`) và cập nhật chuẩn `BudgetType`.
+
+**2. Bơm Dữ liệu 3 tháng Trực tiếp (Direct Database Seeding):**
+   - **Thực thi:** Thay vì nạp thủ công qua pgAdmin dễ rủi ro lỗi cú pháp, tôi đã triển khai Script Node.js (`run_seed.js`) tự động nạp thẳng file `seed_data_3_months.sql` vào cơ sở dữ liệu `share-money`.
+   - **Kết quả:** Quá trình seed data thành công tuyệt đối. Hệ thống giờ đây đã được lấp đầy bởi dữ liệu 3 tháng liên tiếp (Tháng 4, 5, 6) phong phú để phục vụ hiển thị Dashboard và Thống kê. Lỗi 403 Forbidden đã biến mất, người dùng có thể đăng nhập tức thì bằng tài khoản `nguyenvana@gmail.com` và mật khẩu `123456`.
+
+---
+
+### Session [2026-06-25] - Hợp nhất Luồng Tiết kiệm & Hoàn thiện Điều hướng (Dashboard UX)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Hợp nhất Tính năng Tư vấn Tiết kiệm (Unified Savings Flow):**
+   - **Vấn đề:** Có sự chồng chéo chức năng giữa Tab "Quản lý Tiết kiệm" (Heo đất) và mục "Gợi ý Tiết kiệm" bên trong Tab "Tư vấn Tài chính".
+   - **Giải pháp:** Rút toàn bộ thuật toán và giao diện "Gợi ý Tiết kiệm" (bao gồm đề xuất cắt giảm chi tiêu và tính toán tiền nhàn rỗi) ra khỏi Tab Tư vấn. Nhúng trực tiếp khối dữ liệu này lên đầu trang `savings-tab.tsx`.
+   - **Kết quả UX:** Người dùng trải nghiệm một luồng xuyên suốt hoàn hảo: Đọc lời khuyên cắt giảm (từ Trợ lý) $\rightarrow$ Quyết định cất tiền $\rightarrow$ Thao tác trích lập vào các hũ Heo đất (ngay phía dưới) mà không phải chuyển đổi qua lại giữa các tab.
+
+**2. Khôi phục Nút truy cập Lịch sử (History Quick Action):**
+   - **Vấn đề:** Sau khi thay thế Tab "Lịch sử" bằng Tab "Tư vấn" ở thanh điều hướng dưới cùng (Bottom Navigation), tính năng theo dõi lịch sử bị ẩn sâu gây khó tiếp cận.
+   - **Giải pháp:** Bổ sung nút **"Lịch sử"** (kèm icon Đồng hồ) vào lưới Thao tác nhanh (Quick Actions) trên màn hình Dashboard (`dashboard-tab.tsx`).
+   - **Kết quả UX:** Lưới thao tác nhanh được lấp đầy hoàn hảo với 6 nút cân đối (Nạp vào ví, Chuyển khoản, Ngân sách, Nhóm, Tiết kiệm, Lịch sử), đảm bảo các tính năng cốt lõi luôn cách người dùng không quá 1 thao tác nhấn (1-tap away).
+
+---
+
+### Session [2026-06-25] - Triển khai Tư vấn Tài chính Thông minh (Rule-based PFM Advisor)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Kiến trúc hóa Trợ lý Tài chính (Không dùng AI):**
+   - **Chuyển đổi chiến lược:** Từ chối phương án tích hợp AI (Gemini) chậm chạp và tốn kém, chuyển sang xây dựng hệ thống **Thuật toán Chuyên gia (Rule-based Expert System)** để phân tích dữ liệu cục bộ, đảm bảo tính toán tức thời (Real-time), chính xác tuyệt đối và bảo mật dữ liệu người dùng.
+   - **Backend Core:** Tạo mới `FinancialAdvisorService` với hơn 350 dòng logic thuần túy Java thực thi 4 thuật toán tài chính cốt lõi. Cung cấp API `GET /api/advisor/insights/{userId}`.
+
+**2. Triển khai 4 Thuật toán Phân tích Cốt lõi:**
+   - **Habit Analyzer (Phân tích Thói quen 50/30/20):** Thuật toán phân cụm danh mục chi tiêu thành 3 rổ: Thiết yếu (Needs), Linh hoạt (Wants), Tiết kiệm (Savings). So sánh tỷ trọng thực tế với chuẩn quốc tế 50/30/20 và tự động render lời khuyên.
+   - **One-Click Budget (Tự lập kế hoạch):** Áp dụng thuật toán *Trung bình động (Moving Average)* trên lịch sử 3 tháng, kết hợp bộ lọc nhiễu *Loại bỏ Outliers* (>2x trung bình) để đề xuất hạn mức ngân sách cực kỳ sát thực tế (làm tròn bội số 50k).
+   - **Smart Alerts (Cảnh báo thông minh):** Sử dụng *Burn-rate Prediction* để dự phóng (project) tổng chi tiêu cuối tháng dựa trên tốc độ tiêu tiền những ngày đầu tháng. Kích hoạt cờ đỏ (HIGH) hoặc vàng (MEDIUM) nếu tốc độ chi vượt trung bình >30%.
+   - **Idle Money Sweep (Gom tiền nhàn rỗi):** Định vị các danh mục "Linh hoạt" đang chi tiêu lãng phí, đề xuất cắt giảm 20% và tự động tính toán tiềm năng tiết kiệm để gợi ý người dùng khóa tiền nhàn rỗi.
+
+**3. Tích hợp UI/UX "Tư vấn" (Advisor Tab):**
+   - **Giao diện:** Thiết kế mới hoàn toàn `advisor-tab.tsx` với 4 phân hệ tương ứng 4 thuật toán. Ứng dụng Glassmorphism, Gradient Cards, và Animated Progress Bars mang lại cảm giác "Smart" sắc nét.
+   - **Hệ thống hóa:** Nhúng Tab "Tư vấn" (biểu tượng 💡) vào Bottom Navigation (thay thế tab Lịch sử) tạo luồng điều hướng liền mạch như một ứng dụng Super-app thực thụ.
+   - **Hoàn thiện:** Đã compile thành công toàn bộ Backend (Maven) và Build Production thành công cho Frontend (Next.js 16).
+
+---
+
+### Session [2026-06-25] - Hoàn thiện Báo cáo Đồ án & Quản lý Git
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Soạn thảo Bộ Báo cáo Đồ án Tốt nghiệp (Thesis Reports):**
+   - Viết hoàn chỉnh 5 file báo cáo (từ `module_1_database.md` đến `module_5_conclusion.md`) dưới góc độ của một Kiến trúc sư hệ thống.
+   - **Đặc biệt:** Trình bày thuật toán chia tiền nhóm (Greedy Algorithm) cực kỳ dễ hiểu. Nhấn mạnh rào cản kỹ thuật thực tế của AI OCR (đọc sai hóa đơn do phụ thuộc API bên ngoài) làm điểm nhấn cho báo cáo.
+
+**2. Quản lý mã nguồn (Git Management):**
+   - Hỗ trợ commit trạng thái mã nguồn mới nhất.
+   - Revert thành công và loại bỏ sạch sẽ các thư mục báo cáo khỏi kho lưu trữ theo yêu cầu.
+   - Force-push mã nguồn chuẩn xác lên nhánh `feature/vietqr-budget`.
+
+---
 
 ### Session [2026-06-24] - Cập nhật Danh mục & Tối giản hóa Cơ chế Ngân sách
 

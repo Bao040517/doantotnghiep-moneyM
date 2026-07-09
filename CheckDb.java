@@ -12,15 +12,11 @@ public class CheckDb {
                 }
             }
 
-            System.out.println("--- RECENT TRANSACTIONS ---");
-            try (ResultSet rs = stmt.executeQuery("SELECT t.id, t.amount, t.type, t.note, c.name as category_name, t.transaction_date FROM transactions t JOIN categories c ON t.category_id = c.id ORDER BY t.transaction_date DESC LIMIT 50")) {
+            System.out.println("--- USERS ---");
+            try (ResultSet rs = stmt.executeQuery("SELECT email, password_hash FROM users")) {
                 while (rs.next()) {
-                    System.out.println("Transaction: ID=" + rs.getString("id") 
-                        + ", Amount=" + rs.getBigDecimal("amount") 
-                        + ", Type=" + rs.getString("type") 
-                        + ", Note=[" + rs.getString("note") + "]"
-                        + ", Category=[" + rs.getString("category_name") + "]"
-                        + ", Date=" + rs.getTimestamp("transaction_date"));
+                    System.out.println("User: Email=" + rs.getString("email") 
+                        + ", Hash=[" + rs.getString("password_hash") + "]");
                 }
             }
 

@@ -51,6 +51,7 @@ public class TransactionService {
     private final NotificationRepository notificationRepository;
     private final com.example.sharemoney.repository.PayeeRepository payeeRepository;
     private final com.example.sharemoney.repository.TagRepository tagRepository;
+    private final AnomalyDetectionService anomalyDetectionService;
 
     // ─────────────────────────────────────────────────────────────
     // Tạo giao dịch mới (giữ nguyên logic cũ)
@@ -134,6 +135,8 @@ public class TransactionService {
         // Feature 5: Smart budget alert
         if (category.getType() == TransactionType.EXPENSE) {
             checkAndCreateBudgetAlert(wallet, category, transaction);
+            // Kích hoạt phát hiện bất thường Z-Score
+            anomalyDetectionService.detectAndAlert(transaction);
         }
 
         return toResponse(transaction);
@@ -262,6 +265,12 @@ public class TransactionService {
 
         walletRepository.save(wallet);
         transactionRepository.save(tx);
+
+        if (newCategory.getType() == TransactionType.EXPENSE) {
+            checkAndCreateBudgetAlert(wallet, newCategory, tx);
+            // Kích hoạt phát hiện bất thường Z-Score
+            anomalyDetectionService.detectAndAlert(tx);
+        }
 
         return toResponse(tx);
     }

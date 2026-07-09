@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -35,6 +36,13 @@ public class CreateExpenseRequest {
      * Nếu bỏ trống, hệ thống sẽ tự động chia đều cho tất cả thành viên trong nhóm.
      */
     private List<UUID> splitUserIds;
+
+    /**
+     * Tùy chọn: Số tiền nợ cụ thể cho từng người (Custom Split / Itemized Split).
+     * Key = userId, Value = số tiền nợ.
+     * Nếu có dữ liệu, hệ thống sẽ sử dụng số tiền này thay vì chia đều.
+     */
+    private Map<UUID, BigDecimal> splitAmounts;
     
     /**
      * Tùy chọn: ID của giao dịch cá nhân nếu muốn liên kết.

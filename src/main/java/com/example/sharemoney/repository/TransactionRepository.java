@@ -118,4 +118,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
                         @Param("userId") UUID userId,
                         @Param("from") LocalDateTime from,
                         @Param("to") LocalDateTime to);
+
+        @Query("SELECT t FROM Transaction t WHERE t.wallet.user.id = :userId "
+             + "AND (t.wallet.isLiability = false OR t.wallet.isLiability IS NULL) "
+             + "AND t.category.id = :categoryId "
+             + "AND t.type = 'EXPENSE' "
+             + "AND t.transactionDate >= :from "
+             + "AND t.transactionDate <= :to "
+             + "AND t.id != :excludeTxId "
+             + "ORDER BY t.transactionDate DESC")
+        List<Transaction> findRecentExpensesByCategory(
+                @Param("userId") UUID userId,
+                @Param("categoryId") UUID categoryId,
+                @Param("from") LocalDateTime from,
+                @Param("to") LocalDateTime to,
+                @Param("excludeTxId") UUID excludeTxId);
 }

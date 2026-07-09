@@ -41,6 +41,15 @@ public class Wallet {
     @Builder.Default
     private boolean isLiability = false;
 
+    @Column(name = "bank_bin", length = 20)
+    private String bankBin;
+
+    @Column(name = "bank_account_no", length = 50)
+    private String bankAccountNo;
+
+    @Column(name = "bank_account_name", length = 100)
+    private String bankAccountName;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

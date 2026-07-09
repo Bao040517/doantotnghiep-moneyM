@@ -7,7 +7,13 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 @Repository
 public interface SavingsGoalRepository extends JpaRepository<SavingsGoal, UUID> {
     List<SavingsGoal> findByUser_IdOrderByCreatedAtDesc(UUID userId);
+
+    @Query("SELECT SUM(s.currentAmount) FROM SavingsGoal s WHERE s.user.id = :userId")
+    java.math.BigDecimal sumCurrentAmountByUserId(@Param("userId") UUID userId);
 }

@@ -10,6 +10,7 @@ interface Notification {
   id: string;
   title: string;
   message: string;
+  type: string;
   isRead: boolean;
   createdAt: string;
 }
@@ -83,15 +84,33 @@ export function NotificationsDrawer() {
                 <p className="text-gray-500 font-medium">Chưa có thông báo nào</p>
               </div>
             ) : (
-              notifications.map((notif) => (
-                <div key={notif.id} className={`p-4 rounded-2xl ${notif.isRead ? 'bg-white shadow-sm' : 'bg-[#e2f5ee] border border-[#B3E5D1] shadow-sm'}`}>
-                  <h4 className="font-bold text-gray-800 text-sm">{notif.title}</h4>
-                  <p className="text-gray-600 text-[13px] mt-1 leading-snug">{notif.message}</p>
-                  <p className="text-gray-400 text-[10px] mt-2 font-medium">
-                    {format(new Date(notif.createdAt), "dd MMM yyyy, HH:mm", { locale: vi })}
-                  </p>
-                </div>
-              ))
+              notifications.map((notif) => {
+                const isAnomaly = notif.type === "SPENDING_ANOMALY";
+                const bgClass = notif.isRead 
+                  ? 'bg-white shadow-sm' 
+                  : isAnomaly 
+                    ? 'bg-red-50 border border-red-200 shadow-sm' 
+                    : 'bg-[#e2f5ee] border border-[#B3E5D1] shadow-sm';
+                
+                const titleText = notif.title || (isAnomaly ? "Bất thường chi tiêu" : "Thông báo mới");
+
+                return (
+                  <div key={notif.id} className={`p-4 rounded-2xl ${bgClass}`}>
+                    <div className="flex items-start gap-2">
+                      {isAnomaly && <span className="text-lg">🚨</span>}
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-bold text-sm ${isAnomaly ? 'text-red-700' : 'text-gray-800'}`}>
+                          {titleText}
+                        </h4>
+                        <p className="text-gray-600 text-[13px] mt-1 leading-snug">{notif.message}</p>
+                        <p className="text-gray-400 text-[10px] mt-2 font-medium">
+                          {format(new Date(notif.createdAt), "dd MMM yyyy, HH:mm", { locale: vi })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

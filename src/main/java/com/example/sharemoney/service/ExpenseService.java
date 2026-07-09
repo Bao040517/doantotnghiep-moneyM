@@ -19,6 +19,7 @@ import com.example.sharemoney.repository.UserRepository;
 import com.example.sharemoney.entity.Transaction;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -82,7 +83,14 @@ public class ExpenseService {
                 .build();
 
         // Tính splits và gắn vào expense
-        List<ExpenseSplit> splits = calculateSplits(expense, splitUsers, req.getAmount());
+        List<ExpenseSplit> splits;
+        if (req.getSplitAmounts() != null && !req.getSplitAmounts().isEmpty()) {
+            // Custom Split (Itemized Splitting): sử dụng số tiền cụ thể cho từng người
+            splits = calculateCustomSplits(expense, splitUsers, req.getSplitAmounts(), req.getAmount());
+        } else {
+            // Equal Split: chia đều
+            splits = calculateSplits(expense, splitUsers, req.getAmount());
+        }
         expense.getSplits().addAll(splits);
 
         expenseRepository.save(expense); // cascade saves splits
@@ -247,7 +255,12 @@ public class ExpenseService {
         expense.getSplits().clear();
 
         // Tạo splits mới
-        List<ExpenseSplit> newSplits = calculateSplits(expense, splitUsers, req.getAmount());
+        List<ExpenseSplit> newSplits;
+        if (req.getSplitAmounts() != null && !req.getSplitAmounts().isEmpty()) {
+            newSplits = calculateCustomSplits(expense, splitUsers, req.getSplitAmounts(), req.getAmount());
+        } else {
+            newSplits = calculateSplits(expense, splitUsers, req.getAmount());
+        }
         expense.getSplits().addAll(newSplits);
 
         expenseRepository.save(expense);
@@ -318,6 +331,34 @@ public class ExpenseService {
                             .amountOwed(owedAmount)
                             .isSettled(false)
                             .build());
+        }
+        return splits;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Private: Chia tiền tùy chỉnh — mỗi người nợ số tiền cụ thể (Itemized Split)
+    // ─────────────────────────────────────────────────────────────
+    private List<ExpenseSplit> calculateCustomSplits(
+            Expense expense, List<User> splitUsers, Map<UUID, BigDecimal> splitAmounts, BigDecimal totalAmount) {
+        // Validate: tổng splitAmounts phải bằng totalAmount
+        BigDecimal sumOfSplits = splitAmounts.values().stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (sumOfSplits.compareTo(totalAmount) != 0) {
+            throw new AppException(ErrorCode.CUSTOM_SPLIT_MISMATCH);
+        }
+
+        List<ExpenseSplit> splits = new ArrayList<>();
+        for (User user : splitUsers) {
+            BigDecimal owedAmount = splitAmounts.getOrDefault(user.getId(), BigDecimal.ZERO);
+            if (owedAmount.compareTo(BigDecimal.ZERO) > 0) {
+                splits.add(
+                        ExpenseSplit.builder()
+                                .expense(expense)
+                                .user(user)
+                                .amountOwed(owedAmount)
+                                .isSettled(false)
+                                .build());
+            }
         }
         return splits;
     }

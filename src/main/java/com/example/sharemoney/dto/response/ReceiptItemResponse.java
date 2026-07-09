@@ -1,7 +1,6 @@
 package com.example.sharemoney.dto.response;
 
 import java.math.BigDecimal;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,8 +10,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ScanReceiptResponse {
-    private BigDecimal amount;
-    private String note;
-    private List<ReceiptItemResponse> items;
+public class ReceiptItemResponse {
+    private String description;
+    private Integer quantity;
+    private BigDecimal unitPrice;
+    private BigDecimal totalPrice;
 }

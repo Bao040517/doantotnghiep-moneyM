@@ -1,6 +1,8 @@
 package com.example.sharemoney.repository;
 
 import com.example.sharemoney.entity.Transaction;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,7 +22,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             + "AND (t.wallet.isLiability = false OR t.wallet.isLiability IS NULL) "
             + "AND t.category.name != 'Cho nh\u00f3m m\u01b0\u1ee3n' "
             + "ORDER BY t.transactionDate DESC")
-        List<Transaction> findByWallet_User_IdOrderByTransactionDateDesc(@Param("userId") UUID userId);
+        Page<Transaction> findByWallet_User_IdOrderByTransactionDateDesc(@Param("userId") UUID userId, Pageable pageable);
 
         List<Transaction> findByLinkedExpenseId(UUID expenseId);
 

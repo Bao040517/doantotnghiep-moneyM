@@ -143,14 +143,13 @@ public class TransactionService {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Lấy toàn bộ giao dịch (giữ nguyên)
+    // Lấy toàn bộ giao dịch (Phân trang)
     // ─────────────────────────────────────────────────────────────
     @Transactional(readOnly = true)
-    public List<TransactionResponse> getUserTransactions(UUID userId) {
-        return transactionRepository.findByWallet_User_IdOrderByTransactionDateDesc(userId)
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+    public org.springframework.data.domain.Page<TransactionResponse> getUserTransactions(UUID userId, int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return transactionRepository.findByWallet_User_IdOrderByTransactionDateDesc(userId, pageable)
+                .map(this::toResponse);
     }
 
     // ─────────────────────────────────────────────────────────────

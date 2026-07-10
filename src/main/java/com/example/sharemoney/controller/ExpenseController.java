@@ -37,11 +37,14 @@ public class ExpenseController {
                 .body(expenseService.createExpense(groupId, req, userId));
     }
 
-    /** GET /api/groups/{groupId}/expenses Danh sách khoản chi của nhóm (chỉ thành viên). */
+    /** GET /api/groups/{groupId}/expenses Danh sách khoản chi của nhóm (chỉ thành viên) - Phân trang. */
     @GetMapping
-    public ResponseEntity<List<ExpenseResponse>> getGroupExpenses(@PathVariable UUID groupId) {
+    public ResponseEntity<org.springframework.data.domain.Page<ExpenseResponse>> getGroupExpenses(
+            @PathVariable UUID groupId,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size) {
         UUID userId = SecurityUtils.getCurrentUserId();
-        return ResponseEntity.ok(expenseService.getGroupExpenses(groupId, userId));
+        return ResponseEntity.ok(expenseService.getGroupExpenses(groupId, userId, page, size));
     }
 
     /** GET /api/groups/{groupId}/expenses/export Xuất dữ liệu khoản chi ra CSV. */

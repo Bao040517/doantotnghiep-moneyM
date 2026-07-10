@@ -95,6 +95,7 @@ public class SavingsGoalService {
                 .type(TransactionType.EXPENSE)
                 .category(savingsCategory)
                 .note("Nạp tiền vào mục tiêu: " + goal.getName())
+                .excludeFromBudget(true)
                 .build();
         
         transactionRepository.save(transaction);
@@ -165,6 +166,7 @@ public class SavingsGoalService {
                 .type(TransactionType.INCOME)
                 .category(savingsIncomeCategory)
                 .note("Rút tiền từ mục tiêu: " + goal.getName())
+                .excludeFromBudget(true)
                 .build();
         
         transactionRepository.save(transaction);
@@ -198,6 +200,7 @@ public class SavingsGoalService {
                         .type(TransactionType.INCOME)
                         .category(savingsIncomeCategory)
                         .note("Hoàn tiền từ mục tiêu đã xóa: " + goal.getName())
+                        .excludeFromBudget(true)
                         .build();
                 transactionRepository.save(refundTx);
             }

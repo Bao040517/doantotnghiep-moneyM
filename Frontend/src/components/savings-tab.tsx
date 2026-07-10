@@ -108,7 +108,7 @@ export function SavingsTab() {
       const unpaidBudgets = (budgetRes.data || []).reduce((sum: number, b: any) => sum + Math.max(0, b.limitAmount - b.spentAmount), 0);
       const totalOwing = debtRes.data?.totalOwing || 0;
       const totalSavings = goalsList.reduce((sum: number, g: any) => sum + (g.currentAmount || 0), 0);
-      setSafeToSpend(Math.max(0, walletBal - unpaidBudgets - totalOwing - totalSavings));
+      setSafeToSpend(Math.max(0, walletBal - unpaidBudgets - totalOwing));
 
       if ((insightsRes.data as any)?.savingsSuggestion) {
         setSavingsSuggestion((insightsRes.data as any).savingsSuggestion);

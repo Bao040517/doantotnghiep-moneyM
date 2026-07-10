@@ -115,10 +115,10 @@ public class ExpenseService {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Danh sách khoản chi của nhóm
+    // Danh sách khoản chi của nhóm (Phân trang)
     // ─────────────────────────────────────────────────────────────
     @Transactional(readOnly = true)
-    public List<ExpenseResponse> getGroupExpenses(UUID groupId, UUID userId) {
+    public org.springframework.data.domain.Page<ExpenseResponse> getGroupExpenses(UUID groupId, UUID userId, int page, int size) {
         groupRepository
                 .findById(groupId)
                 .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
@@ -127,16 +127,9 @@ public class ExpenseService {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
-        List<Expense> expenses = new ArrayList<>(expenseRepository.findByGroup_IdOrderByCreatedAtDesc(groupId));
-        expenses.sort((e1, e2) -> {
-            java.time.LocalDateTime t1 = e1.getCreatedAt() != null ? e1.getCreatedAt() : java.time.LocalDateTime.MIN;
-            java.time.LocalDateTime t2 = e2.getCreatedAt() != null ? e2.getCreatedAt() : java.time.LocalDateTime.MIN;
-            return t2.compareTo(t1);
-        });
-
-        return expenses.stream()
-                .map(this::toListResponse)
-                .toList();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return expenseRepository.findByGroup_IdOrderByCreatedAtDesc(groupId, pageable)
+                .map(this::toListResponse);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -152,7 +145,7 @@ public class ExpenseService {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
-        List<Expense> expenses = new ArrayList<>(expenseRepository.findByGroup_IdOrderByCreatedAtDesc(groupId));
+        List<Expense> expenses = new ArrayList<>(expenseRepository.findByGroup_IdOrderByCreatedAtDesc(groupId, org.springframework.data.domain.Pageable.unpaged()).getContent());
         expenses.sort((e1, e2) -> {
             java.time.LocalDateTime t1 = e1.getCreatedAt() != null ? e1.getCreatedAt() : java.time.LocalDateTime.MIN;
             java.time.LocalDateTime t2 = e2.getCreatedAt() != null ? e2.getCreatedAt() : java.time.LocalDateTime.MIN;

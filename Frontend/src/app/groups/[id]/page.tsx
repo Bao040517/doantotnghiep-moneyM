@@ -72,22 +72,43 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   const [isReminding, setIsReminding] = useState<string | null>(null);
   const [confirmCash, setConfirmCash] = useState<{ debtorId: string; debtorName: string; amount: number } | null>(null);
 
-  const fetchGroupData = async () => {
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const fetchGroupData = async (reset = false) => {
     try {
+      const targetPage = reset ? 0 : page;
+      if (reset) setIsLoading(true);
+      else setIsLoadingMore(true);
       const [groupRes, expensesRes, debtsRes, pendingRes, pendingSentRes] = await Promise.all([
         api.get(`/groups/${id}`),
-        api.get(`/groups/${id}/expenses`),
+        api.get(`/groups/${id}/expenses?page=${targetPage}&size=20`),
         api.get(`/groups/${id}/debts`),
         api.get(`/groups/${id}/debts/pending`),
         api.get(`/groups/${id}/debts/pending-sent`)
       ]);
       setGroup(groupRes.data);
-      const sortedExpenses = (expensesRes.data || []).sort((a: any, b: any) => {
+      
+      const newExpenses = expensesRes.data?.content || [];
+      const sortedNew = newExpenses.sort((a: any, b: any) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
-      setExpenses(sortedExpenses);
+
+      if (reset) {
+        setExpenses(sortedNew);
+      } else {
+        const combined = [...expenses, ...sortedNew];
+        const unique = Array.from(new Map(combined.map(e => [e.id, e])).values());
+        setExpenses(unique);
+      }
+      
+      const totalPages = expensesRes.data?.totalPages || 1;
+      setHasMore(targetPage < totalPages - 1);
+      setPage(targetPage + 1);
+
       setDebts(debtsRes.data);
       setPendingDebtors(pendingRes.data || []);
       setPendingSentCreditors(pendingSentRes.data || []);
@@ -95,13 +116,20 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       console.error(err);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  const loadMore = () => {
+    if (!isLoadingMore && hasMore) {
+      fetchGroupData(false);
     }
   };
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (userStr) setCurrentUser(JSON.parse(userStr));
-    fetchGroupData();
+    fetchGroupData(true);
   }, [id]);
 
   const formatCurrency = (amount: number) =>
@@ -149,7 +177,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
           </button>
           <h1 className="text-lg font-bold text-gray-800">{group.name}</h1>
           {/* Invite button */}
-          <AddMemberDialog groupId={group.id} onMemberAdded={fetchGroupData} />
+          <AddMemberDialog groupId={group.id} onMemberAdded={() => fetchGroupData(true)} />
         </div>
 
         {/* Hero image */}
@@ -215,7 +243,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
             <div className="flex items-center justify-between">
               <p className="text-base font-bold text-gray-700">Danh sách hóa đơn</p>
               <div className="flex items-center gap-2">
-                <AddExpenseDrawer groupId={group.id} members={group.members} onExpenseCreated={fetchGroupData} />
+                <AddExpenseDrawer groupId={group.id} members={group.members} onExpenseCreated={() => fetchGroupData(true)} />
               </div>
             </div>
 
@@ -232,7 +260,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                   groupId={group.id}
                   expenseId={expense.id}
                   members={group.members}
-                  onExpenseUpdated={fetchGroupData}
+                  onExpenseUpdated={() => fetchGroupData(true)}
                 >
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all">
                     <div className="p-4 flex items-center gap-4">
@@ -257,6 +285,19 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </EditExpenseDrawer>
               ))
+            )}
+
+            {/* Load more button */}
+            {hasMore && expenses.length > 0 && (
+              <div className="flex justify-center pt-2 pb-6">
+                <button
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="px-6 py-2 bg-white rounded-full shadow-sm text-sm font-bold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  {isLoadingMore ? "Đang tải..." : "Tải thêm"}
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -420,7 +461,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                         </button>
                       ) : (
                         <div className="w-full mt-2">
-                          <SettleDebtDialog groupId={id} toUser={t.to} amount={t.amount} onSettle={fetchGroupData} />
+                          <SettleDebtDialog groupId={id} toUser={t.to} amount={t.amount} onSettle={() => fetchGroupData(true)} />
                         </div>
                       )}
                     </div>
@@ -495,7 +536,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       {/* ─── FLOATING ADD BUTTON (visible on expenses tab) ─── */}
       {activeTab === "expenses" && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-          <AddExpenseDrawer groupId={group.id} members={group.members} onExpenseCreated={fetchGroupData} floating />
+          <AddExpenseDrawer groupId={group.id} members={group.members} onExpenseCreated={() => fetchGroupData(true)} floating />
         </div>
       )}
 
@@ -514,7 +555,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
             });
             toast.success(`Đã xác nhận nhận tiền từ ${confirmCash.debtorName}! 🎉`);
             setConfirmCash(null);
-            fetchGroupData();
+            fetchGroupData(true);
           } catch (err: any) {
             toast.error(err.response?.data?.message || "Lỗi khi xác nhận");
           }

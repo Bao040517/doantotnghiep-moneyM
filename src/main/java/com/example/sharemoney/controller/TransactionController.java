@@ -24,11 +24,13 @@ public class TransactionController {
 
     private final TransactionService transactionService;
 
-    /** GET /api/transactions - Lấy toàn bộ giao dịch */
+    /** GET /api/transactions - Lấy toàn bộ giao dịch (Phân trang) */
     @GetMapping
-    public ResponseEntity<List<TransactionResponse>> getMyTransactions() {
+    public ResponseEntity<org.springframework.data.domain.Page<TransactionResponse>> getMyTransactions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         UUID userId = SecurityUtils.getCurrentUserId();
-        return ResponseEntity.ok(transactionService.getUserTransactions(userId));
+        return ResponseEntity.ok(transactionService.getUserTransactions(userId, page, size));
     }
 
     /** GET /api/transactions/monthly?year=2026&month=6 - Lấy giao dịch theo tháng */

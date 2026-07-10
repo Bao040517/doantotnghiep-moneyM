@@ -283,11 +283,13 @@ public class FinancialAdvisorService {
             }
         }
 
-        BigDecimal savingsAmount = totalIncome.subtract(totalExpense);
-        if (savingsAmount.compareTo(BigDecimal.ZERO) < 0) savingsAmount = BigDecimal.ZERO;
-
         // Tính phần trăm dựa trên thu nhập (ưu tiên avg 3 tháng nếu thu nhập tháng này = 0)
         BigDecimal refIncome = totalIncome.compareTo(BigDecimal.ZERO) > 0 ? totalIncome : avgIncome3Months;
+
+        BigDecimal savingsAmount = refIncome.subtract(needsAmount).subtract(wantsAmount);
+        if (savingsAmount.compareTo(BigDecimal.ZERO) < 0) savingsAmount = BigDecimal.ZERO;
+
+
 
         double needsPct = 0, wantsPct = 0, savingsPct = 0;
         if (refIncome.compareTo(BigDecimal.ZERO) > 0) {
@@ -441,7 +443,7 @@ public class FinancialAdvisorService {
 
             Map<String, BigDecimal> monthData = new HashMap<>();
             for (Transaction tx : txs) {
-                if (tx.getType() != TransactionType.EXPENSE) continue;
+                if (tx.getType() != TransactionType.EXPENSE || tx.isExcludeFromBudget()) continue;
 
                 if (tx.isSplit() && tx.getSplits() != null && !tx.getSplits().isEmpty()) {
                     for (var split : tx.getSplits()) {
@@ -470,7 +472,7 @@ public class FinancialAdvisorService {
         Map<String, BigDecimal> result = new HashMap<>();
 
         for (Transaction tx : txs) {
-            if (tx.getType() != TransactionType.EXPENSE) continue;
+            if (tx.getType() != TransactionType.EXPENSE || tx.isExcludeFromBudget()) continue;
 
             if (tx.isSplit() && tx.getSplits() != null && !tx.getSplits().isEmpty()) {
                 for (var split : tx.getSplits()) {

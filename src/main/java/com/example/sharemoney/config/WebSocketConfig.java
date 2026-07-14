@@ -22,9 +22,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Client sẽ kết nối tới ws://domain/ws
-        // setAllowedOriginPatterns("*") cho phép CORS (quan trọng cho Frontend gọi chéo)
+        // Chỉ cho phép origins cụ thể (bảo mật hơn so với "*")
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns("http://localhost:3000", "http://localhost:3001")
                 .withSockJS(); // SockJS là fallback nếu browser không support WebSocket nguyên thuỷ
     }
 }

@@ -10,6 +10,26 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 5. **Thanh toán nợ (Debt Settlement):** Nhắc nợ, tạo mã QR VietQR, và quy trình Xác nhận.
 6. **Z-Score Anomaly Detection:** Thuật toán phát hiện bất thường chi tiêu theo thời gian thực.
 
+### Session [2026-07-10] - Tối ưu Hiệu năng (Pagination) & Rà soát Lỗi Kế toán (PFM Algorithms)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Tối ưu Hiệu năng với Phân trang (Pagination) & Cuộn vô hạn (Infinite Scroll):**
+   - **Vấn đề (Bottleneck):** Lịch sử Giao dịch và Chi tiêu nhóm trước đây gọi API lấy toàn bộ danh sách (List), gây tràn bộ nhớ (OOM) nếu số lượng bản ghi tăng theo thời gian.
+   - **Thực thi Backend:** Cập nhật `TransactionRepository` và `ExpenseRepository` sang `Page<T>` bằng `Pageable`. Viết lại `TransactionController` và `ExpenseController` để trả về dữ liệu có phân trang (`page`, `size`, `totalPages`).
+   - **Thực thi Frontend:** Nhúng thư viện `react-intersection-observer`. Viết lại hook tìm nạp dữ liệu trên màn hình Lịch sử và Nhóm để theo dõi `ref` của phần tử cuối cùng, tự động gọi API lấy trang tiếp theo (Infinite Scroll).
+
+**2. Vá lỗ hổng Thuật toán 50/30/20 (Habit Analysis):**
+   - **Vấn đề:** Giao dịch "Mục tiêu tiết kiệm" (gửi tiền vào Quỹ) bị hệ thống tự động gán vào nhóm **Chi tiêu linh hoạt (WANTS)**, khiến người dùng bị báo cáo "Tiêu xài quá nhiều, tiết kiệm quá ít" ngay cả khi họ đang nạp tiền tiết kiệm.
+   - **Giải pháp:** Cập nhật công thức tính của Hệ chuyên gia (`FinancialAdvisorService`). `savingsAmount` giờ đây được tính bằng: `Thu nhập - TẤT CẢ các khoản NEEDS và WANTS`. Qua đó, tiền gửi vào quỹ tự động được xếp đúng vào nhóm 20% Tiết kiệm.
+
+**3. Khắc phục lỗi "Tiền nhàn rỗi" hiển thị sai lệch & Chống nhiễu Ngân sách:**
+   - **Vấn đề:** Số dư khả dụng trên tab Tiết kiệm bị trừ đi `totalSavings` lần thứ hai (Double deduction). Đồng thời, việc nạp/rút quỹ làm tăng ảo Tổng chi phí / Tổng thu nhập, khiến thuật toán Gom tiền rảnh rỗi quét sai.
+   - **Giải pháp:** Sửa công thức ở Frontend (`savings-tab.tsx`) loại bỏ phép trừ lặp. Bổ sung cờ `excludeFromBudget = true` vào các giao dịch nạp/rút tiền quỹ ở Backend (`SavingsGoalService.java`), và chặn các giao dịch này tại `FinancialAdvisorService` để đảm bảo chúng không làm nhiễu dữ liệu thu/chi nhưng vẫn giữ nguyên Lịch sử Giao dịch.
+   - **Quản lý phiên bản:** Đã push mã nguồn hoàn chỉnh lên `feature/vietqr-budget`.
+
+---
+
 ### Session [2026-07-09] - Quản lý Ngân sách Cố định & Đồng nhất Giao diện Chuyển tiền (Unified Transfer & Bank Binding)
 
 **✅ Đã hoàn thành (Compact Procedure):**

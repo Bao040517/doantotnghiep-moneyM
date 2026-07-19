@@ -6,14 +6,15 @@ import com.example.sharemoney.dto.request.UpdateExternalLoanRequest;
 import com.example.sharemoney.entity.User;
 import com.example.sharemoney.service.ExternalLoanService;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.UUID;
-
+@Validated
 @RestController
 @RequestMapping("/api/external-loans")
 @RequiredArgsConstructor
@@ -43,8 +44,7 @@ public class ExternalLoanController {
 
     @DeleteMapping("/{loanId}")
     public ResponseEntity<Void> deleteLoan(
-            @AuthenticationPrincipal User user,
-            @PathVariable UUID loanId) {
+            @AuthenticationPrincipal User user, @PathVariable UUID loanId) {
         externalLoanService.deleteLoan(loanId, user.getId());
         return ResponseEntity.noContent().build();
     }

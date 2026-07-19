@@ -1,12 +1,11 @@
 package com.example.sharemoney.dto;
 
 import com.example.sharemoney.entity.LoanType;
-import lombok.Builder;
-import lombok.Data;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder

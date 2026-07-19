@@ -63,18 +63,19 @@ public class GroupService {
                 .findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        List<com.example.sharemoney.entity.GroupMember> memberships = groupMemberRepository.findByUser_Id(userId);
+        List<com.example.sharemoney.entity.GroupMember> memberships =
+                groupMemberRepository.findByUser_Id(userId);
         if (memberships.isEmpty()) {
             return java.util.Collections.emptyList();
         }
 
         List<UUID> groupIds = memberships.stream().map(gm -> gm.getGroup().getId()).toList();
         List<Object[]> memberCounts = groupMemberRepository.countMembersByGroupIds(groupIds);
-        java.util.Map<UUID, Long> countMap = memberCounts.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        arr -> (UUID) arr[0],
-                        arr -> (Long) arr[1]
-                ));
+        java.util.Map<UUID, Long> countMap =
+                memberCounts.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        arr -> (UUID) arr[0], arr -> (Long) arr[1]));
 
         return memberships.stream()
                 .map(

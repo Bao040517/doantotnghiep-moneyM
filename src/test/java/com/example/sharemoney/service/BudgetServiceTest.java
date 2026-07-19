@@ -20,9 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/**
- * Unit tests cho BudgetService — kiểm tra CRUD budget, recurring, status calculation.
- */
+/** Unit tests cho BudgetService — kiểm tra CRUD budget, recurring, status calculation. */
 @ExtendWith(MockitoExtension.class)
 class BudgetServiceTest {
 
@@ -32,8 +30,7 @@ class BudgetServiceTest {
     @Mock private TransactionRepository transactionRepository;
     @Mock private SavingsGoalRepository savingsGoalRepository;
 
-    @InjectMocks
-    private BudgetService budgetService;
+    @InjectMocks private BudgetService budgetService;
 
     private UUID userId, categoryId;
     private User user;
@@ -45,14 +42,21 @@ class BudgetServiceTest {
         userId = UUID.randomUUID();
         categoryId = UUID.randomUUID();
 
-        user = User.builder().id(userId).name("TestUser").email("test@test.com").passwordHash("x").build();
-        category = Category.builder()
-                .id(categoryId)
-                .name("Ăn uống")
-                .type(TransactionType.EXPENSE)
-                .iconName("🍔")
-                .user(user)
-                .build();
+        user =
+                User.builder()
+                        .id(userId)
+                        .name("TestUser")
+                        .email("test@test.com")
+                        .passwordHash("x")
+                        .build();
+        category =
+                Category.builder()
+                        .id(categoryId)
+                        .name("Ăn uống")
+                        .type(TransactionType.EXPENSE)
+                        .iconName("🍔")
+                        .user(user)
+                        .build();
 
         currentMonth = LocalDate.now().getMonthValue();
         currentYear = LocalDate.now().getYear();
@@ -78,16 +82,20 @@ class BudgetServiceTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
-        when(budgetRepository.save(any())).thenAnswer(inv -> {
-            Budget b = inv.getArgument(0);
-            try {
-                var idField = Budget.class.getDeclaredField("id");
-                idField.setAccessible(true);
-                idField.set(b, UUID.randomUUID());
-            } catch (Exception ignored) {}
-            return b;
-        });
-        when(transactionRepository.sumExpenseByCategoryAndMonth(userId, categoryId, currentYear, currentMonth))
+        when(budgetRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            Budget b = inv.getArgument(0);
+                            try {
+                                var idField = Budget.class.getDeclaredField("id");
+                                idField.setAccessible(true);
+                                idField.set(b, UUID.randomUUID());
+                            } catch (Exception ignored) {
+                            }
+                            return b;
+                        });
+        when(transactionRepository.sumExpenseByCategoryAndMonth(
+                        userId, categoryId, currentYear, currentMonth))
                 .thenReturn(BigDecimal.ZERO);
 
         var result = budgetService.setBudget(userId, req);
@@ -103,16 +111,17 @@ class BudgetServiceTest {
     @DisplayName("Test 2: Cập nhật budget có sẵn")
     void testSetBudget_UpdateExisting() {
         UUID budgetId = UUID.randomUUID();
-        Budget existing = Budget.builder()
-                .id(budgetId)
-                .user(user)
-                .category(category)
-                .limitAmount(new BigDecimal("1000000"))
-                .name("Budget cũ")
-                .month(currentMonth)
-                .year(currentYear)
-                .type(BudgetType.FLEXIBLE)
-                .build();
+        Budget existing =
+                Budget.builder()
+                        .id(budgetId)
+                        .user(user)
+                        .category(category)
+                        .limitAmount(new BigDecimal("1000000"))
+                        .name("Budget cũ")
+                        .month(currentMonth)
+                        .year(currentYear)
+                        .type(BudgetType.FLEXIBLE)
+                        .build();
 
         SetBudgetRequest req = buildBudgetRequest(new BigDecimal("3000000"));
         req.setId(budgetId);
@@ -121,7 +130,8 @@ class BudgetServiceTest {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
         when(budgetRepository.findById(budgetId)).thenReturn(Optional.of(existing));
         when(budgetRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(transactionRepository.sumExpenseByCategoryAndMonth(userId, categoryId, currentYear, currentMonth))
+        when(transactionRepository.sumExpenseByCategoryAndMonth(
+                        userId, categoryId, currentYear, currentMonth))
                 .thenReturn(new BigDecimal("500000"));
 
         var result = budgetService.setBudget(userId, req);
@@ -135,17 +145,24 @@ class BudgetServiceTest {
     void testSetBudget_UnauthorizedUser() {
         UUID budgetId = UUID.randomUUID();
         UUID otherUserId = UUID.randomUUID();
-        User otherUser = User.builder().id(otherUserId).name("Other").email("other@test.com").passwordHash("x").build();
+        User otherUser =
+                User.builder()
+                        .id(otherUserId)
+                        .name("Other")
+                        .email("other@test.com")
+                        .passwordHash("x")
+                        .build();
 
-        Budget existing = Budget.builder()
-                .id(budgetId)
-                .user(otherUser) // Budget thuộc user khác
-                .category(category)
-                .limitAmount(new BigDecimal("1000000"))
-                .month(currentMonth)
-                .year(currentYear)
-                .type(BudgetType.FLEXIBLE)
-                .build();
+        Budget existing =
+                Budget.builder()
+                        .id(budgetId)
+                        .user(otherUser) // Budget thuộc user khác
+                        .category(category)
+                        .limitAmount(new BigDecimal("1000000"))
+                        .month(currentMonth)
+                        .year(currentYear)
+                        .type(BudgetType.FLEXIBLE)
+                        .build();
 
         SetBudgetRequest req = buildBudgetRequest(new BigDecimal("2000000"));
         req.setId(budgetId);
@@ -154,8 +171,8 @@ class BudgetServiceTest {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
         when(budgetRepository.findById(budgetId)).thenReturn(Optional.of(existing));
 
-        AppException ex = assertThrows(AppException.class,
-                () -> budgetService.setBudget(userId, req));
+        AppException ex =
+                assertThrows(AppException.class, () -> budgetService.setBudget(userId, req));
         assertEquals(ErrorCode.UNAUTHORIZED, ex.getErrorCode());
     }
 
@@ -163,15 +180,16 @@ class BudgetServiceTest {
     @DisplayName("Test 4: Xóa budget → thành công")
     void testDeleteBudget() {
         UUID budgetId = UUID.randomUUID();
-        Budget budget = Budget.builder()
-                .id(budgetId)
-                .user(user)
-                .category(category)
-                .limitAmount(new BigDecimal("1000000"))
-                .month(currentMonth)
-                .year(currentYear)
-                .type(BudgetType.FLEXIBLE)
-                .build();
+        Budget budget =
+                Budget.builder()
+                        .id(budgetId)
+                        .user(user)
+                        .category(category)
+                        .limitAmount(new BigDecimal("1000000"))
+                        .month(currentMonth)
+                        .year(currentYear)
+                        .type(BudgetType.FLEXIBLE)
+                        .build();
 
         when(budgetRepository.findById(budgetId)).thenReturn(Optional.of(budget));
 
@@ -185,33 +203,38 @@ class BudgetServiceTest {
         int prevMonth = currentMonth == 1 ? 12 : currentMonth - 1;
         int prevYear = currentMonth == 1 ? currentYear - 1 : currentYear;
 
-        Budget recurringBudget = Budget.builder()
-                .id(UUID.randomUUID())
-                .user(user)
-                .category(category)
-                .limitAmount(new BigDecimal("2000000"))
-                .name("Budget monthly")
-                .month(prevMonth)
-                .year(prevYear)
-                .type(BudgetType.FLEXIBLE)
-                .isRecurring(true)
-                .build();
+        Budget recurringBudget =
+                Budget.builder()
+                        .id(UUID.randomUUID())
+                        .user(user)
+                        .category(category)
+                        .limitAmount(new BigDecimal("2000000"))
+                        .name("Budget monthly")
+                        .month(prevMonth)
+                        .year(prevYear)
+                        .type(BudgetType.FLEXIBLE)
+                        .isRecurring(true)
+                        .build();
 
         // Tháng trước có budget recurring, tháng này chưa có
         when(budgetRepository.findByUser_IdAndMonthAndYear(userId, prevMonth, prevYear))
                 .thenReturn(List.of(recurringBudget));
         when(budgetRepository.findByUser_IdAndMonthAndYear(userId, currentMonth, currentYear))
                 .thenReturn(new ArrayList<>()); // Chưa có budget tháng này
-        when(budgetRepository.saveAndFlush(any())).thenAnswer(inv -> {
-            Budget b = inv.getArgument(0);
-            try {
-                var idField = Budget.class.getDeclaredField("id");
-                idField.setAccessible(true);
-                idField.set(b, UUID.randomUUID());
-            } catch (Exception ignored) {}
-            return b;
-        });
-        when(transactionRepository.sumExpenseByCategoryAndMonth(eq(userId), eq(categoryId), anyInt(), anyInt()))
+        when(budgetRepository.saveAndFlush(any()))
+                .thenAnswer(
+                        inv -> {
+                            Budget b = inv.getArgument(0);
+                            try {
+                                var idField = Budget.class.getDeclaredField("id");
+                                idField.setAccessible(true);
+                                idField.set(b, UUID.randomUUID());
+                            } catch (Exception ignored) {
+                            }
+                            return b;
+                        });
+        when(transactionRepository.sumExpenseByCategoryAndMonth(
+                        eq(userId), eq(categoryId), anyInt(), anyInt()))
                 .thenReturn(BigDecimal.ZERO);
 
         var result = budgetService.getBudgetSummary(userId, currentYear, currentMonth);
@@ -225,24 +248,28 @@ class BudgetServiceTest {
     @DisplayName("Test 6: Budget status — OK/WARNING/OVER theo percentage")
     void testBudgetStatus_OK_WARNING_OVER() {
         UUID budgetId = UUID.randomUUID();
-        Budget budget = Budget.builder()
-                .id(budgetId)
-                .user(user)
-                .category(category)
-                .limitAmount(new BigDecimal("1000000")) // 1 triệu
-                .name("Test status")
-                .month(currentMonth)
-                .year(currentYear)
-                .type(BudgetType.FLEXIBLE)
-                .build();
+        Budget budget =
+                Budget.builder()
+                        .id(budgetId)
+                        .user(user)
+                        .category(category)
+                        .limitAmount(new BigDecimal("1000000")) // 1 triệu
+                        .name("Test status")
+                        .month(currentMonth)
+                        .year(currentYear)
+                        .type(BudgetType.FLEXIBLE)
+                        .build();
 
         // Trường hợp OK (50%)
-        when(budgetRepository.findByUser_IdAndMonthAndYear(userId, currentMonth - 1 == 0 ? 12 : currentMonth - 1,
-                currentMonth - 1 == 0 ? currentYear - 1 : currentYear))
+        when(budgetRepository.findByUser_IdAndMonthAndYear(
+                        userId,
+                        currentMonth - 1 == 0 ? 12 : currentMonth - 1,
+                        currentMonth - 1 == 0 ? currentYear - 1 : currentYear))
                 .thenReturn(Collections.emptyList());
         when(budgetRepository.findByUser_IdAndMonthAndYear(userId, currentMonth, currentYear))
                 .thenReturn(List.of(budget));
-        when(transactionRepository.sumExpenseByCategoryAndMonth(userId, categoryId, currentYear, currentMonth))
+        when(transactionRepository.sumExpenseByCategoryAndMonth(
+                        userId, categoryId, currentYear, currentMonth))
                 .thenReturn(new BigDecimal("500000")); // 50%
 
         var results = budgetService.getBudgetSummary(userId, currentYear, currentMonth);
@@ -254,9 +281,11 @@ class BudgetServiceTest {
     @Test
     @DisplayName("Test 7: Safe-to-Spend tính đúng công thức")
     void testSafeToSpend_Calculation() {
-        when(transactionRepository.sumByTypeAndPeriod(eq(userId), eq(TransactionType.INCOME), any(), any()))
+        when(transactionRepository.sumByTypeAndPeriod(
+                        eq(userId), eq(TransactionType.INCOME), any(), any()))
                 .thenReturn(new BigDecimal("10000000")); // Thu nhập 10 triệu
-        when(transactionRepository.sumByTypeAndPeriod(eq(userId), eq(TransactionType.EXPENSE), any(), any()))
+        when(transactionRepository.sumByTypeAndPeriod(
+                        eq(userId), eq(TransactionType.EXPENSE), any(), any()))
                 .thenReturn(new BigDecimal("3000000")); // Chi tiêu 3 triệu (tất cả flexible)
         when(budgetRepository.findByUser_IdAndMonthAndYear(eq(userId), anyInt(), anyInt()))
                 .thenReturn(Collections.emptyList()); // Không có bill

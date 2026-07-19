@@ -10,7 +10,7 @@ import lombok.Setter;
 public class UpdateQrRequest {
 
     private String bankQrUrl;
-    
+
     private String bankBin;
     private String bankAccountNo;
 }

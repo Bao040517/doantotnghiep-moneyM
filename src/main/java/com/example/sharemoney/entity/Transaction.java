@@ -1,11 +1,11 @@
 package com.example.sharemoney.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "transactions")
@@ -54,10 +54,9 @@ public class Transaction {
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-        name = "transaction_tags",
-        joinColumns = @JoinColumn(name = "transaction_id"),
-        inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
+            name = "transaction_tags",
+            joinColumns = @JoinColumn(name = "transaction_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
     private java.util.Set<Tag> tags;
 
     @Column(name = "is_split", nullable = false)
@@ -67,7 +66,7 @@ public class Transaction {
     // Split parts if any
     @OneToMany(mappedBy = "parentTransaction", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TransactionSplit> splits;
-    
+
     @Column(name = "exclude_from_budget")
     @Builder.Default
     private boolean excludeFromBudget = false;

@@ -20,8 +20,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Unit tests cho ExpenseService — kiểm tra thuật toán chia tiền (equal/custom),
- * sửa/xóa expense, và event publishing.
+ * Unit tests cho ExpenseService — kiểm tra thuật toán chia tiền (equal/custom), sửa/xóa expense, và
+ * event publishing.
  */
 @ExtendWith(MockitoExtension.class)
 class ExpenseServiceTest {
@@ -33,8 +33,7 @@ class ExpenseServiceTest {
     @Mock private TransactionRepository transactionRepository;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
-    @InjectMocks
-    private ExpenseService expenseService;
+    @InjectMocks private ExpenseService expenseService;
 
     private UUID groupId, userAId, userBId, userCId;
     private User userA, userB, userC;
@@ -78,19 +77,21 @@ class ExpenseServiceTest {
     @DisplayName("Test 1: 300k ÷ 3 = 100k mỗi người (equal split)")
     void testCreateExpense_EqualSplit() {
         mockGroupAndMembers();
-        when(expenseRepository.save(any())).thenAnswer(inv -> {
-            Expense e = inv.getArgument(0);
-            try {
-                var idField = Expense.class.getDeclaredField("id");
-                idField.setAccessible(true);
-                idField.set(e, UUID.randomUUID());
-            } catch (Exception ignored) {}
-            return e;
-        });
+        when(expenseRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            Expense e = inv.getArgument(0);
+                            try {
+                                var idField = Expense.class.getDeclaredField("id");
+                                idField.setAccessible(true);
+                                idField.set(e, UUID.randomUUID());
+                            } catch (Exception ignored) {
+                            }
+                            return e;
+                        });
 
-        CreateExpenseRequest req = buildExpenseRequest(
-                new BigDecimal("300000"),
-                List.of(userAId, userBId, userCId));
+        CreateExpenseRequest req =
+                buildExpenseRequest(new BigDecimal("300000"), List.of(userAId, userBId, userCId));
 
         var result = expenseService.createExpense(groupId, req, userAId);
 
@@ -107,28 +108,31 @@ class ExpenseServiceTest {
     @DisplayName("Test 2: 100k ÷ 3 → phần dư +1 vào người đầu tiên")
     void testCreateExpense_EqualSplit_Remainder() {
         mockGroupAndMembers();
-        when(expenseRepository.save(any())).thenAnswer(inv -> {
-            Expense e = inv.getArgument(0);
-            try {
-                var idField = Expense.class.getDeclaredField("id");
-                idField.setAccessible(true);
-                idField.set(e, UUID.randomUUID());
-            } catch (Exception ignored) {}
-            return e;
-        });
+        when(expenseRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            Expense e = inv.getArgument(0);
+                            try {
+                                var idField = Expense.class.getDeclaredField("id");
+                                idField.setAccessible(true);
+                                idField.set(e, UUID.randomUUID());
+                            } catch (Exception ignored) {
+                            }
+                            return e;
+                        });
 
-        CreateExpenseRequest req = buildExpenseRequest(
-                new BigDecimal("100000"),
-                List.of(userAId, userBId, userCId));
+        CreateExpenseRequest req =
+                buildExpenseRequest(new BigDecimal("100000"), List.of(userAId, userBId, userCId));
 
         var result = expenseService.createExpense(groupId, req, userAId);
 
         assertEquals(3, result.getSplits().size());
 
         // Tổng phải bằng đúng 100k (kiểm tra không mất tiền do làm tròn)
-        BigDecimal total = result.getSplits().stream()
-                .map(s -> s.getAmountOwed())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total =
+                result.getSplits().stream()
+                        .map(s -> s.getAmountOwed())
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
         assertEquals(0, new BigDecimal("100000").compareTo(total));
     }
 
@@ -136,19 +140,21 @@ class ExpenseServiceTest {
     @DisplayName("Test 3: Custom split — A=50k, B=30k, C=20k")
     void testCreateExpense_CustomSplit() {
         mockGroupAndMembers();
-        when(expenseRepository.save(any())).thenAnswer(inv -> {
-            Expense e = inv.getArgument(0);
-            try {
-                var idField = Expense.class.getDeclaredField("id");
-                idField.setAccessible(true);
-                idField.set(e, UUID.randomUUID());
-            } catch (Exception ignored) {}
-            return e;
-        });
+        when(expenseRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            Expense e = inv.getArgument(0);
+                            try {
+                                var idField = Expense.class.getDeclaredField("id");
+                                idField.setAccessible(true);
+                                idField.set(e, UUID.randomUUID());
+                            } catch (Exception ignored) {
+                            }
+                            return e;
+                        });
 
-        CreateExpenseRequest req = buildExpenseRequest(
-                new BigDecimal("100000"),
-                List.of(userAId, userBId, userCId));
+        CreateExpenseRequest req =
+                buildExpenseRequest(new BigDecimal("100000"), List.of(userAId, userBId, userCId));
 
         // Custom amounts
         Map<UUID, BigDecimal> splitAmounts = new HashMap<>();
@@ -162,9 +168,10 @@ class ExpenseServiceTest {
         assertEquals(3, result.getSplits().size());
 
         // Tổng custom = 100k
-        BigDecimal total = result.getSplits().stream()
-                .map(s -> s.getAmountOwed())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total =
+                result.getSplits().stream()
+                        .map(s -> s.getAmountOwed())
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
         assertEquals(0, new BigDecimal("100000").compareTo(total));
     }
 
@@ -173,17 +180,18 @@ class ExpenseServiceTest {
     void testCreateExpense_CustomSplit_Mismatch() {
         mockGroupAndMembers();
 
-        CreateExpenseRequest req = buildExpenseRequest(
-                new BigDecimal("100000"),
-                List.of(userBId, userCId));
+        CreateExpenseRequest req =
+                buildExpenseRequest(new BigDecimal("100000"), List.of(userBId, userCId));
 
         Map<UUID, BigDecimal> splitAmounts = new HashMap<>();
         splitAmounts.put(userBId, new BigDecimal("60000"));
         splitAmounts.put(userCId, new BigDecimal("50000")); // Tổng = 110k ≠ 100k
         req.setSplitAmounts(splitAmounts);
 
-        AppException ex = assertThrows(AppException.class,
-                () -> expenseService.createExpense(groupId, req, userAId));
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> expenseService.createExpense(groupId, req, userAId));
         assertEquals(ErrorCode.CUSTOM_SPLIT_MISMATCH, ex.getErrorCode());
     }
 
@@ -192,21 +200,23 @@ class ExpenseServiceTest {
     void testUpdateExpense_AlreadySettled() {
         UUID expenseId = UUID.randomUUID();
 
-        ExpenseSplit settledSplit = ExpenseSplit.builder()
-                .id(UUID.randomUUID())
-                .user(userB)
-                .amountOwed(new BigDecimal("50000"))
-                .isSettled(true) // Đã thanh toán
-                .build();
+        ExpenseSplit settledSplit =
+                ExpenseSplit.builder()
+                        .id(UUID.randomUUID())
+                        .user(userB)
+                        .amountOwed(new BigDecimal("50000"))
+                        .isSettled(true) // Đã thanh toán
+                        .build();
 
-        Expense expense = Expense.builder()
-                .id(expenseId)
-                .group(group)
-                .payer(userA)
-                .title("Test")
-                .amount(new BigDecimal("100000"))
-                .category("Ăn uống")
-                .build();
+        Expense expense =
+                Expense.builder()
+                        .id(expenseId)
+                        .group(group)
+                        .payer(userA)
+                        .title("Test")
+                        .amount(new BigDecimal("100000"))
+                        .category("Ăn uống")
+                        .build();
         expense.getSplits().add(settledSplit);
 
         when(expenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
@@ -217,8 +227,10 @@ class ExpenseServiceTest {
         req.setTitle("Updated");
         req.setPaidBy(userAId);
 
-        AppException ex = assertThrows(AppException.class,
-                () -> expenseService.updateExpense(groupId, expenseId, req, userAId));
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> expenseService.updateExpense(groupId, expenseId, req, userAId));
         assertEquals(ErrorCode.EXPENSE_ALREADY_SETTLED, ex.getErrorCode());
     }
 
@@ -226,20 +238,23 @@ class ExpenseServiceTest {
     @DisplayName("Test 6: Xóa SETTLEMENT expense → CANNOT_MODIFY_SYSTEM_EXPENSE")
     void testDeleteExpense_SystemExpense_Blocked() {
         UUID expenseId = UUID.randomUUID();
-        Expense expense = Expense.builder()
-                .id(expenseId)
-                .group(group)
-                .payer(userA)
-                .title("Settlement")
-                .amount(new BigDecimal("100000"))
-                .category("SETTLEMENT") // System expense
-                .build();
+        Expense expense =
+                Expense.builder()
+                        .id(expenseId)
+                        .group(group)
+                        .payer(userA)
+                        .title("Settlement")
+                        .amount(new BigDecimal("100000"))
+                        .category("SETTLEMENT") // System expense
+                        .build();
 
         when(groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userAId)).thenReturn(true);
         when(expenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
 
-        AppException ex = assertThrows(AppException.class,
-                () -> expenseService.deleteExpense(groupId, expenseId, userAId));
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> expenseService.deleteExpense(groupId, expenseId, userAId));
         assertEquals(ErrorCode.CANNOT_MODIFY_SYSTEM_EXPENSE, ex.getErrorCode());
     }
 
@@ -247,24 +262,27 @@ class ExpenseServiceTest {
     @DisplayName("Test 7: Tạo expense → event được publish")
     void testCreateExpense_PublishesEvent() {
         mockGroupAndMembers();
-        when(expenseRepository.save(any())).thenAnswer(inv -> {
-            Expense e = inv.getArgument(0);
-            try {
-                var idField = Expense.class.getDeclaredField("id");
-                idField.setAccessible(true);
-                idField.set(e, UUID.randomUUID());
-            } catch (Exception ignored) {}
-            return e;
-        });
+        when(expenseRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            Expense e = inv.getArgument(0);
+                            try {
+                                var idField = Expense.class.getDeclaredField("id");
+                                idField.setAccessible(true);
+                                idField.set(e, UUID.randomUUID());
+                            } catch (Exception ignored) {
+                            }
+                            return e;
+                        });
 
-        CreateExpenseRequest req = buildExpenseRequest(
-                new BigDecimal("300000"),
-                List.of(userBId, userCId));
+        CreateExpenseRequest req =
+                buildExpenseRequest(new BigDecimal("300000"), List.of(userBId, userCId));
 
         expenseService.createExpense(groupId, req, userAId);
 
         // Verify event published (cho PfmEventListener)
-        verify(eventPublisher).publishEvent(any(com.example.sharemoney.event.ExpenseCreatedEvent.class));
+        verify(eventPublisher)
+                .publishEvent(any(com.example.sharemoney.event.ExpenseCreatedEvent.class));
     }
 
     @Test
@@ -274,31 +292,35 @@ class ExpenseServiceTest {
 
         UUID linkedTxId = UUID.randomUUID();
         Wallet payerWallet = Wallet.builder().id(UUID.randomUUID()).user(userA).build();
-        Transaction linkedTx = Transaction.builder()
-                .id(linkedTxId)
-                .wallet(payerWallet)
-                .amount(new BigDecimal("300000"))
-                .build();
+        Transaction linkedTx =
+                Transaction.builder()
+                        .id(linkedTxId)
+                        .wallet(payerWallet)
+                        .amount(new BigDecimal("300000"))
+                        .build();
 
         when(transactionRepository.findById(linkedTxId)).thenReturn(Optional.of(linkedTx));
-        when(expenseRepository.save(any())).thenAnswer(inv -> {
-            Expense e = inv.getArgument(0);
-            try {
-                var idField = Expense.class.getDeclaredField("id");
-                idField.setAccessible(true);
-                idField.set(e, UUID.randomUUID());
-            } catch (Exception ignored) {}
-            return e;
-        });
+        when(expenseRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            Expense e = inv.getArgument(0);
+                            try {
+                                var idField = Expense.class.getDeclaredField("id");
+                                idField.setAccessible(true);
+                                idField.set(e, UUID.randomUUID());
+                            } catch (Exception ignored) {
+                            }
+                            return e;
+                        });
 
-        CreateExpenseRequest req = buildExpenseRequest(
-                new BigDecimal("300000"),
-                List.of(userBId, userCId));
+        CreateExpenseRequest req =
+                buildExpenseRequest(new BigDecimal("300000"), List.of(userBId, userCId));
         req.setLinkedTransactionId(linkedTxId);
 
         expenseService.createExpense(groupId, req, userAId);
 
         // KHÔNG publish event vì transaction đã có sẵn
-        verify(eventPublisher, never()).publishEvent(any(com.example.sharemoney.event.ExpenseCreatedEvent.class));
+        verify(eventPublisher, never())
+                .publishEvent(any(com.example.sharemoney.event.ExpenseCreatedEvent.class));
     }
 }

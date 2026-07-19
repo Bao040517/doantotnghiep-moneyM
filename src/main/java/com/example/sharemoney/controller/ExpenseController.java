@@ -7,11 +7,11 @@ import com.example.sharemoney.dto.response.ExpenseResponse;
 import com.example.sharemoney.security.SecurityUtils;
 import com.example.sharemoney.service.ExpenseService;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
 @RequestMapping("/api/groups/{groupId}/expenses")
 @RequiredArgsConstructor
@@ -37,7 +38,10 @@ public class ExpenseController {
                 .body(expenseService.createExpense(groupId, req, userId));
     }
 
-    /** GET /api/groups/{groupId}/expenses Danh sách khoản chi của nhóm (chỉ thành viên) - Phân trang. */
+    /**
+     * GET /api/groups/{groupId}/expenses Danh sách khoản chi của nhóm (chỉ thành viên) - Phân
+     * trang.
+     */
     @GetMapping
     public ResponseEntity<org.springframework.data.domain.Page<ExpenseResponse>> getGroupExpenses(
             @PathVariable UUID groupId,
@@ -54,12 +58,12 @@ public class ExpenseController {
         byte[] csvData = expenseService.exportGroupExpensesToCsv(groupId, userId);
 
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-        headers.set(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=expenses.csv");
+        headers.set(
+                org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=expenses.csv");
         headers.set(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8");
 
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(csvData);
+        return ResponseEntity.ok().headers(headers).body(csvData);
     }
 
     /** GET /api/groups/{groupId}/expenses/{expenseId} Chi tiết 1 khoản chi kèm danh sách splits. */

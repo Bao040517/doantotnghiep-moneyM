@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { WebSocketProvider } from "@/components/websocket-provider";
-import { PointerEventPatch } from "@/components/pointer-event-patch";
+import { WebSocketProvider } from "@/components/cung-cap-websocket";
+import { PointerEventPatch } from "@/components/va-loi-su-kien-chuot";
 import "./globals.css";
 
 const geistSans = Geist({

@@ -1,10 +1,9 @@
 package com.example.sharemoney.dto.response;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.math.BigDecimal;
 import java.util.UUID;
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder
@@ -19,15 +18,15 @@ public class BudgetSummaryResponse {
 
     private BigDecimal limitAmount;
     private BigDecimal spentAmount;
-    private int percentage;         // 0-100+ (có thể > 100 nếu vượt ngân sách)
-    private String status;          // "OK" | "WARNING" | "OVER"
-
+    private int percentage; // 0-100+ (có thể > 100 nếu vượt ngân sách)
+    private String status; // "OK" | "WARNING" | "OVER"
 
     private BigDecimal availableAmount;
-    
+
     private String type;
     private boolean isRecurring;
     private Integer dueDayOfMonth;
+
     @com.fasterxml.jackson.annotation.JsonProperty("isMandatory")
     private boolean isMandatory;
 

@@ -24,8 +24,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Service tích hợp Mindee Receipt OCR API để nhận diện hóa đơn.
- * Trả về danh sách từng món hàng (Line Items) cùng tổng tiền.
+ * Service tích hợp Mindee Receipt OCR API để nhận diện hóa đơn. Trả về danh sách từng món hàng
+ * (Line Items) cùng tổng tiền.
  */
 @Slf4j
 @Service
@@ -42,8 +42,8 @@ public class ReceiptScanService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * Quét hóa đơn bằng Mindee Receipt OCR API.
-     * Gửi ảnh lên Mindee, nhận về JSON chứa line_items, total_amount, supplier_name.
+     * Quét hóa đơn bằng Mindee Receipt OCR API. Gửi ảnh lên Mindee, nhận về JSON chứa line_items,
+     * total_amount, supplier_name.
      */
     public ScanReceiptResponse scanReceipt(MultipartFile file) {
         if (mindeeApiKey == null || mindeeApiKey.contains("YOUR_MINDEE_API_KEY_HERE")) {
@@ -52,7 +52,8 @@ public class ReceiptScanService {
 
         try {
             byte[] fileBytes = file.getBytes();
-            String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "receipt.jpg";
+            String originalFilename =
+                    file.getOriginalFilename() != null ? file.getOriginalFilename() : "receipt.jpg";
 
             // Chuẩn bị multipart/form-data request cho Mindee API
             HttpHeaders headers = new HttpHeaders();
@@ -60,20 +61,23 @@ public class ReceiptScanService {
             headers.set("Authorization", "Token " + mindeeApiKey);
 
             // Tạo resource từ byte array để gửi qua multipart
-            ByteArrayResource fileResource = new ByteArrayResource(fileBytes) {
-                @Override
-                public String getFilename() {
-                    return originalFilename;
-                }
-            };
+            ByteArrayResource fileResource =
+                    new ByteArrayResource(fileBytes) {
+                        @Override
+                        public String getFilename() {
+                            return originalFilename;
+                        }
+                    };
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("document", fileResource);
 
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+            HttpEntity<MultiValueMap<String, Object>> requestEntity =
+                    new HttpEntity<>(body, headers);
 
             // Gọi Mindee API
-            ResponseEntity<String> response = restTemplate.postForEntity(mindeeApiUrl, requestEntity, String.class);
+            ResponseEntity<String> response =
+                    restTemplate.postForEntity(mindeeApiUrl, requestEntity, String.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return parseMindeeResponse(response.getBody());
@@ -90,16 +94,13 @@ public class ReceiptScanService {
     }
 
     /**
-     * Parse JSON response từ Mindee API.
-     * Cấu trúc: document.inference.prediction chứa line_items, total_amount, supplier_name
+     * Parse JSON response từ Mindee API. Cấu trúc: document.inference.prediction chứa line_items,
+     * total_amount, supplier_name
      */
     private ScanReceiptResponse parseMindeeResponse(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode prediction = root
-                    .path("document")
-                    .path("inference")
-                    .path("prediction");
+            JsonNode prediction = root.path("document").path("inference").path("prediction");
 
             // Lấy tổng tiền
             BigDecimal totalAmount = BigDecimal.ZERO;
@@ -130,12 +131,13 @@ public class ReceiptScanService {
                         continue;
                     }
 
-                    items.add(ReceiptItemResponse.builder()
-                            .description(description != null ? description : "Không rõ")
-                            .quantity(quantity != null ? quantity : 1)
-                            .unitPrice(unitPrice)
-                            .totalPrice(totalPrice)
-                            .build());
+                    items.add(
+                            ReceiptItemResponse.builder()
+                                    .description(description != null ? description : "Không rõ")
+                                    .quantity(quantity != null ? quantity : 1)
+                                    .unitPrice(unitPrice)
+                                    .totalPrice(totalPrice)
+                                    .build());
                 }
             }
 

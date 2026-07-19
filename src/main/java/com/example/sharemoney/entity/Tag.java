@@ -1,14 +1,13 @@
 package com.example.sharemoney.entity;
 
 import jakarta.persistence.*;
+import java.util.UUID;
 import lombok.*;
 
-import java.util.UUID;
-
 @Entity
-@Table(name = "tags", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"user_id", "name"})
-})
+@Table(
+        name = "tags",
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "name"})})
 @Getter
 @Setter
 @Builder

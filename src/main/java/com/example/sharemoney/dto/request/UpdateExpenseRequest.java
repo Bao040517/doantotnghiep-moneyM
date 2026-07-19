@@ -32,8 +32,8 @@ public class UpdateExpenseRequest {
     private List<UUID> splitUserIds;
 
     /**
-     * Tùy chọn: Số tiền nợ cụ thể cho từng người (Custom Split / Itemized Split).
-     * Key = userId, Value = số tiền nợ.
+     * Tùy chọn: Số tiền nợ cụ thể cho từng người (Custom Split / Itemized Split). Key = userId,
+     * Value = số tiền nợ.
      */
     private Map<UUID, BigDecimal> splitAmounts;
 }

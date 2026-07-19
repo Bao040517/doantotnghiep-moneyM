@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/axios";
-import { GlobalDebtTransaction } from "@/components/global-debts-drawer";
+import { GlobalDebtTransaction } from "@/components/ngan-keo-tong-hop-no";
 
 export interface UserSummary {
   id: string;
@@ -33,19 +33,23 @@ export function useAppData() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserSummary | null>(null);
-  const [debtSummary, setDebtSummary] = useState<DebtSummary>({ totalOwed: 0, totalOwing: 0 });
+  const [debtSummary, setDebtSummary] = useState<DebtSummary>({
+    totalOwed: 0,
+    totalOwing: 0,
+  });
   const [walletId, setWalletId] = useState<string | undefined>(undefined);
   const [walletBalance, setWalletBalance] = useState(0);
-  const [detailedDebts, setDetailedDebts] = useState<{ myDebts: GlobalDebtTransaction[], owedToMe: GlobalDebtTransaction[] }>({ myDebts: [], owedToMe: [] });
+  const [detailedDebts, setDetailedDebts] = useState<{
+    myDebts: GlobalDebtTransaction[];
+    owedToMe: GlobalDebtTransaction[];
+  }>({ myDebts: [], owedToMe: [] });
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const fetchData = async () => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
     try {
-      const [groupsRes] = await Promise.all([
-        api.get("/groups"),
-      ]);
+      const [groupsRes] = await Promise.all([api.get("/groups")]);
       setGroups(groupsRes.data);
 
       let totalOwed = 0;
@@ -57,19 +61,34 @@ export function useAppData() {
       if (userStr) {
         const user = JSON.parse(userStr);
         const debtPromises = groupsRes.data.map((g: Group) =>
-          api.get(`/groups/${g.id}/debts`).then(r => ({ groupId: g.id, groupName: g.name, data: r.data })).catch(() => null)
+          api
+            .get(`/groups/${g.id}/debts`)
+            .then((r) => ({ groupId: g.id, groupName: g.name, data: r.data }))
+            .catch(() => null),
         );
         const allDebts = await Promise.all(debtPromises);
-        allDebts.forEach(res => {
+        allDebts.forEach((res) => {
           if (!res?.data?.transactions) return;
           res.data.transactions.forEach((t: any) => {
             if (t.from.id === user.id) {
               totalOwing += t.amount;
-              myDebts.push({ groupId: res.groupId, groupName: res.groupName, from: t.from, to: t.to, amount: t.amount });
+              myDebts.push({
+                groupId: res.groupId,
+                groupName: res.groupName,
+                from: t.from,
+                to: t.to,
+                amount: t.amount,
+              });
             }
             if (t.to.id === user.id) {
               totalOwed += t.amount;
-              owedToMe.push({ groupId: res.groupId, groupName: res.groupName, from: t.from, to: t.to, amount: t.amount });
+              owedToMe.push({
+                groupId: res.groupId,
+                groupName: res.groupName,
+                from: t.from,
+                to: t.to,
+                amount: t.amount,
+              });
             }
           });
         });
@@ -77,12 +96,19 @@ export function useAppData() {
       setDebtSummary({ totalOwed, totalOwing });
       setDetailedDebts({ myDebts, owedToMe });
 
-      const balanceRes = await api.get("/wallets/total-balance").catch(() => ({ data: { totalBalance: 0 } }));
+      const balanceRes = await api
+        .get("/wallets/total-balance")
+        .catch(() => ({ data: { totalBalance: 0 } }));
       setWalletBalance(balanceRes.data.totalBalance);
 
-      const walletRes = await api.get("/wallets/me").catch(() => ({ data: [{ id: undefined }] }));
+      const walletRes = await api
+        .get("/wallets/me")
+        .catch(() => ({ data: [{ id: undefined }] }));
       const walletData = walletRes.data;
-      const defaultWallet = Array.isArray(walletData) && walletData.length > 0 ? walletData[0] : walletData;
+      const defaultWallet =
+        Array.isArray(walletData) && walletData.length > 0
+          ? walletData[0]
+          : walletData;
       setWalletId(defaultWallet?.id || null);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -94,7 +120,10 @@ export function useAppData() {
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     const token = localStorage.getItem("token");
-    if (!token) { router.replace("/auth"); return; }
+    if (!token) {
+      router.replace("/auth");
+      return;
+    }
     if (userStr) {
       const user = JSON.parse(userStr);
       setCurrentUser(user);
@@ -124,6 +153,6 @@ export function useAppData() {
     setShowPhoneModal,
     refreshTrigger,
     fetchData,
-    handleLogout
+    handleLogout,
   };
 }

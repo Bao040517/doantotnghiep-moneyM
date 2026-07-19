@@ -10,6 +10,65 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 5. **Thanh toán nợ (Debt Settlement):** Nhắc nợ, tạo mã QR VietQR, và quy trình Xác nhận.
 6. **Z-Score Anomaly Detection:** Thuật toán phát hiện bất thường chi tiêu theo thời gian thực.
 
+### Session [2026-07-16] - Code Formatting, Báo cáo Clean Code & Việt hóa Cấu trúc Component
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Chuẩn hóa & Làm sạch Mã nguồn (Code Formatting):**
+   - **Backend (Spring Boot):** Chạy thành công plugin `spotless-maven-plugin` để tự động dọn dẹp và chuẩn hóa định dạng (format) cho 110 files mã nguồn Java theo tiêu chuẩn Google Java Format.
+   - **Frontend (Next.js):** Kích hoạt Prettier để định dạng lại toàn bộ 66 files `.tsx`, tự động sắp xếp CSS classes và thụt lề chuẩn xác.
+
+**2. Phân tích & Báo cáo Kiến trúc (Clean Code Report):**
+   - Viết và bàn giao bản báo cáo chi tiết về "Clean Code trên Frontend" (phục vụ viết luận văn).
+   - Báo cáo nhấn mạnh 5 điểm mạnh: Cấu trúc thư mục (app/components/lib), thiết kế Atomic, bóc tách logic bằng Custom Hooks, Axios Interceptors, và TypeScript.
+
+**3. Việt hóa Cấu trúc Tên file Frontend:**
+   - **Quyết định:** Mặc dù được cảnh báo về tiêu chuẩn tiếng Anh, nhưng để thuận tiện cho việc rà soát đồ án, toàn bộ tên file giao diện đã được chuyển sang tiếng Việt.
+   - **Thực thi:** Viết script tự động đổi tên 39 files components sang tiếng Việt không dấu (ví dụ: `dashboard-tab.tsx` thành `tab-tong-quan.tsx`).
+   - **Đồng bộ hóa:** Script tự động dò tìm và cập nhật toàn bộ đường dẫn `import` trong 13 files liên quan.
+   - **Vá lỗi biên dịch:** Khắc phục thành công một lỗi TypeScript trong `ngan-keo-tong-hop-no.tsx` (thiếu props `open`). Quá trình build Next.js (Production) đã diễn ra trơn tru 100%.
+
+---
+
+### Session [2026-07-14] - Quyết định Chiến lược: Gỡ bỏ OCR & Rà soát Lỗi Toàn cục (Deep Audit)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Quyết định Chiến lược: Gỡ bỏ Tính năng Quét Hóa đơn (AI/OCR):**
+   - **Quyết định của người dùng:** Nhận định việc phụ thuộc hoàn toàn vào các API bên thứ 3 (Gemini/OCR) để nhận diện hóa đơn rất dễ phát sinh lỗi, thiếu tính ổn định ở môi trường thực tế, người dùng đã dứt khoát chỉ đạo: **Ngừng phát triển và gỡ bỏ hoàn toàn phần này**.
+   - **Thực thi:** Đã tiến hành gỡ bỏ toàn bộ giao diện UI (nút camera, luồng scan) và triệt tiêu các liên kết logic dưới Backend (`ReceiptScanService`, `GeminiService`) liên quan đến tính năng quét hóa đơn, giúp giảm tải hệ thống và loại bỏ một rủi ro tiềm ẩn lớn (point of failure).
+
+**2. Quy trình Rà soát & Khắc phục Lỗi Logic Cốt lõi (Deep Logic Audit):**
+   - Tuân thủ lệnh "kiểm soát lỗi toàn project", đã thực hiện kiểm tra chéo toàn bộ các Service và khắc phục thành công **10 lỗi logic cốt lõi**:
+     + **Tiết kiệm:** Sửa lỗi trừ sai tiền khi nạp/rút quỹ tiết kiệm (khai báo biến `fundAmount` muộn).
+     + **Dashboard & Ngân sách:** Fix logic tính sai "Tiền có thể tiêu", chuẩn hóa việc gom nhóm giao dịch theo tháng bằng `LocalDate`.
+     + **Chia nhóm & Nợ:** Vá thuật toán chia đều (tự động tính luôn phần của người trả tiền), gỡ bỏ vòng lặp vô hạn và cồng kềnh trong `DebtService` để tính toán nợ 1 chiều đúng nguyên tắc kế toán (Cash-basis).
+     + **Sức khỏe tài chính:** Bổ sung thuật toán tính điểm động thay vì hardcode.
+     + **Dòng tiền (PfmEventListener):** Thiết lập quy trình Rollback giao dịch hoàn hảo khi người dùng cập nhật/xóa Hóa đơn gốc.
+
+**3. Quy trình Nâng cấp Kiểm soát Lỗi Toàn dự án (Global Error Handling):**
+   - **Quyết định:** Không để bất kỳ ngoại lệ (exception) nào làm sập hệ thống (mã lỗi 500). Mọi lỗi phải được kiểm soát, có thông báo thân thiện và trả về status code chuẩn.
+   - **Thực thi quy trình:** 
+     + Cấu trúc lại `GlobalExceptionHandler` để tự động bắt các lỗi phổ biến (`HttpMessageNotReadableException`, `ConstraintViolationException`, `DataIntegrityViolationException`) và dịch thành `400 Bad Request` hoặc `409 Conflict`.
+     + Kích hoạt `@Validated` cho 100% (16/16) REST Controllers để chặn ngay các request sai định dạng.
+     + Rà soát và triệt tiêu toàn bộ các lệnh gọi `.orElseThrow()` "chay" dễ sinh `NoSuchElementException`, thay bằng exception tùy chỉnh có mô tả rõ ràng. Chuyển đổi `e.printStackTrace()` sang `log.error()`.
+
+---
+
+### Session [2026-07-14] - Khắc phục Lỗi Hiển thị Vượt Ngân sách & Smart Auto-Linking
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Gỡ bỏ Giới hạn Hiển thị Ngân sách (Uncapped Budget UI):**
+   - **Vấn đề:** Mặc dù Backend lưu trữ số tiền chi tiêu thực tế (VD: chi 11tr cho ngân sách 8.5tr), nhưng Frontend sử dụng hàm `Math.min(đã_chi, giới_hạn)` ở các màn hình `dashboard-tab`, `budget-tab`, và `financial-health-card`, khiến thanh tiến độ luôn khóa ở mức 100% (8.5tr) và che giấu khoản tiền chi vượt quá.
+   - **Giải pháp:** Gỡ bỏ toàn bộ hàm `Math.min()` ở Frontend. Cập nhật thanh tiến độ (Progress bar) để tính đúng tỷ lệ % (có thể >100%) và hiển thị chính xác số tiền đã chi vượt hạn mức.
+
+**2. Sửa lỗi Unlink Giao dịch (Smart Auto-Linking Bugfix):**
+   - **Vấn đề:** Khi người dùng vào Lịch sử chỉnh sửa giao dịch (thêm ghi chú, đổi số tiền), nếu giao dịch đó thuộc loại "Tiền nhà" (BILL) thì không những không tự liên kết, mà tính năng cũ còn vô tình chèn đè `linkedBudgetId = null`, làm tuột luôn các liên kết Ngân sách đang có. Nguyên nhân là do REST API không gửi lên `linkedBudgetId`.
+   - **Giải pháp Backend (`TransactionService.java`):** Sửa lại logic `updateTransaction` để giữ nguyên (preserve) liên kết cũ nếu Frontend gửi lên giá trị null. Đồng thời bổ sung tính năng kích hoạt lại thuật toán Smart Auto-Link: nếu giao dịch chưa có liên kết, backend sẽ tự động truy vấn tìm Ngân sách Cố định (BILL) khớp Danh mục, Tháng, và Năm để ép gán (Force Link). Người dùng chỉ cần "Sửa" và "Lưu" là dữ liệu sẽ tự động sửa chữa.
+
+---
+
 ### Session [2026-07-10] - Tối ưu Hiệu năng (Pagination) & Rà soát Lỗi Kế toán (PFM Algorithms)
 
 **✅ Đã hoàn thành (Compact Procedure):**

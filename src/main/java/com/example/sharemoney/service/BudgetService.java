@@ -2,8 +2,10 @@ package com.example.sharemoney.service;
 
 import com.example.sharemoney.dto.request.SetBudgetRequest;
 import com.example.sharemoney.dto.response.BudgetSummaryResponse;
+import com.example.sharemoney.dto.response.SafeToSpendResponse;
 import com.example.sharemoney.entity.Budget;
 import com.example.sharemoney.entity.Category;
+import com.example.sharemoney.entity.TransactionType;
 import com.example.sharemoney.entity.User;
 import com.example.sharemoney.exception.AppException;
 import com.example.sharemoney.exception.ErrorCode;
@@ -12,22 +14,17 @@ import com.example.sharemoney.repository.CategoryRepository;
 import com.example.sharemoney.repository.SavingsGoalRepository;
 import com.example.sharemoney.repository.TransactionRepository;
 import com.example.sharemoney.repository.UserRepository;
-import com.example.sharemoney.entity.SavingsGoal;
-import com.example.sharemoney.entity.SavingsGoalStatus;
-import com.example.sharemoney.entity.TransactionType;
-import com.example.sharemoney.dto.response.SafeToSpendResponse;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -46,20 +43,24 @@ public class BudgetService {
     public BudgetSummaryResponse setBudget(UUID userId, SetBudgetRequest req) {
         LocalDate now = LocalDate.now();
         int month = req.getMonth() == 0 ? now.getMonthValue() : req.getMonth();
-        int year  = req.getYear()  == 0 ? now.getYear()       : req.getYear();
+        int year = req.getYear() == 0 ? now.getYear() : req.getYear();
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        Category category = categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
-
-
+        Category category =
+                categoryRepository
+                        .findById(req.getCategoryId())
+                        .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 
         Budget budget;
         if (req.getId() != null) {
-            budget = budgetRepository.findById(req.getId())
-                    .orElseThrow(() -> new AppException(ErrorCode.BUDGET_NOT_FOUND));
+            budget =
+                    budgetRepository
+                            .findById(req.getId())
+                            .orElseThrow(() -> new AppException(ErrorCode.BUDGET_NOT_FOUND));
             if (!budget.getUser().getId().equals(userId)) {
                 throw new AppException(ErrorCode.UNAUTHORIZED);
             }
@@ -75,7 +76,8 @@ public class BudgetService {
         budget.setName(req.getName());
 
         try {
-            budget.setType(com.example.sharemoney.entity.BudgetType.valueOf(req.getType().toUpperCase()));
+            budget.setType(
+                    com.example.sharemoney.entity.BudgetType.valueOf(req.getType().toUpperCase()));
         } catch (Exception e) {
             budget.setType(com.example.sharemoney.entity.BudgetType.FLEXIBLE);
         }
@@ -90,9 +92,15 @@ public class BudgetService {
         // Tính số đã chi thực tế để trả về response
         BigDecimal spent;
         if (budget.getType() == com.example.sharemoney.entity.BudgetType.FLEXIBLE) {
-            spent = transactionRepository.sumExpenseByCategoryAndMonth(userId, budget.getCategory().getId(), year, month);
+            // FLEXIBLE: chỉ đếm giao dịch không link tới BILL budget
+            spent =
+                    transactionRepository.sumExpenseByCategoryAndMonth(
+                            userId, budget.getCategory().getId(), year, month);
         } else {
-            spent = transactionRepository.sumExpenseByLinkedBudgetIdAndMonth(budget.getId(), year, month);
+            // BILL: đếm TẤT CẢ giao dịch cùng category (bao gồm cả unlinked)
+            spent =
+                    transactionRepository.sumAllExpenseByCategoryAndMonth(
+                            userId, budget.getCategory().getId(), year, month);
         }
         if (spent == null) spent = BigDecimal.ZERO;
 
@@ -106,38 +114,46 @@ public class BudgetService {
     public List<BudgetSummaryResponse> getBudgetSummary(UUID userId, int year, int month) {
         LocalDate now = LocalDate.now();
         int m = month == 0 ? now.getMonthValue() : month;
-        int y = year  == 0 ? now.getYear()       : year;
+        int y = year == 0 ? now.getYear() : year;
 
         int prevMonth = m == 1 ? 12 : m - 1;
         int prevYear = m == 1 ? y - 1 : y;
 
-        List<Budget> prevBudgets = budgetRepository.findByUser_IdAndMonthAndYear(userId, prevMonth, prevYear);
+        List<Budget> prevBudgets =
+                budgetRepository.findByUser_IdAndMonthAndYear(userId, prevMonth, prevYear);
         List<Budget> currentBudgets = budgetRepository.findByUser_IdAndMonthAndYear(userId, m, y);
 
         for (Budget prev : prevBudgets) {
             if (prev.isRecurring()) {
-                boolean exists = currentBudgets.stream()
-                        .anyMatch(c -> c.getCategory().getId().equals(prev.getCategory().getId())
-                                && java.util.Objects.equals(c.getName(), prev.getName()));
+                boolean exists =
+                        currentBudgets.stream()
+                                .anyMatch(
+                                        c ->
+                                                c.getCategory()
+                                                                .getId()
+                                                                .equals(prev.getCategory().getId())
+                                                        && java.util.Objects.equals(
+                                                                c.getName(), prev.getName()));
                 if (!exists) {
-                    Budget newBudget = Budget.builder()
-                            .user(prev.getUser())
-                            .category(prev.getCategory())
-                            .month(m)
-                            .year(y)
-                            .limitAmount(prev.getLimitAmount())
-                            .name(prev.getName())
-
-                            .type(prev.getType())
-                            .isRecurring(prev.isRecurring())
-                            .dueDayOfMonth(prev.getDueDayOfMonth())
-                            .isMandatory(prev.getIsMandatory() != null ? prev.getIsMandatory() : false)
-                            .payeeBankBin(prev.getPayeeBankBin())
-                            .payeeBankAccount(prev.getPayeeBankAccount())
-                            .payeeAccountName(prev.getPayeeAccountName())
-                            .build();
-
-
+                    Budget newBudget =
+                            Budget.builder()
+                                    .user(prev.getUser())
+                                    .category(prev.getCategory())
+                                    .month(m)
+                                    .year(y)
+                                    .limitAmount(prev.getLimitAmount())
+                                    .name(prev.getName())
+                                    .type(prev.getType())
+                                    .isRecurring(prev.isRecurring())
+                                    .dueDayOfMonth(prev.getDueDayOfMonth())
+                                    .isMandatory(
+                                            prev.getIsMandatory() != null
+                                                    ? prev.getIsMandatory()
+                                                    : false)
+                                    .payeeBankBin(prev.getPayeeBankBin())
+                                    .payeeBankAccount(prev.getPayeeBankAccount())
+                                    .payeeAccountName(prev.getPayeeAccountName())
+                                    .build();
 
                     try {
                         budgetRepository.saveAndFlush(newBudget);
@@ -149,18 +165,24 @@ public class BudgetService {
             }
         }
 
-        return currentBudgets
-                .stream()
-                .map(b -> {
-                    BigDecimal spent;
-                    if (b.getType() == com.example.sharemoney.entity.BudgetType.FLEXIBLE) {
-                        spent = transactionRepository.sumExpenseByCategoryAndMonth(userId, b.getCategory().getId(), y, m);
-                    } else {
-                        spent = transactionRepository.sumExpenseByLinkedBudgetIdAndMonth(b.getId(), y, m);
-                    }
-                    if (spent == null) spent = BigDecimal.ZERO;
-                    return toSummaryResponse(b, spent);
-                })
+        return currentBudgets.stream()
+                .map(
+                        b -> {
+                            BigDecimal spent;
+                            if (b.getType() == com.example.sharemoney.entity.BudgetType.FLEXIBLE) {
+                                // FLEXIBLE: chỉ đếm giao dịch không link tới BILL budget
+                                spent =
+                                        transactionRepository.sumExpenseByCategoryAndMonth(
+                                                userId, b.getCategory().getId(), y, m);
+                            } else {
+                                // BILL: đếm TẤT CẢ giao dịch cùng category (bao gồm cả unlinked)
+                                spent =
+                                        transactionRepository.sumAllExpenseByCategoryAndMonth(
+                                                userId, b.getCategory().getId(), y, m);
+                            }
+                            if (spent == null) spent = BigDecimal.ZERO;
+                            return toSummaryResponse(b, spent);
+                        })
                 .collect(Collectors.toList());
     }
 
@@ -169,8 +191,10 @@ public class BudgetService {
     // ─────────────────────────────────────────────────────────────
     @Transactional
     public void deleteBudget(UUID userId, UUID budgetId) {
-        Budget budget = budgetRepository.findById(budgetId)
-                .orElseThrow(() -> new AppException(ErrorCode.BUDGET_NOT_FOUND));
+        Budget budget =
+                budgetRepository
+                        .findById(budgetId)
+                        .orElseThrow(() -> new AppException(ErrorCode.BUDGET_NOT_FOUND));
         if (!budget.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
@@ -182,8 +206,10 @@ public class BudgetService {
     // ─────────────────────────────────────────────────────────────
     @Transactional
     public void toggleMandatory(UUID userId, UUID budgetId) {
-        Budget budget = budgetRepository.findById(budgetId)
-                .orElseThrow(() -> new AppException(ErrorCode.BUDGET_NOT_FOUND));
+        Budget budget =
+                budgetRepository
+                        .findById(budgetId)
+                        .orElseThrow(() -> new AppException(ErrorCode.BUDGET_NOT_FOUND));
         if (!budget.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
@@ -200,16 +226,17 @@ public class BudgetService {
 
         BigDecimal totalLimit = budget.getLimitAmount();
 
-        int percentage = totalLimit.compareTo(BigDecimal.ZERO) <= 0
-                ? (spent.compareTo(BigDecimal.ZERO) > 0 ? 100 : 0)
-                : spent.multiply(BigDecimal.valueOf(100))
-                       .divide(totalLimit, 0, java.math.RoundingMode.HALF_UP)
-                       .intValue();
+        int percentage =
+                totalLimit.compareTo(BigDecimal.ZERO) <= 0
+                        ? (spent.compareTo(BigDecimal.ZERO) > 0 ? 100 : 0)
+                        : spent.multiply(BigDecimal.valueOf(100))
+                                .divide(totalLimit, 0, java.math.RoundingMode.HALF_UP)
+                                .intValue();
 
         String status;
-        if (percentage >= 100)     status = "OVER";
+        if (percentage >= 100) status = "OVER";
         else if (percentage >= 80) status = "WARNING";
-        else                       status = "OK";
+        else status = "OK";
 
         BigDecimal available = totalLimit.subtract(spent);
 
@@ -223,7 +250,6 @@ public class BudgetService {
                 .spentAmount(spent)
                 .percentage(percentage)
                 .status(status)
-
                 .availableAmount(available)
                 .type(budget.getType().name())
                 .isRecurring(budget.isRecurring())
@@ -239,10 +265,12 @@ public class BudgetService {
     public SafeToSpendResponse getSafeToSpend(UUID userId, int year, int month) {
         YearMonth ym = YearMonth.of(year, month);
         LocalDateTime startOfMonth = ym.atDay(1).atStartOfDay();
-        LocalDateTime endOfMonth = ym.atEndOfMonth().atTime(23, 59, 59, 999999999);
+        LocalDateTime endOfMonth = ym.atEndOfMonth().plusDays(1).atStartOfDay();
 
         // 1. Total Income
-        BigDecimal totalIncome = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, startOfMonth, endOfMonth);
+        BigDecimal totalIncome =
+                transactionRepository.sumByTypeAndPeriod(
+                        userId, TransactionType.INCOME, startOfMonth, endOfMonth);
         if (totalIncome == null) totalIncome = BigDecimal.ZERO;
 
         // 2. Bills
@@ -251,7 +279,9 @@ public class BudgetService {
         BigDecimal totalBillSpent = BigDecimal.ZERO;
         for (Budget b : budgets) {
             if ("BILL".equals(b.getType().name())) {
-                BigDecimal spent = transactionRepository.sumExpenseByLinkedBudgetIdAndMonth(b.getId(), year, month);
+                BigDecimal spent =
+                        transactionRepository.sumAllExpenseByCategoryAndMonth(
+                                userId, b.getCategory().getId(), year, month);
                 if (spent == null) spent = BigDecimal.ZERO;
                 BigDecimal billAmt = b.getLimitAmount().max(spent);
                 totalBills = totalBills.add(billAmt);
@@ -260,7 +290,9 @@ public class BudgetService {
         }
 
         // 4. Flexible Spent
-        BigDecimal totalExpense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, startOfMonth, endOfMonth);
+        BigDecimal totalExpense =
+                transactionRepository.sumByTypeAndPeriod(
+                        userId, TransactionType.EXPENSE, startOfMonth, endOfMonth);
         if (totalExpense == null) totalExpense = BigDecimal.ZERO;
 
         BigDecimal flexibleSpent = totalExpense.subtract(totalBillSpent);
@@ -271,7 +303,8 @@ public class BudgetService {
         if (rawSafeBalance.compareTo(BigDecimal.ZERO) < 0) rawSafeBalance = BigDecimal.ZERO;
 
         // 3. Savings (40% of Raw Safe Balance)
-        BigDecimal totalSavings = rawSafeBalance.multiply(new BigDecimal("0.4")).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalSavings =
+                rawSafeBalance.multiply(new BigDecimal("0.4")).setScale(2, RoundingMode.HALF_UP);
 
         // 6. Safe Balance Total
         BigDecimal safeBalanceTotal = rawSafeBalance.subtract(totalSavings);
@@ -285,7 +318,8 @@ public class BudgetService {
             daysLeft = ym.lengthOfMonth();
         }
 
-        BigDecimal safeBalanceDaily = safeBalanceTotal.divide(BigDecimal.valueOf(daysLeft), 2, RoundingMode.HALF_UP);
+        BigDecimal safeBalanceDaily =
+                safeBalanceTotal.divide(BigDecimal.valueOf(daysLeft), 2, RoundingMode.HALF_UP);
 
         return SafeToSpendResponse.builder()
                 .totalIncome(totalIncome)

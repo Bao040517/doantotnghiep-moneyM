@@ -5,15 +5,16 @@ import com.example.sharemoney.dto.response.BudgetSummaryResponse;
 import com.example.sharemoney.security.SecurityUtils;
 import com.example.sharemoney.service.BudgetService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 
+@Validated
 @RestController
 @RequestMapping("/api/budgets")
 @RequiredArgsConstructor
@@ -22,7 +23,8 @@ public class BudgetController {
 
     /** POST /api/budgets — Tạo hoặc cập nhật ngân sách */
     @PostMapping
-    public ResponseEntity<BudgetSummaryResponse> setBudget(@Valid @RequestBody SetBudgetRequest req) {
+    public ResponseEntity<BudgetSummaryResponse> setBudget(
+            @Valid @RequestBody SetBudgetRequest req) {
         UUID userId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.status(HttpStatus.OK).body(budgetService.setBudget(userId, req));
     }
@@ -33,8 +35,8 @@ public class BudgetController {
             @RequestParam(defaultValue = "0") int year,
             @RequestParam(defaultValue = "0") int month) {
         UUID userId = SecurityUtils.getCurrentUserId();
-        int y = year  == 0 ? LocalDate.now().getYear()        : year;
-        int m = month == 0 ? LocalDate.now().getMonthValue()  : month;
+        int y = year == 0 ? LocalDate.now().getYear() : year;
+        int m = month == 0 ? LocalDate.now().getMonthValue() : month;
         return ResponseEntity.ok(budgetService.getBudgetSummary(userId, y, m));
     }
 
@@ -44,8 +46,8 @@ public class BudgetController {
             @RequestParam(defaultValue = "0") int year,
             @RequestParam(defaultValue = "0") int month) {
         UUID userId = SecurityUtils.getCurrentUserId();
-        int y = year  == 0 ? LocalDate.now().getYear()        : year;
-        int m = month == 0 ? LocalDate.now().getMonthValue()  : month;
+        int y = year == 0 ? LocalDate.now().getYear() : year;
+        int m = month == 0 ? LocalDate.now().getMonthValue() : month;
         return ResponseEntity.ok(budgetService.getSafeToSpend(userId, y, m));
     }
 

@@ -19,6 +19,8 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, UUID> 
 
     boolean existsByGroup_IdAndUser_Id(UUID groupId, UUID userId);
 
-    @org.springframework.data.jpa.repository.Query("SELECT gm.group.id, COUNT(gm) FROM GroupMember gm WHERE gm.group.id IN :groupIds GROUP BY gm.group.id")
-    List<Object[]> countMembersByGroupIds(@org.springframework.data.repository.query.Param("groupIds") List<UUID> groupIds);
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT gm.group.id, COUNT(gm) FROM GroupMember gm WHERE gm.group.id IN :groupIds GROUP BY gm.group.id")
+    List<Object[]> countMembersByGroupIds(
+            @org.springframework.data.repository.query.Param("groupIds") List<UUID> groupIds);
 }

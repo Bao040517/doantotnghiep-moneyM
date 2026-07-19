@@ -1,16 +1,17 @@
 package com.example.sharemoney.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
-@Table(name = "budgets", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"user_id", "category_id", "month", "year", "name"})
-})
+@Table(
+        name = "budgets",
+        uniqueConstraints = {
+            @UniqueConstraint(columnNames = {"user_id", "category_id", "month", "year", "name"})
+        })
 @Getter
 @Setter
 @Builder
@@ -45,8 +46,6 @@ public class Budget {
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
-
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)

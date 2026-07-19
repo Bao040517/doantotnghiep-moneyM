@@ -16,6 +16,7 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID
     List<ExpenseSplit> findByExpense_Group_IdAndIsSettledFalse(UUID groupId);
 
     @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.data.jpa.repository.Query("UPDATE ExpenseSplit es SET es.isSettled = true WHERE es.expense.group.id = :groupId")
+    @org.springframework.data.jpa.repository.Query(
+            "UPDATE ExpenseSplit es SET es.isSettled = true WHERE es.expense.group.id = :groupId")
     void markAllAsSettled(@org.springframework.data.repository.query.Param("groupId") UUID groupId);
 }

@@ -12,12 +12,14 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.transaction.annotation.Transactional;
 
+@Validated
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -27,17 +29,23 @@ public class UserController {
     private final UserRepository userRepository;
 
     @org.springframework.web.bind.annotation.GetMapping("/search")
-    public ResponseEntity<UserSummaryResponse> searchByPhone(@org.springframework.web.bind.annotation.RequestParam String phone) {
-        User user = userRepository.findByPhone(phone)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    public ResponseEntity<UserSummaryResponse> searchByPhone(
+            @org.springframework.web.bind.annotation.RequestParam String phone) {
+        User user =
+                userRepository
+                        .findByPhone(phone)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         return ResponseEntity.ok(toUserSummary(user));
     }
 
     @PutMapping("/me/phone")
-    public ResponseEntity<UserSummaryResponse> updateMyPhone(@Valid @RequestBody UpdatePhoneRequest request) {
+    public ResponseEntity<UserSummaryResponse> updateMyPhone(
+            @Valid @RequestBody UpdatePhoneRequest request) {
         UUID userId = SecurityUtils.getCurrentUserId();
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (userRepository.findByPhone(request.getPhone()).isPresent()) {
             throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS);
@@ -50,15 +58,18 @@ public class UserController {
     }
 
     @PutMapping("/me/qr")
-    public ResponseEntity<UserSummaryResponse> updateMyQr(@Valid @RequestBody UpdateQrRequest request) {
+    public ResponseEntity<UserSummaryResponse> updateMyQr(
+            @Valid @RequestBody UpdateQrRequest request) {
         UUID userId = SecurityUtils.getCurrentUserId();
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         user.setBankQrUrl(request.getBankQrUrl());
         if (request.getBankBin() != null) user.setBankBin(request.getBankBin());
         if (request.getBankAccountNo() != null) user.setBankAccountNo(request.getBankAccountNo());
-        
+
         userRepository.save(user);
 
         return ResponseEntity.ok(toUserSummary(user));

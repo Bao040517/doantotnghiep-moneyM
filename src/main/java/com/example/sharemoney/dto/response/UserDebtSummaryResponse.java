@@ -5,8 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * Tóm tắt nợ xuyên suốt TẤT CẢ các nhóm của một user.
- * Dùng cho API GET /api/groups/debts/summary
+ * Tóm tắt nợ xuyên suốt TẤT CẢ các nhóm của một user. Dùng cho API GET /api/groups/debts/summary
  * Được dùng bởi WalletTab để tính Safe-to-Spend.
  */
 @Getter

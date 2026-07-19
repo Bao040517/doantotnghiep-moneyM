@@ -2,19 +2,20 @@ package com.example.sharemoney.dto.request;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class WithdrawSavingsGoalRequest {
-    @NotNull(message = "Số tiền rút không được để trống")
-    @DecimalMin(value = "0.01", message = "Số tiền rút phải lớn hơn 0")
+    @NotNull(message = "Số tiền rút không được để trống") @DecimalMin(value = "0.01", message = "Số tiền rút phải lớn hơn 0")
     private BigDecimal amount;
+
+    private UUID walletId;
 }

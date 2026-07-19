@@ -16,12 +16,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Rate Limiting Filter sử dụng thuật toán Fixed Window.
- * - API thông thường: 60 requests/phút mỗi IP
+ * Rate Limiting Filter sử dụng thuật toán Fixed Window. - API thông thường: 60 requests/phút mỗi IP
  * - Auth endpoints (/api/auth/**): 10 requests/phút mỗi IP (chống brute-force)
- * 
- * Dùng ConcurrentHashMap in-memory. Phù hợp cho single-instance deployment.
- * Nếu deploy multi-instance, cần chuyển sang Redis-based rate limiting.
+ *
+ * <p>Dùng ConcurrentHashMap in-memory. Phù hợp cho single-instance deployment. Nếu deploy
+ * multi-instance, cần chuyển sang Redis-based rate limiting.
  */
 @Slf4j
 @Component
@@ -42,9 +41,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException {
+            HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
 
         String clientIp = getClientIp(request);
         String path = request.getRequestURI();
@@ -60,8 +58,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             log.warn("[RateLimit] Blocked {} from {} (limit: {} req/min)", path, clientIp, limit);
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(
-                    "{\"status\":429,\"message\":\"Quá nhiều yêu cầu. Vui lòng thử lại sau 1 phút.\"}");
+            response.getWriter()
+                    .write(
+                            "{\"status\":429,\"message\":\"Quá nhiều yêu cầu. Vui lòng thử lại sau 1 phút.\"}");
             return;
         }
 
@@ -71,9 +70,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Lấy IP thật của client (xử lý proxy/load balancer).
-     */
+    /** Lấy IP thật của client (xử lý proxy/load balancer). */
     private String getClientIp(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
@@ -86,9 +83,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return request.getRemoteAddr();
     }
 
-    /**
-     * Dọn dẹp các bucket đã hết hạn (> 2 phút không có request).
-     */
+    /** Dọn dẹp các bucket đã hết hạn (> 2 phút không có request). */
     private void cleanupIfNeeded() {
         long now = System.currentTimeMillis();
         if (now - lastCleanup.get() > CLEANUP_INTERVAL_MS) {
@@ -99,10 +94,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         }
     }
 
-    /**
-     * Fixed Window Rate Limit Bucket.
-     * Reset counter mỗi 60 giây.
-     */
+    /** Fixed Window Rate Limit Bucket. Reset counter mỗi 60 giây. */
     private static class RateLimitBucket {
         private final AtomicInteger count = new AtomicInteger(0);
         private final AtomicLong windowStart = new AtomicLong(System.currentTimeMillis());

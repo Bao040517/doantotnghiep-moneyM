@@ -2,7 +2,6 @@ package com.example.sharemoney.dto.request;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -32,20 +31,17 @@ public class CreateExpenseRequest {
     private String category;
 
     /**
-     * Danh sách userId được chia tiền (không bao gồm người trả).
-     * Nếu bỏ trống, hệ thống sẽ tự động chia đều cho tất cả thành viên trong nhóm.
+     * Danh sách userId được chia tiền (không bao gồm người trả). Nếu bỏ trống, hệ thống sẽ tự động
+     * chia đều cho tất cả thành viên trong nhóm.
      */
     private List<UUID> splitUserIds;
 
     /**
-     * Tùy chọn: Số tiền nợ cụ thể cho từng người (Custom Split / Itemized Split).
-     * Key = userId, Value = số tiền nợ.
-     * Nếu có dữ liệu, hệ thống sẽ sử dụng số tiền này thay vì chia đều.
+     * Tùy chọn: Số tiền nợ cụ thể cho từng người (Custom Split / Itemized Split). Key = userId,
+     * Value = số tiền nợ. Nếu có dữ liệu, hệ thống sẽ sử dụng số tiền này thay vì chia đều.
      */
     private Map<UUID, BigDecimal> splitAmounts;
-    
-    /**
-     * Tùy chọn: ID của giao dịch cá nhân nếu muốn liên kết.
-     */
+
+    /** Tùy chọn: ID của giao dịch cá nhân nếu muốn liên kết. */
     private UUID linkedTransactionId;
 }

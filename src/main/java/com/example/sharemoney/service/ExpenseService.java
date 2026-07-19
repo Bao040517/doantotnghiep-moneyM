@@ -8,6 +8,7 @@ import com.example.sharemoney.dto.response.UserSummaryResponse;
 import com.example.sharemoney.entity.Expense;
 import com.example.sharemoney.entity.ExpenseSplit;
 import com.example.sharemoney.entity.Group;
+import com.example.sharemoney.entity.Transaction;
 import com.example.sharemoney.entity.User;
 import com.example.sharemoney.exception.AppException;
 import com.example.sharemoney.exception.ErrorCode;
@@ -16,12 +17,11 @@ import com.example.sharemoney.repository.GroupMemberRepository;
 import com.example.sharemoney.repository.GroupRepository;
 import com.example.sharemoney.repository.TransactionRepository;
 import com.example.sharemoney.repository.UserRepository;
-import com.example.sharemoney.entity.Transaction;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,19 +42,22 @@ public class ExpenseService {
     // Tạo khoản chi + tự động chia tiền (equal split)
     // ─────────────────────────────────────────────────────────────
     @Transactional
-    public ExpenseDetailResponse createExpense(UUID groupId, CreateExpenseRequest req, UUID requestUserId) {
-        Group group = groupRepository
-                .findById(groupId)
-                .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+    public ExpenseDetailResponse createExpense(
+            UUID groupId, CreateExpenseRequest req, UUID requestUserId) {
+        Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
 
         // Validate: người gọi phải là thành viên nhóm
         if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, requestUserId)) {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
-        User payer = userRepository
-                .findById(req.getPaidBy())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User payer =
+                userRepository
+                        .findById(req.getPaidBy())
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         // Validate: payer phải là thành viên nhóm
         if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, payer.getId())) {
@@ -64,29 +67,32 @@ public class ExpenseService {
         // Tự động phân bổ cho tất cả thành viên nếu mảng rỗng
         List<UUID> targetSplitUserIds = req.getSplitUserIds();
         if (targetSplitUserIds == null || targetSplitUserIds.isEmpty()) {
-            targetSplitUserIds = groupMemberRepository.findByGroup_Id(groupId).stream()
-                    .map(gm -> gm.getUser().getId())
-                    .filter(id -> !id.equals(payer.getId()))
-                    .collect(java.util.stream.Collectors.toList());
+            targetSplitUserIds =
+                    groupMemberRepository.findByGroup_Id(groupId).stream()
+                            .map(gm -> gm.getUser().getId())
+                            .collect(java.util.stream.Collectors.toList());
         }
 
         // Validate: tất cả splitUserIds phải là thành viên nhóm
         List<User> splitUsers = resolveMembersInGroup(targetSplitUserIds, groupId);
 
         // Tạo Expense
-        Expense expense = Expense.builder()
-                .group(group)
-                .payer(payer)
-                .title(req.getTitle())
-                .amount(req.getAmount())
-                .category(req.getCategory())
-                .build();
+        Expense expense =
+                Expense.builder()
+                        .group(group)
+                        .payer(payer)
+                        .title(req.getTitle())
+                        .amount(req.getAmount())
+                        .category(req.getCategory())
+                        .build();
 
         // Tính splits và gắn vào expense
         List<ExpenseSplit> splits;
         if (req.getSplitAmounts() != null && !req.getSplitAmounts().isEmpty()) {
             // Custom Split (Itemized Splitting): sử dụng số tiền cụ thể cho từng người
-            splits = calculateCustomSplits(expense, splitUsers, req.getSplitAmounts(), req.getAmount());
+            splits =
+                    calculateCustomSplits(
+                            expense, splitUsers, req.getSplitAmounts(), req.getAmount());
         } else {
             // Equal Split: chia đều
             splits = calculateSplits(expense, splitUsers, req.getAmount());
@@ -97,8 +103,10 @@ public class ExpenseService {
 
         // Xử lý liên kết với Transaction có sẵn (Logic 2)
         if (req.getLinkedTransactionId() != null) {
-            Transaction tx = transactionRepository.findById(req.getLinkedTransactionId())
-                    .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
+            Transaction tx =
+                    transactionRepository
+                            .findById(req.getLinkedTransactionId())
+                            .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
             // Kiểm tra bảo mật
             if (!tx.getWallet().getUser().getId().equals(payer.getId())) {
                 throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -107,8 +115,13 @@ public class ExpenseService {
             transactionRepository.save(tx);
         } else {
             // Chỉ publish event cho PFM nếu KHÔNG phải khoản chi liên kết
-            eventPublisher.publishEvent(new com.example.sharemoney.event.ExpenseCreatedEvent(
-                    expense.getId(), payer.getId(), req.getAmount(), req.getTitle(), req.getCategory()));
+            eventPublisher.publishEvent(
+                    new com.example.sharemoney.event.ExpenseCreatedEvent(
+                            expense.getId(),
+                            payer.getId(),
+                            req.getAmount(),
+                            req.getTitle(),
+                            req.getCategory()));
         }
 
         return toDetailResponse(expense);
@@ -118,7 +131,8 @@ public class ExpenseService {
     // Danh sách khoản chi của nhóm (Phân trang)
     // ─────────────────────────────────────────────────────────────
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<ExpenseResponse> getGroupExpenses(UUID groupId, UUID userId, int page, int size) {
+    public org.springframework.data.domain.Page<ExpenseResponse> getGroupExpenses(
+            UUID groupId, UUID userId, int page, int size) {
         groupRepository
                 .findById(groupId)
                 .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
@@ -127,8 +141,10 @@ public class ExpenseService {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-        return expenseRepository.findByGroup_IdOrderByCreatedAtDesc(groupId, pageable)
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(page, size);
+        return expenseRepository
+                .findByGroup_IdOrderByCreatedAtDesc(groupId, pageable)
                 .map(this::toListResponse);
     }
 
@@ -145,12 +161,24 @@ public class ExpenseService {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
-        List<Expense> expenses = new ArrayList<>(expenseRepository.findByGroup_IdOrderByCreatedAtDesc(groupId, org.springframework.data.domain.Pageable.unpaged()).getContent());
-        expenses.sort((e1, e2) -> {
-            java.time.LocalDateTime t1 = e1.getCreatedAt() != null ? e1.getCreatedAt() : java.time.LocalDateTime.MIN;
-            java.time.LocalDateTime t2 = e2.getCreatedAt() != null ? e2.getCreatedAt() : java.time.LocalDateTime.MIN;
-            return t2.compareTo(t1);
-        });
+        List<Expense> expenses =
+                new ArrayList<>(
+                        expenseRepository
+                                .findByGroup_IdOrderByCreatedAtDesc(
+                                        groupId, org.springframework.data.domain.Pageable.unpaged())
+                                .getContent());
+        expenses.sort(
+                (e1, e2) -> {
+                    java.time.LocalDateTime t1 =
+                            e1.getCreatedAt() != null
+                                    ? e1.getCreatedAt()
+                                    : java.time.LocalDateTime.MIN;
+                    java.time.LocalDateTime t2 =
+                            e2.getCreatedAt() != null
+                                    ? e2.getCreatedAt()
+                                    : java.time.LocalDateTime.MIN;
+                    return t2.compareTo(t1);
+                });
 
         StringBuilder sb = new StringBuilder();
         // Thêm UTF-8 BOM để Excel có thể đọc tiếng Việt đúng cách
@@ -160,12 +188,18 @@ public class ExpenseService {
         for (Expense e : expenses) {
             sb.append(e.getId()).append(",");
             sb.append(e.getCreatedAt() != null ? e.getCreatedAt().toString() : "").append(",");
-            sb.append("\"").append((e.getCategory() != null ? e.getCategory() : "").replace("\"", "\"\""))
-                    .append("\",");
-            sb.append("\"").append((e.getTitle() != null ? e.getTitle() : "").replace("\"", "\"\"")).append("\",");
             sb.append("\"")
-                    .append((e.getPayer() != null && e.getPayer().getName() != null ? e.getPayer().getName() : "")
-                            .replace("\"", "\"\""))
+                    .append((e.getCategory() != null ? e.getCategory() : "").replace("\"", "\"\""))
+                    .append("\",");
+            sb.append("\"")
+                    .append((e.getTitle() != null ? e.getTitle() : "").replace("\"", "\"\""))
+                    .append("\",");
+            sb.append("\"")
+                    .append(
+                            (e.getPayer() != null && e.getPayer().getName() != null
+                                            ? e.getPayer().getName()
+                                            : "")
+                                    .replace("\"", "\"\""))
                     .append("\",");
             sb.append(e.getAmount() != null ? e.getAmount().toString() : "0").append("\n");
         }
@@ -182,9 +216,10 @@ public class ExpenseService {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
-        Expense expense = expenseRepository
-                .findById(expenseId)
-                .orElseThrow(() -> new AppException(ErrorCode.EXPENSE_NOT_FOUND));
+        Expense expense =
+                expenseRepository
+                        .findById(expenseId)
+                        .orElseThrow(() -> new AppException(ErrorCode.EXPENSE_NOT_FOUND));
 
         if (!expense.getGroup().getId().equals(groupId)) {
             throw new AppException(ErrorCode.EXPENSE_NOT_FOUND);
@@ -199,9 +234,10 @@ public class ExpenseService {
     @Transactional
     public ExpenseDetailResponse updateExpense(
             UUID groupId, UUID expenseId, UpdateExpenseRequest req, UUID requestUserId) {
-        Expense expense = expenseRepository
-                .findById(expenseId)
-                .orElseThrow(() -> new AppException(ErrorCode.EXPENSE_NOT_FOUND));
+        Expense expense =
+                expenseRepository
+                        .findById(expenseId)
+                        .orElseThrow(() -> new AppException(ErrorCode.EXPENSE_NOT_FOUND));
 
         if (!expense.getGroup().getId().equals(groupId)) {
             throw new AppException(ErrorCode.EXPENSE_NOT_FOUND);
@@ -212,7 +248,8 @@ public class ExpenseService {
             throw new AppException(ErrorCode.EXPENSE_ALREADY_SETTLED);
         }
 
-        if ("SETTLEMENT".equals(expense.getCategory()) || "CONSOLIDATION".equals(expense.getCategory())) {
+        if ("SETTLEMENT".equals(expense.getCategory())
+                || "CONSOLIDATION".equals(expense.getCategory())) {
             throw new AppException(ErrorCode.CANNOT_MODIFY_SYSTEM_EXPENSE);
         }
 
@@ -221,9 +258,10 @@ public class ExpenseService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
-        User newPayer = userRepository
-                .findById(req.getPaidBy())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User newPayer =
+                userRepository
+                        .findById(req.getPaidBy())
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, newPayer.getId())) {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
@@ -231,10 +269,10 @@ public class ExpenseService {
 
         List<UUID> targetSplitUserIds = req.getSplitUserIds();
         if (targetSplitUserIds == null || targetSplitUserIds.isEmpty()) {
-            targetSplitUserIds = groupMemberRepository.findByGroup_Id(groupId).stream()
-                    .map(gm -> gm.getUser().getId())
-                    .filter(id -> !id.equals(newPayer.getId()))
-                    .collect(java.util.stream.Collectors.toList());
+            targetSplitUserIds =
+                    groupMemberRepository.findByGroup_Id(groupId).stream()
+                            .map(gm -> gm.getUser().getId())
+                            .collect(java.util.stream.Collectors.toList());
         }
         List<User> splitUsers = resolveMembersInGroup(targetSplitUserIds, groupId);
 
@@ -250,7 +288,9 @@ public class ExpenseService {
         // Tạo splits mới
         List<ExpenseSplit> newSplits;
         if (req.getSplitAmounts() != null && !req.getSplitAmounts().isEmpty()) {
-            newSplits = calculateCustomSplits(expense, splitUsers, req.getSplitAmounts(), req.getAmount());
+            newSplits =
+                    calculateCustomSplits(
+                            expense, splitUsers, req.getSplitAmounts(), req.getAmount());
         } else {
             newSplits = calculateSplits(expense, splitUsers, req.getAmount());
         }
@@ -260,10 +300,17 @@ public class ExpenseService {
 
         // Chỉ publish event nếu KHÔNG có transaction nào linked với expense này
         // (tránh double-counting trong PFM khi transaction đã được ghi nhận riêng)
-        List<Transaction> linkedTransactions = transactionRepository.findByLinkedExpenseId(expense.getId());
-        if (linkedTransactions.isEmpty()) {
-            eventPublisher.publishEvent(new com.example.sharemoney.event.ExpenseUpdatedEvent(
-                    expense.getId(), newPayer.getId(), req.getAmount(), req.getTitle(), req.getCategory()));
+        List<Transaction> linkedTransactions =
+                transactionRepository.findByLinkedExpenseId(expense.getId());
+        boolean hasManualLink = linkedTransactions.stream().anyMatch(t -> !t.isAutoGenerated());
+        if (!hasManualLink) {
+            eventPublisher.publishEvent(
+                    new com.example.sharemoney.event.ExpenseUpdatedEvent(
+                            expense.getId(),
+                            newPayer.getId(),
+                            req.getAmount(),
+                            req.getTitle(),
+                            req.getCategory()));
         }
 
         return toDetailResponse(expense);
@@ -278,9 +325,10 @@ public class ExpenseService {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
-        Expense expense = expenseRepository
-                .findById(expenseId)
-                .orElseThrow(() -> new AppException(ErrorCode.EXPENSE_NOT_FOUND));
+        Expense expense =
+                expenseRepository
+                        .findById(expenseId)
+                        .orElseThrow(() -> new AppException(ErrorCode.EXPENSE_NOT_FOUND));
 
         if (!expense.getGroup().getId().equals(groupId)) {
             throw new AppException(ErrorCode.EXPENSE_NOT_FOUND);
@@ -291,7 +339,8 @@ public class ExpenseService {
             throw new AppException(ErrorCode.EXPENSE_ALREADY_SETTLED);
         }
 
-        if ("SETTLEMENT".equals(expense.getCategory()) || "CONSOLIDATION".equals(expense.getCategory())) {
+        if ("SETTLEMENT".equals(expense.getCategory())
+                || "CONSOLIDATION".equals(expense.getCategory())) {
             throw new AppException(ErrorCode.CANNOT_MODIFY_SYSTEM_EXPENSE);
         }
 
@@ -302,7 +351,8 @@ public class ExpenseService {
 
         expenseRepository.delete(expense); // CascadeType.ALL xoá splits tự động
 
-        eventPublisher.publishEvent(new com.example.sharemoney.event.ExpenseDeletedEvent(expenseId));
+        eventPublisher.publishEvent(
+                new com.example.sharemoney.event.ExpenseDeletedEvent(expenseId));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -332,10 +382,13 @@ public class ExpenseService {
     // Private: Chia tiền tùy chỉnh — mỗi người nợ số tiền cụ thể (Itemized Split)
     // ─────────────────────────────────────────────────────────────
     private List<ExpenseSplit> calculateCustomSplits(
-            Expense expense, List<User> splitUsers, Map<UUID, BigDecimal> splitAmounts, BigDecimal totalAmount) {
+            Expense expense,
+            List<User> splitUsers,
+            Map<UUID, BigDecimal> splitAmounts,
+            BigDecimal totalAmount) {
         // Validate: tổng splitAmounts phải bằng totalAmount
-        BigDecimal sumOfSplits = splitAmounts.values().stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal sumOfSplits =
+                splitAmounts.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
         if (sumOfSplits.compareTo(totalAmount) != 0) {
             throw new AppException(ErrorCode.CUSTOM_SPLIT_MISMATCH);
         }
@@ -389,15 +442,17 @@ public class ExpenseService {
     }
 
     private ExpenseDetailResponse toDetailResponse(Expense expense) {
-        List<ExpenseDetailResponse.SplitResponse> splitResponses = expense.getSplits().stream()
-                .map(
-                        s -> ExpenseDetailResponse.SplitResponse.builder()
-                                .id(s.getId())
-                                .user(toUserSummary(s.getUser()))
-                                .amountOwed(s.getAmountOwed())
-                                .isSettled(s.isSettled())
-                                .build())
-                .toList();
+        List<ExpenseDetailResponse.SplitResponse> splitResponses =
+                expense.getSplits().stream()
+                        .map(
+                                s ->
+                                        ExpenseDetailResponse.SplitResponse.builder()
+                                                .id(s.getId())
+                                                .user(toUserSummary(s.getUser()))
+                                                .amountOwed(s.getAmountOwed())
+                                                .isSettled(s.isSettled())
+                                                .build())
+                        .toList();
 
         return ExpenseDetailResponse.builder()
                 .id(expense.getId())

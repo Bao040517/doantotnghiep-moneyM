@@ -12,10 +12,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class ApproveSettleRequest {
-    @NotNull(message = "Người nợ không được để trống")
-    private UUID debtorId;
+    @NotNull(message = "Người nợ không được để trống") private UUID debtorId;
 
-    @NotNull(message = "Số tiền không được để trống")
-    @Positive(message = "Số tiền phải lớn hơn 0")
-    private BigDecimal amount;
+    @NotNull(message = "Số tiền không được để trống") @Positive(message = "Số tiền phải lớn hơn 0") private BigDecimal amount;
 }

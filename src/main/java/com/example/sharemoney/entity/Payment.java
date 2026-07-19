@@ -23,7 +23,7 @@ import org.hibernate.annotations.CreationTimestamp;
  * Giao dịch thanh toán giữa 2 thành viên trong nhóm. Được tạo khi Greedy algorithm xác định ai cần
  * trả cho ai bao nhiêu. status: "pending" | "completed"
  *
- * Hệ thống dùng bảng này để lưu trạng thái "pending" khi thanh toán.
+ * <p>Hệ thống dùng bảng này để lưu trạng thái "pending" khi thanh toán.
  */
 @Entity
 @Table(name = "payments")

@@ -4,8 +4,8 @@ import com.example.sharemoney.dto.response.UserSummaryResponse;
 import com.example.sharemoney.entity.User;
 
 /**
- * Utility class dùng chung để map User entity → UserSummaryResponse.
- * Loại bỏ các hàm private toUserSummary() trùng lặp trong DebtService, ExpenseService, GroupService.
+ * Utility class dùng chung để map User entity → UserSummaryResponse. Loại bỏ các hàm private
+ * toUserSummary() trùng lặp trong DebtService, ExpenseService, GroupService.
  */
 public final class UserMapper {
 

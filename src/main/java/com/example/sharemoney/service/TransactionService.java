@@ -2,8 +2,8 @@ package com.example.sharemoney.service;
 
 import com.example.sharemoney.dto.request.CreateTransactionRequest;
 import com.example.sharemoney.dto.request.UpdateTransactionRequest;
-import com.example.sharemoney.dto.response.CategoryResponse;
 import com.example.sharemoney.dto.response.CategoryBreakdownResponse;
+import com.example.sharemoney.dto.response.CategoryResponse;
 import com.example.sharemoney.dto.response.MonthlySummaryResponse;
 import com.example.sharemoney.dto.response.TransactionResponse;
 import com.example.sharemoney.entity.Budget;
@@ -21,23 +21,20 @@ import com.example.sharemoney.repository.CategoryRepository;
 import com.example.sharemoney.repository.NotificationRepository;
 import com.example.sharemoney.repository.TransactionRepository;
 import com.example.sharemoney.repository.WalletRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -57,62 +54,109 @@ public class TransactionService {
     // Tạo giao dịch mới (giữ nguyên logic cũ)
     // ─────────────────────────────────────────────────────────────
     @Transactional
-    public TransactionResponse createTransaction(UUID userId, UUID walletId, CreateTransactionRequest req) {
-        Wallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
+    public TransactionResponse createTransaction(
+            UUID userId, UUID walletId, CreateTransactionRequest req) {
+        Wallet wallet =
+                walletRepository
+                        .findById(walletId)
+                        .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
 
         if (!wallet.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
-        Category category = categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+        Category category =
+                categoryRepository
+                        .findById(req.getCategoryId())
+                        .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 
         Payee payee = null;
         if (req.getPayeeName() != null && !req.getPayeeName().trim().isEmpty()) {
-            payee = payeeRepository.findByUser_IdAndName(userId, req.getPayeeName().trim())
-                    .orElseGet(() -> payeeRepository.save(Payee.builder().user(wallet.getUser()).name(req.getPayeeName().trim()).build()));
+            payee =
+                    payeeRepository
+                            .findByUser_IdAndName(userId, req.getPayeeName().trim())
+                            .orElseGet(
+                                    () ->
+                                            payeeRepository.save(
+                                                    Payee.builder()
+                                                            .user(wallet.getUser())
+                                                            .name(req.getPayeeName().trim())
+                                                            .build()));
         }
 
         java.util.Set<Tag> tags = new java.util.HashSet<>();
         if (req.getTags() != null) {
             for (String tagName : req.getTags()) {
                 if (tagName == null || tagName.trim().isEmpty()) continue;
-                Tag tag = tagRepository.findByUser_IdAndName(userId, tagName.trim())
-                        .orElseGet(() -> tagRepository.save(Tag.builder().user(wallet.getUser()).name(tagName.trim()).build()));
+                Tag tag =
+                        tagRepository
+                                .findByUser_IdAndName(userId, tagName.trim())
+                                .orElseGet(
+                                        () ->
+                                                tagRepository.save(
+                                                        Tag.builder()
+                                                                .user(wallet.getUser())
+                                                                .name(tagName.trim())
+                                                                .build()));
                 tags.add(tag);
             }
         }
 
-        Transaction transaction = Transaction.builder()
-                .wallet(wallet)
-                .amount(req.getAmount())
-                .type(category.getType())
-                .category(category)
-                .transactionDate(req.getTransactionDate() != null ? req.getTransactionDate() : LocalDateTime.now())
-                .note(req.getNote())
-                .payee(payee)
-                .tags(tags)
-                .isSplit(req.isSplit())
-                .linkedBudgetId(req.getLinkedBudgetId())
-                .excludeFromBudget(req.isExcludeFromBudget())
-                .build();
+        LocalDateTime txDate =
+                req.getTransactionDate() != null ? req.getTransactionDate() : LocalDateTime.now();
+        UUID linkedBudgetId = req.getLinkedBudgetId();
+        if (linkedBudgetId == null && category.getType() == TransactionType.EXPENSE) {
+            List<Budget> candidateBudgets =
+                    budgetRepository
+                            .findByUser_IdAndMonthAndYear(
+                                    userId, txDate.getMonthValue(), txDate.getYear())
+                            .stream()
+                            .filter(
+                                    b ->
+                                            b.getCategory().getId().equals(category.getId())
+                                                    && b.getType()
+                                                            == com.example.sharemoney.entity
+                                                                    .BudgetType.BILL)
+                            .collect(Collectors.toList());
+            if (candidateBudgets.size() == 1) {
+                linkedBudgetId = candidateBudgets.get(0).getId();
+            }
+        }
+
+        Transaction transaction =
+                Transaction.builder()
+                        .wallet(wallet)
+                        .amount(req.getAmount())
+                        .type(category.getType())
+                        .category(category)
+                        .transactionDate(txDate)
+                        .note(req.getNote())
+                        .payee(payee)
+                        .tags(tags)
+                        .isSplit(req.isSplit())
+                        .linkedBudgetId(linkedBudgetId)
+                        .excludeFromBudget(req.isExcludeFromBudget())
+                        .build();
 
         if (req.isSplit() && req.getSplits() != null && !req.getSplits().isEmpty()) {
             BigDecimal totalSplit = BigDecimal.ZERO;
             List<com.example.sharemoney.entity.TransactionSplit> splits = new ArrayList<>();
-            for (com.example.sharemoney.dto.request.TransactionSplitRequest splitReq : req.getSplits()) {
-                Category splitCat = categoryRepository.findById(splitReq.getCategoryId())
-                        .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+            for (com.example.sharemoney.dto.request.TransactionSplitRequest splitReq :
+                    req.getSplits()) {
+                Category splitCat =
+                        categoryRepository
+                                .findById(splitReq.getCategoryId())
+                                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
                 if (splitCat.getType() != category.getType()) {
                     throw new AppException(ErrorCode.INVALID_SPLIT_CATEGORY_TYPE);
                 }
-                com.example.sharemoney.entity.TransactionSplit split = com.example.sharemoney.entity.TransactionSplit.builder()
-                        .parentTransaction(transaction)
-                        .category(splitCat)
-                        .amount(splitReq.getAmount())
-                        .note(splitReq.getNote())
-                        .build();
+                com.example.sharemoney.entity.TransactionSplit split =
+                        com.example.sharemoney.entity.TransactionSplit.builder()
+                                .parentTransaction(transaction)
+                                .category(splitCat)
+                                .amount(splitReq.getAmount())
+                                .note(splitReq.getNote())
+                                .build();
                 splits.add(split);
                 totalSplit = totalSplit.add(splitReq.getAmount());
             }
@@ -146,10 +190,28 @@ public class TransactionService {
     // Lấy toàn bộ giao dịch (Phân trang)
     // ─────────────────────────────────────────────────────────────
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<TransactionResponse> getUserTransactions(UUID userId, int page, int size) {
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-        return transactionRepository.findByWallet_User_IdOrderByTransactionDateDesc(userId, pageable)
+    public org.springframework.data.domain.Page<TransactionResponse> getUserTransactions(
+            UUID userId, int page, int size) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(page, size);
+        return transactionRepository
+                .findByWallet_User_IdOrderByTransactionDateDesc(userId, pageable)
                 .map(this::toResponse);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Lọc giao dịch chưa phân loại
+    // ─────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public long getUncategorizedCount(UUID userId) {
+        return transactionRepository.countUncategorizedTransactions(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TransactionResponse> getUncategorizedTransactions(UUID userId) {
+        return transactionRepository.findUncategorizedTransactions(userId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -157,8 +219,7 @@ public class TransactionService {
     // ─────────────────────────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<TransactionResponse> getTransactionsByMonth(UUID userId, int year, int month) {
-        return transactionRepository.findByUserAndMonth(userId, year, month)
-                .stream()
+        return transactionRepository.findByUserAndMonth(userId, year, month).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -167,9 +228,12 @@ public class TransactionService {
     // Sửa giao dịch (MỚI - Phase 1)
     // ─────────────────────────────────────────────────────────────
     @Transactional
-    public TransactionResponse updateTransaction(UUID userId, UUID txId, UpdateTransactionRequest req) {
-        Transaction tx = transactionRepository.findById(txId)
-                .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
+    public TransactionResponse updateTransaction(
+            UUID userId, UUID txId, UpdateTransactionRequest req) {
+        Transaction tx =
+                transactionRepository
+                        .findById(txId)
+                        .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
 
         if (!tx.getWallet().getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -191,8 +255,10 @@ public class TransactionService {
         // TRANSFER: không rollback (không thay đổi số dư)
 
         // Áp danh mục mới
-        Category newCategory = categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+        Category newCategory =
+                categoryRepository
+                        .findById(req.getCategoryId())
+                        .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 
         tx.setAmount(req.getAmount());
         tx.setCategory(newCategory);
@@ -202,12 +268,47 @@ public class TransactionService {
             tx.setTransactionDate(req.getTransactionDate());
         }
         tx.setExcludeFromBudget(req.isExcludeFromBudget());
-        tx.setLinkedBudgetId(req.getLinkedBudgetId());
+
+        UUID linkedBudgetId = req.getLinkedBudgetId();
+        if (linkedBudgetId == null) {
+            linkedBudgetId = tx.getLinkedBudgetId(); // Giữ nguyên link cũ nếu không truyền
+        }
+
+        if (linkedBudgetId == null && newCategory.getType() == TransactionType.EXPENSE) {
+            LocalDateTime txDate =
+                    req.getTransactionDate() != null
+                            ? req.getTransactionDate()
+                            : tx.getTransactionDate();
+            List<Budget> candidateBudgets =
+                    budgetRepository
+                            .findByUser_IdAndMonthAndYear(
+                                    userId, txDate.getMonthValue(), txDate.getYear())
+                            .stream()
+                            .filter(
+                                    b ->
+                                            b.getCategory().getId().equals(newCategory.getId())
+                                                    && b.getType()
+                                                            == com.example.sharemoney.entity
+                                                                    .BudgetType.BILL)
+                            .collect(Collectors.toList());
+            if (candidateBudgets.size() == 1) {
+                linkedBudgetId = candidateBudgets.get(0).getId();
+            }
+        }
+        tx.setLinkedBudgetId(linkedBudgetId);
 
         Payee payee = null;
         if (req.getPayeeName() != null && !req.getPayeeName().trim().isEmpty()) {
-            payee = payeeRepository.findByUser_IdAndName(userId, req.getPayeeName().trim())
-                    .orElseGet(() -> payeeRepository.save(Payee.builder().user(wallet.getUser()).name(req.getPayeeName().trim()).build()));
+            payee =
+                    payeeRepository
+                            .findByUser_IdAndName(userId, req.getPayeeName().trim())
+                            .orElseGet(
+                                    () ->
+                                            payeeRepository.save(
+                                                    Payee.builder()
+                                                            .user(wallet.getUser())
+                                                            .name(req.getPayeeName().trim())
+                                                            .build()));
         }
         tx.setPayee(payee);
 
@@ -215,8 +316,16 @@ public class TransactionService {
         if (req.getTags() != null) {
             for (String tagName : req.getTags()) {
                 if (tagName == null || tagName.trim().isEmpty()) continue;
-                Tag tag = tagRepository.findByUser_IdAndName(userId, tagName.trim())
-                        .orElseGet(() -> tagRepository.save(Tag.builder().user(wallet.getUser()).name(tagName.trim()).build()));
+                Tag tag =
+                        tagRepository
+                                .findByUser_IdAndName(userId, tagName.trim())
+                                .orElseGet(
+                                        () ->
+                                                tagRepository.save(
+                                                        Tag.builder()
+                                                                .user(wallet.getUser())
+                                                                .name(tagName.trim())
+                                                                .build()));
                 tags.add(tag);
             }
         }
@@ -230,18 +339,22 @@ public class TransactionService {
             } else {
                 tx.setSplits(new ArrayList<>());
             }
-            for (com.example.sharemoney.dto.request.TransactionSplitRequest splitReq : req.getSplits()) {
-                Category splitCat = categoryRepository.findById(splitReq.getCategoryId())
-                        .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+            for (com.example.sharemoney.dto.request.TransactionSplitRequest splitReq :
+                    req.getSplits()) {
+                Category splitCat =
+                        categoryRepository
+                                .findById(splitReq.getCategoryId())
+                                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
                 if (splitCat.getType() != newCategory.getType()) {
                     throw new AppException(ErrorCode.INVALID_SPLIT_CATEGORY_TYPE);
                 }
-                com.example.sharemoney.entity.TransactionSplit split = com.example.sharemoney.entity.TransactionSplit.builder()
-                        .parentTransaction(tx)
-                        .category(splitCat)
-                        .amount(splitReq.getAmount())
-                        .note(splitReq.getNote())
-                        .build();
+                com.example.sharemoney.entity.TransactionSplit split =
+                        com.example.sharemoney.entity.TransactionSplit.builder()
+                                .parentTransaction(tx)
+                                .category(splitCat)
+                                .amount(splitReq.getAmount())
+                                .note(splitReq.getNote())
+                                .build();
                 tx.getSplits().add(split);
                 totalSplit = totalSplit.add(splitReq.getAmount());
             }
@@ -279,8 +392,10 @@ public class TransactionService {
     // ─────────────────────────────────────────────────────────────
     @Transactional
     public void deleteTransaction(UUID userId, UUID txId) {
-        Transaction tx = transactionRepository.findById(txId)
-                .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
+        Transaction tx =
+                transactionRepository
+                        .findById(txId)
+                        .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
 
         if (!tx.getWallet().getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -319,69 +434,102 @@ public class TransactionService {
             LocalDateTime from = targetYM.atDay(1).atStartOfDay();
             LocalDateTime to = targetYM.plusMonths(1).atDay(1).atStartOfDay();
 
-            BigDecimal income = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, from, to);
+            BigDecimal income =
+                    transactionRepository.sumByTypeAndPeriod(
+                            userId, TransactionType.INCOME, from, to);
             if (income == null) income = BigDecimal.ZERO;
-            BigDecimal debtRecovery = transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
+            BigDecimal debtRecovery =
+                    transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
             if (debtRecovery == null) debtRecovery = BigDecimal.ZERO;
             income = income.add(debtRecovery);
 
-            BigDecimal expense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, from, to);
+            BigDecimal expense =
+                    transactionRepository.sumByTypeAndPeriod(
+                            userId, TransactionType.EXPENSE, from, to);
             if (expense == null) expense = BigDecimal.ZERO;
             BigDecimal debtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, from, to);
             if (debtPayment == null) debtPayment = BigDecimal.ZERO;
             BigDecimal net = income.subtract(expense);
 
             String label = "T" + targetYM.getMonthValue() + "/" + targetYM.getYear();
-            
-            List<CategoryBreakdownResponse> catBreakdown = getCategoryBreakdownByType(userId, targetYM.getYear(), targetYM.getMonthValue(), TransactionType.EXPENSE);
-            java.util.Map<String, BigDecimal> catExpenses = catBreakdown.stream()
-                .collect(Collectors.toMap(CategoryBreakdownResponse::getCategoryName, CategoryBreakdownResponse::getTotalAmount, (v1, v2) -> v1));
 
-            List<CategoryBreakdownResponse> incBreakdown = getCategoryBreakdownByType(userId, targetYM.getYear(), targetYM.getMonthValue(), TransactionType.INCOME);
-            java.util.Map<String, BigDecimal> catIncomes = incBreakdown.stream()
-                .collect(Collectors.toMap(CategoryBreakdownResponse::getCategoryName, CategoryBreakdownResponse::getTotalAmount, (v1, v2) -> v1));
+            List<CategoryBreakdownResponse> catBreakdown =
+                    getCategoryBreakdownByType(
+                            userId,
+                            targetYM.getYear(),
+                            targetYM.getMonthValue(),
+                            TransactionType.EXPENSE);
+            java.util.Map<String, BigDecimal> catExpenses =
+                    catBreakdown.stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            CategoryBreakdownResponse::getCategoryName,
+                                            CategoryBreakdownResponse::getTotalAmount,
+                                            (v1, v2) -> v1));
 
-            months.add(MonthlySummaryResponse.MonthData.builder()
-                    .label(label)
-                    .year(targetYM.getYear())
-                    .month(targetYM.getMonthValue())
-                    .income(income)
-                    .expense(expense)
-                    .net(net)
-                    .debtPayment(debtPayment)
-                    .categoryExpenses(catExpenses)
-                    .categoryIncomes(catIncomes)
-                    .build());
+            List<CategoryBreakdownResponse> incBreakdown =
+                    getCategoryBreakdownByType(
+                            userId,
+                            targetYM.getYear(),
+                            targetYM.getMonthValue(),
+                            TransactionType.INCOME);
+            java.util.Map<String, BigDecimal> catIncomes =
+                    incBreakdown.stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            CategoryBreakdownResponse::getCategoryName,
+                                            CategoryBreakdownResponse::getTotalAmount,
+                                            (v1, v2) -> v1));
+
+            months.add(
+                    MonthlySummaryResponse.MonthData.builder()
+                            .label(label)
+                            .year(targetYM.getYear())
+                            .month(targetYM.getMonthValue())
+                            .income(income)
+                            .expense(expense)
+                            .net(net)
+                            .debtPayment(debtPayment)
+                            .categoryExpenses(catExpenses)
+                            .categoryIncomes(catIncomes)
+                            .build());
         }
 
         // Current month
         MonthlySummaryResponse.MonthData currentMonthData = months.get(5); // last one
-        MonthlySummaryResponse.MonthData prevMonthData = months.get(4);    // previous one
+        MonthlySummaryResponse.MonthData prevMonthData = months.get(4); // previous one
 
         // Top category current month
-        List<CategoryBreakdownResponse> breakdown = getCategoryBreakdown(userId, currentYM.getYear(), currentYM.getMonthValue());
+        List<CategoryBreakdownResponse> breakdown =
+                getCategoryBreakdown(userId, currentYM.getYear(), currentYM.getMonthValue());
         String topCat = breakdown.isEmpty() ? "Chưa có" : breakdown.get(0).getCategoryName();
 
-        MonthlySummaryResponse.CurrentMonthData current = MonthlySummaryResponse.CurrentMonthData.builder()
-                .totalIncome(currentMonthData.getIncome())
-                .totalExpense(currentMonthData.getExpense())
-                .topCategory(topCat)
-                .build();
+        MonthlySummaryResponse.CurrentMonthData current =
+                MonthlySummaryResponse.CurrentMonthData.builder()
+                        .totalIncome(currentMonthData.getIncome())
+                        .totalExpense(currentMonthData.getExpense())
+                        .topCategory(topCat)
+                        .build();
 
         // Comparison
-        BigDecimal expenseChange = currentMonthData.getExpense().subtract(prevMonthData.getExpense());
+        BigDecimal expenseChange =
+                currentMonthData.getExpense().subtract(prevMonthData.getExpense());
         int percent = 0;
         if (prevMonthData.getExpense().compareTo(BigDecimal.ZERO) > 0) {
-            percent = expenseChange.multiply(BigDecimal.valueOf(100))
-                    .divide(prevMonthData.getExpense(), 0, RoundingMode.HALF_UP).intValue();
+            percent =
+                    expenseChange
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(prevMonthData.getExpense(), 0, RoundingMode.HALF_UP)
+                            .intValue();
         } else if (currentMonthData.getExpense().compareTo(BigDecimal.ZERO) > 0) {
             percent = 100; // was 0, now > 0
         }
 
-        MonthlySummaryResponse.ComparisonData comparison = MonthlySummaryResponse.ComparisonData.builder()
-                .expenseChange(expenseChange)
-                .expenseChangePercent(percent)
-                .build();
+        MonthlySummaryResponse.ComparisonData comparison =
+                MonthlySummaryResponse.ComparisonData.builder()
+                        .expenseChange(expenseChange)
+                        .expenseChangePercent(percent)
+                        .build();
 
         return MonthlySummaryResponse.builder()
                 .months(months)
@@ -393,12 +541,12 @@ public class TransactionService {
     // ─────────────────────────────────────────────────────────────
     // Báo cáo danh mục (Phase 3)
     // ─────────────────────────────────────────────────────────────
-    private List<CategoryBreakdownResponse> getCategoryBreakdownByType(UUID userId, int year, int month, TransactionType type) {
+    private List<CategoryBreakdownResponse> getCategoryBreakdownByType(
+            UUID userId, int year, int month, TransactionType type) {
         List<Transaction> txs = transactionRepository.findByUserAndMonth(userId, year, month);
 
-        List<Transaction> filteredTxs = txs.stream()
-                .filter(t -> t.getType() == type)
-                .collect(Collectors.toList());
+        List<Transaction> filteredTxs =
+                txs.stream().filter(t -> t.getType() == type).collect(Collectors.toList());
 
         java.util.Map<Category, BigDecimal> categorySums = new java.util.HashMap<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -422,20 +570,23 @@ public class TransactionService {
         BigDecimal finalTotalAmount = totalAmount;
 
         return categorySums.entrySet().stream()
-                .map(entry -> {
-                    Category cat = entry.getKey();
-                    BigDecimal sum = entry.getValue();
-                    double percent = sum.multiply(BigDecimal.valueOf(100))
-                            .divide(finalTotalAmount, 1, RoundingMode.HALF_UP).doubleValue();
+                .map(
+                        entry -> {
+                            Category cat = entry.getKey();
+                            BigDecimal sum = entry.getValue();
+                            double percent =
+                                    sum.multiply(BigDecimal.valueOf(100))
+                                            .divide(finalTotalAmount, 1, RoundingMode.HALF_UP)
+                                            .doubleValue();
 
-                    return CategoryBreakdownResponse.builder()
-                            .categoryId(cat.getId())
-                            .categoryName(cat.getName())
-                            .categoryIcon(cat.getIconName())
-                            .totalAmount(sum)
-                            .percentage(percent)
-                            .build();
-                })
+                            return CategoryBreakdownResponse.builder()
+                                    .categoryId(cat.getId())
+                                    .categoryName(cat.getName())
+                                    .categoryIcon(cat.getIconName())
+                                    .totalAmount(sum)
+                                    .percentage(percent)
+                                    .build();
+                        })
                 .sorted(Comparator.comparing(CategoryBreakdownResponse::getTotalAmount).reversed())
                 .collect(Collectors.toList());
     }
@@ -446,7 +597,8 @@ public class TransactionService {
     }
 
     @Transactional(readOnly = true)
-    public List<CategoryBreakdownResponse> getIncomeCategoryBreakdown(UUID userId, int year, int month) {
+    public List<CategoryBreakdownResponse> getIncomeCategoryBreakdown(
+            UUID userId, int year, int month) {
         return getCategoryBreakdownByType(userId, year, month, TransactionType.INCOME);
     }
 
@@ -455,12 +607,12 @@ public class TransactionService {
     // ─────────────────────────────────────────────────────────────
     private void checkAndCreateBudgetAlert(Wallet wallet, Category category, Transaction tx) {
         try {
-            int year  = tx.getTransactionDate().getYear();
+            int year = tx.getTransactionDate().getYear();
             int month = tx.getTransactionDate().getMonthValue();
 
             // Tìm các budget của category này trong tháng
-            List<Budget> budgets = budgetRepository
-                    .findByUser_IdAndCategory_IdAndMonthAndYear(
+            List<Budget> budgets =
+                    budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
                             wallet.getUser().getId(), category.getId(), month, year);
 
             if (budgets == null || budgets.isEmpty()) return;
@@ -470,41 +622,63 @@ public class TransactionService {
                 if (limit == null || limit.compareTo(java.math.BigDecimal.ZERO) <= 0) continue;
 
                 // Tính tổng đã chi category này tháng hiện tại
-                java.math.BigDecimal spent = transactionRepository
-                        .sumExpenseByCategoryAndMonth(wallet.getUser().getId(), category.getId(), year, month);
+                java.math.BigDecimal spent =
+                        transactionRepository.sumExpenseByCategoryAndMonth(
+                                wallet.getUser().getId(), category.getId(), year, month);
                 if (spent == null) spent = java.math.BigDecimal.ZERO;
 
-                double pct = spent.multiply(java.math.BigDecimal.valueOf(100))
-                        .divide(limit, 0, java.math.RoundingMode.HALF_UP).doubleValue();
+                double pct =
+                        spent.multiply(java.math.BigDecimal.valueOf(100))
+                                .divide(limit, 0, java.math.RoundingMode.HALF_UP)
+                                .doubleValue();
 
                 String msg = null;
                 String type = null;
 
                 if (pct >= 100) {
-                    msg = String.format("🔴 Bạn đã VƯỢT ngân sách %s! (%.0f%% - đã chi %,.0fđ / giới hạn %,.0fđ)",
-                            budget.getName() != null ? budget.getName() : category.getName(), pct, spent, limit);
+                    msg =
+                            String.format(
+                                    "🔴 Bạn đã VƯỢT ngân sách %s! (%.0f%% - đã chi %,.0fđ / giới hạn %,.0fđ)",
+                                    budget.getName() != null
+                                            ? budget.getName()
+                                            : category.getName(),
+                                    pct,
+                                    spent,
+                                    limit);
                     type = "BUDGET_OVER";
                 } else if (pct >= 80) {
-                    msg = String.format("⚠️ Bạn đã dùng %.0f%% ngân sách %s (đã chi %,.0fđ / %,.0fđ)",
-                            pct, budget.getName() != null ? budget.getName() : category.getName(), spent, limit);
+                    msg =
+                            String.format(
+                                    "⚠️ Bạn đã dùng %.0f%% ngân sách %s (đã chi %,.0fđ / %,.0fđ)",
+                                    pct,
+                                    budget.getName() != null
+                                            ? budget.getName()
+                                            : category.getName(),
+                                    spent,
+                                    limit);
                     type = "BUDGET_WARNING";
                 }
 
                 if (msg != null) {
                     // Kiểm tra tránh tạo trùng notification cùng loại trong ngày
-                    boolean alreadySent = notificationRepository
-                            .existsByUser_IdAndTypeAndCreatedAtAfter(
-                                    wallet.getUser().getId(), type,
+                    boolean alreadySent =
+                            notificationRepository.existsByUser_IdAndTypeAndCreatedAtAfter(
+                                    wallet.getUser().getId(),
+                                    type,
                                     tx.getTransactionDate().toLocalDate().atStartOfDay());
                     if (!alreadySent) {
-                        notificationRepository.save(Notification.builder()
-                                .user(wallet.getUser())
-                                .message(msg)
-                                .type(type)
-                                .isRead(false)
-                                .build());
-                        log.info("[BudgetAlert] Created {} notification for user {} category {}",
-                                type, wallet.getUser().getId(), category.getName());
+                        notificationRepository.save(
+                                Notification.builder()
+                                        .user(wallet.getUser())
+                                        .message(msg)
+                                        .type(type)
+                                        .isRead(false)
+                                        .build());
+                        log.info(
+                                "[BudgetAlert] Created {} notification for user {} category {}",
+                                type,
+                                wallet.getUser().getId(),
+                                category.getName());
                     }
                 }
             }
@@ -518,28 +692,36 @@ public class TransactionService {
     // Helper
     // ─────────────────────────────────────────────────────────────
     private TransactionResponse toResponse(Transaction transaction) {
-        CategoryResponse categoryResponse = CategoryResponse.builder()
-                .id(transaction.getCategory().getId())
-                .name(transaction.getCategory().getName())
-                .type(transaction.getCategory().getType())
-                .iconName(transaction.getCategory().getIconName())
-                .build();
+        CategoryResponse categoryResponse =
+                CategoryResponse.builder()
+                        .id(transaction.getCategory().getId())
+                        .name(transaction.getCategory().getName())
+                        .type(transaction.getCategory().getType())
+                        .iconName(transaction.getCategory().getIconName())
+                        .build();
 
         List<com.example.sharemoney.dto.response.TransactionSplitResponse> splitResponses = null;
         if (transaction.isSplit() && transaction.getSplits() != null) {
-            splitResponses = transaction.getSplits().stream().map(s -> 
-                com.example.sharemoney.dto.response.TransactionSplitResponse.builder()
-                    .id(s.getId())
-                    .amount(s.getAmount())
-                    .note(s.getNote())
-                    .category(CategoryResponse.builder()
-                        .id(s.getCategory().getId())
-                        .name(s.getCategory().getName())
-                        .type(s.getCategory().getType())
-                        .iconName(s.getCategory().getIconName())
-                        .build())
-                    .build()
-            ).collect(Collectors.toList());
+            splitResponses =
+                    transaction.getSplits().stream()
+                            .map(
+                                    s ->
+                                            com.example.sharemoney.dto.response
+                                                    .TransactionSplitResponse.builder()
+                                                    .id(s.getId())
+                                                    .amount(s.getAmount())
+                                                    .note(s.getNote())
+                                                    .category(
+                                                            CategoryResponse.builder()
+                                                                    .id(s.getCategory().getId())
+                                                                    .name(s.getCategory().getName())
+                                                                    .type(s.getCategory().getType())
+                                                                    .iconName(
+                                                                            s.getCategory()
+                                                                                    .getIconName())
+                                                                    .build())
+                                                    .build())
+                            .collect(Collectors.toList());
         }
 
         return TransactionResponse.builder()
@@ -551,7 +733,12 @@ public class TransactionService {
                 .note(transaction.getNote())
                 .linkedExpenseId(transaction.getLinkedExpenseId())
                 .payeeName(transaction.getPayee() != null ? transaction.getPayee().getName() : null)
-                .tags(transaction.getTags() != null ? transaction.getTags().stream().map(Tag::getName).collect(Collectors.toList()) : null)
+                .tags(
+                        transaction.getTags() != null
+                                ? transaction.getTags().stream()
+                                        .map(Tag::getName)
+                                        .collect(Collectors.toList())
+                                : null)
                 .isSplit(transaction.isSplit())
                 .splits(splitResponses)
                 .build();

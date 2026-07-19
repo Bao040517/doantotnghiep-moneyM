@@ -19,8 +19,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Unit tests cho DebtService — tập trung vào thuật toán Greedy Settlement.
- * Đây là logic quan trọng nhất (tính toán nợ chéo).
+ * Unit tests cho DebtService — tập trung vào thuật toán Greedy Settlement. Đây là logic quan trọng
+ * nhất (tính toán nợ chéo).
  */
 @ExtendWith(MockitoExtension.class)
 class DebtServiceTest {
@@ -35,8 +35,7 @@ class DebtServiceTest {
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @Mock private PaymentRepository paymentRepository;
 
-    @InjectMocks
-    private DebtService debtService;
+    @InjectMocks private DebtService debtService;
 
     private UUID groupId;
     private UUID userAId, userBId, userCId;
@@ -59,13 +58,14 @@ class DebtServiceTest {
 
     // ─── Helper: tạo ExpenseSplit giả ───
     private ExpenseSplit createSplit(User payer, User debtor, BigDecimal amount) {
-        Expense expense = Expense.builder()
-                .id(UUID.randomUUID())
-                .group(group)
-                .payer(payer)
-                .title("Test Expense")
-                .amount(amount)
-                .build();
+        Expense expense =
+                Expense.builder()
+                        .id(UUID.randomUUID())
+                        .group(group)
+                        .payer(payer)
+                        .title("Test Expense")
+                        .amount(amount)
+                        .build();
 
         return ExpenseSplit.builder()
                 .id(UUID.randomUUID())
@@ -117,7 +117,7 @@ class DebtServiceTest {
 
         var tx = result.getTransactions().get(0);
         assertEquals(userBId, tx.getFrom().getId()); // B trả
-        assertEquals(userAId, tx.getTo().getId());   // cho A
+        assertEquals(userAId, tx.getTo().getId()); // cho A
         assertEquals(0, new BigDecimal("100000").compareTo(tx.getAmount()));
     }
 
@@ -139,9 +139,10 @@ class DebtServiceTest {
         assertEquals(2, result.getTransactions().size());
 
         // Tổng tiền trả phải bằng 100k
-        BigDecimal totalPayment = result.getTransactions().stream()
-                .map(t -> t.getAmount())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalPayment =
+                result.getTransactions().stream()
+                        .map(t -> t.getAmount())
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
         assertEquals(0, new BigDecimal("100000").compareTo(totalPayment));
     }
 
@@ -224,9 +225,11 @@ class DebtServiceTest {
         assertEquals(3, balances.size());
 
         // Tìm balance của A (creditor: +300k)
-        var balanceA = balances.stream()
-                .filter(b -> b.getUser().getId().equals(userAId))
-                .findFirst().orElseThrow();
+        var balanceA =
+                balances.stream()
+                        .filter(b -> b.getUser().getId().equals(userAId))
+                        .findFirst()
+                        .orElseThrow();
         assertTrue(balanceA.getBalance().compareTo(BigDecimal.ZERO) > 0);
     }
 
@@ -236,8 +239,10 @@ class DebtServiceTest {
         mockGroupExists();
         when(groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userAId)).thenReturn(false);
 
-        AppException ex = assertThrows(AppException.class,
-                () -> debtService.calculateGroupDebts(groupId, userAId));
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> debtService.calculateGroupDebts(groupId, userAId));
         assertEquals(ErrorCode.NOT_GROUP_MEMBER, ex.getErrorCode());
     }
 
@@ -246,8 +251,10 @@ class DebtServiceTest {
     void testGroupNotFound_ThrowsException() {
         when(groupRepository.findById(groupId)).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(AppException.class,
-                () -> debtService.calculateGroupDebts(groupId, userAId));
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> debtService.calculateGroupDebts(groupId, userAId));
         assertEquals(ErrorCode.GROUP_NOT_FOUND, ex.getErrorCode());
     }
 }

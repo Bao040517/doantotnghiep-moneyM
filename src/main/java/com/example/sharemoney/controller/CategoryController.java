@@ -3,15 +3,16 @@ package com.example.sharemoney.controller;
 import com.example.sharemoney.dto.response.CategoryResponse;
 import com.example.sharemoney.security.SecurityUtils;
 import com.example.sharemoney.service.CategoryService;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.UUID;
-
+@Validated
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor

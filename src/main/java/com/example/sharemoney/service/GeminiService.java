@@ -7,9 +7,9 @@ import com.example.sharemoney.exception.AppException;
 import com.example.sharemoney.exception.ErrorCode;
 import java.text.NumberFormat;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GeminiService {
@@ -74,24 +75,20 @@ public class GeminiService {
             String base64Image = java.util.Base64.getEncoder().encodeToString(file.getBytes());
             String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
 
-            Map<String, Object> inlineData = Map.of(
-                "mime_type", mimeType,
-                "data", base64Image
-            );
+            Map<String, Object> inlineData =
+                    Map.of(
+                            "mime_type", mimeType,
+                            "data", base64Image);
 
-            Map<String, Object> textPart = Map.of(
-                "text", "Analyze this receipt. Extract the final total amount paid (as a number) and a brief description/name of the store or items. Return exactly a JSON object in this format: {\"amount\": 150000, \"note\": \"Supermarket Groceries\"}. Do not include any other text, markdown, or code blocks."
-            );
+            Map<String, Object> textPart =
+                    Map.of(
+                            "text",
+                            "Analyze this receipt. Extract the final total amount paid (as a number) and a brief description/name of the store or items. Return exactly a JSON object in this format: {\"amount\": 150000, \"note\": \"Supermarket Groceries\"}. Do not include any other text, markdown, or code blocks.");
 
-            Map<String, Object> imagePart = Map.of(
-                "inline_data", inlineData
-            );
+            Map<String, Object> imagePart = Map.of("inline_data", inlineData);
 
-            Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                    Map.of("parts", List.of(textPart, imagePart))
-                )
-            );
+            Map<String, Object> requestBody =
+                    Map.of("contents", List.of(Map.of("parts", List.of(textPart, imagePart))));
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -99,25 +96,29 @@ public class GeminiService {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
             String urlWithKey = apiUrl + "?key=" + apiKey;
 
-            ResponseEntity<Map> response = restTemplate.postForEntity(urlWithKey, entity, Map.class);
+            ResponseEntity<Map> response =
+                    restTemplate.postForEntity(urlWithKey, entity, Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 String generatedText = extractTextFromGeminiResponse(response.getBody());
-                generatedText = generatedText.replaceAll("```json", "").replaceAll("```", "").trim();
-                
-                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                generatedText =
+                        generatedText.replaceAll("```json", "").replaceAll("```", "").trim();
+
+                com.fasterxml.jackson.databind.ObjectMapper mapper =
+                        new com.fasterxml.jackson.databind.ObjectMapper();
                 return mapper.readValue(generatedText, ScanReceiptResponse.class);
             } else {
                 throw new AppException(ErrorCode.INTERNAL_ERROR);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Lỗi khi quét hóa đơn qua Gemini API", e);
             throw new AppException(ErrorCode.INTERNAL_ERROR);
         }
     }
 
     private String buildPrompt(AiMessageRequest request) {
-        NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("vi-VN"));
+        NumberFormat currencyFormatter =
+                NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("vi-VN"));
         String formattedAmount = currencyFormatter.format(request.getAmount());
 
         return String.format(

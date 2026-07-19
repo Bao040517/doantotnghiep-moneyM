@@ -10,10 +10,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class SettleDebtRequest {
-    @NotNull(message = "ID người nhận không được để trống")
-    private UUID toUserId;
+    @NotNull(message = "ID người nhận không được để trống") private UUID toUserId;
 
-    @NotNull(message = "Số tiền không được để trống")
-    @DecimalMin(value = "1.0", message = "Số tiền phải lớn hơn 0")
+    @NotNull(message = "Số tiền không được để trống") @DecimalMin(value = "1.0", message = "Số tiền phải lớn hơn 0")
     private BigDecimal amount;
 }

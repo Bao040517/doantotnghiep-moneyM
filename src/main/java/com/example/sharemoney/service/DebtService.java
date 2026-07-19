@@ -21,8 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -214,15 +212,14 @@ public class DebtService {
 
         // Lấy số tiền format đẹp
         java.text.NumberFormat formatter =
-                java.text.NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("vi-VN"));
+                java.text.NumberFormat.getCurrencyInstance(
+                        java.util.Locale.forLanguageTag("vi-VN"));
         String amountString = formatter.format(request.getAmount());
 
         // 2. Bắn Notification (WebSocket)
         String message = request.getMessage();
         if (message == null || message.trim().isEmpty()) {
-            message = String.format(
-                    "%s vừa nhắc bạn trả %s.",
-                    creditor.getName(), amountString);
+            message = String.format("%s vừa nhắc bạn trả %s.", creditor.getName(), amountString);
         }
         notificationService.sendNotification(debtor.getId(), message, "REMIND_DEBT");
     }
@@ -231,28 +228,52 @@ public class DebtService {
     // Gửi thông báo "Đã chuyển tiền" cho chủ nợ duyệt
     // ─────────────────────────────────────────────────────────────
     @Transactional
-    public void notifyPayment(UUID groupId, UUID debtorId, com.example.sharemoney.dto.request.SettleDebtRequest request) {
-        User debtor = userRepository.findById(debtorId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    public void notifyPayment(
+            UUID groupId,
+            UUID debtorId,
+            com.example.sharemoney.dto.request.SettleDebtRequest request) {
+        User debtor =
+                userRepository
+                        .findById(debtorId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        User creditor = userRepository.findById(request.getToUserId())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User creditor =
+                userRepository
+                        .findById(request.getToUserId())
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         // Lưu vào cơ sở dữ liệu thay vì in-memory
-        com.example.sharemoney.entity.Payment payment = paymentRepository.findByGroup_IdAndPayer_IdAndReceiver_IdAndStatus(groupId, debtorId, creditor.getId(), "pending")
-                .orElseGet(() -> com.example.sharemoney.entity.Payment.builder()
-                        .group(groupRepository.findById(groupId).orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND)))
-                        .payer(debtor)
-                        .receiver(creditor)
-                        .status("pending")
-                        .build());
+        com.example.sharemoney.entity.Payment payment =
+                paymentRepository
+                        .findByGroup_IdAndPayer_IdAndReceiver_IdAndStatus(
+                                groupId, debtorId, creditor.getId(), "pending")
+                        .orElseGet(
+                                () ->
+                                        com.example.sharemoney.entity.Payment.builder()
+                                                .group(
+                                                        groupRepository
+                                                                .findById(groupId)
+                                                                .orElseThrow(
+                                                                        () ->
+                                                                                new AppException(
+                                                                                        ErrorCode
+                                                                                                .GROUP_NOT_FOUND)))
+                                                .payer(debtor)
+                                                .receiver(creditor)
+                                                .status("pending")
+                                                .build());
         payment.setAmount(request.getAmount());
         paymentRepository.save(payment);
 
-        java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("vi-VN"));
+        java.text.NumberFormat formatter =
+                java.text.NumberFormat.getCurrencyInstance(
+                        java.util.Locale.forLanguageTag("vi-VN"));
         String amountString = formatter.format(request.getAmount());
 
-        String message = String.format("🔔 %s vừa báo đã chuyển %s cho bạn. Hãy vào nhóm xác nhận nhé!", debtor.getName(), amountString);
+        String message =
+                String.format(
+                        "🔔 %s vừa báo đã chuyển %s cho bạn. Hãy vào nhóm xác nhận nhé!",
+                        debtor.getName(), amountString);
         notificationService.sendNotification(creditor.getId(), message, "PAYMENT_SENT");
     }
 
@@ -260,113 +281,99 @@ public class DebtService {
     // Chủ nợ xác nhận thanh toán (Tạo khoản chi đối trừ & STOMP "Ting ting")
     // ─────────────────────────────────────────────────────────────
     @Transactional
-    public void approveSettle(UUID groupId, UUID creditorId, com.example.sharemoney.dto.request.ApproveSettleRequest request) {
-        User creditor = userRepository.findById(creditorId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    public void approveSettle(
+            UUID groupId,
+            UUID creditorId,
+            com.example.sharemoney.dto.request.ApproveSettleRequest request) {
+        User creditor =
+                userRepository
+                        .findById(creditorId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        User debtor = userRepository.findById(request.getDebtorId())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User debtor =
+                userRepository
+                        .findById(request.getDebtorId())
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, debtor.getId())
                 || !groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, creditor.getId())) {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
-        com.example.sharemoney.entity.Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+        com.example.sharemoney.entity.Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
 
         // Tạo 1 Expense đặc biệt để đối trừ nợ (Category = "SETTLEMENT")
-        com.example.sharemoney.entity.Expense settlement = com.example.sharemoney.entity.Expense.builder()
-                .group(group)
-                .payer(debtor)
-                .title("Thanh toán nợ cho " + creditor.getName())
-                .amount(request.getAmount())
-                .category("SETTLEMENT") // Danh mục đặc biệt
-                .build();
+        com.example.sharemoney.entity.Expense settlement =
+                com.example.sharemoney.entity.Expense.builder()
+                        .group(group)
+                        .payer(debtor)
+                        .title("Thanh toán nợ cho " + creditor.getName())
+                        .amount(request.getAmount())
+                        .category("SETTLEMENT") // Danh mục đặc biệt
+                        .build();
 
-        // Chỉ creditor nợ lại debtor số tiền này (để triệt tiêu nợ cũ), isSettled = false để Greedy tự bắt lấy
-        ExpenseSplit split = ExpenseSplit.builder()
-                .expense(settlement)
-                .user(creditor)
-                .amountOwed(request.getAmount())
-                .isSettled(false) 
-                .build();
+        // Chỉ creditor nợ lại debtor số tiền này (để triệt tiêu nợ cũ), isSettled = false để Greedy
+        // tự bắt lấy
+        ExpenseSplit split =
+                ExpenseSplit.builder()
+                        .expense(settlement)
+                        .user(creditor)
+                        .amountOwed(request.getAmount())
+                        .isSettled(false)
+                        .build();
 
         settlement.getSplits().add(split);
         expenseRepository.save(settlement);
 
         // Publish event for PFM
-        eventPublisher.publishEvent(new com.example.sharemoney.event.DebtSettledEvent(
-                settlement.getId(), debtor.getId(), creditor.getId(), request.getAmount()));
+        eventPublisher.publishEvent(
+                new com.example.sharemoney.event.DebtSettledEvent(
+                        settlement.getId(), debtor.getId(), creditor.getId(), request.getAmount()));
 
         // Lấy số tiền format đẹp
-        java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("vi-VN"));
+        java.text.NumberFormat formatter =
+                java.text.NumberFormat.getCurrencyInstance(
+                        java.util.Locale.forLanguageTag("vi-VN"));
         String amountString = formatter.format(request.getAmount());
 
         // Đánh dấu pending payment thành completed nếu có
-        paymentRepository.findByGroup_IdAndPayer_IdAndReceiver_IdAndStatus(groupId, debtor.getId(), creditor.getId(), "pending")
-                .ifPresent(p -> {
-                    p.setStatus("completed");
-                    paymentRepository.save(p);
-                });
+        paymentRepository
+                .findByGroup_IdAndPayer_IdAndReceiver_IdAndStatus(
+                        groupId, debtor.getId(), creditor.getId(), "pending")
+                .ifPresent(
+                        p -> {
+                            p.setStatus("completed");
+                            paymentRepository.save(p);
+                        });
 
         // Bắn Notification (WebSocket) cho người trả
-        String message = String.format("🎉 %s đã xác nhận nhận được %s từ bạn!", creditor.getName(), amountString);
+        String message =
+                String.format(
+                        "🎉 %s đã xác nhận nhận được %s từ bạn!", creditor.getName(), amountString);
         notificationService.sendNotification(debtor.getId(), message, "PAYMENT_RECEIVED");
 
         // ==========================
-        // OPTIMIZATION: Nếu có thanh toán, thay vì tích tụ lịch sử, ta "chốt nợ" (Consolidate) 
-        // bằng cách đánh dấu tất cả nợ cũ là settled và tạo các khoản nợ mới từ kết quả thuật toán Greedy.
+        // No consolidation needed. The creation of the SETTLEMENT expense above
+        // naturally balances the ledger and greedy algorithm will automatically
+        // recalculate the net debt.
         // ==========================
-        Map<UUID, User> userMap = new HashMap<>();
-        groupMemberRepository.findByGroup_Id(groupId).forEach(gm -> userMap.put(gm.getUser().getId(), gm.getUser()));
-        List<ExpenseSplit> unsettledSplits = expenseSplitRepository.findByExpense_Group_IdAndIsSettledFalse(groupId);
-        Map<UUID, BigDecimal> balances = calculateNetBalances(unsettledSplits, userMap);
-        
-        boolean allSettled = balances.values().stream().allMatch(b -> b.abs().compareTo(new BigDecimal("0.01")) < 0);
-        if (allSettled) {
-            expenseSplitRepository.markAllAsSettled(groupId);
-        } else {
-            // Đánh dấu tất cả là settled
-            expenseSplitRepository.markAllAsSettled(groupId);
-            
-            // Lấy danh sách nợ tối giản
-            List<SettlementTransaction> remainingDebts = greedySettle(balances, userMap);
-            
-            // Ghi đè lại bằng các bản ghi "Chốt nợ" để hệ thống tính tiếp vào lần sau
-            for (SettlementTransaction tx : remainingDebts) {
-                User txDebtor = userRepository.findById(tx.getFrom().getId()).orElseThrow();
-                User txCreditor = userRepository.findById(tx.getTo().getId()).orElseThrow();
-                
-                com.example.sharemoney.entity.Expense consolidation = com.example.sharemoney.entity.Expense.builder()
-                        .group(group)
-                        .payer(txCreditor)
-                        .title("Chốt nợ tự động hệ thống")
-                        .amount(tx.getAmount())
-                        .category("CONSOLIDATION")
-                        .build();
-                        
-                ExpenseSplit newSplit = ExpenseSplit.builder()
-                        .expense(consolidation)
-                        .user(txDebtor)
-                        .amountOwed(tx.getAmount())
-                        .isSettled(false)
-                        .build();
-                        
-                consolidation.getSplits().add(newSplit);
-                expenseRepository.save(consolidation);
-            }
-        }
     }
 
     public List<String> getPendingDebtors(UUID groupId, UUID creditorId) {
-        return paymentRepository.findByGroup_IdAndReceiver_IdAndStatus(groupId, creditorId, "pending").stream()
+        return paymentRepository
+                .findByGroup_IdAndReceiver_IdAndStatus(groupId, creditorId, "pending")
+                .stream()
                 .map(p -> p.getPayer().getId().toString())
                 .toList();
     }
 
     public List<String> getPendingSent(UUID groupId, UUID debtorId) {
-        return paymentRepository.findByGroup_IdAndPayer_IdAndStatus(groupId, debtorId, "pending").stream()
+        return paymentRepository
+                .findByGroup_IdAndPayer_IdAndStatus(groupId, debtorId, "pending")
+                .stream()
                 .map(p -> p.getReceiver().getId().toString())
                 .toList();
     }
@@ -381,8 +388,8 @@ public class DebtService {
         List<com.example.sharemoney.entity.GroupMember> memberships =
                 groupMemberRepository.findByUser_Id(userId);
 
-        BigDecimal totalOwed = BigDecimal.ZERO;   // người khác nợ user
-        BigDecimal totalOwing = BigDecimal.ZERO;  // user nợ người khác
+        BigDecimal totalOwed = BigDecimal.ZERO; // người khác nợ user
+        BigDecimal totalOwing = BigDecimal.ZERO; // user nợ người khác
         List<UserDebtSummaryResponse.DebtDetail> details = new ArrayList<>();
 
         for (com.example.sharemoney.entity.GroupMember membership : memberships) {
@@ -391,7 +398,8 @@ public class DebtService {
 
             // Xây dựng userMap cho nhóm này
             Map<UUID, User> userMap = new HashMap<>();
-            groupMemberRepository.findByGroup_Id(groupId)
+            groupMemberRepository
+                    .findByGroup_Id(groupId)
                     .forEach(gm -> userMap.put(gm.getUser().getId(), gm.getUser()));
 
             // Lấy tất cả splits chưa thanh toán trong nhóm
@@ -411,23 +419,25 @@ public class DebtService {
 
                 if (userIsDebtor) {
                     totalOwing = totalOwing.add(tx.getAmount());
-                    details.add(UserDebtSummaryResponse.DebtDetail.builder()
-                            .groupId(groupId)
-                            .groupName(groupName)
-                            .counterparty(tx.getTo())
-                            .amount(tx.getAmount())
-                            .type("OWING")
-                            .build());
+                    details.add(
+                            UserDebtSummaryResponse.DebtDetail.builder()
+                                    .groupId(groupId)
+                                    .groupName(groupName)
+                                    .counterparty(tx.getTo())
+                                    .amount(tx.getAmount())
+                                    .type("OWING")
+                                    .build());
                 }
                 if (userIsCreditor) {
                     totalOwed = totalOwed.add(tx.getAmount());
-                    details.add(UserDebtSummaryResponse.DebtDetail.builder()
-                            .groupId(groupId)
-                            .groupName(groupName)
-                            .counterparty(tx.getFrom())
-                            .amount(tx.getAmount())
-                            .type("OWED")
-                            .build());
+                    details.add(
+                            UserDebtSummaryResponse.DebtDetail.builder()
+                                    .groupId(groupId)
+                                    .groupName(groupName)
+                                    .counterparty(tx.getFrom())
+                                    .amount(tx.getAmount())
+                                    .type("OWED")
+                                    .build());
                 }
             }
         }

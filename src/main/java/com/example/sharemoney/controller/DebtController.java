@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
 @RequestMapping("/api/groups/{groupId}/debts")
 @RequiredArgsConstructor
@@ -47,33 +49,31 @@ public class DebtController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * POST /api/groups/{groupId}/debts/notify-payment
-     * Con nợ báo cáo đã chuyển tiền
-     */
+    /** POST /api/groups/{groupId}/debts/notify-payment Con nợ báo cáo đã chuyển tiền */
     @PostMapping("/notify-payment")
     public ResponseEntity<Void> notifyPayment(
-            @PathVariable UUID groupId, @Valid @RequestBody com.example.sharemoney.dto.request.SettleDebtRequest request) {
+            @PathVariable UUID groupId,
+            @Valid @RequestBody com.example.sharemoney.dto.request.SettleDebtRequest request) {
         UUID debtorId = SecurityUtils.getCurrentUserId();
         debtService.notifyPayment(groupId, debtorId, request);
         return ResponseEntity.ok().build();
     }
 
     /**
-     * POST /api/groups/{groupId}/debts/approve-settle
-     * Chủ nợ xác nhận đã nhận tiền (triệt tiêu nợ)
+     * POST /api/groups/{groupId}/debts/approve-settle Chủ nợ xác nhận đã nhận tiền (triệt tiêu nợ)
      */
     @PostMapping("/approve-settle")
     public ResponseEntity<Void> approveSettle(
-            @PathVariable UUID groupId, @Valid @RequestBody com.example.sharemoney.dto.request.ApproveSettleRequest request) {
+            @PathVariable UUID groupId,
+            @Valid @RequestBody com.example.sharemoney.dto.request.ApproveSettleRequest request) {
         UUID creditorId = SecurityUtils.getCurrentUserId();
         debtService.approveSettle(groupId, creditorId, request);
         return ResponseEntity.ok().build();
     }
 
     /**
-     * GET /api/groups/{groupId}/debts/pending
-     * Lấy danh sách ID của những người nợ đã bấm "Báo đã chuyển tiền"
+     * GET /api/groups/{groupId}/debts/pending Lấy danh sách ID của những người nợ đã bấm "Báo đã
+     * chuyển tiền"
      */
     @GetMapping("/pending")
     public ResponseEntity<List<String>> getPendingDebtors(@PathVariable UUID groupId) {
@@ -82,8 +82,8 @@ public class DebtController {
     }
 
     /**
-     * GET /api/groups/{groupId}/debts/pending-sent
-     * Lấy danh sách ID của những chủ nợ mà người dùng (với tư cách là con nợ) đã bấm "Báo đã chuyển tiền"
+     * GET /api/groups/{groupId}/debts/pending-sent Lấy danh sách ID của những chủ nợ mà người dùng
+     * (với tư cách là con nợ) đã bấm "Báo đã chuyển tiền"
      */
     @GetMapping("/pending-sent")
     public ResponseEntity<List<String>> getPendingSent(@PathVariable UUID groupId) {

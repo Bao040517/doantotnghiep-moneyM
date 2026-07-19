@@ -9,7 +9,7 @@ public class FinancialHealthDTO {
     private int score; // 0 - 100
     private String healthStatus; // e.g., Kém, Trung bình, Khá, Tốt, Xuất sắc
     private String advice;
-    
+
     // Components
     private int savingsRatioScore;
     private int debtToIncomeScore;

@@ -2,21 +2,22 @@ package com.example.sharemoney.controller;
 
 import com.example.sharemoney.dto.request.CreateTransactionRequest;
 import com.example.sharemoney.dto.request.UpdateTransactionRequest;
-import com.example.sharemoney.dto.response.TransactionResponse;
-import com.example.sharemoney.dto.response.MonthlySummaryResponse;
 import com.example.sharemoney.dto.response.CategoryBreakdownResponse;
+import com.example.sharemoney.dto.response.MonthlySummaryResponse;
+import com.example.sharemoney.dto.response.TransactionResponse;
 import com.example.sharemoney.security.SecurityUtils;
 import com.example.sharemoney.service.TransactionService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 
+@Validated
 @RestController
 @RequestMapping("/api/transactions")
 @RequiredArgsConstructor
@@ -26,11 +27,26 @@ public class TransactionController {
 
     /** GET /api/transactions - Lấy toàn bộ giao dịch (Phân trang) */
     @GetMapping
-    public ResponseEntity<org.springframework.data.domain.Page<TransactionResponse>> getMyTransactions(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+    public ResponseEntity<org.springframework.data.domain.Page<TransactionResponse>>
+            getMyTransactions(
+                    @RequestParam(defaultValue = "0") int page,
+                    @RequestParam(defaultValue = "20") int size) {
         UUID userId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.ok(transactionService.getUserTransactions(userId, page, size));
+    }
+
+    /** GET /api/transactions/uncategorized/count - Đếm giao dịch chưa phân loại */
+    @GetMapping("/uncategorized/count")
+    public ResponseEntity<Long> getUncategorizedCount() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(transactionService.getUncategorizedCount(userId));
+    }
+
+    /** GET /api/transactions/uncategorized - Lấy giao dịch chưa phân loại */
+    @GetMapping("/uncategorized")
+    public ResponseEntity<List<TransactionResponse>> getUncategorizedTransactions() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(transactionService.getUncategorizedTransactions(userId));
     }
 
     /** GET /api/transactions/monthly?year=2026&month=6 - Lấy giao dịch theo tháng */
@@ -47,8 +63,7 @@ public class TransactionController {
     /** POST /api/transactions/{walletId} - Tạo giao dịch mới */
     @PostMapping("/{walletId}")
     public ResponseEntity<TransactionResponse> createTransaction(
-            @PathVariable UUID walletId,
-            @Valid @RequestBody CreateTransactionRequest req) {
+            @PathVariable UUID walletId, @Valid @RequestBody CreateTransactionRequest req) {
         UUID userId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(transactionService.createTransaction(userId, walletId, req));
@@ -57,8 +72,7 @@ public class TransactionController {
     /** PUT /api/transactions/{id} - Sửa giao dịch */
     @PutMapping("/{id}")
     public ResponseEntity<TransactionResponse> updateTransaction(
-            @PathVariable UUID id,
-            @Valid @RequestBody UpdateTransactionRequest req) {
+            @PathVariable UUID id, @Valid @RequestBody UpdateTransactionRequest req) {
         UUID userId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.ok(transactionService.updateTransaction(userId, id, req));
     }

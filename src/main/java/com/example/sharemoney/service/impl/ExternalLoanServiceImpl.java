@@ -10,13 +10,12 @@ import com.example.sharemoney.exception.ErrorCode;
 import com.example.sharemoney.repository.ExternalLoanRepository;
 import com.example.sharemoney.repository.UserRepository;
 import com.example.sharemoney.service.ExternalLoanService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,36 +34,43 @@ public class ExternalLoanServiceImpl implements ExternalLoanService {
 
     @Override
     public ExternalLoanDTO createLoan(UUID userId, CreateExternalLoanRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        ExternalLoan loan = ExternalLoan.builder()
-                .user(user)
-                .type(request.getType())
-                .counterpartyName(request.getCounterpartyName())
-                .principalAmount(request.getPrincipalAmount())
-                .interestRate(request.getInterestRate())
-                .startDate(request.getStartDate())
-                .dueDate(request.getDueDate())
-                .description(request.getDescription())
-                .isSettled(false)
-                .build();
+        ExternalLoan loan =
+                ExternalLoan.builder()
+                        .user(user)
+                        .type(request.getType())
+                        .counterpartyName(request.getCounterpartyName())
+                        .principalAmount(request.getPrincipalAmount())
+                        .interestRate(request.getInterestRate())
+                        .startDate(request.getStartDate())
+                        .dueDate(request.getDueDate())
+                        .description(request.getDescription())
+                        .isSettled(false)
+                        .build();
 
         return mapToDTO(externalLoanRepository.save(loan));
     }
 
     @Override
     public ExternalLoanDTO updateLoan(UUID loanId, UUID userId, UpdateExternalLoanRequest request) {
-        ExternalLoan loan = externalLoanRepository.findById(loanId)
-                .orElseThrow(() -> new AppException(ErrorCode.LOAN_NOT_FOUND));
+        ExternalLoan loan =
+                externalLoanRepository
+                        .findById(loanId)
+                        .orElseThrow(() -> new AppException(ErrorCode.LOAN_NOT_FOUND));
 
         if (!loan.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
         if (request.getType() != null) loan.setType(request.getType());
-        if (request.getCounterpartyName() != null) loan.setCounterpartyName(request.getCounterpartyName());
-        if (request.getPrincipalAmount() != null) loan.setPrincipalAmount(request.getPrincipalAmount());
+        if (request.getCounterpartyName() != null)
+            loan.setCounterpartyName(request.getCounterpartyName());
+        if (request.getPrincipalAmount() != null)
+            loan.setPrincipalAmount(request.getPrincipalAmount());
         if (request.getInterestRate() != null) loan.setInterestRate(request.getInterestRate());
         if (request.getStartDate() != null) loan.setStartDate(request.getStartDate());
         if (request.getDueDate() != null) loan.setDueDate(request.getDueDate());
@@ -76,8 +82,10 @@ public class ExternalLoanServiceImpl implements ExternalLoanService {
 
     @Override
     public void deleteLoan(UUID loanId, UUID userId) {
-        ExternalLoan loan = externalLoanRepository.findById(loanId)
-                .orElseThrow(() -> new AppException(ErrorCode.LOAN_NOT_FOUND));
+        ExternalLoan loan =
+                externalLoanRepository
+                        .findById(loanId)
+                        .orElseThrow(() -> new AppException(ErrorCode.LOAN_NOT_FOUND));
 
         if (!loan.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);

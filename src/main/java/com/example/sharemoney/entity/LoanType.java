@@ -1,6 +1,6 @@
 package com.example.sharemoney.entity;
 
 public enum LoanType {
-    LENT,      // Cho vay
-    BORROWED   // Đi vay
+    LENT, // Cho vay
+    BORROWED // Đi vay
 }

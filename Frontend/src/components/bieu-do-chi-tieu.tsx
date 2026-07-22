@@ -17,12 +17,16 @@ interface ExpenseChartProps {
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Ăn uống": "#10b981", // emerald
-  "Di chuyển": "#3b82f6", // blue
-  "Lưu trú": "#8b5cf6", // violet
-  "Giải trí": "#f59e0b", // amber
-  "Mua sắm": "#ec4899", // pink
-  "Sức khỏe": "#06b6d4", // cyan
-  "Hóa đơn": "#2980b9", // strong blue
+  "Đi lại": "#3b82f6", // blue
+  "Tiền nhà": "#8b5cf6", // violet
+  "Tiền điện": "#f59e0b", // amber
+  "Chi tiêu hàng ngày": "#06b6d4", // cyan
+  "Y tế": "#f43f5e", // rose
+  "Phí giao lưu": "#6366f1", // indigo
+  "Quần áo": "#ec4899", // pink
+  "Mỹ phẩm": "#d946ef", // fuchsia
+  "Giáo dục": "#14b8a6", // teal
+  "Phí liên lạc": "#64748b", // slate
   Khác: "#6b7280", // gray
 };
 

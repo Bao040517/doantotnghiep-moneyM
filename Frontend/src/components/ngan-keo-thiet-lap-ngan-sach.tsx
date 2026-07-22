@@ -23,26 +23,7 @@ import { toast } from "sonner";
 import api from "@/lib/axios";
 import * as LucideIcons from "lucide-react";
 
-function DynamicIcon({
-  name,
-  className = "w-5 h-5 text-teal-600",
-}: {
-  name?: string;
-  className?: string;
-}) {
-  if (!name) return <span className="text-xl">💰</span>;
-
-  // Convert dash-case or lowercase to PascalCase (e.g. "shopping-cart" -> "ShoppingCart", "utensils" -> "Utensils")
-  const pascalName = name
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
-  const IconComponent =
-    (LucideIcons as any)[pascalName] ||
-    (LucideIcons as any)[name] ||
-    LucideIcons.Receipt;
-  return <IconComponent className={className} />;
-}
+// Removed DynamicIcon as we use emojis directly from DB
 
 interface Category {
   id: string;
@@ -288,10 +269,7 @@ export function SetBudgetDrawer({
                             );
                             return c ? (
                               <div className="flex items-center gap-2">
-                                <DynamicIcon
-                                  name={c.iconName}
-                                  className="w-5 h-5"
-                                />
+                                <span className="text-[16px]">{c.iconName}</span>
                                 <span>{c.name}</span>
                               </div>
                             ) : (
@@ -312,11 +290,8 @@ export function SetBudgetDrawer({
                           className="cursor-pointer py-3 rounded-xl focus:bg-[#e0f4f0]"
                         >
                           <div className="flex items-center gap-3">
-                            <span className="bg-[#e0f4f0] text-[#1f4d44] w-8 h-8 flex items-center justify-center rounded-full">
-                              <DynamicIcon
-                                name={c.iconName}
-                                className="w-4 h-4"
-                              />
+                            <span className="bg-[#e0f4f0] text-[#1f4d44] w-8 h-8 flex items-center justify-center rounded-full text-[16px]">
+                              {c.iconName}
                             </span>
                             <span className="font-medium text-gray-700">
                               {c.name}

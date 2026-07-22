@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { AddSavingsGoalDrawer } from "./ngan-keo-them-muc-tieu";
 import { EditSavingsGoalDrawer } from "./ngan-keo-sua-muc-tieu";
+import { FundSavingsDrawer } from "./ngan-keo-nap-tiet-kiem";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,6 +90,10 @@ export function SavingsTab() {
   const [showAddDrawer, setShowAddDrawer] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
   const [showEditDrawer, setShowEditDrawer] = useState(false);
+  
+  const [selectedFundGoal, setSelectedFundGoal] = useState<SavingsGoal | null>(null);
+  const [showFundDrawer, setShowFundDrawer] = useState(false);
+  const [isAutoFunding, setIsAutoFunding] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -214,6 +220,96 @@ export function SavingsTab() {
                   </p>
                 </div>
               </div>
+              
+              <button 
+                disabled={isAutoFunding}
+                onClick={async () => {
+                   if (!savingsSuggestion) return;
+                   setIsAutoFunding(true);
+                   try {
+                     // Get current active goals
+                     const sortedGoals = [...goals].sort((a, b) => {
+                       const rawA = allocations[a.id] || 3;
+                       const levelA = PRIORITY_LEVELS[rawA] ? rawA : 3;
+                       const rawB = allocations[b.id] || 3;
+                       const levelB = PRIORITY_LEVELS[rawB] ? rawB : 3;
+                       return levelB - levelA;
+                     });
+
+                     let activeGoals = sortedGoals
+                       .map((goal) => {
+                         const rawLevel = allocations[goal.id] || 3;
+                         const level = PRIORITY_LEVELS[rawLevel] ? rawLevel : 3;
+                         return {
+                           id: goal.id,
+                           target: Number(goal.targetAmount),
+                           current: Number(goal.currentAmount || 0),
+                           weight: PRIORITY_LEVELS[level].pct,
+                         };
+                       })
+                       .filter((g) => g.weight > 0 && g.current < g.target);
+
+                     if (activeGoals.length === 0) {
+                        toast.error("Tất cả mục tiêu đã hoàn thành hoặc đang tạm ngưng!");
+                        setIsAutoFunding(false);
+                        return;
+                     }
+
+                     const allocationsMap: Record<string, number> = {};
+                     activeGoals.forEach((g) => (allocationsMap[g.id] = 0));
+                     
+                     let remainingSafe = savingsSuggestion.suggestedSaveAmount;
+                     let keepRunning = true;
+                     while (keepRunning && remainingSafe > 0 && activeGoals.length > 0) {
+                       const totalWeight = activeGoals.reduce((sum, g) => sum + g.weight, 0);
+                       if (totalWeight === 0) break;
+
+                       const amountToDistribute = remainingSafe;
+                       remainingSafe = 0;
+                       keepRunning = false;
+
+                       const nextActive = [];
+                       for (const goal of activeGoals) {
+                         const slice = (goal.weight / totalWeight) * amountToDistribute;
+                         const potential = allocationsMap[goal.id] + slice;
+                         const spaceLeft = goal.target - goal.current;
+
+                         if (potential >= spaceLeft) {
+                           remainingSafe += potential - spaceLeft;
+                           allocationsMap[goal.id] = spaceLeft;
+                           keepRunning = true;
+                         } else {
+                           allocationsMap[goal.id] = potential;
+                           nextActive.push(goal);
+                         }
+                       }
+                       activeGoals = nextActive;
+                     }
+
+                     let hasUpdates = false;
+                     for (const [goalId, amt] of Object.entries(allocationsMap)) {
+                       if (amt > 0) {
+                         await api.post(`/savings-goals/${goalId}/fund`, { amount: Math.floor(amt) });
+                         hasUpdates = true;
+                       }
+                     }
+
+                     if (hasUpdates) {
+                       toast.success("Đã phân bổ tiền thành công! 🎉");
+                       fetchData();
+                     } else {
+                       toast.info("Không có thay đổi nào được thực hiện.");
+                     }
+                   } catch (e: any) {
+                     toast.error(e.response?.data?.message || "Có lỗi xảy ra khi phân bổ");
+                   } finally {
+                     setIsAutoFunding(false);
+                   }
+                }}
+                className="mt-4 w-full bg-white/20 hover:bg-white/30 text-white font-bold py-3 rounded-2xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
+              >
+                {isAutoFunding ? "Đang phân bổ..." : "Phân bổ tự động ngay"}
+              </button>
             </div>
 
             {/* Cut suggestions */}
@@ -355,7 +451,7 @@ export function SavingsTab() {
               return levelB - levelA;
             });
 
-            const recommendedSavings = (safeToSpend || 0) * 0.4;
+            const recommendedSavings = savingsSuggestion ? savingsSuggestion.suggestedSaveAmount : (safeToSpend || 0) * 0.4;
             const totalSafe = recommendedSavings;
             let remainingSafe = totalSafe;
 
@@ -532,27 +628,38 @@ export function SavingsTab() {
                             {percent}% hoàn thành
                           </span>
                         </div>
-                        <button
-                          onClick={() => {
-                            setSelectedGoal(goal);
-                            setShowEditDrawer(true);
-                          }}
-                          className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors active:scale-95"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setSelectedFundGoal(goal);
+                              setShowFundDrawer(true);
+                            }}
+                            className="h-8 px-3 flex items-center justify-center rounded-full text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors active:scale-95"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2.5"
-                              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                            />
-                          </svg>
-                        </button>
+                            Nạp/Rút
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedGoal(goal);
+                              setShowEditDrawer(true);
+                            }}
+                            className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors active:scale-95"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2.5"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -585,6 +692,16 @@ export function SavingsTab() {
           open={showEditDrawer}
           onOpenChange={setShowEditDrawer}
           goal={selectedGoal}
+          onSaved={fetchData}
+        />
+      )}
+
+      {selectedFundGoal && (
+        <FundSavingsDrawer
+          open={showFundDrawer}
+          onOpenChange={setShowFundDrawer}
+          goal={selectedFundGoal}
+          walletBalance={walletBalance}
           onSaved={fetchData}
         />
       )}

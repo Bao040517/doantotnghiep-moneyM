@@ -14,9 +14,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 interface DashboardTabProps {
   onNavigate?: (tab: string) => void;
+  refreshTrigger?: number;
 }
 
-export function DashboardTab({ onNavigate }: DashboardTabProps) {
+export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [showBalance, setShowBalance] = useState(false);
@@ -171,7 +172,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [refreshTrigger]);
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("vi-VN").format(Math.round(Number(n) || 0)) + "đ";

@@ -112,14 +112,27 @@ function LineChart({
   const nets = months.map((m) => Number(m.net) || 0);
   const debts = months.map((m) => Number(m.debtPayment) || 0);
 
-  const topCats = categories.slice(0, 5);
-  const categoryLines = topCats.map((cat, i) => {
+  const catTotals = new Map<string, number>();
+  months.forEach((m) => {
+    const map = isExpense ? m.categoryExpenses : m.categoryIncomes;
+    if (map) {
+      Object.entries(map).forEach(([name, val]) => {
+        catTotals.set(name, (catTotals.get(name) || 0) + Number(val));
+      });
+    }
+  });
+  const topCatNames = Array.from(catTotals.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map((e) => e[0]);
+
+  const categoryLines = topCatNames.map((catName, i) => {
     const vals = months.map((m) => {
       const map = isExpense ? m.categoryExpenses : m.categoryIncomes;
-      return map ? Number(map[cat.categoryName]) || 0 : 0;
+      return map && map[catName] ? Number(map[catName]) : 0;
     });
     return {
-      name: cat.categoryName,
+      name: catName,
       color: CHART_COLORS[i % CHART_COLORS.length],
       vals,
     };
@@ -141,8 +154,20 @@ function LineChart({
   const xOf = (i: number) => PAD_LEFT + (i / (months.length - 1)) * chartW;
   const yOf = (v: number) => PAD_TOP + chartH - ((v - minVal) / range) * chartH;
 
-  const polyline = (vals: number[]) =>
-    vals.map((v, i) => `${xOf(i)},${yOf(v)}`).join(" ");
+  const getLastDataIndex = (vals: number[]) => {
+    let idx = vals.length - 1;
+    while (idx >= 0 && vals[idx] === 0) idx--;
+    return idx;
+  };
+
+  const polyline = (vals: number[]) => {
+    const lastIdx = getLastDataIndex(vals);
+    if (lastIdx === -1) return "";
+    return vals
+      .slice(0, lastIdx + 1)
+      .map((v, i) => `${xOf(i)},${yOf(v)}`)
+      .join(" ");
+  };
 
   const [hovered, setHovered] = useState<number | null>(null);
 
@@ -238,37 +263,48 @@ function LineChart({
         )}
 
         {/* Dots & hover targets */}
-        {months.map((m, i) => (
+        {months.map((m, i) => {
+          const hasAnyData =
+             categoryLines.some(cl => i <= getLastDataIndex(cl.vals)) ||
+             (!isExpense && i <= getLastDataIndex(nets)) ||
+             (isExpense && i <= getLastDataIndex(debts));
+
+          return (
           <g
             key={i}
-            onMouseEnter={() => setHovered(i)}
-            onMouseLeave={() => setHovered(null)}
-            style={{ cursor: "pointer" }}
+            onMouseEnter={() => hasAnyData && setHovered(i)}
+            onMouseLeave={() => hasAnyData && setHovered(null)}
+            style={{ cursor: hasAnyData ? "pointer" : "default" }}
           >
-            <rect
-              x={xOf(i) - 14}
-              y={PAD_TOP}
-              width={28}
-              height={chartH}
-              fill="transparent"
-            />
+            {hasAnyData && (
+              <rect
+                x={xOf(i) - 14}
+                y={PAD_TOP}
+                width={28}
+                height={chartH}
+                fill="transparent"
+              />
+            )}
 
             {/* Category dots */}
-            {categoryLines.map((cl) => (
-              <circle
-                key={cl.name}
-                cx={xOf(i)}
-                cy={yOf(cl.vals[i])}
-                r={hovered === i ? 4 : 2.5}
-                fill={cl.color}
-                stroke="#fff"
-                strokeWidth={1.5}
-                style={{ transition: "r 0.15s" }}
-              />
-            ))}
+            {categoryLines.map((cl) => {
+              if (i > getLastDataIndex(cl.vals)) return null;
+              return (
+                <circle
+                  key={cl.name}
+                  cx={xOf(i)}
+                  cy={yOf(cl.vals[i])}
+                  r={hovered === i ? 4 : 2.5}
+                  fill={cl.color}
+                  stroke="#fff"
+                  strokeWidth={1.5}
+                  style={{ transition: "r 0.15s" }}
+                />
+              );
+            })}
 
             {/* Net / Debt dots */}
-            {!isExpense && (
+            {!isExpense && i <= getLastDataIndex(nets) && (
               <circle
                 cx={xOf(i)}
                 cy={yOf(nets[i])}
@@ -279,7 +315,7 @@ function LineChart({
                 style={{ transition: "r 0.15s" }}
               />
             )}
-            {isExpense && (
+            {isExpense && i <= getLastDataIndex(debts) && (
               <circle
                 cx={xOf(i)}
                 cy={yOf(debts[i])}
@@ -292,10 +328,10 @@ function LineChart({
             )}
 
             {/* Hover tooltip */}
-            {hovered === i &&
+            {hasAnyData && hovered === i &&
               (() => {
-                const activeCats = categoryLines.filter((cl) => cl.vals[i] > 0);
-                const showDebt = isExpense && debts[i] > 0;
+                const activeCats = categoryLines.filter((cl) => i <= getLastDataIndex(cl.vals) && cl.vals[i] > 0);
+                const showDebt = isExpense && i <= getLastDataIndex(debts) && debts[i] > 0;
                 const tooltipH =
                   (activeCats.length + (isExpense ? (showDebt ? 1 : 0) : 1)) *
                     13 +
@@ -381,7 +417,8 @@ function LineChart({
               {m.label}
             </text>
           </g>
-        ))}
+          );
+        })}
       </svg>
 
       {/* Legend */}

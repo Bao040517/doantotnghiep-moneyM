@@ -250,12 +250,22 @@ public class FinancialAdvisorService {
             BigDecimal avg3Month = average(history);
             if (avg3Month.compareTo(BigDecimal.ZERO) <= 0) continue;
 
+            // Danh sách các từ khóa thường dùng cho chi phí cố định (không dự báo tuyến tính)
+            List<String> fixedKeywords = Arrays.asList("tiền nhà", "thuê nhà", "trả góp", "lãi vay", "bảo hiểm", "học phí", "internet", "tiện ích", "định kỳ");
+            boolean isFixed = fixedKeywords.stream().anyMatch(k -> catName.toLowerCase().contains(k));
+
             // Dự báo chi tiêu cả tháng dựa trên tốc độ hiện tại
-            BigDecimal projectedSpend =
-                    monthProgress > 0
-                            ? currentSpent.divide(
-                                    BigDecimal.valueOf(monthProgress), 0, RoundingMode.HALF_UP)
-                            : currentSpent;
+            BigDecimal projectedSpend;
+            if (isFixed) {
+                // Chi phí cố định thường đóng 1 lần/tháng, không nội suy tuyến tính theo ngày
+                projectedSpend = currentSpent;
+            } else {
+                projectedSpend =
+                        monthProgress > 0
+                                ? currentSpent.divide(
+                                        BigDecimal.valueOf(monthProgress), 0, RoundingMode.HALF_UP)
+                                : currentSpent;
+            }
 
             // So sánh projected với trung bình
             BigDecimal diff = projectedSpend.subtract(avg3Month);

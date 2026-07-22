@@ -10,6 +10,46 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 5. **Thanh toán nợ (Debt Settlement):** Nhắc nợ, tạo mã QR VietQR, và quy trình Xác nhận.
 6. **Z-Score Anomaly Detection:** Thuật toán phát hiện bất thường chi tiêu theo thời gian thực.
 
+### Session [2026-07-19] - Cập nhật Biểu đồ Xu Hướng & Giải đáp Kiến trúc Cơ sở Dữ liệu
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Sửa lỗi logic & Giao diện Biểu đồ Xu hướng 6 tháng:**
+   - **Câu hỏi 1-3:** "Hiển thị 6 tháng gần nhất kể từ tháng hiện tại", "tháng 7 ko có gì... sao nó trống trơn thế được", "tháng nào chưa có dữ liệu hãy hiển thị nó là dừng ở tháng mà nó có dữ liệu chứ không kéo nó về 0 nhé".
+   - **Thực thi:** 
+     + Backend (`TransactionService`): Đã cập nhật thuật toán để danh sách 6 tháng luôn tính lùi từ tháng hiện tại (`YearMonth.now()`), độc lập với tháng người dùng chọn trên bộ lọc (chỉ lọc cho Top Cards).
+     + Frontend (`tab-thong-ke.tsx`): Khắc phục lỗi biểu đồ trống do danh mục rỗng ở tháng mới. Chuyển sang trích xuất Top 5 danh mục từ toàn bộ 6 tháng thay vì chỉ từ tháng đang chọn.
+     + Frontend (Line rendering): Cải tiến logic vẽ SVG (polyline và dots). Đường biểu diễn sẽ tự động ngắt/dừng ở tháng cuối cùng có dữ liệu chi tiêu, không bị rơi tụt xuống mức 0 ở các tháng tương lai (chưa có dữ liệu).
+
+**2. Giải đáp Kiến trúc Cơ sở dữ liệu Cốt lõi (PFM Database Structure):**
+   - **Câu hỏi 4-8:** Yêu cầu giải thích chi tiết cột, tác dụng bảng `transaction_tags`, `transaction_splits`, `savings_goals` và mối liên hệ giữa các bảng. Lấy ví dụ thực tế từ trong Database của project.
+   - **Thực thi:**
+     + **Bảng `transaction_tags` (Quan hệ N-N):** Đã phân tích đây là bảng trung gian giúp gắn nhiều nhãn dán cho 1 giao dịch. Lấy đúng ví dụ thực tế từ file `seed_1_year.sql`: Giao dịch Lẩu Thái (120k) gắn đồng thời tag `#anuong` và `#banbe`.
+     + **Bảng `transaction_splits` (Quan hệ 1-N):** Đã phân tích tính năng "Split Transaction" (chia nhỏ giao dịch). Dùng ví dụ đi siêu thị (hóa đơn gộp ăn uống, sinh hoạt, giáo dục) để giải thích cách phân bổ 1 dòng tiền ra thành nhiều danh mục ngân sách khác nhau, không làm sai lệch số dư.
+     + **Liên kết 3 bảng:** Đã tổng hợp thành sơ đồ rễ cây: `transactions` là thân cây (số tiền tổng, thời gian), `transaction_splits` là nhánh chia nhỏ theo danh mục, `transaction_tags` là nhánh nhóm chéo theo sự kiện/nhãn dán.
+     + **Bảng `savings_goals`:** Giải thích cơ chế lưu trữ các mục tiêu tiết kiệm, ý nghĩa các cột `target_amount`, `current_amount`, `deadline_date` và cách hệ thống nhắc nhở tiến độ.
+
+---
+
+### Session [2026-07-19] - Hoàn thiện Chức năng Nhập Nhanh (Chưa Phân Loại) & Popup Quản lý
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Tích hợp Giao dịch "Nhập nhanh" (Chưa phân loại):**
+   - **Giao diện (`ngan-keo-them-giao-dich.tsx`):** Hoàn thiện nút "Nhập nhanh (Chưa phân loại)" cho luồng thêm chi tiêu cá nhân, cho phép tạo nhanh một giao dịch mà không cần chọn danh mục (tự động gán vào danh mục "Chưa phân loại").
+   - **Backend:** Cập nhật 2 REST APIs (`GET /api/transactions/uncategorized` và `/api/transactions/uncategorized/count`) để lấy danh sách và đếm số lượng các giao dịch cần phân loại lại.
+
+**2. Giao diện Cảnh báo & Popup Phân loại (Dashboard):**
+   - **Dashboard (`tab-tong-quan.tsx`):** Tích hợp banner cảnh báo (màu hổ phách) trên màn hình Tổng quan khi phát hiện có giao dịch chưa phân loại.
+   - **Popup Danh sách:** Bổ sung component `Dialog` hiển thị danh sách các giao dịch "Nhập nhanh" (hiển thị ghi chú, ngày tháng, và số tiền).
+   - **Liên kết Sửa Giao dịch:** Kết nối trực tiếp từng item trong Popup với `<EditTransactionDrawer>`, giúp người dùng bấm vào là có thể chọn lại danh mục và cập nhật dễ dàng.
+
+**3. Quản lý Git & Triển khai:**
+   - Tạo mới nhánh (branch) `feat/uncategorized-transactions`.
+   - Commit toàn bộ thay đổi mã nguồn và push thành công lên kho lưu trữ GitHub.
+
+---
+
 ### Session [2026-07-16] - Code Formatting, Báo cáo Clean Code & Việt hóa Cấu trúc Component
 
 **✅ Đã hoàn thành (Compact Procedure):**

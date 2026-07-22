@@ -62,7 +62,7 @@ INSERT INTO wallets (id, user_id, name, balance, currency, is_liability) VALUES
 ('3c333333-3333-4333-a333-333333333339', '1a111111-1111-4111-a111-111111111111', 'BIDV', 0, 'VND', false),
 ('3c333333-3333-4333-a333-333333333340', '1a111111-1111-4111-a111-111111111111', 'TPBank', 0, 'VND', false);
 -- 4. GROUPS 
-INSERT INTO groups (id, name, description, created_by) VALUES 
+INSERT INTO groups (id, name, description, owner_id) VALUES 
 ('4d444444-4444-4444-a444-444444444441', 'Phòng Trọ 302', 'Tiền nhà hàng tháng', '1a111111-1111-4111-a111-111111111111'),
 ('4d444444-4444-4444-a444-444444444442', 'Du Lịch Đà Lạt', 'Chuyến đi tháng 7', '1a111111-1111-4111-a111-111111111112'),
 ('4d444444-4444-4444-a444-444444444443', 'Ăn Trưa Công Ty', 'Hội cơm hộp', '1a111111-1111-4111-a111-111111111113'),

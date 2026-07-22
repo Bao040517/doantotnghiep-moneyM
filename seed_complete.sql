@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    created_by UUID NOT NULL REFERENCES users(id),
+    owner_id UUID NOT NULL REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -301,7 +301,7 @@ INSERT INTO tags (id, user_id, name) VALUES
 ('11a11111-1111-4111-a111-111111111120', '1a111111-1111-4111-a111-111111111111', '#thuong');
 
 -- ========================= 6. GROUPS =========================
-INSERT INTO groups (id, name, description, created_by, created_at) VALUES
+INSERT INTO groups (id, name, description, owner_id, created_at) VALUES
 ('4d444444-4444-4444-a444-444444444441', 'Phòng Trọ 302', 'Tiền nhà hàng tháng', '1a111111-1111-4111-a111-111111111111', '2026-03-01 10:00:00'),
 ('4d444444-4444-4444-a444-444444444442', 'Du Lịch Đà Lạt', 'Chuyến đi tháng 5', '1a111111-1111-4111-a111-111111111112', '2026-04-15 10:00:00'),
 ('4d444444-4444-4444-a444-444444444443', 'Ăn Trưa Công Ty', 'Hội cơm hộp', '1a111111-1111-4111-a111-111111111113', '2026-03-10 10:00:00');

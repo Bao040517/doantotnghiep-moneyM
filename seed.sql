@@ -31,7 +31,7 @@ BEGIN
     (user_linh, 'Thùy Linh', 'linh@demo.com', valid_password_hash, 'https://ui-avatars.com/api/?name=Linh&background=F43F5E&color=fff', NOW()),
     (user_trang, 'Thu Trang', 'trang@demo.com', valid_password_hash, 'https://ui-avatars.com/api/?name=Trang&background=8B5CF6&color=fff', NOW());
 
-    INSERT INTO groups (id, name, description, created_by, created_at) VALUES
+    INSERT INTO groups (id, name, description, owner_id, created_at) VALUES
     (group_id, 'Phượt Đà Lạt (Đồ án)', 'Chuyến đi bảo vệ đồ án', user_tuan, NOW());
 
     INSERT INTO group_members (id, group_id, user_id, role, joined_at) VALUES

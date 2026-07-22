@@ -13,7 +13,7 @@ public class GroupResponse {
     private UUID id;
     private String name;
     private String description;
-    private UserSummaryResponse creator;
+    private UserSummaryResponse owner;
     private int memberCount;
     private LocalDateTime createdAt;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 
@@ -32,17 +32,37 @@ export function CreateGroupModal({
     handleClose();
   };
 
-  // If using controlled mode (open prop), don't render when closed
-  if (open === false) return null;
   const [form, setForm] = useState({ name: "", description: "" });
   const [loading, setLoading] = useState(false);
+  const [pastMembers, setPastMembers] = useState<any[]>([]);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [fetchingMembers, setFetchingMembers] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm({ name: "", description: "" });
+      setSelectedMemberIds([]);
+      setFetchingMembers(true);
+      api
+        .get("/groups/past-members")
+        .then((res) => setPastMembers(res.data))
+        .catch((err) => console.error(err))
+        .finally(() => setFetchingMembers(false));
+    }
+  }, [open]);
+
+  const toggleMember = (id: string) => {
+    setSelectedMemberIds((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
     setLoading(true);
     try {
-      await api.post("/groups", form);
+      await api.post("/groups", { ...form, memberIds: selectedMemberIds });
       toast.success("Tạo nhóm thành công! 🎉");
       handleCreated();
     } catch (err: any) {
@@ -51,6 +71,9 @@ export function CreateGroupModal({
       setLoading(false);
     }
   };
+
+  // If using controlled mode (open prop), don't render when closed
+  if (open === false) return null;
 
   return (
     /* Overlay */
@@ -101,6 +124,75 @@ export function CreateGroupModal({
               className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#45b39d] transition resize-none"
             />
           </div>
+
+          {(pastMembers.length > 0 || fetchingMembers) && (
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+                Thêm thành viên
+              </label>
+              <div className="max-h-40 overflow-y-auto space-y-1.5 border-2 border-slate-100 rounded-2xl p-2.5">
+                {fetchingMembers ? (
+                  <div className="text-xs text-center text-slate-400 py-4">Đang tải...</div>
+                ) : (
+                  pastMembers.map((member) => {
+                    const isSelected = selectedMemberIds.includes(member.id);
+                    return (
+                      <div
+                        key={member.id}
+                        onClick={() => toggleMember(member.id)}
+                        className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-colors border ${
+                          isSelected
+                            ? "border-[#45b39d] bg-[#f0f9f6]"
+                            : "border-transparent hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 shrink-0">
+                          <img
+                            src={
+                              member.avatarUrl ||
+                              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                member.name
+                              )}`
+                            }
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 truncate">
+                            {member.name}
+                          </p>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 ${
+                            isSelected
+                              ? "bg-[#45b39d] border-[#45b39d]"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {isSelected && (
+                            <svg
+                              className="w-3.5 h-3.5 text-white"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={3}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"

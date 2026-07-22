@@ -336,6 +336,14 @@ export function TransferModal({
       return;
     }
 
+    const selectedWallet = wallets.find((w) => w.id === walletId);
+    if (selectedWallet && rawAmount > selectedWallet.balance) {
+      window.alert(
+        `⚠️ SỐ DƯ KHÔNG ĐỦ!\n\nSố tiền bạn muốn chuyển (${new Intl.NumberFormat("vi-VN").format(rawAmount)}đ) vượt quá số dư trong ${selectedWallet.name} (hiện có ${new Intl.NumberFormat("vi-VN").format(selectedWallet.balance)}đ).`
+      );
+      return;
+    }
+
     const budget = budgets.find((b) => b.categoryId === categoryId);
     if (budget) {
       setMatchingBudget(budget);

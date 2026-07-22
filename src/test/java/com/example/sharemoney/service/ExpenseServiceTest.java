@@ -31,6 +31,7 @@ class ExpenseServiceTest {
     @Mock private GroupMemberRepository groupMemberRepository;
     @Mock private UserRepository userRepository;
     @Mock private TransactionRepository transactionRepository;
+    @Mock private NotificationService notificationService;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @InjectMocks private ExpenseService expenseService;

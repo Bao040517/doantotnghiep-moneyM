@@ -23,4 +23,9 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, UUID> 
             "SELECT gm.group.id, COUNT(gm) FROM GroupMember gm WHERE gm.group.id IN :groupIds GROUP BY gm.group.id")
     List<Object[]> countMembersByGroupIds(
             @org.springframework.data.repository.query.Param("groupIds") List<UUID> groupIds);
+
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT DISTINCT gm.user FROM GroupMember gm WHERE gm.group.id IN (SELECT gm2.group.id FROM GroupMember gm2 WHERE gm2.user.id = :userId) AND gm.user.id != :userId")
+    List<com.example.sharemoney.entity.User> findPastMembers(
+            @org.springframework.data.repository.query.Param("userId") UUID userId);
 }

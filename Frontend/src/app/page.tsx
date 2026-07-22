@@ -70,7 +70,7 @@ export default function Home() {
       }}
     >
       {activeTab === "dashboard" ? (
-        <DashboardTab onNavigate={(tab) => setActiveTab(tab as any)} />
+        <DashboardTab onNavigate={(tab) => setActiveTab(tab as any)} refreshTrigger={refreshTrigger} />
       ) : activeTab === "savings" ? (
         <>
           <header

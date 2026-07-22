@@ -17,7 +17,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class CreateExpenseRequest {
 
-    /** TODO: Sau khi có Security, xoá field này — lấy từ JWT. */
+    /** ID người thanh toán — hỗ trợ tính năng "nhập hộ" (chọn người trả khác người tạo). */
     @NotNull(message = "paidBy không được để trống.") private UUID paidBy;
 
     @NotBlank(message = "Tiêu đề khoản chi không được để trống.")

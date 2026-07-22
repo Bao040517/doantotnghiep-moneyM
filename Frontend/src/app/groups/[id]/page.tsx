@@ -32,7 +32,7 @@ interface GroupDetail {
   id: string;
   name: string;
   description: string;
-  creator: UserSummary;
+  owner: UserSummary;
   members: Member[];
   createdAt: string;
 }
@@ -247,6 +247,7 @@ export default function GroupDetailPage({
           <AddMemberDialog
             groupId={group.id}
             onMemberAdded={() => fetchGroupData(true)}
+            existingMemberIds={group.members.map(m => m.user.id)}
           />
         </div>
 

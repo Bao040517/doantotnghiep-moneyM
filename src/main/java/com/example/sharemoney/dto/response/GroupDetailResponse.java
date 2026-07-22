@@ -14,7 +14,7 @@ public class GroupDetailResponse {
     private UUID id;
     private String name;
     private String description;
-    private UserSummaryResponse creator;
+    private UserSummaryResponse owner;
     private List<MemberResponse> members;
     private LocalDateTime createdAt;
 

@@ -34,7 +34,7 @@ public class GroupService {
     @Transactional
     public GroupResponse createGroup(CreateGroupRequest req) {
         UUID currentUserId = SecurityUtils.getCurrentUserId();
-        User creator =
+        User owner =
                 userRepository
                         .findById(currentUserId)
                         .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -43,15 +43,37 @@ public class GroupService {
                 Group.builder()
                         .name(req.getName())
                         .description(req.getDescription())
-                        .creator(creator)
+                        .owner(owner)
                         .build();
         groupRepository.save(group);
 
         GroupMember ownerMember =
-                GroupMember.builder().group(group).user(creator).role("owner").build();
+                GroupMember.builder().group(group).user(owner).role("owner").build();
         groupMemberRepository.save(ownerMember);
 
-        return toGroupResponse(group, 1);
+        int count = 1;
+        if (req.getMemberIds() != null && !req.getMemberIds().isEmpty()) {
+            for (UUID memberId : req.getMemberIds()) {
+                if (memberId.equals(owner.getId())) continue;
+                User memberUser = userRepository.findById(memberId).orElse(null);
+                if (memberUser != null) {
+                    GroupMember gm = GroupMember.builder().group(group).user(memberUser).role("member").build();
+                    groupMemberRepository.save(gm);
+                    count++;
+                }
+            }
+        }
+
+        return toGroupResponse(group, count);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Lấy danh sách thành viên từng chung nhóm
+    // ─────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<UserSummaryResponse> getPastMembers(UUID userId) {
+        List<User> pastMembers = groupMemberRepository.findPastMembers(userId);
+        return pastMembers.stream().map(this::toUserSummary).toList();
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -117,7 +139,7 @@ public class GroupService {
                 .id(group.getId())
                 .name(group.getName())
                 .description(group.getDescription())
-                .creator(toUserSummary(group.getCreator()))
+                .owner(toUserSummary(group.getOwner()))
                 .members(members)
                 .createdAt(group.getCreatedAt())
                 .build();
@@ -161,7 +183,7 @@ public class GroupService {
                 .id(group.getId())
                 .name(group.getName())
                 .description(group.getDescription())
-                .creator(toUserSummary(group.getCreator()))
+                .owner(toUserSummary(group.getOwner()))
                 .memberCount(memberCount)
                 .createdAt(group.getCreatedAt())
                 .build();

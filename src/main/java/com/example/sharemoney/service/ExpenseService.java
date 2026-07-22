@@ -36,6 +36,7 @@ public class ExpenseService {
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
+    private final NotificationService notificationService;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     // ─────────────────────────────────────────────────────────────
@@ -122,6 +123,15 @@ public class ExpenseService {
                             req.getAmount(),
                             req.getTitle(),
                             req.getCategory()));
+        }
+
+        // Gửi thông báo tới những người bị chia tiền (trừ người thực hiện thao tác)
+        for (ExpenseSplit split : expense.getSplits()) {
+            if (!split.getUser().getId().equals(requestUserId)) {
+                String message = String.format("%s đã thêm bạn vào khoản chi \"%s\" (%s VNĐ)",
+                        payer.getName(), req.getTitle(), split.getAmountOwed());
+                notificationService.sendNotification(split.getUser().getId(), message, "EXPENSE_CREATED");
+            }
         }
 
         return toDetailResponse(expense);
@@ -253,9 +263,9 @@ public class ExpenseService {
             throw new AppException(ErrorCode.CANNOT_MODIFY_SYSTEM_EXPENSE);
         }
 
-        // Chỉ người tạo (payer) mới được sửa
-        if (!expense.getPayer().getId().equals(requestUserId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+        // Mọi thành viên nhóm đều có thể sửa khoản chi (giống Splitwise)
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, requestUserId)) {
+            throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
         User newPayer =
@@ -313,6 +323,15 @@ public class ExpenseService {
                             req.getCategory()));
         }
 
+        // Gửi thông báo cập nhật
+        for (ExpenseSplit split : expense.getSplits()) {
+            if (!split.getUser().getId().equals(requestUserId)) {
+                String message = String.format("Khoản chi \"%s\" đã được cập nhật, phần của bạn là %s VNĐ",
+                        req.getTitle(), split.getAmountOwed());
+                notificationService.sendNotification(split.getUser().getId(), message, "EXPENSE_UPDATED");
+            }
+        }
+
         return toDetailResponse(expense);
     }
 
@@ -344,10 +363,6 @@ public class ExpenseService {
             throw new AppException(ErrorCode.CANNOT_MODIFY_SYSTEM_EXPENSE);
         }
 
-        // Chỉ người tạo (payer) mới được xóa
-        if (!expense.getPayer().getId().equals(userId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
 
         expenseRepository.delete(expense); // CascadeType.ALL xoá splits tự động
 

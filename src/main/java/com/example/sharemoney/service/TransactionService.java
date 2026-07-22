@@ -169,6 +169,9 @@ public class TransactionService {
         if (category.getType() == TransactionType.INCOME) {
             wallet.setBalance(wallet.getBalance().add(req.getAmount()));
         } else if (category.getType() == TransactionType.EXPENSE) {
+            if (wallet.getBalance().compareTo(req.getAmount()) < 0) {
+                throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
+            }
             wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
         }
         // TRANSFER: không thay đổi số dư ví
@@ -371,6 +374,9 @@ public class TransactionService {
         if (newCategory.getType() == TransactionType.INCOME) {
             wallet.setBalance(wallet.getBalance().add(req.getAmount()));
         } else if (newCategory.getType() == TransactionType.EXPENSE) {
+            if (wallet.getBalance().compareTo(req.getAmount()) < 0) {
+                throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
+            }
             wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
         }
         // TRANSFER: không thay đổi số dư ví
@@ -426,11 +432,11 @@ public class TransactionService {
     @Transactional(readOnly = true)
     public MonthlySummaryResponse getMonthlySummary(UUID userId, int year, int month) {
         List<MonthlySummaryResponse.MonthData> months = new ArrayList<>();
-        YearMonth currentYM = YearMonth.of(year, month);
+        YearMonth trendBaseYM = YearMonth.now();
 
-        // 6 tháng gần nhất
+        // 6 tháng gần nhất kể từ tháng hiện tại (real current month)
         for (int i = 5; i >= 0; i--) {
-            YearMonth targetYM = currentYM.minusMonths(i);
+            YearMonth targetYM = trendBaseYM.minusMonths(i);
             LocalDateTime from = targetYM.atDay(1).atStartOfDay();
             LocalDateTime to = targetYM.plusMonths(1).atDay(1).atStartOfDay();
 
@@ -495,33 +501,49 @@ public class TransactionService {
                             .build());
         }
 
-        // Current month
-        MonthlySummaryResponse.MonthData currentMonthData = months.get(5); // last one
-        MonthlySummaryResponse.MonthData prevMonthData = months.get(4); // previous one
+        // --- Dữ liệu cho tháng ĐƯỢC CHỌN (để hiển thị trên Top Cards) ---
+        YearMonth selectedYM = YearMonth.of(year, month);
+        LocalDateTime selFrom = selectedYM.atDay(1).atStartOfDay();
+        LocalDateTime selTo = selectedYM.plusMonths(1).atDay(1).atStartOfDay();
 
-        // Top category current month
+        BigDecimal selIncome = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, selFrom, selTo);
+        if (selIncome == null) selIncome = BigDecimal.ZERO;
+        BigDecimal selDebtRecovery = transactionRepository.sumDebtRecoveryByPeriod(userId, selFrom, selTo);
+        if (selDebtRecovery == null) selDebtRecovery = BigDecimal.ZERO;
+        selIncome = selIncome.add(selDebtRecovery);
+
+        BigDecimal selExpense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, selFrom, selTo);
+        if (selExpense == null) selExpense = BigDecimal.ZERO;
+
+        // Top category selected month
         List<CategoryBreakdownResponse> breakdown =
-                getCategoryBreakdown(userId, currentYM.getYear(), currentYM.getMonthValue());
+                getCategoryBreakdown(userId, selectedYM.getYear(), selectedYM.getMonthValue());
         String topCat = breakdown.isEmpty() ? "Chưa có" : breakdown.get(0).getCategoryName();
 
         MonthlySummaryResponse.CurrentMonthData current =
                 MonthlySummaryResponse.CurrentMonthData.builder()
-                        .totalIncome(currentMonthData.getIncome())
-                        .totalExpense(currentMonthData.getExpense())
+                        .totalIncome(selIncome)
+                        .totalExpense(selExpense)
                         .topCategory(topCat)
                         .build();
 
-        // Comparison
-        BigDecimal expenseChange =
-                currentMonthData.getExpense().subtract(prevMonthData.getExpense());
+        // Comparison với tháng trước của tháng được chọn
+        YearMonth prevYM = selectedYM.minusMonths(1);
+        LocalDateTime prevFrom = prevYM.atDay(1).atStartOfDay();
+        LocalDateTime prevTo = prevYM.plusMonths(1).atDay(1).atStartOfDay();
+
+        BigDecimal prevExpense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, prevFrom, prevTo);
+        if (prevExpense == null) prevExpense = BigDecimal.ZERO;
+
+        BigDecimal expenseChange = selExpense.subtract(prevExpense);
         int percent = 0;
-        if (prevMonthData.getExpense().compareTo(BigDecimal.ZERO) > 0) {
+        if (prevExpense.compareTo(BigDecimal.ZERO) > 0) {
             percent =
                     expenseChange
                             .multiply(BigDecimal.valueOf(100))
-                            .divide(prevMonthData.getExpense(), 0, RoundingMode.HALF_UP)
+                            .divide(prevExpense, 0, RoundingMode.HALF_UP)
                             .intValue();
-        } else if (currentMonthData.getExpense().compareTo(BigDecimal.ZERO) > 0) {
+        } else if (selExpense.compareTo(BigDecimal.ZERO) > 0) {
             percent = 100; // was 0, now > 0
         }
 

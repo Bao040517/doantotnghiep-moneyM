@@ -77,64 +77,7 @@ const expenseSchema = z.object({
   paidBy: z.string().min(1, "Vui lòng chọn người thanh toán"),
 });
 
-const CATEGORIES = [
-  {
-    value: "Ăn uống",
-    label: "Ăn uống",
-    icon: Utensils,
-    bgColor: "bg-[#FFE4E4]",
-    iconColor: "text-[#F08080]",
-  },
-  {
-    value: "Di chuyển",
-    label: "Di chuyển",
-    icon: Car,
-    bgColor: "bg-[#E5D1FF]",
-    iconColor: "text-purple-400",
-  },
-  {
-    value: "Lưu trú",
-    label: "Lưu trú",
-    icon: Home,
-    bgColor: "bg-[#D1E9FF]",
-    iconColor: "text-blue-500",
-  },
-  {
-    value: "Giải trí",
-    label: "Giải trí",
-    icon: Gamepad2,
-    bgColor: "bg-[#D1FFF5]",
-    iconColor: "text-teal-400",
-  },
-  {
-    value: "Mua sắm",
-    label: "Mua sắm",
-    icon: ShoppingBag,
-    bgColor: "bg-[#FFF9D1]",
-    iconColor: "text-yellow-500",
-  },
-  {
-    value: "Sức khỏe",
-    label: "Sức khỏe",
-    icon: Pill,
-    bgColor: "bg-[#FFD1E6]",
-    iconColor: "text-pink-400",
-  },
-  {
-    value: "Hóa đơn",
-    label: "Hóa đơn",
-    icon: Receipt,
-    bgColor: "bg-[#D6EAF8]",
-    iconColor: "text-[#2980B9]",
-  },
-  {
-    value: "Khác",
-    label: "Khác",
-    icon: Package,
-    bgColor: "bg-slate-100",
-    iconColor: "text-slate-400",
-  },
-];
+// CATEGORIES list is now fetched dynamically from API
 
 export function AddExpenseDrawer({
   groupId,
@@ -145,6 +88,7 @@ export function AddExpenseDrawer({
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
   const [customSplitAmounts, setCustomSplitAmounts] = useState<Record<
     string,
     number
@@ -190,6 +134,22 @@ export function AddExpenseDrawer({
       }
     }
   }, [open, members, form]);
+
+  useEffect(() => {
+    if (open) {
+      api
+        .get("/categories")
+        .then((res) => {
+          setCategories(
+            res.data.filter(
+              (c: any) =>
+                c.type === "EXPENSE" && c.name !== "Mục tiêu tiết kiệm"
+            )
+          );
+        })
+        .catch((err) => console.error(err));
+    }
+  }, [open]);
 
   // Xử lý khi Scanner trả về kết quả Itemized Split
   const handleScanConfirm = (data: {
@@ -506,22 +466,16 @@ export function AddExpenseDrawer({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="rounded-2xl border border-slate-100 shadow-xl p-1.5 w-[--radix-select-trigger-width] min-w-[200px] bg-white">
-                      {CATEGORIES.map((cat) => (
+                      {categories.map((cat) => (
                         <SelectItem
-                          key={cat.value}
-                          value={cat.value}
+                          key={cat.id}
+                          value={cat.name}
                           className="p-2 mb-0.5 rounded-xl cursor-pointer focus:bg-[#E8F6F3] data-[state=checked]:bg-[#E8F6F3]"
                         >
                           <div className="flex items-center space-x-3">
-                            <div
-                              className={`w-8 h-8 rounded-full ${cat.bgColor} flex items-center justify-center`}
-                            >
-                              <cat.icon
-                                className={`w-4 h-4 ${cat.iconColor}`}
-                              />
-                            </div>
+                            <span className="text-[16px]">{cat.iconName}</span>
                             <span className="text-[15px] font-medium text-slate-800">
-                              {cat.label}
+                              {cat.name}
                             </span>
                           </div>
                         </SelectItem>

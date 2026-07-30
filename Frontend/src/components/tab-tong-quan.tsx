@@ -13,9 +13,30 @@ import { EditTransactionDrawer } from "@/components/ngan-keo-sua-giao-dich";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface DashboardTabProps {
-  onNavigate?: (tab: string) => void;
+  onNavigate?: (tab: string, extraData?: any) => void;
   refreshTrigger?: number;
 }
+
+const getCategoryTheme = (catName: string, isOver: boolean) => {
+  const name = (catName || "").toLowerCase();
+  let emoji = "💸";
+  let iconBg = isOver
+    ? "bg-rose-100 text-rose-600 border-rose-200"
+    : "bg-amber-100 text-amber-600 border-amber-200";
+
+  if (name.includes("y tế") || name.includes("thuốc") || name.includes("bệnh")) emoji = "🏥";
+  else if (name.includes("ăn") || name.includes("phở") || name.includes("cơm") || name.includes("thực phẩm") || name.includes("nhà hàng")) emoji = "🍔";
+  else if (name.includes("cà phê") || name.includes("trà") || name.includes("nước")) emoji = "☕";
+  else if (name.includes("quần áo") || name.includes("trang phục") || name.includes("thời trang") || name.includes("mặc")) emoji = "👗";
+  else if (name.includes("mua sắm") || name.includes("shopping") || name.includes("đồ")) emoji = "🛍️";
+  else if (name.includes("giải trí") || name.includes("phim") || name.includes("game")) emoji = "🎬";
+  else if (name.includes("di chuyển") || name.includes("xe") || name.includes("xăng")) emoji = "🚗";
+  else if (name.includes("giao lưu") || name.includes("bạn bè") || name.includes("tiệc")) emoji = "🤝";
+  else if (name.includes("mỹ phẩm") || name.includes("làm đẹp")) emoji = "💄";
+  else if (name.includes("học") || name.includes("sách")) emoji = "📚";
+
+  return { emoji, iconBg };
+};
 
 export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) {
   const router = useRouter();
@@ -48,7 +69,7 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
   const [debtsInitialTab, setDebtsInitialTab] = useState<"borrowed" | "lent">(
     "lent",
   );
-  
+
   // Uncategorized reminder state
   const [uncategorizedCount, setUncategorizedCount] = useState(0);
   const [uncategorizedTxs, setUncategorizedTxs] = useState<any[]>([]);
@@ -155,7 +176,7 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
       const calcAutoSavings = Math.max(0, rawSafe * 0.4);
       setAutoSavings(calcAutoSavings);
       setSafeToSpend(Math.max(0, rawSafe));
-      
+
       if (uncatCountRes && uncatCountRes.status === "fulfilled") {
         setUncategorizedCount(uncatCountRes.value.data || 0);
       }
@@ -180,7 +201,7 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <div className="w-8 h-8 rounded-full border-4 border-[#B3E5D1] border-t-[#45b39d] animate-spin" />
+        <div className="w-8 h-8 rounded-full border-4 border-[#B3E5D1] border-t-[#6366f1] animate-spin" />
       </div>
     );
   }
@@ -197,17 +218,66 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
       ? Math.min(100, (totalBudgetSpent / totalBudgetLimit) * 100)
       : 0;
 
+  // Separate at-risk budgets into Over Limit (> 100%) and Approaching Limit (80% - 99%)
+  const { overLimitBudgets, approachingBudgets } = (() => {
+    const mapOver = new Map<string, any>();
+    const mapApproaching = new Map<string, any>();
+
+    budgets
+      .filter(
+        (b: any) =>
+          b.type === "FLEXIBLE" &&
+          b.limitAmount > 0 &&
+          b.spentAmount / b.limitAmount >= 0.8
+      )
+      .forEach((b: any) => {
+        const catKey = (b.categoryName || b.categoryId || b.name || "UNNAMED")
+          .toLowerCase()
+          .trim();
+        const pct = b.spentAmount / b.limitAmount;
+        if (pct >= 1.0) {
+          if (
+            !mapOver.has(catKey) ||
+            b.spentAmount / b.limitAmount >
+              mapOver.get(catKey).spentAmount / mapOver.get(catKey).limitAmount
+          ) {
+            mapOver.set(catKey, b);
+          }
+        } else {
+          if (
+            !mapApproaching.has(catKey) ||
+            b.spentAmount / b.limitAmount >
+              mapApproaching.get(catKey).spentAmount /
+                mapApproaching.get(catKey).limitAmount
+          ) {
+            mapApproaching.set(catKey, b);
+          }
+        }
+      });
+
+    return {
+      overLimitBudgets: Array.from(mapOver.values()).sort(
+        (a: any, b: any) =>
+          b.spentAmount / b.limitAmount - a.spentAmount / a.limitAmount
+      ),
+      approachingBudgets: Array.from(mapApproaching.values()).sort(
+        (a: any, b: any) =>
+          b.spentAmount / b.limitAmount - a.spentAmount / a.limitAmount
+      ),
+    };
+  })();
+
   const currentUser =
     typeof window !== "undefined"
       ? (() => {
-          const userStr = localStorage.getItem("user");
-          if (userStr) {
-            try {
-              return JSON.parse(userStr);
-            } catch (e) {}
-          }
-          return { id: "", name: "", avatarUrl: null };
-        })()
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          try {
+            return JSON.parse(userStr);
+          } catch (e) { }
+        }
+        return { id: "", name: "", avatarUrl: null };
+      })()
       : { id: "", name: "", avatarUrl: null };
 
   const myDebts = debtDetails
@@ -235,9 +305,9 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
       {/* Overscroll cover hack: Lấp đầy khoảng trắng khi vuốt quá đà */}
       <div className="absolute top-[-100vh] left-0 right-0 h-[100vh] bg-[#1a1a2e]" />
 
-      {/* ─── ENTIRE HEADER BLOCK ─── */}
+      {/* ─── ENTIRE HEADER BLOCK (ORIGINAL NAVY GRADIENT) ─── */}
       <div
-        className="relative rounded-b-[2.5rem] pt-4 px-5 pb-8 overflow-hidden z-0 shadow-sm"
+        className="relative rounded-b-[2.5rem] pt-5 px-5 pb-7 overflow-hidden z-0 shadow-md"
         style={{
           background:
             "linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
@@ -249,13 +319,13 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
         />
         <div
           className="absolute bottom-0 left-0 w-32 h-32 rounded-full blur-3xl opacity-20"
-          style={{ background: "#45b39d" }}
+          style={{ background: "#6366f1" }}
         />
 
         {/* ─── TOP BAR ─── */}
         <div className="relative z-10 flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/10">
               <span className="text-xl">👋</span>
             </div>
             <div>
@@ -267,41 +337,16 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
           </div>
           <button
             onClick={() => setShowBalance(!showBalance)}
-            className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white active:scale-95 transition-transform"
+            className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center text-white active:scale-95 transition-transform border border-white/10"
           >
             {showBalance ? (
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
             ) : (
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
               </svg>
             )}
           </button>
@@ -314,23 +359,16 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
               Số dư khả dụng
             </p>
             {safeToSpend !== null && (
-              <span className="text-white/50 text-[11px] bg-white/10 px-2 py-0.5 rounded-full">
-                {/* Calculate days left dynamically */}
-                Còn{" "}
-                {(() => {
+              <span className="text-white/70 text-[11px] bg-white/10 border border-white/10 px-2.5 py-0.5 rounded-full font-medium">
+                Còn {(() => {
                   const today = new Date();
-                  const end = new Date(
-                    today.getFullYear(),
-                    today.getMonth() + 1,
-                    0,
-                  );
+                  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
                   return end.getDate() - today.getDate() + 1;
-                })()}{" "}
-                ngày
+                })()} ngày
               </span>
             )}
           </div>
-          <div className="flex flex-col mb-6">
+          <div className="flex flex-col mb-4">
             <h2 className="text-[40px] leading-none font-black text-[#4ade80] tracking-tight mb-2">
               {showBalance
                 ? safeToSpend !== null
@@ -339,7 +377,7 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
                 : "••••••••"}
             </h2>
             <div className="flex items-center gap-2">
-              <div className="px-3 py-1.5 bg-white/10 rounded-xl inline-flex items-center backdrop-blur-sm border border-white/5 shadow-sm">
+              <div className="px-3 py-1.5 bg-white/10 rounded-xl inline-flex items-center backdrop-blur-sm border border-white/10 shadow-sm">
                 <span className="text-white/80 text-[13px] font-medium mr-2">
                   Hạn mức hôm nay:
                 </span>
@@ -347,17 +385,13 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
                   {showBalance
                     ? safeToSpend !== null
                       ? fmt(
-                          safeToSpend /
-                            (() => {
-                              const today = new Date();
-                              const end = new Date(
-                                today.getFullYear(),
-                                today.getMonth() + 1,
-                                0,
-                              );
-                              return end.getDate() - today.getDate() + 1;
-                            })(),
-                        )
+                        safeToSpend /
+                        (() => {
+                          const today = new Date();
+                          const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                          return end.getDate() - today.getDate() + 1;
+                        })()
+                      )
                       : "..."
                     : "••••••••"}
                 </span>
@@ -365,209 +399,74 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
             </div>
           </div>
 
-          {/* ─── MONTHLY CASH FLOW ─── */}
-          {/* ─── WEALTH SNAPSHOT (4 METRICS) ─── */}
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            {/* Tổng tiền các ví */}
-            <div
-              onClick={() => setShowWalletManager(true)}
-              className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5 cursor-pointer active:scale-95 transition-transform group hover:bg-white/20"
-            >
-              <div className="flex items-center gap-1.5 mb-1 text-white/70">
-                <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center">
-                  <svg
-                    className="w-3 h-3 text-blue-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={3}
-                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                    />
-                  </svg>
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider">
-                  Tổng tiền các ví
-                </span>
-              </div>
-              <p className="text-white font-extrabold text-[15px]">
-                {showBalance ? fmt(totalWalletBalance) : "••••••"}
-              </p>
-            </div>
-
-            {/* Tổng tiền tiết kiệm */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1 text-white/70">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                  <svg
-                    className="w-3 h-3 text-emerald-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={3}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider">
-                  Tổng tiền tiết kiệm
-                </span>
-              </div>
-              <p className="text-white font-extrabold text-[15px]">
-                {showBalance ? fmt(totalSavings) : "••••••"}
-              </p>
-            </div>
-
-            {/* Nợ cần thu */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1 text-white/70">
-                <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center">
-                  <svg
-                    className="w-3 h-3 text-amber-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={3}
-                      d="M7 11l5-5m0 0l5 5m-5-5v12"
-                    />
-                  </svg>
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider">
-                  Nợ cần thu
-                </span>
-              </div>
-              <p className="text-white font-extrabold text-[15px]">
-                {showBalance ? fmt(debtSummary.totalOwed) : "••••••"}
-              </p>
-            </div>
-
-            {/* Nợ phải trả */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/5">
-              <div className="flex items-center gap-1.5 mb-1 text-white/70">
-                <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center">
-                  <svg
-                    className="w-3 h-3 text-rose-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={3}
-                      d="M17 13l-5 5m0 0l-5-5m5 5V6"
-                    />
-                  </svg>
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider">
-                  Nợ phải trả
-                </span>
-              </div>
-              <p className="text-white font-extrabold text-[15px]">
-                {showBalance ? fmt(debtSummary.totalOwing) : "••••••"}
-              </p>
-            </div>
-          </div>
         </div>
 
-        {/* ─── WALLET & BREAKDOWN ─── */}
+        {/* ─── ORIGINAL WHITE BREAKDOWN CARD (PROPERLY ALIGNED & SPACED) ─── */}
         <div className="relative z-10 bg-white rounded-[24px] p-5 shadow-xl shadow-black/5 border border-gray-100">
+          {/* Row 1: Tổng tất cả các ví */}
           <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-[#e8f5f1] text-[#45b39d] rounded-full flex items-center justify-center text-xs">
+              <div className="w-7 h-7 bg-[#e8f5f1] text-[#6366f1] rounded-full flex items-center justify-center text-xs font-bold">
                 💳
               </div>
-              <span className="text-gray-600 font-bold text-[13px]">
+              <span className="text-gray-700 font-bold text-[13px]">
                 Tổng tất cả các ví
               </span>
             </div>
-            <p className="text-[17px] font-black text-gray-800">
+            <p className="text-[17px] font-black text-gray-800 tracking-tight">
               {showBalance ? fmt(totalWalletBalance) : "••••••••"}
             </p>
           </div>
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-xs">
-                🔒
-              </div>
-              <span className="text-gray-500 font-medium text-[12px]">
-                Giữ cho Ngân sách
-              </span>
-            </div>
-            <p className="text-[15px] font-bold text-amber-500">
-              {showBalance
-                ? (unpaidBudgetsAmount > 0 ? "-" : "") +
-                  fmt(unpaidBudgetsAmount)
-                : "••••••••"}
-            </p>
-          </div>
-          <GlobalDebtsDrawer
-            myDebts={myDebts}
-            owedToMe={owedToMe}
-            defaultTab="myDebts"
-          >
-            <div className="flex justify-between items-center mb-3 cursor-pointer hover:bg-slate-50/80 active:opacity-75 transition-all p-1.5 -mx-1.5 rounded-xl">
+
+
+          {/* Row 3: Nợ người khác */}
+          <GlobalDebtsDrawer myDebts={myDebts} owedToMe={owedToMe} defaultTab="myDebts">
+            <div className="flex justify-between items-center py-2 border-b border-gray-50 cursor-pointer hover:bg-slate-50/80 active:opacity-75 transition-all px-1 -mx-1 rounded-xl">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center text-xs">
                   💸
                 </div>
-                <span className="text-gray-500 font-medium text-[12px]">
+                <span className="text-gray-600 font-medium text-[13px]">
                   Nợ người khác
                 </span>
               </div>
               <p className="text-[15px] font-bold text-rose-500">
                 {showBalance
-                  ? (debtSummary.totalOwing > 0 ? "-" : "") +
-                    fmt(debtSummary.totalOwing)
+                  ? (debtSummary.totalOwing > 0 ? "-" : "") + fmt(debtSummary.totalOwing)
                   : "••••••••"}
               </p>
             </div>
           </GlobalDebtsDrawer>
 
-          <GlobalDebtsDrawer
-            myDebts={myDebts}
-            owedToMe={owedToMe}
-            defaultTab="owedToMe"
-          >
-            <div className="flex justify-between items-center mb-3 cursor-pointer hover:bg-slate-50/80 active:opacity-75 transition-all p-1.5 -mx-1.5 rounded-xl">
+          {/* Row 4: Người khác nợ tôi */}
+          <GlobalDebtsDrawer myDebts={myDebts} owedToMe={owedToMe} defaultTab="owedToMe">
+            <div className="flex justify-between items-center py-2 border-b border-gray-50 cursor-pointer hover:bg-slate-50/80 active:opacity-75 transition-all px-1 -mx-1 rounded-xl">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-xs">
                   🤝
                 </div>
-                <span className="text-gray-500 font-medium text-[12px]">
+                <span className="text-gray-600 font-medium text-[13px]">
                   Người khác nợ tôi
                 </span>
               </div>
               <p className="text-[15px] font-bold text-blue-500">
                 {showBalance
-                  ? (debtSummary.totalOwed > 0 ? "+" : "") +
-                    fmt(debtSummary.totalOwed)
+                  ? (debtSummary.totalOwed > 0 ? "+" : "") + fmt(debtSummary.totalOwed)
                   : "••••••••"}
               </p>
             </div>
           </GlobalDebtsDrawer>
 
-          {/* Tiết kiệm */}
+          {/* Row 5: Đã tiết kiệm */}
           <div
-            className="flex justify-between items-center cursor-pointer hover:bg-slate-50/80 active:opacity-75 transition-all p-1.5 -mx-1.5 rounded-xl"
+            className="flex justify-between items-center pt-2 cursor-pointer hover:bg-slate-50/80 active:opacity-75 transition-all px-1 -mx-1 rounded-xl"
             onClick={() => onNavigate?.("savings")}
           >
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-xs">
                 💰
               </div>
-              <span className="text-gray-500 font-medium text-[12px]">
+              <span className="text-gray-600 font-medium text-[13px]">
                 Đã tiết kiệm
               </span>
             </div>
@@ -580,17 +479,117 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
         </div>
       </div>
 
-      {/* ─── MAIN CONTENT ─── */}
-      <div className="relative z-10 px-5 mt-8 space-y-8">
-        
-        {/* ─── UNCATEGORIZED REMINDER ─── */}
+      {/* ─── MAIN CONTENT (CLEAN SPACING & ALIGNMENT) ─── */}
+      <div className="relative z-10 px-5 mt-6 space-y-6">
+
+        {/* ─── AT-RISK BUDGETS (SINGLE COMPACT ELEGANT CARD) ─── */}
+        {(overLimitBudgets.length > 0 || approachingBudgets.length > 0) && (
+          <div className="bg-white rounded-[24px] p-4 border border-rose-100/80 shadow-md shadow-rose-500/5 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex justify-between items-center px-1">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                </span>
+                <h4 className="text-[13px] font-extrabold text-slate-800 uppercase tracking-wide">
+                  Cảnh báo Hạn mức Tháng này ({overLimitBudgets.length + approachingBudgets.length})
+                </h4>
+              </div>
+              <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100">
+                {overLimitBudgets.length > 0
+                  ? `${overLimitBudgets.length} khoản vượt!`
+                  : `${approachingBudgets.length} khoản sắp chạm mốc`}
+              </span>
+            </div>
+
+            <div className="flex overflow-x-auto gap-2.5 pb-1 no-scrollbar -mx-1 px-1">
+              {/* Over Limit Budgets (Red Pills First) */}
+              {overLimitBudgets.map((b: any, idx: number) => {
+                const catName = b.name || b.categoryName || "Khoản chi";
+                const pct = Math.round((b.spentAmount / b.limitAmount) * 100);
+                const { emoji } = getCategoryTheme(catName, true);
+
+                return (
+                  <div
+                    key={b.id || idx}
+                    onClick={() => onNavigate?.("budget", b.budgetId || b.id || b.categoryId)}
+                    className="shrink-0 w-44 rounded-2xl p-3 bg-rose-50/90 border border-rose-200/80 transition-all cursor-pointer active:scale-95 shadow-2xs hover:shadow-sm"
+                  >
+                    <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-sm shrink-0">{emoji}</span>
+                        <span className="text-[13px] font-extrabold text-rose-950 truncate">
+                          {catName}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black text-rose-600 shrink-0">
+                        {pct}%
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-rose-200/50 h-1.5 rounded-full overflow-hidden mb-1.5">
+                      <div
+                        className="h-full rounded-full bg-rose-500"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+
+                    <p className="text-[11px] font-black text-rose-700 text-right">
+                      Vượt {fmt(b.spentAmount - b.limitAmount)}
+                    </p>
+                  </div>
+                );
+              })}
+
+              {/* Approaching Limit Budgets (Amber Pills Next) */}
+              {approachingBudgets.map((b: any, idx: number) => {
+                const catName = b.name || b.categoryName || "Khoản chi";
+                const pct = Math.round((b.spentAmount / b.limitAmount) * 100);
+                const { emoji } = getCategoryTheme(catName, false);
+
+                return (
+                  <div
+                    key={b.id || idx}
+                    onClick={() => onNavigate?.("budget", b.budgetId || b.id || b.categoryId)}
+                    className="shrink-0 w-44 rounded-2xl p-3 bg-amber-50/90 border border-amber-200/80 transition-all cursor-pointer active:scale-95 shadow-2xs hover:shadow-sm"
+                  >
+                    <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-sm shrink-0">{emoji}</span>
+                        <span className="text-[13px] font-extrabold text-amber-950 truncate">
+                          {catName}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black text-amber-600 shrink-0">
+                        {pct}%
+                      </span>
+                    </div>
+
+                    <div className="w-full bg-amber-200/50 h-1.5 rounded-full overflow-hidden mb-1.5">
+                      <div
+                        className="h-full rounded-full bg-amber-500"
+                        style={{ width: `${Math.min(100, pct)}%` }}
+                      />
+                    </div>
+
+                    <p className="text-[11px] font-black text-amber-800 text-right">
+                      Còn {fmt(b.limitAmount - b.spentAmount)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ─── UNCATEGORIZED REMINDER BANNER ─── */}
         {uncategorizedCount > 0 && (
-          <div 
+          <div
             onClick={() => setShowUncategorizedModal(true)}
-            className="bg-amber-100/80 border border-amber-300 p-4 rounded-2xl flex items-center justify-between shadow-sm cursor-pointer hover:bg-amber-100 transition-colors"
+            className="bg-amber-100/80 border border-amber-300 p-4 rounded-2xl flex items-center justify-between shadow-sm cursor-pointer hover:bg-amber-100 transition-colors active:scale-[0.98]"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-xl shadow-inner shrink-0">
+              <div className="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center text-xl shadow-inner shrink-0">
                 ⚠️
               </div>
               <div>
@@ -608,160 +607,108 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
           </div>
         )}
 
-        {/* ─── QUICK ACTIONS ─── */}
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          <button
-            onClick={() => setIsTopUpOpen(true)}
-            className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95"
-          >
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 4v16m0 0l-4-4m4 4l4-4M4 12h16"
-                  opacity="0.3"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                />
-              </svg>
-            </div>
-            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
-              Nạp vào ví
-            </span>
-          </button>
+        {/* ─── QUICK ACTIONS GRID (3 COLUMNS X 2 ROWS) ─── */}
+        <div>
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">
+            Thao tác nhanh
+          </h3>
+          <div className="grid grid-cols-3 gap-3">
+            <button
+              onClick={() => setIsTopUpOpen(true)}
+              className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2.5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/80 hover:shadow-md transition-all active:scale-95"
+            >
+              <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m0 0l-4-4m4 4l4-4M4 12h16" opacity="0.3" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </div>
+              <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
+                Nạp vào ví
+              </span>
+            </button>
 
-          <button
-            onClick={() => setIsTransferModalOpen(true)}
-            className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95"
-          >
-            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                />
-              </svg>
-            </div>
-            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
-              Chuyển khoản
-            </span>
-          </button>
+            <button
+              onClick={() => setIsTransferModalOpen(true)}
+              className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2.5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/80 hover:shadow-md transition-all active:scale-95"
+            >
+              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </div>
+              <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
+                Chuyển khoản
+              </span>
+            </button>
 
-          {/* Hàng 2 */}
-          <button
-            onClick={() => onNavigate?.("budget")}
-            className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95"
-          >
-            <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
-              Ngân sách
-            </span>
-          </button>
+            <button
+              onClick={() => onNavigate?.("budget")}
+              className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2.5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/80 hover:shadow-md transition-all active:scale-95"
+            >
+              <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
+                Ngân sách
+              </span>
+            </button>
 
-          <button
-            onClick={() => onNavigate?.("groups")}
-            className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95"
-          >
-            <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
-            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
-              Nhóm
-            </span>
-          </button>
+            <button
+              onClick={() => onNavigate?.("groups")}
+              className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2.5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/80 hover:shadow-md transition-all active:scale-95"
+            >
+              <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
+                Nhóm
+              </span>
+            </button>
 
-          <button
-            onClick={() => onNavigate?.("savings")}
-            className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95"
-          >
-            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-xl">
-              🌱
-            </div>
-            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
-              Tiết kiệm
-            </span>
-          </button>
+            <button
+              onClick={() => onNavigate?.("savings")}
+              className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2.5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/80 hover:shadow-md transition-all active:scale-95"
+            >
+              <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-xl">
+                🌱
+              </div>
+              <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
+                Tiết kiệm
+              </span>
+            </button>
 
-          <button
-            onClick={() => onNavigate?.("history")}
-            className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/50 hover:shadow-md transition-all active:scale-95"
-          >
-            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
-              Lịch sử
-            </span>
-          </button>
+            <button
+              onClick={() => onNavigate?.("history")}
+              className="bg-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2.5 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/80 hover:shadow-md transition-all active:scale-95"
+            >
+              <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span className="text-[13px] font-bold text-gray-800 text-center leading-tight">
+                Lịch sử
+              </span>
+            </button>
+          </div>
         </div>
 
-        {/* ─── BUDGET PROGRESS ─── */}
+        {/* ─── BUDGET PROGRESS & SPENDING RANKING ─── */}
         <div>
-          <h3 className="text-xl font-extrabold text-gray-800 mb-4 ml-2 tracking-tight">
+          <h3 className="text-lg font-extrabold text-gray-800 mb-3 ml-1 tracking-tight">
             Ngân sách Tháng này
           </h3>
           <div
-            className="bg-white rounded-[28px] p-6 shadow-xl shadow-black/5 mb-10 border border-gray-100 cursor-pointer active:scale-[0.98] transition-all hover:shadow-xl relative overflow-hidden"
+            className="bg-white rounded-[28px] p-6 shadow-xl shadow-black/5 mb-6 border border-gray-100 cursor-pointer active:scale-[0.98] transition-all hover:shadow-xl relative overflow-hidden"
             onClick={() => onNavigate?.("budget")}
           >
-            {/* Subtle gradient background decoration */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-50 to-transparent rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-50 to-transparent rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
 
             <div className="flex justify-between items-end mb-3 relative z-10">
               <div>
@@ -775,18 +722,18 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
                   </span>
                 </p>
               </div>
-              <div className="bg-[#e8f5f1] text-[#45b39d] px-4 py-1.5 rounded-full text-xs font-bold shrink-0">
+              <div className="bg-[#e8f5f1] text-[#6366f1] px-4 py-1.5 rounded-full text-xs font-bold shrink-0">
                 Quản lý Ngân sách
               </div>
             </div>
 
             <div className="h-4 w-full bg-gray-100 rounded-full overflow-hidden mt-4 relative z-10 shadow-inner">
               <div
-                className={`h-full rounded-full transition-all duration-1000 relative overflow-hidden ${budgetPct >= 100 ? "bg-red-500" : budgetPct >= 80 ? "bg-orange-500" : "bg-[#45b39d]"}`}
+                className={`h-full rounded-full transition-all duration-1000 relative overflow-hidden ${budgetPct >= 100 ? "bg-red-500" : budgetPct >= 80 ? "bg-orange-500" : "bg-[#6366f1]"
+                  }`}
                 style={{ width: `${Math.min(100, budgetPct)}%` }}
               >
-                {/* Shimmer effect inside progress bar */}
-                <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
+                <div className="absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
               </div>
             </div>
             <p className="text-xs text-gray-400 mt-4 text-center font-medium relative z-10">
@@ -797,13 +744,12 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
             {topExpenseCategories.length > 0 && (
               <div className="mt-6 pt-5 border-t border-gray-100 relative z-10">
                 <h4 className="text-[14px] font-extrabold text-gray-800 mb-4 uppercase tracking-wider flex items-center gap-2">
-                  🏆 Bảng xếp hạng chi tiêu
+                  🏆 BẢNG XẾP HẠNG CHI TIÊU
                 </h4>
                 <div className="space-y-3">
                   {topExpenseCategories.slice(0, 5).map((cat, idx) => {
                     const maxAmount = topExpenseCategories[0].totalAmount;
-                    const barWidth =
-                      maxAmount > 0 ? (cat.totalAmount / maxAmount) * 100 : 0;
+                    const barWidth = maxAmount > 0 ? (cat.totalAmount / maxAmount) * 100 : 0;
                     const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
                     const colors = [
                       "bg-yellow-50 text-yellow-600 border-yellow-200",
@@ -834,7 +780,7 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
                                 {cat.categoryName}
                                 {idx === 0 && (
                                   <span className="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-md uppercase font-black">
-                                    Vô địch 💸
+                                    VÔ ĐỊCH 💸
                                   </span>
                                 )}
                               </span>
@@ -844,7 +790,8 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
                             </div>
                           </div>
                           <span
-                            className={`text-[15px] font-black tracking-tight ${idx === 0 ? "text-rose-600" : "text-gray-700"}`}
+                            className={`text-[15px] font-black tracking-tight ${idx === 0 ? "text-rose-600" : "text-gray-700"
+                              }`}
                           >
                             -{fmt(cat.totalAmount)}
                           </span>
@@ -857,103 +804,9 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
             )}
           </div>
 
-          {/* ─── AT-RISK BUDGETS ─── */}
-          {budgets.filter(
-            (b) =>
-              b.type === "FLEXIBLE" &&
-              b.limitAmount > 0 &&
-              b.spentAmount / b.limitAmount >= 0.8,
-          ).length > 0 && (
-            <div className="mb-10 -mt-6">
-              <h4 className="text-[13px] font-bold text-rose-500 mb-3 ml-2 uppercase tracking-wide flex items-center gap-1.5">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-                Cảnh báo vượt hạn mức
-              </h4>
-              <div className="flex overflow-x-auto gap-3 pb-4 no-scrollbar -mx-5 px-5">
-                {budgets
-                  .filter(
-                    (b) =>
-                      b.type === "FLEXIBLE" &&
-                      b.limitAmount > 0 &&
-                      b.spentAmount / b.limitAmount >= 0.8,
-                  )
-                  .sort(
-                    (a, b) =>
-                      b.spentAmount / b.limitAmount -
-                      a.spentAmount / a.limitAmount,
-                  )
-                  .map((b, idx) => {
-                    const pct = Math.round(
-                      (b.spentAmount / b.limitAmount) * 100,
-                    );
-                    const isOver = b.spentAmount > b.limitAmount || pct >= 100;
-                    return (
-                      <div
-                        key={idx}
-                        onClick={() => onNavigate?.("budget")}
-                        className={`shrink-0 w-48 rounded-2xl p-4 border active:scale-95 transition-all cursor-pointer ${isOver ? "bg-rose-50 border-rose-100 shadow-[0_4px_12px_rgba(244,63,94,0.15)]" : "bg-amber-50 border-amber-100 shadow-[0_4px_12px_rgba(245,158,11,0.15)]"}`}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isOver ? "bg-rose-200/50 text-rose-600" : "bg-amber-200/50 text-amber-600"}`}
-                          >
-                            <span className="text-[15px]">
-                              {isOver ? "🔥" : "⚠️"}
-                            </span>
-                          </div>
-                          <span
-                            className={`text-[14px] font-bold truncate ${isOver ? "text-rose-700" : "text-amber-700"}`}
-                          >
-                            {b.name || b.categoryName || "Khoản chi"}
-                          </span>
-                        </div>
-                        <div className="w-full bg-white/50 h-1.5 rounded-full overflow-hidden mb-1.5">
-                          <div
-                            className={`h-full rounded-full ${isOver ? "bg-rose-500" : "bg-amber-500"}`}
-                            style={{ width: `${Math.min(100, pct)}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between items-center text-[11px] font-medium">
-                          <span
-                            className={
-                              isOver ? "text-rose-500" : "text-amber-600"
-                            }
-                          >
-                            {pct}%
-                          </span>
-                          <span
-                            className={
-                              isOver
-                                ? "text-rose-600 font-bold"
-                                : "text-amber-700 font-bold"
-                            }
-                          >
-                            {isOver
-                              ? `Vượt ${fmt(b.spentAmount - b.limitAmount)}`
-                              : `Còn ${fmt(b.limitAmount - b.spentAmount)}`}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
 
           {/* ─── FINANCIAL HEALTH ─── */}
-          <div className="mb-10">
+          <div className="mb-6">
             <FinancialHealthCard />
           </div>
         </div>
@@ -988,7 +841,6 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
           open={showWalletManager}
           onOpenChange={setShowWalletManager}
           onSaved={() => {
-            // Refresh total balance
             api
               .get("/wallets/total-balance")
               .then((res) => setTotalWalletBalance(res.data.totalBalance))
@@ -1031,9 +883,8 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
                     </div>
                   </div>
                   <p
-                    className={`text-[15px] font-black tracking-tight ${
-                      tx.type === "INCOME" ? "text-emerald-500" : "text-rose-500"
-                    }`}
+                    className={`text-[15px] font-black tracking-tight ${tx.type === "INCOME" ? "text-emerald-500" : "text-rose-500"
+                      }`}
                   >
                     {tx.type === "INCOME" ? "+" : "-"}
                     {new Intl.NumberFormat("vi-VN").format(tx.amount)}đ
@@ -1051,16 +902,12 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
 
         {/* ─── EDIT TRANSACTION DRAWER ─── */}
         <EditTransactionDrawer
-          transactionId={selectedTxToEdit?.id}
-          walletId={wallet?.id}
+          transaction={selectedTxToEdit}
           open={!!selectedTxToEdit}
           onOpenChange={(open) => {
             if (!open) setSelectedTxToEdit(null);
           }}
           onUpdated={() => {
-            fetchData();
-          }}
-          onDeleted={() => {
             fetchData();
           }}
         />

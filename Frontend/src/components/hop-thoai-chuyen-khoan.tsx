@@ -207,33 +207,18 @@ export function TransferModal({
         .get("/wallets")
         .then((res) => {
           const walletData = res.data?.data || res.data;
-          let w = Array.isArray(walletData)
+          const allWallets: Wallet[] = Array.isArray(walletData)
             ? walletData
             : walletData
               ? [walletData]
               : [];
 
-          // Lọc bỏ "Tiền mặt" nếu đang ở màn hình chọn ngân hàng (bước chuyển khoản)
-          // Tuy nhiên nếu người dùng CHỈ có 1 ví hoặc ta muốn cho họ thanh toán ngân sách bằng tiền mặt,
-          // ta có thể linh động. Tạm thời vẫn giữ nguyên logic lọc "Tiền mặt" nếu chưa có bankBin liên kết.
-          // Nhưng nếu wallet đó là ví duy nhất, ta có thể ko lọc.
-          // Để an toàn, ko lọc ví nếu đang thanh toán bill (initialBankId được truyền vào).
-          if (!initialBankId) {
-            w = w.filter(
-              (wallet: any) =>
-                !wallet.name.toLowerCase().includes("tiền mặt") &&
-                !wallet.name.toLowerCase().includes("cash"),
-            );
-          }
+          setWallets(allWallets);
 
-          setWallets(w);
-
-          if (w.length > 0) {
-            // Auto-select logic:
-            // 1. Nếu có initialBankId, tìm ví nào có bankBin khớp với initialBankId
-            let selectedW = w[0].id;
+          if (allWallets.length > 0) {
+            let selectedW = allWallets[0].id;
             if (initialBankId) {
-              const matchedWallet = w.find(
+              const matchedWallet = allWallets.find(
                 (wallet: any) => wallet.bankBin === initialBankId,
               );
               if (matchedWallet) {
@@ -588,8 +573,8 @@ export function TransferModal({
                     onValueChange={(val) => setWalletId(val || "")}
                   >
                     <SelectTrigger className="w-full bg-gray-50/80 border-none rounded-xl h-11 font-semibold text-[14px]">
-                      {walletId ? (
-                        wallets.find((w) => w.id === walletId)?.name
+                      {walletId && wallets.find((w) => w.id === walletId) ? (
+                        `${wallets.find((w) => w.id === walletId)?.name} (${new Intl.NumberFormat("vi-VN").format(wallets.find((w) => w.id === walletId)?.balance || 0)}đ)`
                       ) : (
                         <span className="text-gray-400">Chọn nguồn tiền</span>
                       )}
@@ -763,7 +748,7 @@ export function TransferModal({
                   type="button"
                   onClick={executeTransfer}
                   disabled={loading}
-                  className="w-full h-[50px] rounded-[18px] bg-[#45b39d] hover:bg-[#3ba08b] text-white font-bold text-[16px] shadow-md transition-all active:scale-[0.98]"
+                  className="w-full h-[50px] rounded-[18px] bg-[#6366f1] hover:bg-[#4f46e5] text-white font-bold text-[16px] shadow-md transition-all active:scale-[0.98]"
                 >
                   {loading ? "Đang xử lý..." : "Xác nhận & Chuyển tiền"}
                 </Button>

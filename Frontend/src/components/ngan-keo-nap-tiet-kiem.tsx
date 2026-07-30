@@ -11,6 +11,7 @@ interface FundSavingsDrawerProps {
   onOpenChange: (open: boolean) => void;
   goal: SavingsGoal;
   walletBalance: number;
+  safeToSpend?: number | null;
   onSaved: () => void;
 }
 
@@ -21,6 +22,7 @@ export function FundSavingsDrawer({
   onOpenChange,
   goal,
   walletBalance,
+  safeToSpend,
   onSaved,
 }: FundSavingsDrawerProps) {
   const [action, setAction] = useState<ActionType>("FUND");
@@ -50,21 +52,24 @@ export function FundSavingsDrawer({
     return new Intl.NumberFormat("vi-VN").format(val) + "đ";
   };
 
+  const numAmount = Number(amount.replace(/\D/g, "")) || 0;
+  const isOverSaving = action === "FUND" && safeToSpend !== null && safeToSpend !== undefined && numAmount > safeToSpend;
+
   const handleSubmit = async () => {
     const rawAmount = amount.replace(/\D/g, "");
-    const numAmount = Number(rawAmount);
+    const num = Number(rawAmount);
 
-    if (!numAmount || numAmount <= 0) {
+    if (!num || num <= 0) {
       toast.error("Vui lòng nhập số tiền hợp lệ");
       return;
     }
 
-    if (action === "FUND" && numAmount > walletBalance) {
+    if (action === "FUND" && num > walletBalance) {
       toast.error("Số dư ví không đủ để nạp tiền");
       return;
     }
 
-    if (action === "WITHDRAW" && numAmount > goal.currentAmount) {
+    if (action === "WITHDRAW" && num > goal.currentAmount) {
       toast.error("Số dư tiết kiệm không đủ để rút");
       return;
     }
@@ -72,11 +77,15 @@ export function FundSavingsDrawer({
     setLoading(true);
     try {
       if (action === "FUND") {
-        await api.post(`/savings-goals/${goal.id}/fund`, { amount: numAmount });
-        toast.success("Đã nạp tiền thành công! 🎉");
+        const res = await api.post(`/savings-goals/${goal.id}/fund`, { amount: num });
+        if (res.data?.warningMessage) {
+          toast.warning(res.data.warningMessage, { duration: 7000 });
+        } else {
+          toast.success("Đã nạp tiền thành công! 🎉");
+        }
       } else {
         await api.post(`/savings-goals/${goal.id}/withdraw`, {
-          amount: numAmount,
+          amount: num,
         });
         toast.success("Đã rút tiền thành công!");
       }
@@ -125,12 +134,12 @@ export function FundSavingsDrawer({
             </div>
           </div>
 
-          <div className="text-center px-6 mb-4">
+          <div className="text-center px-6 mb-2">
             <p className="font-semibold text-gray-700">{goal.name}</p>
           </div>
 
           {/* Amount Section */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 mt-10 mb-20 relative">
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 mt-4 mb-10 relative">
             {/* Invisible input overlaying for focus and typing */}
             <input
               type="text"
@@ -148,11 +157,25 @@ export function FundSavingsDrawer({
             </div>
 
             {/* Subtext info */}
-            <p className="text-sm font-medium text-gray-600 mt-4 px-4 py-2 bg-black/5 rounded-full">
-              {isFund
-                ? `Số dư ví hiện tại: ${formatCurrency(walletBalance)}`
-                : `Tiết kiệm hiện tại: ${formatCurrency(goal.currentAmount)}`}
-            </p>
+            <div className="flex flex-col items-center gap-2 mt-2">
+              <p className="text-sm font-medium text-gray-600 px-4 py-1.5 bg-black/5 rounded-full">
+                {isFund
+                  ? `Số dư ví: ${formatCurrency(walletBalance)} ${safeToSpend !== null && safeToSpend !== undefined ? `| Tiền rảnh rỗi: ${formatCurrency(safeToSpend)}` : ""}`
+                  : `Tiết kiệm hiện tại: ${formatCurrency(goal.currentAmount)}`}
+              </p>
+
+              {/* Excessive Savings Warning Box */}
+              {isOverSaving && (
+                <div className="mt-3 mx-4 p-3 bg-amber-100/90 border border-amber-300 rounded-2xl text-amber-900 text-xs font-semibold text-left animate-in fade-in slide-in-from-bottom-2 shadow-sm">
+                  <div className="flex items-center gap-1.5 font-extrabold text-amber-800 mb-1">
+                    <span>⚠️ Cảnh báo Tiết kiệm Quá mức!</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Số tiền nạp <span className="font-bold text-rose-700">{formatCurrency(numAmount)}</span> lớn hơn tiền nhàn rỗi khả dụng (<span className="font-bold">{formatCurrency(safeToSpend || 0)}</span>). Hành động này sẽ ăn lấn vào Quỹ dự trữ & Ngân sách bắt buộc tháng này!
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Footer Action */}
@@ -162,14 +185,18 @@ export function FundSavingsDrawer({
               onClick={handleSubmit}
               className={`w-full text-white font-medium py-4 rounded-[32px] text-xl transition-all active:scale-[0.98] shadow-sm ${
                 isFund
-                  ? "bg-[#74D7AC] hover:bg-[#5BB68E]"
+                  ? isOverSaving
+                    ? "bg-amber-600 hover:bg-amber-700"
+                    : "bg-[#74D7AC] hover:bg-[#5BB68E]"
                   : "bg-orange-400 hover:bg-orange-500"
               } disabled:opacity-50`}
             >
               {loading
                 ? "Đang xử lý..."
                 : isFund
-                  ? "Xác nhận nạp"
+                  ? isOverSaving
+                    ? "Vẫn xác nhận nạp (Có cảnh báo)"
+                    : "Xác nhận nạp"
                   : "Xác nhận rút"}
             </button>
           </div>
@@ -178,3 +205,4 @@ export function FundSavingsDrawer({
     </Drawer>
   );
 }
+

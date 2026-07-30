@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
+import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 import * as LucideIcons from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function DynamicIcon({
   name,
@@ -72,6 +80,14 @@ interface ReportTabProps {
 
 /* ─── Helpers ─── */
 const fmt = (n: number) => new Intl.NumberFormat("vi-VN").format(Math.round(n));
+const fmtCompact = (n: number) => {
+  const val = Math.round(Number(n) || 0);
+  if (val >= 10_000_000) {
+    const tr = (val / 1_000_000).toFixed(1).replace(/\.0$/, "").replace(".", ",");
+    return `${tr}tr+`;
+  }
+  return fmt(val) + "đ";
+};
 
 const CHART_COLORS = [
   "#FF6B6B",
@@ -484,10 +500,14 @@ function CategoryItem({
   item,
   color,
   budgetLimit,
+  onClick,
+  isIncome,
 }: {
   item: CategoryBreakdown;
   color: string;
   budgetLimit?: number;
+  onClick?: () => void;
+  isIncome?: boolean;
 }) {
   const amount = Number(item.totalAmount) || 0;
   const limit = budgetLimit ?? 0;
@@ -495,7 +515,10 @@ function CategoryItem({
   const remaining = limit > 0 ? limit - amount : 0;
 
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-slate-50 last:border-0">
+    <div 
+      className={`flex items-center gap-3 py-3 border-b border-slate-50 last:border-0 ${onClick ? 'cursor-pointer hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-xl' : ''}`}
+      onClick={onClick}
+    >
       {/* Icon */}
       <div
         className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
@@ -530,7 +553,7 @@ function CategoryItem({
         {/* Meta */}
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-slate-400 font-medium">
-            {item.percentage}% tổng chi
+            {item.percentage}% tổng {isIncome ? "thu" : "chi"}
           </span>
           {limit > 0 ? (
             overBudget ? (
@@ -549,6 +572,22 @@ function CategoryItem({
   );
 }
 
+/* ─── Helpers: 50/30/20 Grouping ─── */
+const NEEDS_KEYWORDS = ["tiền nhà", "thuê nhà", "tiền điện", "điện nước", "y tế", "đi lại", "phí liên lạc", "internet", "học phí", "trả góp"];
+const SAVINGS_KEYWORDS = ["mục tiêu tiết kiệm", "hoàn tiền tiết kiệm"];
+
+function categorizeExpenseGroup(categoryName: string): "NEEDS" | "WANTS" | "SAVINGS" {
+  const lower = categoryName.toLowerCase();
+  if (SAVINGS_KEYWORDS.some(k => lower.includes(k))) return "SAVINGS";
+  if (NEEDS_KEYWORDS.some(k => lower.includes(k))) return "NEEDS";
+  return "WANTS";
+}
+
+function isSavingsCategory(tx: any): boolean {
+  const catName = (tx.category?.name || tx.note || "").toLowerCase();
+  return SAVINGS_KEYWORDS.some(k => catName.includes(k));
+}
+
 /* ─── Main Component ─── */
 export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
   const now = new Date();
@@ -565,7 +604,46 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
   const [debtSummary, setDebtSummary] = useState({
     totalOwed: 0,
     totalOwing: 0,
+    details: [] as any[],
   });
+
+  type DetailType = "actual_income" | "actual_expense" | "total_income" | "total_expense" | "savings" | null;
+  const [selectedDetailType, setSelectedDetailType] = useState<DetailType>(null);
+  const [selectedCategoryHist, setSelectedCategoryHist] = useState<CategoryBreakdown | null>(null);
+  const [selectedGroupDebt, setSelectedGroupDebt] = useState<{ groupId: string; groupName: string; counterpartyName: string; type: "OWING" | "OWED"; amount: number } | null>(null);
+  const [catTransactions, setCatTransactions] = useState<any[]>([]);
+  const [groupExpenses, setGroupExpenses] = useState<any[]>([]);
+  const [isLoadingCategoryHist, setIsLoadingCategoryHist] = useState(false);
+  const [isLoadingGroupExpenses, setIsLoadingGroupExpenses] = useState(false);
+  const [showAllBudgets, setShowAllBudgets] = useState(false);
+  const [showAllDebts, setShowAllDebts] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  const handleDebtClick = async (groupId: string, groupName: string, counterpartyName: string, type: "OWING" | "OWED", amount: number) => {
+    setSelectedGroupDebt({ groupId, groupName, counterpartyName, type, amount });
+    setIsLoadingGroupExpenses(true);
+    try {
+      const res = await api.get(`/groups/${groupId}/expenses?page=0&size=20`);
+      setGroupExpenses(res.data.content || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingGroupExpenses(false);
+    }
+  };
+
+  const handleCategoryClick = async (item: CategoryBreakdown) => {
+    setSelectedCategoryHist(item);
+    setIsLoadingCategoryHist(true);
+    try {
+      const res = await api.get(`/transactions/monthly?year=${selectedYear}&month=${selectedMonth}`);
+      setCatTransactions(res.data.filter((t: any) => t.category?.id === item.categoryId));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingCategoryHist(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -686,6 +764,14 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
   const totalExpense = Number(summary?.currentMonth?.totalExpense) || 0;
   const totalIncome = Number(summary?.currentMonth?.totalIncome) || 0;
 
+  const unpaidBudgetsList = budgets.filter(
+    (b) => Math.max(0, Number(b.limitAmount || 0) - Number(b.spentAmount || 0)) > 0
+  );
+  const unpaidBudgetsTotal = unpaidBudgetsList.reduce(
+    (sum, b) => sum + Math.max(0, Number(b.limitAmount || 0) - Number(b.spentAmount || 0)),
+    0
+  );
+
   const sortedBudgets = [...budgets].sort((a, b) => {
     const idxA = priorityOrder.indexOf(a.budgetId);
     const idxB = priorityOrder.indexOf(b.budgetId);
@@ -765,7 +851,10 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
         {/* ─── SUMMARY CARDS ─── */}
         <div className="grid grid-cols-2 gap-3">
           {/* Đã Thu */}
-          <div className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100">
+          <div 
+            onClick={() => setSelectedDetailType("actual_income")}
+            className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100 cursor-pointer active:scale-95 transition-transform hover:shadow-md"
+          >
             <p className="text-[11px] text-slate-500 font-semibold mb-1">
               💵 Đã thu (Thực tế)
             </p>
@@ -774,7 +863,10 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
             </p>
           </div>
           {/* Đã Chi */}
-          <div className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100">
+          <div 
+            onClick={() => setSelectedDetailType("actual_expense")}
+            className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100 cursor-pointer active:scale-95 transition-transform hover:shadow-md"
+          >
             <p className="text-[11px] text-slate-500 font-semibold mb-1">
               💸 Đã chi (Thực tế)
             </p>
@@ -783,7 +875,10 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
             </p>
           </div>
           {/* Tổng Thu */}
-          <div className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100">
+          <div 
+            onClick={() => setSelectedDetailType("total_income")}
+            className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100 cursor-pointer active:scale-95 transition-transform hover:shadow-md"
+          >
             <p className="text-[11px] text-slate-500 font-semibold mb-1">
               📥 Tổng thu (Cần thu)
             </p>
@@ -792,43 +887,66 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
             </p>
           </div>
           {/* Tổng Chi */}
-          <div className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100">
+          <div 
+            onClick={() => setSelectedDetailType("total_expense")}
+            className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100 cursor-pointer active:scale-95 transition-transform hover:shadow-md"
+          >
             <p className="text-[11px] text-slate-500 font-semibold mb-1">
               📤 Tổng chi (Cần trả)
             </p>
             <p className="text-[17px] font-black text-amber-500">
-              {fmt(totalExpense + (debtSummary?.totalOwing || 0))}đ
+              {fmt(totalExpense + unpaidBudgetsTotal + (debtSummary?.totalOwing || 0))}đ
             </p>
           </div>
-          <div className="col-span-2 bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100">
-            <div className="flex items-center justify-between">
+          {/* Dòng tiền ròng & Tình trạng tài chính */}
+          <div 
+            onClick={() => setSelectedDetailType("savings")}
+            className={`col-span-2 rounded-[1.5rem] p-4 shadow-sm border transition-all cursor-pointer active:scale-95 hover:shadow-md ${
+              totalIncome - totalExpense >= 0
+                ? "bg-emerald-50/40 border-emerald-100/80"
+                : "bg-rose-50/40 border-rose-100/80"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-[11px] text-slate-500 font-semibold mb-1">
-                  💰 Tiết kiệm tháng này
+                <p className="text-[11px] text-slate-500 font-bold mb-1 flex items-center gap-1">
+                  📊 Dòng tiền ròng (Thu - Chi)
                 </p>
                 <p
-                  className={`text-[17px] font-black ${totalIncome - totalExpense >= 0 ? "text-slate-800" : "text-rose-500"}`}
+                  className={`text-[20px] font-black tracking-tight ${
+                    totalIncome - totalExpense >= 0 ? "text-emerald-700" : "text-rose-600"
+                  }`}
                 >
                   {totalIncome - totalExpense >= 0 ? "+" : ""}
                   {fmt(totalIncome - totalExpense)}đ
                 </p>
               </div>
-              {summary?.comparison && (
-                <div
-                  className={`text-right text-[11px] font-bold px-3 py-1.5 rounded-full ${
-                    (summary.comparison.expenseChange || 0) > 0
-                      ? "bg-rose-50 text-rose-500"
-                      : "bg-emerald-50 text-emerald-600"
-                  }`}
-                >
-                  {(summary.comparison.expenseChange || 0) > 0 ? "📈" : "📉"}{" "}
-                  Chi{" "}
-                  {(summary.comparison.expenseChange || 0) > 0
-                    ? "tăng"
-                    : "giảm"}{" "}
-                  {Math.abs(summary.comparison.expenseChangePercent || 0)}%
-                </div>
-              )}
+
+              {/* Status Badge: Bội chi vs Tích lũy */}
+              <div className="text-right">
+                {totalIncome - totalExpense < 0 ? (
+                  <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-200/80 shadow-2xs inline-block">
+                    ⚠️ Bội chi tháng này
+                  </span>
+                ) : totalIncome > 0 ? (
+                  <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200/80 shadow-2xs inline-block">
+                    🌱 Giữ được {Math.round(((totalIncome - totalExpense) / totalIncome) * 100)}% thu nhập
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-slate-100 text-slate-600 inline-block">
+                    ⚖️ Cân bằng
+                  </span>
+                )}
+
+                {/* Sub-text: Monthly expense trend comparison */}
+                {summary?.comparison && (
+                  <p className="text-[10px] font-semibold text-slate-400 mt-1">
+                    Chi tiêu{" "}
+                    {(summary.comparison.expenseChange || 0) > 0 ? "tăng" : "giảm"}{" "}
+                    {Math.abs(summary.comparison.expenseChangePercent || 0)}% so với tháng trước
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -951,6 +1069,7 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
                         key={item.categoryId}
                         item={item}
                         color={CHART_COLORS[i % CHART_COLORS.length]}
+                        isIncome={activeTab === "income"}
                         budgetLimit={
                           activeTab === "expense"
                             ? Number(
@@ -989,120 +1108,716 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
           )}
         </div>
 
-        {/* ─── BUDGET SUMMARY ─── */}
-        {(activeBudgets.length > 0 || showDebtItem) && (
-          <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100">
-            <h2 className="text-[15px] font-extrabold text-slate-800 mb-4">
-              Tổng kết ngân sách
-            </h2>
-            <div className="space-y-3">
-              {activeBudgets.map((b) => {
-                const pct = Math.min(
-                  100,
-                  Math.round(
-                    (Number(b.spentAmount) / Number(b.limitAmount)) * 100,
-                  ),
-                );
-                const isOver = Number(b.spentAmount) > Number(b.limitAmount);
-                const barColor = isOver
-                  ? "#f43f5e"
-                  : pct >= 80
-                    ? "#f59e0b"
-                    : "#10b981";
-                return (
-                  <div key={b.budgetId}>
-                    <div className="flex justify-between items-center mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <DynamicIcon
-                          name={b.categoryIcon}
-                          className="w-5 h-5 text-slate-500"
-                        />
-                        <span className="text-[13px] font-bold text-slate-700">
-                          {b.categoryName}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[12px] font-bold text-slate-800">
-                          {fmt(Number(b.spentAmount))}đ
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {" "}
-                          / {fmt(Number(b.limitAmount))}đ
-                        </span>
-                      </div>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${pct}%`, background: barColor }}
-                      />
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span className="text-[10px] text-slate-400">
-                        {pct}% đã dùng
-                      </span>
-                      {isOver ? (
-                        <span className="text-[10px] font-bold text-rose-500">
-                          Vượt{" "}
-                          {fmt(Number(b.spentAmount) - Number(b.limitAmount))}đ
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400">
-                          Còn{" "}
-                          {fmt(Number(b.limitAmount) - Number(b.spentAmount))}đ
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
 
-              {showDebtItem && (
-                <div>
-                  <div className="flex justify-between items-center mb-1.5 mt-4 pt-3 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <DynamicIcon
-                        name="Users"
-                        className="w-5 h-5 text-rose-500"
-                      />
-                      <span className="text-[13px] font-bold text-slate-700">
-                        Thanh toán nợ nhóm
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[12px] font-bold text-slate-800">
-                        {fmt(groupDebtPaid)}đ
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        {" "}
-                        / {fmt(totalDebtToPay)}đ (Tổng nợ)
-                      </span>
-                    </div>
+      </div>
+
+      {/* ─── MODAL DETAIL VIEWS ─── */}
+      <Dialog open={!!selectedDetailType} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedDetailType(null);
+          setSelectedCategoryHist(null);
+          setSelectedGroupDebt(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px] w-[90vw] rounded-3xl p-6 bg-white overflow-hidden max-h-[85vh] flex flex-col">
+          <DialogHeader className="mb-4 shrink-0">
+            <DialogTitle className="text-xl font-extrabold text-slate-800">
+              {selectedGroupDebt
+                ? `Chi tiết nợ: ${selectedGroupDebt.groupName}`
+                : selectedCategoryHist 
+                ? `Lịch sử: ${selectedCategoryHist.categoryName}`
+                : selectedDetailType === "actual_income" ? "Chi tiết Đã thu"
+                : selectedDetailType === "actual_expense" ? "Chi tiết Đã chi"
+                : selectedDetailType === "total_income" ? "Chi tiết Tổng thu"
+                : selectedDetailType === "total_expense" ? "Chi tiết Tổng chi"
+                : "Chi tiết Tiết kiệm"
+              }
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-4">
+            {/* CHI TIẾT KHOẢN NỢ (GIAO DỊCH NHÓM) */}
+            {selectedGroupDebt ? (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full">
+                <button 
+                  onClick={() => setSelectedGroupDebt(null)}
+                  className="flex items-center text-sm font-bold text-slate-500 mb-4 hover:text-slate-800 transition-colors"
+                >
+                  <LucideIcons.ArrowLeft className="w-4 h-4 mr-1" />
+                  Quay lại danh sách nợ
+                </button>
+                {isLoadingGroupExpenses ? (
+                  <div className="flex justify-center py-10">
+                    <div className="w-6 h-6 rounded-full border-2 border-slate-300 border-t-blue-500 animate-spin" />
                   </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${currentDebt > 0 ? "bg-amber-400" : "bg-emerald-500"}`}
-                      style={{ width: `${debtPct}%` }}
-                    />
+                ) : groupExpenses.length > 0 ? (
+                  <div className="space-y-3 flex-1">
+                    {(() => {
+                      let remainingAmount = selectedGroupDebt.amount;
+                      const filteredExpenses = [];
+                      for (const exp of groupExpenses) {
+                        if (exp.category === "SETTLEMENT") continue;
+                        
+                        if (selectedGroupDebt.type === "OWING" && exp.currentUserSplitAmount > 0 && remainingAmount > 0) {
+                          filteredExpenses.push(exp);
+                          remainingAmount -= exp.currentUserSplitAmount;
+                        } else if (selectedGroupDebt.type === "OWED" && remainingAmount > 0 && exp.payer?.name !== selectedGroupDebt.counterpartyName) {
+                          filteredExpenses.push(exp);
+                          remainingAmount -= (exp.amount / exp.splitCount); 
+                        }
+                      }
+                      
+                      return filteredExpenses.length > 0 ? filteredExpenses.map(exp => (
+                        <div key={exp.id} className="bg-slate-50/50 rounded-2xl p-3.5 border border-slate-100">
+                          <div className="flex justify-between items-start mb-2">
+                            <p className="text-[14px] font-bold text-slate-800 pr-2 flex-1">{exp.title}</p>
+                            <span className="text-[14px] font-extrabold text-slate-800 whitespace-nowrap">
+                              Tổng: {fmt(exp.amount)}đ
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 font-medium mb-1.5">
+                            {format(new Date(exp.createdAt), "HH:mm - dd/MM/yyyy", { locale: vi })}
+                          </p>
+                          <div className="flex justify-between items-center">
+                            <p className="text-[11px] text-slate-500 font-medium">
+                              👤 Người trả: <span className="font-bold text-slate-700">{exp.payer?.name}</span>
+                            </p>
+                            {exp.currentUserSplitAmount > 0 && (
+                              <span
+                                className={`text-[11px] font-bold px-2.5 py-1 rounded-lg whitespace-nowrap border ${
+                                  selectedGroupDebt.type === "OWING"
+                                    ? "bg-rose-50 text-rose-600 border-rose-100"
+                                    : "bg-blue-50 text-blue-600 border-blue-100"
+                                }`}
+                              >
+                                {selectedGroupDebt.type === "OWING"
+                                  ? `Bạn cần trả: ${fmt(exp.currentUserSplitAmount)}đ`
+                                  : `Họ cần trả bạn: ${fmt(exp.currentUserSplitAmount)}đ`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )) : (
+                        <p className="text-center text-slate-400 py-8 text-sm font-medium">Không tìm thấy khoản chi nào phù hợp.</p>
+                      );
+                    })()}
                   </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[10px] text-slate-400">
-                      {debtPct}% đã thanh toán
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold ${currentDebt > 0 ? "text-rose-500" : "text-emerald-600"}`}
+                ) : (
+                  <p className="text-center text-slate-400 py-8 text-sm font-medium">Chưa có chi tiêu nào trong nhóm này.</p>
+                )}
+
+                {/* 5.1: Sticky "Trả nợ ngay" button for OWING debts */}
+                {selectedGroupDebt.type === "OWING" && (
+                  <div className="mt-4 pt-3 border-t border-slate-100 shrink-0">
+                    <button
+                      onClick={() => {
+                        const url = `/groups?id=${selectedGroupDebt.groupId}`;
+                        window.location.href = url;
+                      }}
+                      className="w-full py-3 rounded-2xl font-bold text-white text-sm bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 shadow-lg shadow-rose-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                     >
-                      {currentDebt > 0
-                        ? `Còn nợ ${fmt(currentDebt)}đ`
-                        : "Đã thanh toán hết"}
-                    </span>
+                      <LucideIcons.CreditCard className="w-4 h-4" />
+                      Trả nợ {fmt(selectedGroupDebt.amount)}đ cho {selectedGroupDebt.counterpartyName.split(' ').slice(-1)[0]}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : selectedCategoryHist ? (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                <button 
+                  onClick={() => setSelectedCategoryHist(null)}
+                  className="flex items-center text-sm font-bold text-slate-500 mb-4 hover:text-slate-800 transition-colors"
+                >
+                  <LucideIcons.ArrowLeft className="w-4 h-4 mr-1" />
+                  Quay lại danh sách
+                </button>
+                {isLoadingCategoryHist ? (
+                  <div className="flex justify-center py-10">
+                    <div className="w-6 h-6 rounded-full border-2 border-slate-300 border-t-rose-500 animate-spin" />
+                  </div>
+                ) : catTransactions.length > 0 ? (
+                  <>
+                    {/* 3.2: Summary Header Card */}
+                    {(() => {
+                      const totalCat = catTransactions.reduce((s: number, tx: any) => s + Number(tx.amount || 0), 0);
+                      const count = catTransactions.length;
+                      const avg = count > 0 ? totalCat / count : 0;
+                      const isSavingsCat = isSavingsCategory(catTransactions[0]);
+                      return (
+                        <div className={`p-4 rounded-2xl mb-4 ${isSavingsCat ? 'bg-emerald-50 border border-emerald-100' : 'bg-slate-50 border border-slate-100'}`}>
+                          <div className="grid grid-cols-3 gap-3 text-center">
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-medium mb-0.5">Tổng tháng</p>
+                              <p className={`text-[15px] font-black ${isSavingsCat ? 'text-emerald-600' : 'text-slate-800'}`}>{fmt(totalCat)}đ</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-medium mb-0.5">Số lần</p>
+                              <p className="text-[15px] font-black text-slate-800">{count}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-slate-400 font-medium mb-0.5">TB / lần</p>
+                              <p className="text-[15px] font-black text-slate-600">{fmt(avg)}đ</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 3.3: Daily Aggregation */}
+                    {(() => {
+                      const grouped = new Map<string, any[]>();
+                      catTransactions.forEach((tx: any) => {
+                        const dateKey = format(new Date(tx.transactionDate), "yyyy-MM-dd");
+                        if (!grouped.has(dateKey)) grouped.set(dateKey, []);
+                        grouped.get(dateKey)!.push(tx);
+                      });
+
+                      return Array.from(grouped.entries()).map(([dateKey, txs]) => {
+                        const dayTotal = txs.reduce((s: number, tx: any) => s + Number(tx.amount || 0), 0);
+                        const dayLabel = format(new Date(dateKey), "dd/MM/yyyy (EEEE)", { locale: vi });
+                        const isSavingsCat = isSavingsCategory(txs[0]);
+
+                        return (
+                          <div key={dateKey} className="mb-3">
+                            {/* Day header */}
+                            <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-100">
+                              <div className="flex items-center gap-2">
+                                <LucideIcons.Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                <span className="text-[12px] font-bold text-slate-600">{dayLabel}</span>
+                              </div>
+                              <span className={`text-[12px] font-extrabold ${isSavingsCat ? 'text-emerald-600' : 'text-slate-700'}`}>
+                                {isSavingsCat ? '+' : txs[0]?.type === 'INCOME' ? '+' : '-'}{fmt(dayTotal)}đ
+                                {txs.length > 1 && <span className="text-slate-400 font-medium ml-1">({txs.length})</span>}
+                              </span>
+                            </div>
+                            {/* Transactions */}
+                            <div className="space-y-0 pl-1">
+                              {txs.map((tx: any) => (
+                                <div key={tx.id} className="flex justify-between items-center py-2 border-b border-slate-50/80 last:border-0">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[13px] font-bold text-slate-700 truncate">{tx.note || tx.category?.name || "Giao dịch"}</p>
+                                    <p className="text-[10px] text-slate-400 font-medium">
+                                      {format(new Date(tx.transactionDate), "HH:mm", { locale: vi })}
+                                    </p>
+                                  </div>
+                                  <span className={`text-[14px] font-extrabold ml-3 shrink-0 ${
+                                    isSavingsCategory(tx) ? 'text-emerald-500' : tx.type === 'INCOME' ? 'text-emerald-500' : 'text-slate-800'
+                                  }`}>
+                                    {isSavingsCategory(tx) ? '+' : tx.type === 'INCOME' ? '+' : '-'}{fmt(tx.amount)}đ
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </>
+                ) : (
+                  <p className="text-center text-slate-400 py-8 text-sm font-medium">Không tìm thấy giao dịch nào trong tháng này.</p>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* 1. ACTUAL INCOME */}
+                {selectedDetailType === "actual_income" && (
+                  <>
+                    <div className="bg-emerald-50 p-4 rounded-2xl mb-4">
+                      <p className="text-emerald-600 font-bold text-sm">Tổng thực thu</p>
+                      <p className="text-2xl font-black text-emerald-600">{fmt(totalIncome)}đ</p>
+                    </div>
+
+                    {/* 1.3: Income Health Indicator */}
+                    {incBreakdown.length > 0 && (() => {
+                      const topPct = incBreakdown[0]?.percentage || 0;
+                      const numSources = incBreakdown.length;
+                      if (topPct > 70) {
+                        return (
+                          <div className="flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-100 rounded-2xl mb-4 animate-in fade-in duration-300">
+                            <span className="text-lg shrink-0 mt-0.5">⚠️</span>
+                            <div>
+                              <p className="text-[12px] font-bold text-amber-800">{topPct}% thu nhập tập trung vào "{incBreakdown[0]?.categoryName}"</p>
+                              <p className="text-[11px] text-amber-600 mt-0.5">Đa dạng hóa nguồn thu giúp giảm rủi ro tài chính</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (numSources >= 3 && topPct <= 50) {
+                        return (
+                          <div className="flex items-start gap-2.5 p-3 bg-emerald-50 border border-emerald-100 rounded-2xl mb-4 animate-in fade-in duration-300">
+                            <span className="text-lg shrink-0 mt-0.5">✅</span>
+                            <div>
+                              <p className="text-[12px] font-bold text-emerald-800">Thu nhập đa dạng tốt ({numSources} nguồn)</p>
+                              <p className="text-[11px] text-emerald-600 mt-0.5">Không nguồn nào vượt quá 50% — cấu trúc an toàn</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {incBreakdown.length > 0 ? (
+                      incBreakdown.map((item, i) => (
+                        <CategoryItem 
+                          key={item.categoryId} 
+                          item={item} 
+                          color={CHART_COLORS[i % CHART_COLORS.length]}
+                          isIncome={true}
+                          onClick={() => handleCategoryClick(item)}
+                        />
+                      ))
+                    ) : (
+                      <p className="text-center text-slate-400 py-4 text-sm font-medium">Chưa có khoản thu nào.</p>
+                    )}
+                  </>
+                )}
+
+                {/* 2. ACTUAL EXPENSE with 50/30/20 grouping */}
+                {selectedDetailType === "actual_expense" && (
+                  <>
+                    <div className="bg-rose-50 p-4 rounded-2xl mb-4">
+                      <p className="text-rose-500 font-bold text-sm">Tổng thực chi</p>
+                      <p className="text-2xl font-black text-rose-500">{fmt(totalExpense)}đ</p>
+                    </div>
+
+                    {/* 2.1: 50/30/20 Grouped Sections */}
+                    {expBreakdown.length > 0 ? (() => {
+                      const needsItems = expBreakdown.filter(item => categorizeExpenseGroup(item.categoryName) === "NEEDS");
+                      const wantsItems = expBreakdown.filter(item => categorizeExpenseGroup(item.categoryName) === "WANTS");
+                      const savingsItems = expBreakdown.filter(item => categorizeExpenseGroup(item.categoryName) === "SAVINGS");
+
+                      const needsTotal = needsItems.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
+                      const wantsTotal = wantsItems.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
+                      const savingsTotal = savingsItems.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
+
+                      const sections = [
+                        { key: "NEEDS", label: "📌 Chi phí Thiết yếu", items: needsItems, total: needsTotal, color: "blue", textColor: "text-blue-600", bgColor: "bg-blue-500", bgLight: "bg-blue-50 border-blue-100" },
+                        { key: "WANTS", label: "🎯 Chi phí Linh hoạt", items: wantsItems, total: wantsTotal, color: "orange", textColor: "text-orange-600", bgColor: "bg-orange-500", bgLight: "bg-orange-50 border-orange-100" },
+                        { key: "SAVINGS", label: "💰 Tích lũy & Tiết kiệm", items: savingsItems, total: savingsTotal, color: "emerald", textColor: "text-emerald-600", bgColor: "bg-emerald-500", bgLight: "bg-emerald-50 border-emerald-100" },
+                      ].filter(s => s.items.length > 0);
+
+                      // Mini summary bar
+                      const grandTotal = needsTotal + wantsTotal + savingsTotal;
+                      const needsPct = grandTotal > 0 ? Math.round((needsTotal / grandTotal) * 100) : 0;
+                      const wantsPct = grandTotal > 0 ? Math.round((wantsTotal / grandTotal) * 100) : 0;
+                      const savingsPct = grandTotal > 0 ? 100 - needsPct - wantsPct : 0;
+
+                      return (
+                        <>
+                          {/* Mini 50/30/20 bar */}
+                          {sections.length > 1 && (
+                            <div className="mb-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-100/90 shadow-2xs">
+                              <div className="flex h-3 rounded-full overflow-hidden mb-2 gap-0.5 bg-slate-200/50 p-0.5">
+                                {needsPct > 0 && <div style={{ width: `${needsPct}%` }} className="bg-blue-500 rounded-full transition-all duration-500" />}
+                                {wantsPct > 0 && <div style={{ width: `${wantsPct}%` }} className="bg-orange-500 rounded-full transition-all duration-500" />}
+                                {savingsPct > 0 && <div style={{ width: `${savingsPct}%` }} className="bg-emerald-500 rounded-full transition-all duration-500" />}
+                              </div>
+                              <div className="flex justify-between text-[11px] font-extrabold">
+                                <span className="text-blue-600 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block"/> Thiết yếu {needsPct}%</span>
+                                <span className="text-orange-600 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block"/> Linh hoạt {wantsPct}%</span>
+                                <span className="text-emerald-600 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/> Tích lũy {savingsPct}%</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {sections.map((section) => {
+                            const isExpanded = !!expandedSections[section.key];
+                            return (
+                              <div key={section.key} className="mb-3">
+                                <div
+                                  onClick={() =>
+                                    setExpandedSections((prev) => ({
+                                      ...prev,
+                                      [section.key]: !prev[section.key],
+                                    }))
+                                  }
+                                  className={`flex justify-between items-center p-3.5 rounded-2xl ${section.bgLight} cursor-pointer transition-all border active:scale-[0.99] select-none shadow-2xs`}
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <svg
+                                      className={`w-4 h-4 transition-transform duration-300 ${
+                                        isExpanded ? "rotate-90 text-slate-800" : "text-slate-400"
+                                      }`}
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2.5}
+                                        d="M9 5l7 7-7 7"
+                                      />
+                                    </svg>
+                                    <span className="text-[13px] font-extrabold text-slate-800">
+                                      {section.label}
+                                    </span>
+                                    <span className="text-[11px] font-bold text-slate-500 bg-white/80 px-2 py-0.5 rounded-full border border-slate-200/50">
+                                      {section.items.length}
+                                    </span>
+                                  </div>
+                                  <span className={`text-[15px] font-black ${section.textColor}`}>
+                                    {fmt(section.total)}đ
+                                  </span>
+                                </div>
+
+                                {isExpanded && (
+                                  <div className="pt-2 pl-2 pr-1 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {section.items.map((item) => (
+                                      <CategoryItem
+                                        key={item.categoryId}
+                                        item={item}
+                                        color={
+                                          CHART_COLORS[
+                                            expBreakdown.indexOf(item) % CHART_COLORS.length
+                                          ]
+                                        }
+                                        onClick={() => handleCategoryClick(item)}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </>
+                      );
+                    })() : (
+                      <p className="text-center text-slate-400 py-4 text-sm font-medium">Chưa có khoản chi nào.</p>
+                    )}
+                  </>
+                )}
+
+                {/* 3. TOTAL INCOME (Actual + Owed) */}
+                {selectedDetailType === "total_income" && (
+              <>
+                <div className="bg-blue-50 p-4 rounded-2xl mb-4">
+                  <p className="text-blue-500 font-bold text-sm">Cần thu tổng cộng</p>
+                  <p className="text-2xl font-black text-blue-600">{fmt(totalIncome + (debtSummary?.totalOwed || 0))}đ</p>
+                </div>
+
+                {/* 4.1: Progress Bar thu hồi */}
+                {(() => {
+                  const totalNeedCollect = totalIncome + (debtSummary?.totalOwed || 0);
+                  const collectedPct = totalNeedCollect > 0 ? Math.round((totalIncome / totalNeedCollect) * 100) : 100;
+                  return (
+                    <div className="mb-4 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[11px] font-bold text-slate-500">Tỷ lệ thu hồi</span>
+                        <span className={`text-[12px] font-extrabold ${collectedPct >= 80 ? 'text-emerald-600' : collectedPct >= 50 ? 'text-blue-600' : 'text-amber-600'}`}>{collectedPct}%</span>
+                      </div>
+                      <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${collectedPct >= 80 ? 'bg-emerald-500' : collectedPct >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                          style={{ width: `${collectedPct}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1.5">
+                        <span className="text-[10px] text-emerald-600 font-bold">Đã thu: {fmt(totalIncome)}đ</span>
+                        <span className="text-[10px] text-slate-400 font-bold">Chưa thu: {fmt(debtSummary?.totalOwed || 0)}đ</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="flex justify-between items-center py-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">💵</div>
+                    <span className="font-bold text-slate-700 text-sm">Đã thu thực tế</span>
+                  </div>
+                  <span className="font-bold text-emerald-600">{fmt(totalIncome)}đ</span>
+                </div>
+
+                {/* 4.4: Smart Netting Suggestion (Only show when there is actual net difference) */}
+                {(() => {
+                  const owedDetails = debtSummary?.details?.filter((d: any) => d.type === "OWED") || [];
+                  const owingDetails = debtSummary?.details?.filter((d: any) => d.type === "OWING") || [];
+                  const nettingSuggestions: { name: string; owed: number; owing: number; net: number }[] = [];
+
+                  owedDetails.forEach((owed: any) => {
+                    const counterName = owed.counterparty?.name;
+                    if (!counterName) return;
+                    const matchingOwing = owingDetails.find((o: any) => o.counterparty?.name === counterName);
+                    if (matchingOwing) {
+                      const netAmount = Number(owed.amount) - Number(matchingOwing.amount);
+                      // Bỏ qua nếu đã huề (netAmount === 0)
+                      if (netAmount !== 0) {
+                        nettingSuggestions.push({
+                          name: counterName,
+                          owed: Number(owed.amount),
+                          owing: Number(matchingOwing.amount),
+                          net: netAmount,
+                        });
+                      }
+                    }
+                  });
+
+                  if (nettingSuggestions.length === 0) return null;
+                  return (
+                    <div className="mt-3 p-3 bg-violet-50 border border-violet-100 rounded-2xl animate-in fade-in duration-300">
+                      <p className="text-[12px] font-extrabold text-violet-800 mb-2 flex items-center gap-1.5">
+                        <LucideIcons.Lightbulb className="w-4 h-4" /> Gợi ý cấn trừ nợ
+                      </p>
+                      {nettingSuggestions.map((s, idx) => (
+                        <div key={idx} className="text-[11px] text-violet-700 mb-1 last:mb-0 bg-white/60 rounded-xl p-2">
+                          <p><span className="font-bold">{s.name}</span> nợ bạn <span className="font-bold text-blue-600">{fmt(s.owed)}đ</span>, bạn nợ lại <span className="font-bold text-rose-500">{fmt(s.owing)}đ</span></p>
+                          <p className="font-extrabold mt-1">
+                            → {s.net > 0 ? `Chỉ cần thu ròng thêm: ${fmt(s.net)}đ` : `Chỉ cần trả ròng: ${fmt(Math.abs(s.net))}đ`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                <div className="mt-4 mb-2 font-bold text-slate-500 text-xs uppercase tracking-wider">Danh sách người nợ tôi</div>
+                {debtSummary?.details?.filter((d: any) => d.type === "OWED").length > 0 ? (
+                  debtSummary.details.filter((d: any) => d.type === "OWED").map((d: any, idx: number) => (
+                    <div 
+                      key={idx} 
+                      className="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors px-2 -mx-2 rounded-xl"
+                      onClick={() => handleDebtClick(d.groupId, d.groupName, d.counterparty?.name || "Người dùng", "OWED", d.amount)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <img src={d.counterparty?.avatarUrl || "https://ui-avatars.com/api/?name=U"} alt="" className="w-10 h-10 rounded-full" />
+                        <div>
+                          <p className="font-bold text-slate-700 text-[13px]">{d.counterparty?.name || "Người dùng"}</p>
+                          <p className="text-[11px] text-slate-400 font-medium">{d.groupName}</p>
+                        </div>
+                      </div>
+                      <span className="font-bold text-blue-500 text-sm">+{fmt(d.amount)}đ</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-slate-400 py-4 text-sm font-medium">Không ai nợ bạn cả.</p>
+                )}
+              </>
+            )}
+
+            {/* 4. TOTAL EXPENSE (Actual + Unpaid Budgets + Owing) */}
+            {selectedDetailType === "total_expense" && (
+              <>
+                {/* Visual Formula Card */}
+                {(() => {
+                  const grandTotalExpense = totalExpense + unpaidBudgetsTotal + (debtSummary?.totalOwing || 0);
+                  const owingList = debtSummary?.details?.filter((d: any) => d.type === "OWING") || [];
+
+                  const displayedBudgets = showAllBudgets ? unpaidBudgetsList : unpaidBudgetsList.slice(0, 3);
+                  const displayedDebts = showAllDebts ? owingList : owingList.slice(0, 3);
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Hero Summary Card */}
+                      <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700 p-5 rounded-2xl text-white shadow-lg shadow-indigo-500/20">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <span className="text-xs font-bold uppercase tracking-wider text-indigo-100 block mb-0.5">
+                              Tổng chi dự kiến / Cần trả tháng này
+                            </span>
+                            <p className="text-3xl font-black tracking-tight">{fmtCompact(grandTotalExpense)}</p>
+                          </div>
+                          <span className="text-2xl bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">📊</span>
+                        </div>
+
+                        {/* Interactive Math Grid */}
+                        <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-white/20 text-center">
+                          <div className="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
+                            <span className="text-[11px] font-bold text-indigo-100 uppercase block mb-0.5">1. Đã chi</span>
+                            <span className="text-[14px] font-black text-rose-200 block truncate">{fmtCompact(totalExpense)}</span>
+                          </div>
+                          <div className="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
+                            <span className="text-[11px] font-bold text-indigo-100 uppercase block mb-0.5">2. Chưa chi</span>
+                            <span className="text-[14px] font-black text-amber-200 block truncate">{fmtCompact(unpaidBudgetsTotal)}</span>
+                          </div>
+                          <div className="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
+                            <span className="text-[11px] font-bold text-indigo-100 uppercase block mb-0.5">3. Đang nợ</span>
+                            <span className="text-[14px] font-black text-red-200 block truncate">{fmtCompact(debtSummary?.totalOwing || 0)}</span>
+                          </div>
+                        </div>
+
+                        <p className="text-[13px] text-indigo-100 mt-3.5 font-medium leading-relaxed">
+                          💡 Số tiền này gom 3 khoản: <span className="font-bold text-white">Đã giao dịch</span> + <span className="font-bold text-white">Ngân sách chưa tiêu hết</span> + <span className="font-bold text-white">Nợ nhóm cần trả</span>.
+                        </p>
+                      </div>
+
+                      {/* 1. ĐÃ CHI THỰC TẾ (Bấm vào xem danh sách chi tiết) */}
+                      <div
+                        onClick={() => setSelectedDetailType("actual_expense")}
+                        className="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center text-lg font-bold">
+                              💸
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-slate-800 text-[13px]">1. Đã chi thực tế trong tháng</p>
+                              <p className="text-[11px] text-rose-500 font-medium">Bấm để xem danh sách giao dịch chi tiết ›</p>
+                            </div>
+                          </div>
+                          <span className="font-black text-rose-500 text-sm">{fmtCompact(totalExpense)}</span>
+                        </div>
+                      </div>
+
+                      {/* 2. NGÂN SÁCH & HÓA ĐƠN CHƯA CHI (Mặc định thu gọn, bấm mở rộng) */}
+                      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
+                        <div
+                          onClick={() => unpaidBudgetsList.length > 0 && setShowAllBudgets(!showAllBudgets)}
+                          className={`flex justify-between items-center ${unpaidBudgetsList.length > 0 ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">📌</span>
+                            <div>
+                              <p className="font-extrabold text-slate-800 text-[13px] flex items-center gap-1.5">
+                                2. Ngân sách & Hóa đơn chưa chi
+                                {unpaidBudgetsList.length > 0 && (
+                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full">
+                                    {showAllBudgets ? "Thu gọn ▴" : `Xem chi tiết ${unpaidBudgetsList.length} mục ▾`}
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-[11px] text-slate-400">Số tiền còn thiếu/dự kiến cần tiêu</p>
+                            </div>
+                          </div>
+                          <span className="font-black text-amber-600 text-sm">{fmtCompact(unpaidBudgetsTotal)}</span>
+                        </div>
+
+                        {showAllBudgets && (
+                          <div className="pt-2 border-t border-slate-100 space-y-2.5 animate-in fade-in duration-200">
+                            {unpaidBudgetsList.map((b: any) => {
+                              const limit = Number(b.limitAmount || 0);
+                              const spent = Number(b.spentAmount || 0);
+                              const remaining = Math.max(0, limit - spent);
+                              const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
+                              const isBill = b.type === "BILL" || (b.categoryName || "").toLowerCase().includes("tiền") || (b.categoryName || "").toLowerCase().includes("hóa đơn");
+
+                              return (
+                                <div
+                                  key={b.budgetId || b.categoryId}
+                                  className="bg-slate-50/80 rounded-xl p-3 border border-slate-100/80 space-y-2"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm">{isBill ? "📌" : "🎯"}</span>
+                                      <span className="font-bold text-slate-800 text-[13px]">
+                                        {b.name || b.categoryName}
+                                      </span>
+                                      {isBill && (
+                                        <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-1.5 py-0.2 rounded-md">
+                                          Cố định
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="font-extrabold text-amber-600 text-[13px]">
+                                      Còn {fmtCompact(remaining)}
+                                    </span>
+                                  </div>
+
+                                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-500 ${isBill ? "bg-orange-500" : "bg-blue-500"}`}
+                                      style={{ width: `${pct}%` }}
+                                    />
+                                  </div>
+
+                                  <div className="flex justify-between items-center text-[10px] text-slate-400">
+                                    <span>Đã chi: {fmt(spent)}đ</span>
+                                    <span>Hạn mức: {fmt(limit)}đ ({pct}%)</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. NỢ NHÓM CẦN TRẢ (Mặc định thu gọn, bấm mở rộng) */}
+                      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
+                        <div
+                          onClick={() => owingList.length > 0 && setShowAllDebts(!showAllDebts)}
+                          className={`flex justify-between items-center ${owingList.length > 0 ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">🤝</span>
+                            <div>
+                              <p className="font-extrabold text-slate-800 text-[13px] flex items-center gap-1.5">
+                                3. Các khoản nợ nhóm cần trả
+                                {owingList.length > 0 && (
+                                  <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-full">
+                                    {showAllDebts ? "Thu gọn ▴" : `Xem chi tiết ${owingList.length} khoản ▾`}
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-[11px] text-slate-400">Nợ bạn bè cần thanh toán</p>
+                            </div>
+                          </div>
+                          <span className="font-black text-rose-500 text-sm">{fmtCompact(debtSummary?.totalOwing || 0)}</span>
+                        </div>
+
+                        {showAllDebts && (
+                          <div className="pt-2 border-t border-slate-100 space-y-2 animate-in fade-in duration-200">
+                            {owingList.map((d: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="flex justify-between items-center p-2.5 bg-rose-50/40 rounded-xl border border-rose-100/60 cursor-pointer hover:bg-rose-50 transition-colors"
+                                onClick={() => handleDebtClick(d.groupId, d.groupName, d.counterparty?.name || "Người dùng", "OWING", d.amount)}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <img src={d.counterparty?.avatarUrl || "https://ui-avatars.com/api/?name=U"} alt="" className="w-8 h-8 rounded-full border border-rose-200" />
+                                  <div>
+                                    <p className="font-bold text-slate-800 text-[12px]">{d.counterparty?.name || "Người dùng"}</p>
+                                    <p className="text-[10px] text-slate-400 font-medium">{d.groupName}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <span className="font-black text-rose-500 text-[13px] block">-{fmtCompact(d.amount)}</span>
+                                  <span className="text-[9px] font-bold text-rose-600 bg-rose-100 px-1.5 py-0.2 rounded-md">Bấm trả nợ ›</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+
+            {/* 5. SAVINGS */}
+            {selectedDetailType === "savings" && (
+              <>
+                <div className="bg-slate-50 p-4 rounded-2xl mb-4 text-center">
+                  <p className="text-slate-500 font-bold text-sm mb-1">Công thức tính</p>
+                  <div className="flex justify-center items-center gap-4">
+                    <div>
+                      <p className="text-xs text-slate-400">Thực thu</p>
+                      <p className="font-bold text-emerald-500">{fmt(totalIncome)}</p>
+                    </div>
+                    <span className="font-black text-slate-300">-</span>
+                    <div>
+                      <p className="text-xs text-slate-400">Thực chi</p>
+                      <p className="font-bold text-rose-500">{fmt(totalExpense)}</p>
+                    </div>
+                    <span className="font-black text-slate-300">=</span>
+                    <div>
+                      <p className="text-xs text-slate-400">Tiết kiệm</p>
+                      <p className={`font-bold ${totalIncome - totalExpense >= 0 ? "text-slate-800" : "text-rose-500"}`}>
+                        {totalIncome - totalExpense >= 0 ? "+" : ""}{fmt(totalIncome - totalExpense)}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+                <p className="text-[13px] text-slate-500 text-center px-4 leading-relaxed">
+                  Tiết kiệm tháng này là khoản dư ra sau khi lấy Tổng thu nhập thực tế trừ đi Tổng chi tiêu thực tế trong tháng.
+                </p>
+              </>
+            )}
+              </>
+            )}
           </div>
-        )}
-      </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

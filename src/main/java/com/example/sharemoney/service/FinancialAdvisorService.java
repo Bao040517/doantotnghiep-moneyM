@@ -54,25 +54,31 @@ public class FinancialAdvisorService {
     private static final Set<String> WANTS_CATEGORIES =
             Set.of("Quần áo", "Mỹ phẩm", "Phí giao lưu");
 
-    /** Entry point: Trả về toàn bộ kết quả phân tích cho một người dùng. */
+    /** Entry point: Trả về toàn bộ kết quả phân tích cho một người dùng (mặc định tháng hiện tại). */
     @Transactional(readOnly = true)
     public FinancialAdviceResponse analyze(UUID userId) {
+        return analyze(userId, null, null);
+    }
+
+    /** Overload analyze: Trả về kết quả phân tích theo năm và tháng chỉ định. */
+    @Transactional(readOnly = true)
+    public FinancialAdviceResponse analyze(UUID userId, Integer year, Integer month) {
         LocalDate today = LocalDate.now();
-        int currentYear = today.getYear();
-        int currentMonth = today.getMonthValue();
+        int targetYear = (year != null && year > 0) ? year : today.getYear();
+        int targetMonth = (month != null && month >= 1 && month <= 12) ? month : today.getMonthValue();
 
-        // Thu thập dữ liệu 3 tháng trước (không tính tháng hiện tại)
+        // Thu thập dữ liệu 3 tháng trước (không tính tháng target)
         Map<String, List<BigDecimal>> categoryHistory =
-                collectCategoryHistory(userId, currentYear, currentMonth, 3);
+                collectCategoryHistory(userId, targetYear, targetMonth, 3);
 
-        // Dữ liệu tháng hiện tại
+        // Dữ liệu tháng target
         Map<String, BigDecimal> currentMonthSpending =
-                getCurrentMonthSpending(userId, currentYear, currentMonth);
+                getCurrentMonthSpending(userId, targetYear, targetMonth);
 
-        // Thu nhập tháng hiện tại
-        YearMonth currentYM = YearMonth.of(currentYear, currentMonth);
-        LocalDateTime monthStart = currentYM.atDay(1).atStartOfDay();
-        LocalDateTime monthEnd = currentYM.plusMonths(1).atDay(1).atStartOfDay();
+        // Thu nhập tháng target
+        YearMonth targetYM = YearMonth.of(targetYear, targetMonth);
+        LocalDateTime monthStart = targetYM.atDay(1).atStartOfDay();
+        LocalDateTime monthEnd = targetYM.plusMonths(1).atDay(1).atStartOfDay();
         BigDecimal totalIncome =
                 transactionRepository.sumByTypeAndPeriod(
                         userId, TransactionType.INCOME, monthStart, monthEnd);
@@ -83,17 +89,21 @@ public class FinancialAdvisorService {
                         userId, TransactionType.EXPENSE, monthStart, monthEnd);
         if (totalExpense == null) totalExpense = BigDecimal.ZERO;
 
-        // Ngân sách hiện tại
+        // Ngân sách tháng target
         List<BudgetSummaryResponse> currentBudgets =
-                budgetService.getBudgetSummary(userId, currentYear, currentMonth);
+                budgetService.getBudgetSummary(userId, targetYear, targetMonth);
+        if (currentBudgets == null) currentBudgets = Collections.emptyList();
 
         // Số dư ví
         BigDecimal walletBalance = walletRepository.sumBalanceByUserId(userId);
         if (walletBalance == null) walletBalance = BigDecimal.ZERO;
 
         // Nợ
-        BigDecimal totalOwing = debtService.getUserDebtSummary(userId).getTotalOwing();
-        if (totalOwing == null) totalOwing = BigDecimal.ZERO;
+        BigDecimal totalOwing = BigDecimal.ZERO;
+        var debtSummary = debtService.getUserDebtSummary(userId);
+        if (debtSummary != null && debtSummary.getTotalOwing() != null) {
+            totalOwing = debtSummary.getTotalOwing();
+        }
 
         // Tiết kiệm
         BigDecimal totalSavings = savingsGoalRepository.sumCurrentAmountByUserId(userId);
@@ -102,18 +112,29 @@ public class FinancialAdvisorService {
         // Ngân sách chưa chi
         BigDecimal unpaidBudgets = BigDecimal.ZERO;
         for (BudgetSummaryResponse b : currentBudgets) {
+            if (b == null || b.getLimitAmount() == null || b.getSpentAmount() == null) continue;
             BigDecimal remaining = b.getLimitAmount().subtract(b.getSpentAmount());
             if (remaining.compareTo(BigDecimal.ZERO) > 0) {
                 unpaidBudgets = unpaidBudgets.add(remaining);
             }
         }
 
-        // Tính Tiền nhàn rỗi (Safe to Spend) y hệt Dashboard
+        // Tính Tiền nhàn rỗi (Safe to Spend)
         BigDecimal safeToSpend = walletBalance.subtract(unpaidBudgets).subtract(totalOwing);
         if (safeToSpend.compareTo(BigDecimal.ZERO) < 0) safeToSpend = BigDecimal.ZERO;
 
         // Tính thu nhập trung bình 3 tháng cho Habit Analysis
-        BigDecimal avgIncome3Months = getAvgIncome(userId, currentYear, currentMonth, 3);
+        BigDecimal avgIncome3Months = getAvgIncome(userId, targetYear, targetMonth, 3);
+
+        // Xác định dayOfMonth để đánh giá tốc độ chi tiêu (burn-rate)
+        int evalDayOfMonth;
+        if (targetYear == today.getYear() && targetMonth == today.getMonthValue()) {
+            evalDayOfMonth = today.getDayOfMonth();
+        } else if (targetYear < today.getYear() || (targetYear == today.getYear() && targetMonth < today.getMonthValue())) {
+            evalDayOfMonth = targetYM.lengthOfMonth();
+        } else {
+            evalDayOfMonth = 1;
+        }
 
         return FinancialAdviceResponse.builder()
                 .budgetPlan(
@@ -122,12 +143,12 @@ public class FinancialAdvisorService {
                         generateWarnings(
                                 categoryHistory,
                                 currentMonthSpending,
-                                currentYear,
-                                currentMonth,
-                                today.getDayOfMonth()))
+                                targetYear,
+                                targetMonth,
+                                evalDayOfMonth))
                 .habitAnalysis(
                         generateHabitAnalysis(
-                                totalIncome, totalExpense, currentMonthSpending, avgIncome3Months))
+                                totalIncome, totalExpense, currentMonthSpending, avgIncome3Months, targetYear, targetMonth))
                 .savingsSuggestion(
                         generateSavingsSuggestion(
                                 safeToSpend, categoryHistory, currentMonthSpending))
@@ -145,27 +166,27 @@ public class FinancialAdvisorService {
 
         List<BudgetSuggestion> suggestions = new ArrayList<>();
 
-        // Map budget hiện tại theo categoryName
-        Map<String, BudgetSummaryResponse> budgetMap =
-                currentBudgets.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        BudgetSummaryResponse::getCategoryName,
-                                        b -> b,
-                                        (v1, v2) -> v1 // nếu trùng, lấy cái đầu
-                                        ));
+        // Map budget hiện tại theo categoryName (an toàn null key/value)
+        Map<String, BudgetSummaryResponse> budgetMap = new HashMap<>();
+        if (currentBudgets != null) {
+            for (BudgetSummaryResponse b : currentBudgets) {
+                if (b != null && b.getCategoryName() != null) {
+                    budgetMap.putIfAbsent(b.getCategoryName(), b);
+                }
+            }
+        }
 
         for (Map.Entry<String, List<BigDecimal>> entry : categoryHistory.entrySet()) {
             String catName = entry.getKey();
             List<BigDecimal> monthlyAmounts = entry.getValue();
 
-            if (monthlyAmounts.isEmpty()) continue;
+            if (catName == null || monthlyAmounts == null || monthlyAmounts.isEmpty()) continue;
 
             // Tính trung bình, loại bỏ outliers (> 2x trung bình)
             BigDecimal rawAvg = average(monthlyAmounts);
             List<BigDecimal> filtered =
                     monthlyAmounts.stream()
-                            .filter(a -> a.compareTo(rawAvg.multiply(BigDecimal.valueOf(2))) <= 0)
+                            .filter(a -> a != null && a.compareTo(rawAvg.multiply(BigDecimal.valueOf(2))) <= 0)
                             .collect(Collectors.toList());
 
             BigDecimal cleanAvg = filtered.isEmpty() ? rawAvg : average(filtered);
@@ -206,7 +227,7 @@ public class FinancialAdvisorService {
                                             ? existingBudget.getCategoryIcon()
                                             : null)
                             .categoryId(
-                                    existingBudget != null
+                                    existingBudget != null && existingBudget.getCategoryId() != null
                                             ? existingBudget.getCategoryId().toString()
                                             : null)
                             .suggestedAmount(suggested)
@@ -235,6 +256,12 @@ public class FinancialAdvisorService {
 
         List<SpendingWarning> warnings = new ArrayList<>();
 
+        // Nếu là tháng tương lai (chưa đến), không tạo cảnh báo tiêu lố
+        LocalDate today = LocalDate.now();
+        if (year > today.getYear() || (year == today.getYear() && month > today.getMonthValue())) {
+            return warnings;
+        }
+
         // Tính tỷ lệ ngày đã qua trong tháng
         int daysInMonth = YearMonth.of(year, month).lengthOfMonth();
         double monthProgress = (double) dayOfMonth / daysInMonth;
@@ -243,6 +270,8 @@ public class FinancialAdvisorService {
             String catName = entry.getKey();
             BigDecimal currentSpent = entry.getValue();
 
+            if (catName == null || currentSpent == null) continue;
+
             List<BigDecimal> history =
                     categoryHistory.getOrDefault(catName, Collections.emptyList());
             if (history.isEmpty()) continue;
@@ -250,24 +279,24 @@ public class FinancialAdvisorService {
             BigDecimal avg3Month = average(history);
             if (avg3Month.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-            // Danh sách các từ khóa thường dùng cho chi phí cố định (không dự báo tuyến tính)
-            List<String> fixedKeywords = Arrays.asList("tiền nhà", "thuê nhà", "trả góp", "lãi vay", "bảo hiểm", "học phí", "internet", "tiện ích", "định kỳ");
+            // Danh sách các từ khóa thường dùng cho chi phí cố định (không đưa vào Cảnh báo chi tiêu bất thường)
+            List<String> fixedKeywords = Arrays.asList(
+                "điện", "tiền điện", "nước", "tiền nước", "nhà", "tiền nhà", "thuê nhà",
+                "mạng", "internet", "wifi", "truyền hình", "rác", "tiền rác", "trả góp",
+                "lãi vay", "vay", "bảo hiểm", "học phí", "viễn thông", "cố định", "định kỳ",
+                "bill", "hóa đơn", "phí liên lạc", "phí quản lý", "phí giữ xe", "gửi xe", "chung cư"
+            );
             boolean isFixed = fixedKeywords.stream().anyMatch(k -> catName.toLowerCase().contains(k));
+            if (isFixed) continue; // Bỏ qua hoàn toàn các khoản cố định/hóa đơn hàng tháng khỏi tab cảnh báo
 
-            // Dự báo chi tiêu cả tháng dựa trên tốc độ hiện tại
-            BigDecimal projectedSpend;
-            if (isFixed) {
-                // Chi phí cố định thường đóng 1 lần/tháng, không nội suy tuyến tính theo ngày
-                projectedSpend = currentSpent;
-            } else {
-                projectedSpend =
-                        monthProgress > 0
-                                ? currentSpent.divide(
-                                        BigDecimal.valueOf(monthProgress), 0, RoundingMode.HALF_UP)
-                                : currentSpent;
-            }
+            // Dự báo chi tiêu cả tháng dựa trên tốc độ hiện tại (cho chi phí linh hoạt)
+            BigDecimal projectedSpend =
+                    monthProgress > 0
+                            ? currentSpent.divide(
+                                    BigDecimal.valueOf(monthProgress), 0, RoundingMode.HALF_UP)
+                            : currentSpent;
 
-            // So sánh projected với trung bình
+            // So sánh projected với trung bình 3 tháng
             BigDecimal diff = projectedSpend.subtract(avg3Month);
             if (diff.compareTo(BigDecimal.ZERO) <= 0) continue;
 
@@ -284,20 +313,14 @@ public class FinancialAdvisorService {
             if (severity.equals("HIGH")) {
                 message =
                         String.format(
-                                "🔴 %s đang tiêu gấp %.1f lần bình thường! Mới %d/%d ngày mà đã chi %s (trung bình cả tháng chỉ %s).",
-                                catName,
-                                projectedSpend.doubleValue() / avg3Month.doubleValue(),
-                                dayOfMonth,
-                                daysInMonth,
-                                formatVND(currentSpent),
-                                formatVND(avg3Month));
+                                "🔴 Chi tiêu tăng quá nhanh! Dự kiến cả tháng lên %s (gấp %.1f lần bình thường).",
+                                formatVND(projectedSpend),
+                                projectedSpend.doubleValue() / avg3Month.doubleValue());
             } else {
                 message =
                         String.format(
-                                "⚠️ Tốc độ chi tiêu %s cao hơn %d%% so với bình thường. Đã chi %s, dự kiến cuối tháng sẽ lên %s.",
-                                catName,
+                                "⚠️ Tốc độ chi tiêu tăng %d%%. Dự kiến cuối tháng sẽ lên %s.",
                                 increasePercent,
-                                formatVND(currentSpent),
                                 formatVND(projectedSpend));
             }
 
@@ -332,26 +355,30 @@ public class FinancialAdvisorService {
             BigDecimal totalIncome,
             BigDecimal totalExpense,
             Map<String, BigDecimal> currentMonthSpending,
-            BigDecimal avgIncome3Months) {
+            BigDecimal avgIncome3Months,
+            int targetYear,
+            int targetMonth) {
 
         BigDecimal needsAmount = BigDecimal.ZERO;
         BigDecimal wantsAmount = BigDecimal.ZERO;
 
-        for (Map.Entry<String, BigDecimal> entry : currentMonthSpending.entrySet()) {
-            String catName = entry.getKey();
-            BigDecimal amount = entry.getValue();
+        if (currentMonthSpending != null) {
+            for (Map.Entry<String, BigDecimal> entry : currentMonthSpending.entrySet()) {
+                String catName = entry.getKey();
+                BigDecimal amount = entry.getValue();
+                if (catName == null || amount == null) continue;
 
-            if (NEEDS_CATEGORIES.contains(catName)) {
-                needsAmount = needsAmount.add(amount);
-            } else if (WANTS_CATEGORIES.contains(catName)) {
-                wantsAmount = wantsAmount.add(amount);
-            } else {
-                // Các danh mục không xác định -> xếp vào Wants
-                wantsAmount = wantsAmount.add(amount);
+                if (NEEDS_CATEGORIES.contains(catName)) {
+                    needsAmount = needsAmount.add(amount);
+                } else if (WANTS_CATEGORIES.contains(catName)) {
+                    wantsAmount = wantsAmount.add(amount);
+                } else {
+                    wantsAmount = wantsAmount.add(amount);
+                }
             }
         }
 
-        // Tính phần trăm dựa trên thu nhập (ưu tiên avg 3 tháng nếu thu nhập tháng này = 0)
+        // Tính phần trăm dựa trên thu nhập
         BigDecimal refIncome =
                 totalIncome.compareTo(BigDecimal.ZERO) > 0 ? totalIncome : avgIncome3Months;
 
@@ -381,7 +408,14 @@ public class FinancialAdvisorService {
         String verdict;
         List<String> recommendations = new ArrayList<>();
 
-        if (refIncome.compareTo(BigDecimal.ZERO) <= 0) {
+        LocalDate today = LocalDate.now();
+        boolean isFuture = targetYear > today.getYear() || (targetYear == today.getYear() && targetMonth > today.getMonthValue());
+
+        if (isFuture) {
+            verdict = String.format("🗓️ Tháng %d/%d là tháng trong tương lai (Chưa có dữ liệu chi tiêu thực tế).", targetMonth, targetYear);
+            recommendations.add(
+                    String.format("Bạn đang xem gợi ý cho Tháng %d/%d. Hãy tạo trước các thẻ Ngân sách ở mục Kế hoạch bên dưới!", targetMonth, targetYear));
+        } else if (refIncome.compareTo(BigDecimal.ZERO) <= 0) {
             verdict = "Chưa đủ dữ liệu thu nhập để phân tích.";
             recommendations.add(
                     "Hãy ghi nhận thu nhập hàng tháng để hệ thống phân tích chính xác hơn.");
@@ -457,7 +491,7 @@ public class FinancialAdvisorService {
             Map<String, List<BigDecimal>> categoryHistory,
             Map<String, BigDecimal> currentMonthSpending) {
 
-        BigDecimal idleAmount = safeToSpend;
+        BigDecimal idleAmount = safeToSpend != null ? safeToSpend : BigDecimal.ZERO;
 
         // Đề xuất tiết kiệm 50% số tiền nhàn rỗi
         BigDecimal suggestedSave =
@@ -467,41 +501,45 @@ public class FinancialAdvisorService {
         List<CutSuggestion> cutSuggestions = new ArrayList<>();
         BigDecimal potentialSave = BigDecimal.ZERO;
 
-        for (Map.Entry<String, BigDecimal> entry : currentMonthSpending.entrySet()) {
-            String catName = entry.getKey();
-            if (!WANTS_CATEGORIES.contains(catName)) continue;
+        if (currentMonthSpending != null) {
+            for (Map.Entry<String, BigDecimal> entry : currentMonthSpending.entrySet()) {
+                String catName = entry.getKey();
+                if (catName == null || !WANTS_CATEGORIES.contains(catName)) continue;
 
-            BigDecimal currentSpent = entry.getValue();
-            List<BigDecimal> history =
-                    categoryHistory.getOrDefault(catName, Collections.emptyList());
-            BigDecimal avg = history.isEmpty() ? currentSpent : average(history);
+                BigDecimal currentSpent = entry.getValue();
+                if (currentSpent == null) continue;
 
-            // Đề xuất cắt 20% so với mức chi trung bình
-            BigDecimal suggestedLimit =
-                    avg.multiply(BigDecimal.valueOf(0.8)).setScale(0, RoundingMode.HALF_UP);
-            BigDecimal savings = currentSpent.subtract(suggestedLimit);
+                List<BigDecimal> history =
+                        categoryHistory.getOrDefault(catName, Collections.emptyList());
+                BigDecimal avg = history.isEmpty() ? currentSpent : average(history);
 
-            if (savings.compareTo(BigDecimal.valueOf(10000)) > 0) {
-                String tip;
-                if (catName.equals("Phí giao lưu")) {
-                    tip = "Hạn chế 1-2 buổi cafe/nhậu mỗi tháng.";
-                } else if (catName.equals("Mỹ phẩm")) {
-                    tip = "Mua theo combo hoặc đợi khuyến mãi.";
-                } else if (catName.equals("Quần áo")) {
-                    tip = "Áp dụng nguyên tắc \"1 vào 1 ra\" khi mua đồ.";
-                } else {
-                    tip = "Xem xét lại nhu cầu thực sự trước khi chi.";
+                // Đề xuất cắt 20% so với mức chi trung bình
+                BigDecimal suggestedLimit =
+                        avg.multiply(BigDecimal.valueOf(0.8)).setScale(0, RoundingMode.HALF_UP);
+                BigDecimal savings = currentSpent.subtract(suggestedLimit);
+
+                if (savings.compareTo(BigDecimal.valueOf(10000)) > 0) {
+                    String tip;
+                    if (catName.equals("Phí giao lưu")) {
+                        tip = "Hạn chế 1-2 buổi cafe/nhậu mỗi tháng.";
+                    } else if (catName.equals("Mỹ phẩm")) {
+                        tip = "Mua theo combo hoặc đợi khuyến mãi.";
+                    } else if (catName.equals("Quần áo")) {
+                        tip = "Áp dụng nguyên tắc \"1 vào 1 ra\" khi mua đồ.";
+                    } else {
+                        tip = "Xem xét lại nhu cầu thực sự trước khi chi.";
+                    }
+
+                    cutSuggestions.add(
+                            CutSuggestion.builder()
+                                    .categoryName(catName)
+                                    .currentSpent(currentSpent)
+                                    .suggestedLimit(suggestedLimit)
+                                    .savingsIfCut(savings)
+                                    .tip(tip)
+                                    .build());
+                    potentialSave = potentialSave.add(savings);
                 }
-
-                cutSuggestions.add(
-                        CutSuggestion.builder()
-                                .categoryName(catName)
-                                .currentSpent(currentSpent)
-                                .suggestedLimit(suggestedLimit)
-                                .savingsIfCut(savings)
-                                .tip(tip)
-                                .build());
-                potentialSave = potentialSave.add(savings);
             }
         }
 
@@ -546,17 +584,20 @@ public class FinancialAdvisorService {
             List<Transaction> txs =
                     transactionRepository.findByUserAndMonth(
                             userId, ym.getYear(), ym.getMonthValue());
+            if (txs == null) continue;
 
             Map<String, BigDecimal> monthData = new HashMap<>();
             for (Transaction tx : txs) {
-                if (tx.getType() != TransactionType.EXPENSE || tx.isExcludeFromBudget()) continue;
+                if (tx == null || tx.getType() != TransactionType.EXPENSE || tx.isExcludeFromBudget()) continue;
 
                 if (tx.isSplit() && tx.getSplits() != null && !tx.getSplits().isEmpty()) {
                     for (var split : tx.getSplits()) {
-                        String catName = split.getCategory().getName();
-                        monthData.merge(catName, split.getAmount(), BigDecimal::add);
+                        if (split != null && split.getCategory() != null && split.getCategory().getName() != null && split.getAmount() != null) {
+                            String catName = split.getCategory().getName();
+                            monthData.merge(catName, split.getAmount(), BigDecimal::add);
+                        }
                     }
-                } else {
+                } else if (tx.getCategory() != null && tx.getCategory().getName() != null && tx.getAmount() != null) {
                     String catName = tx.getCategory().getName();
                     monthData.merge(catName, tx.getAmount(), BigDecimal::add);
                 }
@@ -575,16 +616,19 @@ public class FinancialAdvisorService {
     private Map<String, BigDecimal> getCurrentMonthSpending(UUID userId, int year, int month) {
         List<Transaction> txs = transactionRepository.findByUserAndMonth(userId, year, month);
         Map<String, BigDecimal> result = new HashMap<>();
+        if (txs == null) return result;
 
         for (Transaction tx : txs) {
-            if (tx.getType() != TransactionType.EXPENSE || tx.isExcludeFromBudget()) continue;
+            if (tx == null || tx.getType() != TransactionType.EXPENSE || tx.isExcludeFromBudget()) continue;
 
             if (tx.isSplit() && tx.getSplits() != null && !tx.getSplits().isEmpty()) {
                 for (var split : tx.getSplits()) {
-                    String catName = split.getCategory().getName();
-                    result.merge(catName, split.getAmount(), BigDecimal::add);
+                    if (split != null && split.getCategory() != null && split.getCategory().getName() != null && split.getAmount() != null) {
+                        String catName = split.getCategory().getName();
+                        result.merge(catName, split.getAmount(), BigDecimal::add);
+                    }
                 }
-            } else {
+            } else if (tx.getCategory() != null && tx.getCategory().getName() != null && tx.getAmount() != null) {
                 String catName = tx.getCategory().getName();
                 result.merge(catName, tx.getAmount(), BigDecimal::add);
             }
@@ -618,11 +662,12 @@ public class FinancialAdvisorService {
 
     private BigDecimal average(List<BigDecimal> values) {
         if (values == null || values.isEmpty()) return BigDecimal.ZERO;
-        BigDecimal sum = values.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal sum = values.stream().filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
         return sum.divide(BigDecimal.valueOf(values.size()), 0, RoundingMode.HALF_UP);
     }
 
     private BigDecimal roundUpTo(BigDecimal value, long step) {
+        if (value == null) return BigDecimal.ZERO;
         BigDecimal stepBD = BigDecimal.valueOf(step);
         return value.divide(stepBD, 0, RoundingMode.CEILING).multiply(stepBD);
     }

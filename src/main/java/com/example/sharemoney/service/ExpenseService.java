@@ -155,7 +155,7 @@ public class ExpenseService {
                 org.springframework.data.domain.PageRequest.of(page, size);
         return expenseRepository
                 .findByGroup_IdOrderByCreatedAtDesc(groupId, pageable)
-                .map(this::toListResponse);
+                .map(expense -> toListResponse(expense, userId));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -444,7 +444,13 @@ public class ExpenseService {
     // ─────────────────────────────────────────────────────────────
     // Private: Mapping helpers
     // ─────────────────────────────────────────────────────────────
-    private ExpenseResponse toListResponse(Expense expense) {
+    private ExpenseResponse toListResponse(Expense expense, UUID userId) {
+        BigDecimal userSplit = expense.getSplits().stream()
+                .filter(s -> s.getUser().getId().equals(userId))
+                .findFirst()
+                .map(ExpenseSplit::getAmountOwed)
+                .orElse(BigDecimal.ZERO);
+
         return ExpenseResponse.builder()
                 .id(expense.getId())
                 .title(expense.getTitle())
@@ -453,6 +459,7 @@ public class ExpenseService {
                 .payer(toUserSummary(expense.getPayer()))
                 .splitCount(expense.getSplits().size())
                 .createdAt(expense.getCreatedAt())
+                .currentUserSplitAmount(userSplit)
                 .build();
     }
 

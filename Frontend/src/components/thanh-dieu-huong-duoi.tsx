@@ -13,7 +13,7 @@ export function BottomNavigation({
     <nav
       className="fixed bottom-0 w-full bg-white flex justify-between items-end px-6 pb-6 pt-3 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] rounded-t-[2.5rem] z-40"
       style={{
-        boxShadow: "0px -4px 30px rgba(69, 179, 157, 0.1)",
+        boxShadow: "0px -4px 30px rgba(99, 102, 241, 0.15)",
       }}
     >
       {/* Dashboard (Home) */}
@@ -22,7 +22,7 @@ export function BottomNavigation({
         className="flex flex-col items-center gap-1"
       >
         <svg
-          className={`w-6 h-6 ${activeTab === "dashboard" ? "text-[#45b39d]" : "text-gray-400"}`}
+          className={`w-6 h-6 ${activeTab === "dashboard" ? "text-[#6366f1]" : "text-gray-400"}`}
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
@@ -35,7 +35,7 @@ export function BottomNavigation({
           />
         </svg>
         <span
-          className={`text-[10px] font-medium ${activeTab === "dashboard" ? "text-[#45b39d]" : "text-gray-400"}`}
+          className={`text-[10px] font-medium ${activeTab === "dashboard" ? "text-[#6366f1]" : "text-gray-400"}`}
         >
           Home
         </span>
@@ -47,7 +47,7 @@ export function BottomNavigation({
         className="flex flex-col items-center gap-1"
       >
         <svg
-          className={`w-6 h-6 ${activeTab === "report" ? "text-[#45b39d]" : "text-gray-400"}`}
+          className={`w-6 h-6 ${activeTab === "report" ? "text-[#6366f1]" : "text-gray-400"}`}
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
@@ -65,7 +65,7 @@ export function BottomNavigation({
           />
         </svg>
         <span
-          className={`text-[10px] font-medium ${activeTab === "report" ? "text-[#45b39d]" : "text-gray-400"}`}
+          className={`text-[10px] font-medium ${activeTab === "report" ? "text-[#6366f1]" : "text-gray-400"}`}
         >
           Thống kê
         </span>
@@ -74,7 +74,7 @@ export function BottomNavigation({
       {/* Center Add Button (Quick Actions) */}
       <button
         onClick={() => setShowQuickAction(true)}
-        className="relative flex items-center justify-center -top-6 w-14 h-14 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full shadow-lg shadow-emerald-200 border-4 border-white hover:scale-105 active:scale-95 transition-transform"
+        className="relative flex items-center justify-center -top-6 w-14 h-14 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-lg shadow-indigo-300 border-4 border-white hover:scale-105 active:scale-95 transition-transform"
       >
         <svg
           className="w-7 h-7"
@@ -97,7 +97,7 @@ export function BottomNavigation({
         className="flex flex-col items-center gap-1"
       >
         <svg
-          className={`w-6 h-6 ${activeTab === "advisor" ? "text-[#45b39d]" : "text-gray-400"}`}
+          className={`w-6 h-6 ${activeTab === "advisor" ? "text-[#6366f1]" : "text-gray-400"}`}
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
@@ -110,7 +110,7 @@ export function BottomNavigation({
           />
         </svg>
         <span
-          className={`text-[10px] font-medium ${activeTab === "advisor" ? "text-[#45b39d]" : "text-gray-400"}`}
+          className={`text-[10px] font-medium ${activeTab === "advisor" ? "text-[#6366f1]" : "text-gray-400"}`}
         >
           Tư vấn
         </span>
@@ -122,7 +122,7 @@ export function BottomNavigation({
         className="flex flex-col items-center gap-1"
       >
         <svg
-          className={`w-6 h-6 ${activeTab === "profile" ? "text-[#45b39d]" : "text-gray-400"}`}
+          className={`w-6 h-6 ${activeTab === "profile" ? "text-[#6366f1]" : "text-gray-400"}`}
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
@@ -135,7 +135,7 @@ export function BottomNavigation({
           />
         </svg>
         <span
-          className={`text-[10px] font-medium ${activeTab === "profile" ? "text-[#45b39d]" : "text-gray-400"}`}
+          className={`text-[10px] font-medium ${activeTab === "profile" ? "text-[#6366f1]" : "text-gray-400"}`}
         >
           Cá nhân
         </span>

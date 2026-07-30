@@ -126,7 +126,7 @@ export function SavingsTab() {
         if (userStr) {
           const user = JSON.parse(userStr);
           insightsPromise = api
-            .get(`/advisor/insights/${user.id}`)
+            .get(`/advisor/insights/${user.id}?year=${now.getFullYear()}&month=${now.getMonth() + 1}`)
             .catch(() => ({ data: null }));
         }
       }
@@ -390,7 +390,7 @@ export function SavingsTab() {
 
             return (
               <div className="mb-4">
-                <p className="text-3xl font-black text-[#45b39d] tracking-tight flex items-baseline gap-2">
+                <p className="text-3xl font-black text-[#6366f1] tracking-tight flex items-baseline gap-2">
                   {formatCurrency(totalActualSavings)}
                   {totalTarget > 0 && (
                     <span className="text-sm font-bold text-gray-400">
@@ -401,7 +401,7 @@ export function SavingsTab() {
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#45b39d] rounded-full transition-all duration-500"
+                      className="h-full bg-[#6366f1] rounded-full transition-all duration-500"
                       style={{ width: `${overallPercent}%` }}
                     ></div>
                   </div>
@@ -410,7 +410,7 @@ export function SavingsTab() {
                   </span>
                 </div>
 
-                <div className="mt-3 bg-[#e8f5f1] border border-[#45b39d]/20 rounded-xl p-2.5 flex items-start gap-2">
+                <div className="mt-3 bg-[#e8f5f1] border border-[#6366f1]/20 rounded-xl p-2.5 flex items-start gap-2">
                   <span className="text-sm">✨</span>
                   <p className="text-[11px] text-[#2ba76f] leading-relaxed">
                     Đây là tổng số tiền{" "}
@@ -427,7 +427,7 @@ export function SavingsTab() {
             <p className="text-xs text-gray-500">Thêm mục tiêu để bắt đầu</p>
             <button
               onClick={() => setShowAddDrawer(true)}
-              className="text-xs font-bold text-[#45b39d] hover:text-[#3a9885] transition-colors flex items-center active:scale-95"
+              className="text-xs font-bold text-[#6366f1] hover:text-[#3a9885] transition-colors flex items-center active:scale-95"
             >
               <span className="text-lg leading-none mr-1">+</span> Tạo mới
             </button>
@@ -558,7 +558,7 @@ export function SavingsTab() {
                             <h2 className="text-[15px] font-extrabold text-gray-800 leading-tight line-clamp-1">
                               {goal.name}
                             </h2>
-                            <p className="text-xs text-[#45b39d] mt-1 font-bold">
+                            <p className="text-xs text-[#6366f1] mt-1 font-bold">
                               Tích lũy: {formatCurrency(finalAllocated)}
                             </p>
                             <p className="text-[10px] text-gray-400 mt-0.5">
@@ -617,14 +617,14 @@ export function SavingsTab() {
                       {/* Progress Bar */}
                       <div className="w-full h-2 bg-gray-100 rounded-full relative mb-3 overflow-hidden">
                         <div
-                          className="absolute left-0 top-0 h-full bg-[#45b39d] rounded-full transition-all duration-500"
+                          className="absolute left-0 top-0 h-full bg-[#6366f1] rounded-full transition-all duration-500"
                           style={{ width: `${percent}%` }}
                         ></div>
                       </div>
 
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-[#45b39d]">
+                          <span className="text-[11px] font-bold text-[#6366f1]">
                             {percent}% hoàn thành
                           </span>
                         </div>
@@ -702,9 +702,11 @@ export function SavingsTab() {
           onOpenChange={setShowFundDrawer}
           goal={selectedFundGoal}
           walletBalance={walletBalance}
+          safeToSpend={safeToSpend}
           onSaved={fetchData}
         />
       )}
+
     </div>
   );
 }

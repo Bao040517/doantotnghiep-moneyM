@@ -18,4 +18,5 @@ public class ExpenseResponse {
     private UserSummaryResponse payer;
     private int splitCount;
     private LocalDateTime createdAt;
+    private BigDecimal currentUserSplitAmount;
 }

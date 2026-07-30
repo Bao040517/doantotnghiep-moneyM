@@ -9,6 +9,290 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 4. **Chia tiền nhóm (Group Split):** Tạo hóa đơn chung, thuật toán Greedy chia nợ tối ưu.
 5. **Thanh toán nợ (Debt Settlement):** Nhắc nợ, tạo mã QR VietQR, và quy trình Xác nhận.
 6. **Z-Score Anomaly Detection:** Thuật toán phát hiện bất thường chi tiêu theo thời gian thực.
+7. **Cảnh báo Tiết kiệm Quá mức (Emergency Reserve Protection):** Tự động phát hiện và cảnh báo hành vi nạp tiền tiết kiệm ăn lấn vào Quỹ dự trữ khẩn cấp & Ngân sách bắt buộc.
+8. **Tư vấn Ngân sách Đa Tháng & Cấu trúc Tổng chi Cần trả:** Phân tích gợi ý chi tiêu theo tháng chọn lựa, xử lý an toàn tháng tương lai và chuẩn hóa modal Tổng chi (đã chi + ngân sách chưa chi + nợ).
+9. **Smart Modal UX (5 Modal Thông minh):** Phân nhóm chi tiêu 50/30/20, gom giao dịch theo ngày, chỉ số sức khỏe thu nhập, thanh tiến trình thu hồi nợ, gợi ý cấn trừ nợ ròng & nút Trả nợ trực tiếp.
+10. **Thẻ Cảnh báo Hạn mức Tối giản & Thông minh:** Khử trùng lặp danh mục, tự động gắn Emoji danh mục và tối giản hóa thẻ cảnh báo vượt hạn mức giúp người dùng dễ dàng theo dõi trong 1 giây.
+
+### Session [2026-07-30] - Tối Ưu UI/UX Theo Phản Hồi Người Dùng & Điều Hướng Thông Minh Ngân Sách
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Khôi phục Nền cũ & Đổ bóng Khối Cảnh báo (`tab-tu-van.tsx` & `tab-tong-quan.tsx`):**
+   - **Quyết định:** *"Nền cũ của tôi còn dễ nhìn hơn. Quay lại nền cũ... làm bóng shadow cho từng khối này đi"*.
+   - **Thực thi:** Giữ nguyên tông nền Gradient Navy `#1a1a2e` header và nền xám nhạt `#f5f6f8` body. Bổ sung hiệu ứng `shadow-md` cho các thẻ cảnh báo và `shadow-sm` cùng viền màu nâng độ nổi cho các khối chỉ số.
+
+2. **Màu chữ Phân biệt Theo Mục đích Chi tiêu (`tab-tu-van.tsx`):**
+   - **Quyết định:** *"màu của chữ Đã chi TB Dự kiến có màu khác nhau phù hợp với mục đích của nó đi"*.
+   - **Thực thi:** Ánh xạ bộ màu phân định rõ ràng: `ĐÃ CHI` (Cam Amber `text-amber-700`), `TB 3 THÁNG` (Xanh Biển `text-blue-700`), và `DỰ KIẾN CẢ THÁNG` (Hồng Đỏ `text-rose-700`).
+
+3. **Loại bỏ "Giữ cho Ngân sách" & Khung 4 Ô Tài sản (`tab-tong-quan.tsx`):**
+   - **Quyết định:** *"2 con số này rất khó hiểu... bỏ cái Giữ cho ngân sách này hãy bỏ ra khỏi giao diện nhé"*, *"bỏ cái này đi"*.
+   - **Thực thi:** Xóa bỏ hoàn toàn dòng "Giữ cho Ngân sách" gây mâu thuẫn khỏi thẻ trắng breakdown và gỡ bỏ lưới 4 ô tài sản snapshot rườm rà ở Header Navy.
+
+4. **Chuyển Phân Nhóm 50/30/20 Sang Dạng Accordion Thu/Mở (`tab-thong-ke.tsx`):**
+   - **Quyết định:** *"Chỉ hiển thị 3 mục này nhưng khi bấm vào mỗi mục thì hãy sổ ra list nhé"*.
+   - **Thực thi:** Chuyển đổi 3 nhóm `📌 Chi phí Thiết yếu`, `🎯 Chi phí Linh hoạt`, `💰 Tích lũy & Tiết kiệm` thành các thẻ Accordion có icon mũi tên xoay chuyển linh hoạt, cho phép thu gọn/xổ danh sách chi tiết khi nhấp.
+
+5. **Lọc bỏ Cấn Trừ Nợ 0đ Vô lý (`tab-thong-ke.tsx`):**
+   - **Quyết định:** *"Cái phần này nghe rất điêu nhé đặc biệt là cấn trừ nợ nếu đã huề thì thông báo làm gì"*.
+   - **Thực thi:** Cập nhật thuật toán `nettingSuggestions`, bỏ qua hoàn toàn các trường hợp `netAmount === 0` (hai bên nợ bằng nhau 0đ). Khung gợi ý cấn trừ nợ chỉ hiển thị khi thực sự có chênh lệch nợ ròng khác 0.
+
+6. **Sửa Ngôn từ "Phần của bạn" Trực quan & Dễ hiểu (`tab-thong-ke.tsx`):**
+   - **Quyết định:** *"phần của bạn là sao ??? thay bằng ngôn từ dễ hiểu hơn"*.
+   - **Thực thi:** Thay thế cụm từ mơ hồ "Phần của bạn: 1.000.000đ" bằng câu từ hành động trực tiếp: `Bạn cần trả: 1.000.000đ` (Thẻ Đỏ khi mình nợ) hoặc `Họ cần trả bạn: 1.000.000đ` (Thẻ Xanh khi người khác nợ).
+
+7. **Bộ 3 Màu Tương Phản Sắc Nét Cho 50/30/20 (`tab-thong-ke.tsx`):**
+   - **Quyết định:** *"linh hoạt và tích lũy cùng màu à"*.
+   - **Thực thi:** Chuẩn hóa 3 gam màu độc lập tương phản rõ rệt: Thiết yếu (Xanh Dương `blue-600`), Linh hoạt (Cam Đậm Rực Rỡ `orange-600`), và Tích lũy (Xanh Lá Lục Bảo `emerald-600`).
+
+8. **Tái Thiết kế Thẻ "Dòng Tiền Ròng" Thay Thẻ Tiết Kiệm Âm (`tab-thong-ke.tsx`):**
+   - **Quyết định:** *"thay phần này bằng 1 cái thông tin gì đó hữu ích hơn đi"*.
+   - **Thực thi:** Đổi thẻ "Tiết kiệm tháng này -8.950.000đ" gây hiểu nhầm thành **📊 Dòng tiền ròng (Thu - Chi)**. Khi bội chi hiển thị badge `⚠️ Bội chi tháng này` kèm % biến động; khi dương tiền tự động tính % thu nhập giữ lại được (`🌱 Giữ được X% thu nhập`).
+
+9. **Đưa Khối Cảnh Báo Vượt Hạn Mức lên Vị trí Đầu Trang (`tab-tong-quan.tsx`):**
+   - **Quyết định:** *"nghiên cứu hiển thị phần cảnh báo vượt hạn mức này nhanh hơn"*.
+   - **Thực thi:** Đưa khối cảnh báo vượt hạn mức lên ngay vị trí đầu trang Main Content (ngay dưới Thẻ Tổng quan, trên Thao tác nhanh), nhúng thêm tín hiệu phát sáng đỏ nhấp nháy 🔴 (`animate-ping`) đập vào mắt người dùng tức thì.
+
+10. **Làm Gọn Thẻ Cảnh Báo & Khử Trùng Lặp Theo Danh Mục (`tab-tong-quan.tsx`):**
+    - **Quyết định:** *"còn sấu và dài dòng hơn"*, *"cảnh báo vượt hạn mức thì có 4 cái vuowtjt nhưng sao bên tư vấn thì chỉ có cảnh báo 2 mục nhỉ"*.
+    - **Thực thi:** 
+      - Gom tất cả cảnh báo vào **1 Khung Thẻ Tinh Tế (`Compact Alert Bar`)** duy nhất 1 hàng vuốt ngang, loại bỏ tiêu đề kép rườm rà.
+      - Sửa thuật toán `catKey` ưu tiên `b.categoryName`, gom các bản ghi ngân sách trùng danh mục (như "Ngân sách Y tế T4", "Ngân sách Y tế T5") thành 1 thẻ duy nhất đại diện cho danh mục "Y tế", đồng bộ số lượng cảnh báo khớp 100% (2 mục) với tab Tư vấn.
+
+11. **Giới hạn Cảnh báo Tính Theo Tháng Hiện Tại (`tab-tong-quan.tsx`):**
+    - **Quyết định:** *"vượt hạn mức ngân sách này chỉ tính theo từng tháng thôi nhá"*.
+    - **Thực thi:** Đổi tiêu đề thành **`CẢNH BÁO HẠN MỨC THÁNG NÀY`**, đảm bảo dữ liệu truy vấn từ `/budgets/summary` và thuật toán lọc chỉ xử lý các ngân sách thuộc tháng/năm hiện tại.
+
+12. **Điều hướng Thông minh & Tự động Cuộn + Highlight Ngân sách Mục tiêu (`tab-tong-quan.tsx`, `page.tsx`, `tab-ngan-sach.tsx`):**
+    - **Quyết định:** *"khi tôi bấm vô thì nó vô phần quản lý ngân sách vào hiển thị đúng khoản mà tôi vừa bám vào nhé được ko"*.
+    - **Thực thi:**
+      - Đưa `targetBudgetId` qua callback `onNavigate` và state `page.tsx`.
+      - Khi chuyển sang tab Quản lý Ngân sách, ứng dụng tự động cuộn mượt (`scrollIntoView`) tới đúng vị trí thẻ ngân sách đã chọn.
+      - Phát hiệu ứng viền đỏ nhấp nháy nổi bật 🔴 (`ring-4 ring-rose-500 scale-[1.02] shadow-lg animate-pulse`) trong 4 giây giúp người dùng nhận biết ngay lập tức.
+
+---
+
+### Session [2026-07-29] - Tối ưu Thuật toán & Tái thiết kế Giao diện Thẻ Cảnh báo Chi tiêu High-Contrast
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Phân biệt & Loại bỏ 100% Chi phí Cố định khỏi Tab Cảnh báo Chi tiêu (`FinancialAdvisorService.java` & `tab-tu-van.tsx`):**
+   - **Bối cảnh:** Chi phí cố định (Tiền nhà, Tiền điện, Tiền nước, Tiền mạng, Học phí, Lãi vay...) phát sinh 1 lần/tháng, không thể chia theo tỷ lệ ngày đã qua (`daily burn-rate`).
+   - **Thực thi Backend & Frontend:** Loại bỏ hoàn toàn chi phí cố định khỏi tab Cảnh báo Chi tiêu Bất thường ở cả Java Backend (`FinancialAdvisorService.java`) và React Frontend (`tab-tu-van.tsx`). Tab Cảnh báo giờ đây chuyên biệt 100% cho các khoản chi sinh hoạt linh hoạt hàng ngày (Ăn uống, Y tế, Giao lưu, Mua sắm...).
+
+**2. Gỡ bỏ 100% Đoạn văn Giải thích Dài dòng & Trùng lặp:**
+   - Phản hồi người dùng: *"phần giải thích quá dài dòng và khó hiểu font chữ quá bé"*, *"Phần giải thích đang bị thừa"*.
+   - **Thực thi:** Gỡ bỏ toàn bộ đoạn văn giải thích rườm rà lặp lại số tiền. Thay bằng thẻ thiết kế thông minh với thông điệp tiếng Việt súc tích: `Chi tiêu Tăng cao (+41% so với TB)` và `Chi tiêu Bùng nổ (+80% so với TB)`.
+
+**3. Tái thiết kế Thẻ Cảnh báo High-Contrast & Lưới 3 Con số (`15px` Font Black):**
+   - **Thẻ Trắng Nền Cao Cấp (`bg-white border-l-4`):** Loại bỏ màu nền vàng/kem cũ bị mờ. Thay bằng thẻ trắng viền bên trái màu điểm nhấn (`border-l-4 border-l-rose-500` cho mức Bùng nổ và `border-l-amber-500` cho mức Tăng cao).
+   - **Khối 3 Con số Trực quan (`15px` Font Black):** Hiển thị 3 ô số rõ nét `ĐÃ CHI` | `TB 3 THÁNG` | `DỰ KIẾN CẢ THÁNG` giúp người dùng đọc hiểu trong 1 giây.
+   - **Khắc phục triệt me lỗi Trùng Icon:** Khung avatar bên trái hiển thị đúng Icon danh mục thực tế (`🏥` Y tế, `🍔` Ăn uống, `☕` Cà phê, `🛍️` Mua sắm, `🎬` Giải trí, `🚗` Di chuyển...), gỡ bỏ hoàn toàn emoji bị lặp trong subtitle.
+
+### Session [2026-07-29] - Tái cấu trúc Tab Tư vấn (Sub-tabs), Nâng cấp Theme Indigo & Modal Chi tiết Tổng chi
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Tái cấu trúc Tab Tư vấn sang Dạng Sub-tabs Chuyên biệt (`tab-tu-van.tsx`):**
+   - Phản hồi người dùng: Dạng 1 trang cuộn dài bị dồn dập ("cái này không nên gom lại 1 cục như vậy").
+   - Đã tái cấu trúc tab Tư vấn thành 3 Sub-tabs chuyên biệt: `📊 Thói quen` (Hero Card + 3 mini-stat + 50/30/20), `⚠️ Cảnh báo` (Badge đếm cảnh báo + cards rủi ro), và `💡 Gợi ý hạn mức` (Bảng gợi ý hạn mức 3 tháng + nút "Đặt hạn mức 🎯").
+
+2. **Thay đổi Màu chủ đạo Toàn ứng dụng sang Indigo & Deep Purple (`#6366f1`):**
+   - Chuyển màu nhận diện từ Xanh lá (#45b39d) sang **Indigo & Purple Modern Fintech** (`#6366f1`, `from-indigo-600 to-purple-600`).
+   - Đã cập nhật `globals.css`, Bottom Navigation (`thanh-dieu-huong-duoi.tsx`), Tab Tiết kiệm, Tab Tổng quan, Modal Chuyển khoản và Modal Tạo nhóm.
+
+3. **Nâng cấp Modal "Chi tiết Tổng chi" — Smart Accordion & Compact Numbers (`10tr+`):**
+   - Tái thiết kế Hero Card với công thức tính trực quan: `1. Đã chi + 2. Chưa chi + 3. Đang nợ = Tổng dự kiến`. Đồng bộ màu Hero Card sang Indigo & Deep Purple Gradient (`from-indigo-600 via-purple-600 to-violet-700`).
+   - **Tăng cỡ chữ Hero Card**: Tăng font size tiêu đề, con số và ghi chú giúp hiển thị nổi bật, rõ nét.
+   - **Định dạng số tiền `10tr+`**: Tự động chuyển các con số ≥ 10.000.000đ sang dạng rút gọn súc tích (`10tr+`, `33,4tr+`, `47,4tr+`).
+   - **Clickable Đã chi**: Bấm vào thẻ 1 "Đã chi thực tế trong tháng" để chuyển trực tiếp sang danh sách giao dịch chi tiết.
+   - **Accordion Thu gọn 100%**: Thẻ 2 (Ngân sách chưa chi) và Thẻ 3 (Nợ nhóm) thu gọn mặc định, bấm vào header để mở rộng/thu gọn danh sách.
+
+4. **Fix Lỗi Radix Accessibility `DialogTitle` (`drawer.tsx`):**
+   - Đã thêm tiêu đề ẩn `<DrawerPrimitive.Title className="sr-only">` dự phòng vào `DrawerContent` giúp khắc phục triệt để thông báo lỗi `DialogContent requires a DialogTitle` từ Radix UI.
+
+5. **Tái thiết kế Giao diện Quản lý Ngân sách (`tab-ngan-sach.tsx`):**
+   - Chuyển Summary Card sang Gradient Indigo-Purple (`from-indigo-600 via-purple-600 to-violet-700`).
+   - Loại bỏ viền vàng dày thô cứng của thẻ ưu tiên, thay bằng badge `📌 ƯU TIÊN` màu vàng kim thanh lịch.
+   - Chuẩn hóa nút "Tạo thêm", "Trả ngay", icon danh mục và các badge trạng thái thanh toán sang phong cách Modern Fintech.
+
+6. **Fix Lỗi Nguồn tiền Trống khi Chuyển tiền (`hop-thoai-chuyen-khoan.tsx`):**
+   - Tự động load và chọn ngay ví đầu tiên (hoặc ví ngân hàng khớp) khi mở modal `TransferModal`.
+   - Hiển thị trực tiếp Tên ví + Số dư ví (`Ví chính (10.000.000đ)`) ngay trên nút chọn nguồn tiền.
+
+7. **Tối ưu Thuật toán & Giao diện Cảnh báo Chi tiêu (`FinancialAdvisorService.java` & `tab-tu-van.tsx`):**
+   - Loại bỏ **hoàn toàn** các khoản Chi phí Cố định / Hóa đơn định kỳ (`Tiền điện`, `Tiền nhà`, `Tiền nước`, `Tiền mạng`, `Hóa đơn`, `Lãi vay`...) khỏi danh sách **Cảnh báo Chi tiêu Bất thường**.
+   - **Tái thiết kế Thẻ Cảnh báo High-Contrast & Fix Trùng Icon**: Khung icon đại diện bên trái hiển thị đúng icon danh mục thực tế (`🏥` Y tế, `🍔` Ăn uống, `🛍️` Mua sắm...), gỡ bỏ emoji trùng lặp trong subtitle, kết hợp thẻ trắng `border-l-4` cao cấp và lưới số `15px` phông đậm rõ nét.
+
+---
+
+### Session [2026-07-29] - Nâng cấp UI/UX Thông minh cho 5 Modal Báo cáo Tài chính
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Sửa 3 Lỗi UI/Logic Cốt lõi (Bug Fixes P0):**
+   - **Fix nhãn sai ngữ cảnh `"% tổng chi"`:** Component `CategoryItem` trong `tab-thong-ke.tsx` hardcode nhãn "tổng chi" cho mọi trường hợp, kể cả modal THU NHẬP. Đã bổ sung prop `isIncome` để hiển thị đúng: `"% tổng thu"` khi xem thu nhập, `"% tổng chi"` khi xem chi tiêu.
+   - **Fix dấu âm tiết kiệm:** Khi xem lịch sử danh mục "Mục tiêu tiết kiệm", các khoản nạp hiển thị `-1đ`, `-68đ` gây hiểu nhầm. Đã bổ sung hàm `isSavingsCategory()` kiểm tra tên danh mục, chuyển hiển thị sang `+68đ` (xanh lá), phản ánh đúng hành vi TÍCH LŨY tài sản.
+   - **Fix text truncation "Nguyễ...":** Layout hóa đơn nợ nhóm bị dồn 1 dòng khiến tên dài bị cắt. Đã tái cấu trúc layout thành card bo góc `rounded-2xl`, tách Ngày/Người trả/Phần của bạn thành 3 dòng riêng biệt.
+
+**2. Nâng cấp Modal "Chi tiết Đã thu" — Income Health Indicator (`tab-thong-ke.tsx`):**
+   - **Thuật toán:** Phân tích phân bố thu nhập từ `incBreakdown[]`. Nếu danh mục lớn nhất chiếm >70%: hiển thị badge Cam ⚠️ "Thu nhập tập trung cao". Nếu ≥3 nguồn, không nguồn nào >50%: badge Xanh ✅ "Thu nhập đa dạng tốt".
+   - **Truyền prop `isIncome={true}`** cho tất cả `<CategoryItem>` trong modal thu nhập.
+
+**3. Nâng cấp Modal "Chi tiết Đã chi" — Phân nhóm 50/30/20 (`tab-thong-ke.tsx`):**
+   - **Thuật toán phân nhóm:** Xây dựng hàm `categorizeExpenseGroup()` dùng heuristic keyword matching (tương tự `FinancialAdvisorService.java`):
+     + **NEEDS:** Tiền nhà, Tiền điện, Y tế, Đi lại, Phí liên lạc...
+     + **WANTS:** Phí giao lưu, Quần áo, Mỹ phẩm, Ăn uống...
+     + **SAVINGS:** Mục tiêu tiết kiệm, Hoàn tiền tiết kiệm
+   - **Giao diện:** Thay danh sách phẳng bằng 3 Section có header + subtotal. Thêm Mini 50/30/20 Progress Bar 3 màu (blue/amber/emerald) phía trên.
+
+**4. Nâng cấp Modal "Lịch sử Danh mục" — Summary Header & Daily Aggregation:**
+   - **Summary Header Card:** Hiển thị 3 chỉ số tóm tắt: Tổng tháng | Số lần | TB/lần. Card xanh lá cho danh mục tiết kiệm.
+   - **Daily Aggregation:** Gom giao dịch theo ngày (`groupBy dateKey`), hiển thị header ngày với icon 📅, tổng ngày, và số lượng giao dịch. Mỗi giao dịch hiển thị giờ HH:mm thay vì full datetime.
+
+**5. Nâng cấp Modal "Chi tiết Tổng thu" — Progress Bar & Smart Netting:**
+   - **Progress Bar Thu hồi Nợ:** Thanh tiến trình 3 màu (emerald ≥80%, blue ≥50%, amber <50%) hiển thị tỷ lệ đã thu / cần thu. Kèm nhãn "Đã thu: Xđ" / "Chưa thu: Yđ".
+   - **Smart Netting Suggestion (Gợi ý Cấn trừ Nợ):** Quét `debtSummary.details`, nếu user vừa là chủ nợ vừa là con nợ cùng 1 người ở 2 nhóm khác nhau, tự động tính nợ ròng và hiển thị card Violet với gợi ý: *"Chỉ cần thu/trả ròng: Xđ"*.
+
+**6. Nâng cấp Modal "Chi tiết Nợ Nhóm" — Nút Trả nợ Sticky:**
+   - Thêm nút Gradient `from-rose-500 to-pink-500` dạng Sticky Footer cho nợ `OWING`. Bấm vào điều hướng trực tiếp đến trang nhóm để mở Drawer thanh toán nợ VietQR.
+
+
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Hỗ trợ Gợi ý Chi tiêu & Ngân sách Đa Tháng (`FinancialAdvisorService` & `tab-tu-van.tsx`):**
+   - **Yêu cầu của người dùng:** *"Nghiên cứu plan. Để giúp tôi có thể tạo ra gợi ý chi tiêu cho từng tháng. Ví dụ tháng 8 thì thì sẽ gợi ý chi tiêu cho tháng 8 tháng 9 sẽ gợi ý cho tháng 9"*.
+   - **Thực thi Backend (`FinancialAdvisorService.java` & `FinancialAdvisorController.java`):**
+     - Đã bổ sung overload `analyze(UUID userId, Integer year, Integer month)` cho phép phân tích dữ liệu 3 tháng quá khứ lùi tương đối theo năm/tháng target.
+     - Cập nhật REST API `@GetMapping("/insights/{userId}")` tiếp nhận 2 param tùy chọn `year` và `month`.
+   - **Thực thi Frontend (`tab-tu-van.tsx` & `tab-tiet-kiem.tsx`):**
+     - Bổ sung bộ chọn Tháng/Năm dạng Pill `< Tháng X / YYYY >` kèm logic tự động refetch dữ liệu advisor.
+     - Bổ sung nút 1-click **"Áp dụng 🎯"** tại từng thẻ gợi ý ngân sách để thiết lập nhanh hạn mức chi tiêu cho tháng đang chọn.
+
+**2. Khắc phục Lỗi HTTP 500, Null-Safety Toàn diện & Xử lý Tháng Tương lai:**
+   - **Phân tích Nguyên nhân Lỗi 500:** `Collectors.toMap` ném NPE khi `categoryName` null hoặc bị đè key; `debtService.getUserDebtSummary(userId)` thiếu null check; các giao dịch/split thiếu danh mục gây crash JPA runtime.
+   - **Thực thi Backend (`FinancialAdvisorService.java`):**
+     - Bổ sung null check toàn diện cho `debtSummary`, `currentBudgets`, `tx.getCategory()`, `split.getCategory()`.
+     - Thay thế `Collectors.toMap` bằng vòng lặp an toàn `putIfAbsent` chống trùng lặp key/value null.
+     - Xử lý các tháng trong tương lai: Tự động gắn thông điệp nhận xét *"🗓️ Tháng X/YYYY là tháng trong tương lai (Chưa có dữ liệu chi tiêu thực tế)"* và tự động ẩn các cảnh báo tiêu lố (burn-rate).
+   - **Thực thi Frontend (`tab-tu-van.tsx`):**
+     - Cập nhật hiển thị **Banner Tháng Tương lai** màu xanh lam nhẹ nhàng thông báo cho người dùng.
+     - Cập nhật khối `catch` để trích xuất thông điệp `message` hoặc mã lỗi HTTP thực tế từ Server thay vì hardcode chuỗi thông báo lỗi mặc định.
+
+**3. Tái cấu trúc & Nâng cấp Modal "Chi tiết Tổng chi" (`tab-thong-ke.tsx`):**
+   - **Phản hồi người dùng:** *"phần tổng chi này là tổng hợp những khoản phải chi nhé bao gồm cả nợ và những khoản phải chi chứ không phải nợ ấy"*.
+   - **Mô hình Thuật toán Cần trả:**
+     $$\text{Tổng chi (Cần trả / Dự kiến chi)} = \text{Đã chi thực tế} + \text{Ngân sách \& Hóa đơn chưa chi} + \text{Tổng nợ nhóm cần trả}$$
+   - **Thực thi Frontend (`Frontend/src/components/tab-thong-ke.tsx`):**
+     - Khai báo và tính toán `unpaidBudgetsList` và `unpaidBudgetsTotal` từ danh sách ngân sách khả dụng.
+     - Cập nhật thẻ tóm tắt "📤 Tổng chi (Cần trả)" trên Dashboard Thống kê.
+     - Mở rộng cấu trúc Modal **Chi tiết Tổng chi** thành 3 phân đoạn rõ ràng:
+       1. **💸 Đã chi thực tế:** Chi tiết tổng tiền đã giao dịch trong tháng.
+       2. **📌 Ngân sách & Hóa đơn chưa chi:** Liệt kê từng mục Ngân sách/Hóa đơn cố định chưa chi hết trong tháng, hiển thị chính xác số tiền còn thiếu.
+       3. **🤝 Danh sách tôi đang nợ:** Danh sách chi tiết các khoản nợ nhóm cần thanh toán.
+
+---
+
+### Session [2026-07-28] - Nâng cấp Seed V3, Tái thiết kế Form Ngân sách & Cảnh báo Tiết kiệm Quá mức
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Khảo sát, Chuẩn hóa Mốc thời gian & Khắc phục Đồng bộ Dữ liệu Ngân sách (Jan 2026 đến 28/07/2026):**
+   - **Bối cảnh & Yêu cầu:** 
+     + Quy định nghiêm ngặt toàn bộ các sự kiện tài chính (Giao dịch, Chi tiêu nhóm, Hạn mức ngân sách, Mục tiêu tiết kiệm, Thanh toán nợ) chỉ diễn ra từ `01/01/2026` đến `28/07/2026` (Thời điểm hiện tại).
+     + Giải quyết thắc mắc của người dùng về việc Dashboard hiển thị chi tiêu 7.000.000đ nhưng tab Ngân sách chỉ hiển thị 1 thẻ duy nhất và ghi `Đã chi: 0đ`.
+   - **Phân tích Nguyên nhân Kỹ thuật:**
+     + JPQL Query trong `TransactionRepository.java` (`sumExpenseByCategoryAndMonth`) bắt buộc kiểm tra điều kiện `t.wallet.isLiability = false OR t.wallet.isLiability IS NULL`. Nếu giao dịch bị gán ngẫu nhiên vào Ví thẻ tín dụng (`is_liability = true`), Backend sẽ loại trừ khỏi ngân sách cá nhân.
+     + Trong Seed cũ, 9/10 danh mục chi tiêu chưa được tạo thẻ Ngân sách tương ứng cho từng tháng.
+   - **Giải pháp & Thực thi (`generate_seed_v3.js` & `seed_v3.sql`):**
+     + Phát triển kịch bản Node.js tự động tạo 7 tháng dữ liệu liên tục cho 5 người dùng mẫu, phủ kín 17+ bảng thực thể.
+     + Bổ sung khối PL/pgSQL an toàn `DO $$ ... END $$;` kiểm tra `information_schema.tables` trước khi `DELETE`, khắc phục triệt để lỗi `ERROR: relation "transaction_tags" does not exist` khi nạp trên Database trắng.
+     + Tạo sẵn trọn vẹn 10 thẻ Ngân sách hàng tháng cho 10 danh mục chi tiêu (*Ăn uống*, *Chi tiêu hàng ngày*, *Tiền điện*, *Phí liên lạc*, *Phí giao lưu*, *Mỹ phẩm*, *Tiền nhà*, *Quần áo*, *Đi lại*, *Y tế*).
+     + Gán 100% giao dịch chi tiêu vào Ví tiền mặt (`w1` - `is_liability = false`), đảm bảo khi import `seed_v3.sql` (746KB, 4.378 dòng SQL), tab Ngân sách hiển thị chính xác từng đồng số tiền `Đã chi: X VNĐ` trùng khớp với Dashboard. Cập nhật tài liệu [seeder.md](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/seeder.md).
+
+**2. Tái cấu trúc & Thiết kế lại Giao diện Form Ngân sách (`SetBudgetDrawer`):**
+   - **Bối cảnh & Vấn đề UI/UX:**
+     + Người dùng chụp màn hình phản hồi: *"chỉnh lại form này đi trông nó ko đồng bộ"*.
+     + Phân tích lỗi thiết kế cũ (`ngan-keo-thiet-lap-ngan-sach.tsx`): Dính 3 hình ảnh minh họa 3D bên thứ 3 (`Target`, `Piggy Bank`, Line art SVG) đặt vị trí `absolute` đè trực tiếp lên chữ tiêu đề và ô nhập liệu; tiêu đề chế độ Tạo mới bị xuống dòng 3 hàng (`<br /> Đặt <br /> Ngân Sách`) lệch với chế độ Chỉnh sửa; ô nhập Số tiền và Chọn danh mục bị dính gộp bên trong 1 card 2 tầng với icon không đồng nhất; nhãn Ngày hết hạn hiển thị định dạng Tiếng Anh `mm/dd/yyyy`; nút Submit bị đè bởi badge avatar màu đen.
+   - **Giải pháp & Thực thi Frontend (`Frontend/src/components/ngan-keo-thiet-lap-ngan-sach.tsx`):**
+     + **Header nâng cấp:** Loại bỏ toàn bộ ảnh 3D rác đè chữ. Thêm badge tiêu đề `✨ Quản lý hạn mức`, tiêu đề chính `Chỉnh sửa ngân sách` / `Tạo ngân sách mới` và Icon `Layers` góc phải tạo điểm nhấn hiện đại.
+     + **Tách biệt ô nhập liệu (Atomic Input Cards):**
+       - *Hạn mức số tiền (*):* Card bo góc trắng riêng biệt kèm Icon `Coins` và đơn vị badge `VNĐ` màu xanh ngọc.
+       - *Danh mục áp dụng (*):* Select dropdown riêng biệt hiển thị Icon Emoji + Tên danh mục trực quan.
+       - *Tên ngân sách (Tùy chọn):* Card nhập tên gợi nhớ với Icon bút chì `Pencil`.
+     + **Segmented Control:** Nút gạt 2 tab dạng Pill chọn loại ngân sách (`🎯 Linh hoạt` vs `📌 Hóa đơn cố định`) với hiệu ứng bóng mờ trắng bổi bật.
+     + **Tùy chọn nâng cao & Nút Submit:** Gom nhóm `Ưu tiên thanh toán` (icon `CheckCircle2`, toggle Amber) và `Lặp lại hàng tháng` (icon `Repeat`, toggle Emerald) vào card riêng. Định dạng Ngày hết hạn với Icon `Calendar` và nút bấm `Lưu ngân sách ngay` phủ Gradient Emerald-Teal hiện đại.
+
+**3. Triển khai Hệ thống Cảnh báo Tiết kiệm Quá mức (Emergency Reserve Protection):**
+   - **Yêu cầu của người dùng:** *"đặt cho tôi cảnh báo nếu tôi tiết kiệm quá nhiều ăn cả vào tiền dự trữ cho tôi nhé"*.
+   - **Mô hình Thuật toán Tài chính:**
+     $$\text{Tiền nhàn rỗi khả dụng (Safe to Spend)} = \text{Tổng số dư ví tiền mặt/ngân hàng} - \text{Hạn mức ngân sách chưa chi trong tháng} - \text{Tổng nợ phải trả}$$
+     *Nếu số tiền nạp vào Quỹ tiết kiệm vượt quá Tiền nhàn rỗi khả dụng, hành động này bắt buộc phải bị cảnh báo vì gây nguy cơ thâm hụt Quỹ dự trữ khẩn cấp và Ngân sách bắt buộc.*
+   - **Thực thi Backend (`SavingsGoalService.java` & `SavingsGoalResponse.java`):**
+     + Bổ sung trường `warningMessage` vào `SavingsGoalResponse` DTO.
+     + Trong `SavingsGoalService.fundSavingsGoal`, tích hợp `BudgetService`, `WalletRepository`, `DebtService` để tính toán `idleMoney` trước khi nạp tiền.
+     + Nếu `fundAmount > idleMoney`: Backend tự động tạo và đẩy một **Notification Real-time (WebSocket STOMP)** loại `WARNING` tới thiết bị người dùng với nội dung:
+       > `"⚠️ Cảnh báo Tiết kiệm Quá mức: Khoản nạp Xđ vào quỹ '[Tên quỹ]' đã ăn lấn vào Quỹ dự trữ & Ngân sách bắt buộc của bạn (Tiền nhàn rỗi khả dụng chỉ còn Yđ)!"`
+     + Đóng gói `warningMessage` trả về trong JSON Payload.
+   - **Thực thi Frontend (`ngan-keo-nap-tiet-kiem.tsx` & `tab-tiet-kiem.tsx`):**
+     + Truyền prop `safeToSpend` vào `FundSavingsDrawer`.
+     + Phản hồi thời gian thực khi gõ số tiền: Khi `action === "FUND"` và `numAmount > safeToSpend`, tự động hiển thị ngay **Thẻ Cảnh báo màu Cam nổi bật** (`⚠️ Cảnh báo Tiết kiệm Quá mức!`) trực tiếp trên Drawer ngay trên nút bấm.
+     + Chuyển trạng thái nút bấm thành `Vẫn xác nhận nạp (Có cảnh báo)` (Màu cam) và kích hoạt Toast alert `toast.warning(warningMessage)` phản hồi lại người dùng khi giao dịch hoàn tất.
+
+---
+
+
+
+### Session [2026-07-26] - Nâng cấp Database Seed v2 & Hoàn thiện UX/UI Xem Chi tiết Nợ/Danh mục
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Tái cấu trúc & Nâng cấp Dữ liệu mẫu (Database Seed v2):**
+   - **Thực thi:** Tạo mới toàn bộ kịch bản dữ liệu `seed_v2.sql` mô phỏng 6 tháng chi tiêu liên tục cho 5 người dùng. Cập nhật các cột dữ liệu theo chuẩn Entity mới nhất (thêm các trường boolean `is_split`, `is_auto_generated`, `exclude_from_budget`, sửa Type Enum,...). Điều chỉnh `application.properties` về lại chế độ `update` để bảo vệ dữ liệu. Đảm bảo toàn bộ biểu đồ xu hướng 6 tháng hoạt động hoàn hảo khi có dữ liệu.
+
+**2. Nâng cấp Trải nghiệm UX/UI (Nested Modal Details):**
+   - **Thực thi:** Cải tiến mạnh mẽ tab Thống kê (`tab-thong-ke.tsx`). Cho phép người dùng click trực tiếp vào các khoản mục trên biểu đồ (Tổng thu, Tổng chi, Danh mục) và các mục nợ nhóm để mở ngay một Popup hiển thị danh sách chi tiết các giao dịch liên quan thay vì phải chuyển trang. Trải nghiệm người dùng trở nên mượt mà và trực quan hơn rất nhiều.
+
+**3. Cải tiến Thuật toán Hiển thị Chi tiết Nợ (FIFO Filter & Smart Splits):**
+   - **Vấn đề:** Khi click vào một khoản nợ (VD: Nợ Trần Thị B 1.000.000đ), hệ thống hiển thị toàn bộ lịch sử chi tiêu của nhóm khiến người dùng hiểu nhầm rằng họ mắc nợ rất nhiều.
+   - **Thực thi Backend:** Cập nhật `ExpenseService` và `ExpenseResponse` để trả về thêm trường `currentUserSplitAmount` – số tiền chính xác mà người dùng hiện tại phải chịu trong từng hóa đơn.
+   - **Thực thi Frontend:** Áp dụng thuật toán lọc FIFO (First-In, First-Out). Quét các hóa đơn từ mới nhất đến cũ nhất, tích lũy số tiền nợ cho đến khi vừa khớp với khoản nợ ròng thực tế. Hệ thống hiện tại chỉ hiển thị chính xác các hóa đơn "Còn Nợ" và ẩn đi các hóa đơn đã được thanh toán, đồng thời gắn nhãn "Phần của bạn: X VNĐ" cực kỳ rõ ràng.
+
+---
+
+### Session [2026-07-22] - Tự động hóa Tiết kiệm, Tối ưu Cảnh báo, Quản lý Nhóm & Hoàn thiện Seed Data
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+**1. Tích hợp Quản lý Chi tiêu Nhóm vào PFM (Group Expenses Integration):**
+   - **Yêu cầu của người dùng:** Tiền nhóm phải được đồng bộ vào dòng tiền cá nhân (trừ tiền khỏi Ví, ghi nhận vào Dashboard).
+   - **Quyết định & Thực thi Backend:** Xây dựng hệ thống sự kiện (Event-driven) thông qua `PfmEventListener.java`. Khi một Hóa đơn chung được tạo, hệ thống sử dụng thuật toán chia tiền, tự động tính ra phần tiền cá nhân người dùng phải chịu. Sau đó, nó tự động trích tiền từ Ví mặc định (Wallet) và tạo một bản ghi Giao dịch (Transaction) tương ứng với cờ `is_split = true`. Các giao dịch này sẽ hiển thị lên Dashboard và trừ vào Ngân sách nếu có.
+   - **Thực thi Frontend:** Nâng cấp toàn diện giao diện `[id]/page.tsx` (Chi tiết nhóm), cập nhật Modal Thêm chi tiêu (`ngan-keo-them-chi-tieu.tsx`) và tạo Modal Chuyển khoản (Thanh toán nợ).
+
+**2. Khắc phục thuật toán Cảnh báo Chi tiêu (Smart Alerts) cho Chi phí cố định:**
+   - **Yêu cầu của người dùng:** Báo lỗi logic khi AI cảnh báo "Tiền nhà" chi tiêu bất thường. Lý do: Tiền nhà là khoản cố định đóng 1 lần/tháng, không thể chia trung bình theo ngày (burn-rate) để dự phóng lên cuối tháng.
+   - **Quyết định & Thực thi:** Bổ sung thuật toán nội suy linh hoạt vào `FinancialAdvisorService.java`. Xây dựng một danh sách từ khóa tĩnh (Heuristic) nhận diện chi phí cố định (`tiền nhà`, `thuê nhà`, `trả góp`, `lãi vay`, `học phí`, `internet`, `định kỳ`). Nếu giao dịch thuộc nhóm này, AI sẽ bỏ qua bước chia trung bình `monthProgress`, lấy trực tiếp số tiền đã chi để so sánh với trung bình 3 tháng trước, loại bỏ hoàn toàn cảnh báo sai lệch.
+
+**3. Nâng cấp Tab Tiết kiệm (Auto-Fund Savings Goals):**
+   - **Yêu cầu của người dùng:** Thắc mắc về việc ai quản lý tiền trong Quỹ tiết kiệm (App đóng vai trò sổ tay, không giữ tiền) và yêu cầu có nút bấm để chuyển nhanh số tiền mà AI "gợi ý" vào quỹ tiết kiệm.
+   - **Quyết định & Thực thi Frontend (`tab-tiet-kiem.tsx`):** 
+     + Khơi thông chức năng Nạp/Rút thủ công: Component `ngan-keo-nap-tiet-kiem.tsx` đã được code trước đó nhưng quên gắn UI. Đã bổ sung nút **Nạp/Rút** tại từng thẻ Mục tiêu.
+     + Phát triển tính năng **"Phân bổ tự động ngay"**: Thêm nút bấm dưới thẻ "Gợi ý Tiết kiệm". Khi click, hệ thống đọc tham số `suggestedSaveAmount` từ AI, lặp qua danh sách các mục tiêu tiết kiệm, chia tiền theo tỷ lệ **Mức độ ưu tiên** (Tối quan trọng, Ưu tiên cao...). Nếu một quỹ đã đầy, tiền dư tự động tràn (overflow) sang quỹ ưu tiên thấp hơn. Gọi API `/fund` hàng loạt để hoàn tất toàn bộ quy trình chỉ với 1 click.
+
+**4. Khôi phục & Cấu trúc lại Dữ liệu mẫu (Comprehensive 3-Month Seed Data):**
+   - **Yêu cầu của người dùng:** Cần một bộ dữ liệu SQL có sẵn cho 5 người dùng, kéo dài 3 tháng, dữ liệu đa dạng phủ kín tất cả 17 bảng và ít nhất 50% danh mục (để chạy Demo/Thuyết trình). Quá trình trước đó bị lỗi làm mất cấu trúc `CREATE TABLE` và hỏng font tiếng Việt do PowerShell.
+   - **Quyết định & Thực thi:** 
+     + Phục hồi file `seed_1_year.sql` gốc qua Git để giữ lại khối `CREATE TABLE`.
+     + Viết script Node.js (`append_data.js`) sử dụng marker ASCII (`DELETE FROM transaction_tags;`) để xác định đúng vị trí cần nối dữ liệu.
+     + Sinh ra hơn 70KB dữ liệu hoàn hảo, chứa đầy đủ Hóa đơn, Giao dịch, Chia tiền nhóm, Tiết kiệm, Ngân sách cho 5 user. Dữ liệu chuẩn tiếng Việt 100%.
+
+**5. Quản lý Git & Tích hợp liên tục (Careful Commits):**
+   - **Yêu cầu của người dùng:** Commit cẩn thận và push mã nguồn lên Github.
+   - **Thực thi:** Đã rà soát và chia 28 files thay đổi thành 3 commits độc lập với tiêu đề chuẩn mực (Groups, Advisor, Seed) và push thành công lên nhánh `feat/uncategorized-transactions`.
+
+---
 
 ### Session [2026-07-19] - Cập nhật Biểu đồ Xu Hướng & Giải đáp Kiến trúc Cơ sở Dữ liệu
 

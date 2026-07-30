@@ -30,6 +30,9 @@ public class SavingsGoalService {
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final CategoryService categoryService;
+    private final NotificationService notificationService;
+    private final BudgetService budgetService;
+    private final DebtService debtService;
 
     @Transactional(readOnly = true)
     public List<SavingsGoalResponse> getUserSavingsGoals(UUID userId) {
@@ -75,6 +78,33 @@ public class SavingsGoalService {
             throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
         }
 
+        // Tính toán Tiền nhàn rỗi (Safe to Spend) hiện tại để kiểm tra cảnh báo tiết kiệm quá mức
+        java.time.LocalDate today = java.time.LocalDate.now();
+        var currentBudgets = budgetService.getBudgetSummary(userId, today.getYear(), today.getMonthValue());
+        BigDecimal unpaidBudgets = BigDecimal.ZERO;
+        for (var b : currentBudgets) {
+            BigDecimal remaining = b.getLimitAmount().subtract(b.getSpentAmount());
+            if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+                unpaidBudgets = unpaidBudgets.add(remaining);
+            }
+        }
+        BigDecimal walletBalance = walletRepository.sumBalanceByUserId(userId);
+        if (walletBalance == null) walletBalance = BigDecimal.ZERO;
+        BigDecimal totalOwing = debtService.getUserDebtSummary(userId).getTotalOwing();
+        if (totalOwing == null) totalOwing = BigDecimal.ZERO;
+
+        BigDecimal idleMoney = walletBalance.subtract(unpaidBudgets).subtract(totalOwing);
+        if (idleMoney.compareTo(BigDecimal.ZERO) < 0) idleMoney = BigDecimal.ZERO;
+
+        String warningMessage = null;
+        if (fundAmount.compareTo(idleMoney) > 0) {
+            warningMessage = String.format(
+                "⚠️ Cảnh báo Tiết kiệm Quá mức: Khoản nạp %,.0fđ vào quỹ '%s' đã ăn lấn vào Quỹ dự trữ & Ngân sách bắt buộc của bạn (Tiền nhàn rỗi khả dụng chỉ còn %,.0fđ)!",
+                fundAmount.doubleValue(), goal.getName(), idleMoney.doubleValue()
+            );
+            notificationService.sendNotification(userId, warningMessage, "WARNING");
+        }
+
         // 1. Deduct from wallet
         wallet.setBalance(wallet.getBalance().subtract(fundAmount));
         walletRepository.save(wallet);
@@ -103,8 +133,11 @@ public class SavingsGoalService {
 
         transactionRepository.save(transaction);
 
-        return toResponse(goal);
+        SavingsGoalResponse response = toResponse(goal);
+        response.setWarningMessage(warningMessage);
+        return response;
     }
+
 
     @Transactional
     public SavingsGoalResponse updateSavingsGoal(

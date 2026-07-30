@@ -107,7 +107,7 @@ export function CreateGroupModal({
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               required
-              className="w-full border-2 border-[#B3E5D1] rounded-2xl px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#45b39d] transition"
+              className="w-full border-2 border-[#B3E5D1] rounded-2xl px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6366f1] transition"
             />
           </div>
           <div>
@@ -121,7 +121,7 @@ export function CreateGroupModal({
                 setForm((f) => ({ ...f, description: e.target.value }))
               }
               rows={3}
-              className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#45b39d] transition resize-none"
+              className="w-full border-2 border-gray-200 rounded-2xl px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6366f1] transition resize-none"
             />
           </div>
 
@@ -142,7 +142,7 @@ export function CreateGroupModal({
                         onClick={() => toggleMember(member.id)}
                         className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer transition-colors border ${
                           isSelected
-                            ? "border-[#45b39d] bg-[#f0f9f6]"
+                            ? "border-[#6366f1] bg-[#f0f9f6]"
                             : "border-transparent hover:bg-slate-50"
                         }`}
                       >
@@ -166,7 +166,7 @@ export function CreateGroupModal({
                         <div
                           className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 ${
                             isSelected
-                              ? "bg-[#45b39d] border-[#45b39d]"
+                              ? "bg-[#6366f1] border-[#6366f1]"
                               : "border-slate-300"
                           }`}
                         >

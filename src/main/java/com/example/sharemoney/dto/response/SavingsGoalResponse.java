@@ -23,4 +23,6 @@ public class SavingsGoalResponse {
     private SavingsGoalStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String warningMessage;
 }
+

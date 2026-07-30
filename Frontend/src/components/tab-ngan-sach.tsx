@@ -61,6 +61,7 @@ interface BudgetTabProps {
   year: number;
   month: number;
   walletBalance: number;
+  targetBudgetId?: string | null;
 }
 
 const STATUS_CONFIG = {
@@ -79,7 +80,7 @@ const STATUS_CONFIG = {
   },
 };
 
-export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
+export function BudgetTab({ year, month, walletBalance, targetBudgetId }: BudgetTabProps) {
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
   const [priorityOrder, setPriorityOrder] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +90,32 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [payingBudget, setPayingBudget] = useState<any | null>(null);
+  const [focusedBudgetId, setFocusedBudgetId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (targetBudgetId && budgets.length > 0) {
+      const match = budgets.find(
+        (b) =>
+          b.budgetId === targetBudgetId ||
+          b.categoryId === targetBudgetId ||
+          (b.categoryName &&
+            b.categoryName.toLowerCase().includes(String(targetBudgetId).toLowerCase())) ||
+          (b.name &&
+            b.name.toLowerCase().includes(String(targetBudgetId).toLowerCase()))
+      );
+      if (match) {
+        setFocusedBudgetId(match.budgetId);
+        setTimeout(() => {
+          const el = document.getElementById(`budget-card-${match.budgetId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 250);
+        const timer = setTimeout(() => setFocusedBudgetId(null), 4000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [targetBudgetId, budgets]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -294,24 +321,22 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
             setEditingBudget(null);
             setShowDrawer(true);
           }}
-          className="bg-white border border-[#2BA76F]/20 px-4 py-2 rounded-2xl text-[#2BA76F] font-bold shadow-sm text-[13px] active:scale-95 transition-transform"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-2xl font-bold shadow-md shadow-indigo-500/20 text-[13px] active:scale-95 transition-all flex items-center gap-1.5"
         >
-          Tạo thêm
+          <span>+</span> Tạo thêm
         </button>
       </div>
 
       {/* Summary Card */}
       {sortedBudgets.length > 0 && (
-        <div className="bg-gradient-to-r from-[#e0f4f0] to-[#c6efe6] rounded-[24px] p-5 shadow-sm border border-[#66c2b1]/20 mb-5 relative overflow-hidden">
-          <div className="absolute -right-6 -top-6 text-[#66c2b1] opacity-10">
-            <DynamicIcon name="wallet" className="w-24 h-24" />
-          </div>
+        <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700 rounded-[24px] p-5 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden mb-5">
+          <div className="absolute top-0 right-0 w-36 h-36 rounded-full bg-white/10 blur-2xl -mr-10 -mt-10" />
           <div className="relative z-10 flex items-center justify-between">
             <div>
-              <p className="text-[13px] font-medium text-[#1f4d44] opacity-80 mb-1">
+              <p className="text-[12px] font-bold text-indigo-100 uppercase tracking-wider mb-1">
                 Tổng ngân sách tháng
               </p>
-              <p className="text-[28px] font-black text-[#1f4d44] leading-none">
+              <p className="text-[30px] font-black text-white leading-none">
                 {(() => {
                   const categoryMap = new Map<
                     string,
@@ -335,11 +360,11 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                   );
                   return totalLimit.toLocaleString("vi-VN");
                 })()}{" "}
-                <span className="text-[16px] font-semibold opacity-70">đ</span>
+                <span className="text-[16px] font-semibold opacity-80">đ</span>
               </p>
             </div>
-            <div className="w-12 h-12 rounded-full bg-white/50 backdrop-blur-sm flex items-center justify-center text-[#1f4d44]">
-              <DynamicIcon name="pie-chart" className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-sm">
+              <DynamicIcon name="pie-chart" className="w-6 h-6 text-white" />
             </div>
           </div>
         </div>
@@ -347,12 +372,12 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
 
       {/* Empty state */}
       {sortedBudgets.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-[#C3F2DD]">
-          <div className="w-16 h-16 bg-[#EAF9F1] rounded-full flex items-center justify-center mx-auto mb-3">
+        <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-indigo-200">
+          <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-3">
             <span className="text-3xl">🎯</span>
           </div>
-          <p className="text-[#1A342B] font-bold">Chưa có khoản chi nào</p>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-slate-800 font-bold">Chưa có khoản chi nào</p>
+          <p className="text-xs text-slate-400 mt-1">
             Đặt giới hạn chi tiêu để kiểm soát tài chính!
           </p>
         </div>
@@ -380,110 +405,119 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
 
           if (b.spentAmount > b.limitAmount) {
             badgeText = `Vượt ${new Intl.NumberFormat("vi-VN").format(b.spentAmount - b.limitAmount)}đ`;
-            badgeClass = "bg-rose-100 text-rose-700";
+            badgeClass = "bg-rose-50 text-rose-700 border border-rose-100";
             barClass = "bg-rose-500";
           } else if (pct >= 100) {
             badgeText = "Hết ngân sách";
-            badgeClass = "bg-rose-100 text-rose-700";
+            badgeClass = "bg-rose-50 text-rose-700 border border-rose-100";
             barClass = "bg-rose-500";
           } else if (pct >= 80) {
             badgeText = `Còn: ${new Intl.NumberFormat("vi-VN").format(remainingToPay)}đ`;
             if (allocated < remainingToPay) {
               badgeText += " (Ví thiếu)";
-              badgeClass = "bg-rose-100 text-rose-700";
+              badgeClass = "bg-rose-50 text-rose-700 border border-rose-100";
             } else {
-              badgeClass = "bg-amber-100 text-amber-700";
+              badgeClass = "bg-amber-50 text-amber-700 border border-amber-100";
             }
             barClass = "bg-amber-400";
           } else {
             badgeText = `Còn: ${new Intl.NumberFormat("vi-VN").format(remainingToPay)}đ`;
             if (allocated < remainingToPay) {
               badgeText += " (Ví thiếu)";
-              badgeClass = "bg-rose-100 text-rose-700";
+              badgeClass = "bg-rose-50 text-rose-700 border border-rose-100";
             } else {
-              badgeClass = "bg-[#dcfce7] text-[#166534]";
+              badgeClass = "bg-emerald-50 text-emerald-700 border border-emerald-100";
             }
-            barClass = "bg-[#10b981]";
+            barClass = "bg-emerald-500";
           }
         } else {
           if (isPaid) {
             barWidth = 100;
             if (b.spentAmount > b.limitAmount) {
               badgeText = `Vượt ${new Intl.NumberFormat("vi-VN").format(b.spentAmount - b.limitAmount)}đ`;
-              badgeClass = "bg-rose-100 text-rose-700";
+              badgeClass = "bg-rose-50 text-rose-700 border border-rose-100";
               barClass = "bg-rose-500";
             } else {
               badgeText = "Đã thanh toán";
-              badgeClass = "bg-[#EAF9F1] text-[#2BA76F]";
-              barClass = "bg-[#C3F2DD]";
+              badgeClass = "bg-emerald-50 text-emerald-700 border border-emerald-100";
+              barClass = "bg-emerald-400";
             }
           } else {
             if (allocated >= remainingToPay) {
               barWidth = 100;
               badgeText = "Đã đủ tiền trả";
-              badgeClass = "bg-[#dcfce7] text-[#166534]";
-              barClass = "bg-[#10b981]";
+              badgeClass = "bg-emerald-50 text-emerald-700 border border-emerald-100";
+              barClass = "bg-emerald-500";
             } else if (allocated > 0) {
               const pct = Math.round((allocated / remainingToPay) * 100);
               barWidth = pct;
               badgeText = `Thiếu ${new Intl.NumberFormat("vi-VN").format(remainingToPay - allocated)}đ`;
-              badgeClass = "bg-amber-100 text-amber-700";
+              badgeClass = "bg-amber-50 text-amber-700 border border-amber-100";
               barClass = "bg-amber-400";
             } else {
               barWidth = 0;
               badgeText = `Thiếu ${new Intl.NumberFormat("vi-VN").format(remainingToPay)}đ`;
-              badgeClass = "bg-rose-100 text-rose-700";
+              badgeClass = "bg-rose-50 text-rose-700 border border-rose-100";
               barClass = "bg-rose-500";
             }
           }
         }
 
+        const isFocused = focusedBudgetId === b.budgetId;
+
         return (
           <div
             key={b.budgetId}
+            id={`budget-card-${b.budgetId}`}
             onClick={() => {
               setEditingBudget(b);
               setShowDrawer(true);
             }}
-            className={`bg-white rounded-[2rem] p-4 mb-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)] flex flex-col relative group transition-all cursor-pointer hover:shadow-[0_10px_30px_-5px_rgba(31,77,68,0.1)] ${isMandatory ? "ring-2 ring-amber-400" : ""}`}
+            className={`bg-white rounded-[24px] p-4.5 mb-3.5 shadow-sm border transition-all cursor-pointer relative group space-y-3 ${
+              isFocused
+                ? "ring-4 ring-rose-500 border-rose-300 bg-rose-50/40 scale-[1.02] shadow-lg animate-pulse"
+                : isMandatory
+                ? "border-amber-200/90 bg-amber-50/20"
+                : "border-slate-100/90"
+            } hover:border-indigo-200 hover:shadow-md`}
           >
             {/* Top Row */}
-            <div className="flex items-center gap-4 w-full">
+            <div className="flex items-center gap-3.5 w-full">
               {/* Icon */}
-              <div className="w-16 h-16 bg-[#e3f1ed] rounded-[1.25rem] flex items-center justify-center shrink-0">
-                <DynamicIcon name={b.categoryIcon} />
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm border border-indigo-100/60">
+                <DynamicIcon name={b.categoryIcon} className="w-6 h-6 text-indigo-600" />
               </div>
 
               {/* Title & Actions */}
-              <div className="flex-1 min-w-0 flex justify-between items-start min-h-[4rem] pt-1 gap-2">
-                <div className="flex-1 min-w-0 flex flex-col justify-center h-full">
-                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                    <h3 className="text-[17px] font-bold text-slate-800 leading-tight break-words">
+              <div className="flex-1 min-w-0 flex justify-between items-start gap-2">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-[15px] font-extrabold text-slate-800 leading-snug">
                       {b.name || b.categoryName}
                     </h3>
                     {isMandatory && (
-                      <span className="shrink-0 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                      <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider border border-amber-200">
                         Ưu tiên
                       </span>
                     )}
                   </div>
                   {b.type === "BILL" && (
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <div className="flex items-center gap-1.5 mt-1">
                       {b.isRecurring && (
-                        <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-500">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-500">
                           Định kỳ
                         </span>
                       )}
                       {b.dueDayOfMonth && (
-                        <span className="px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-600 flex items-center gap-1">
-                          Hạn: {String(b.dueDayOfMonth).padStart(2, "0")}/
-                          {String(month).padStart(2, "0")}/{year}
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600">
+                          Hạn: {String(b.dueDayOfMonth).padStart(2, "0")}/{String(month).padStart(2, "0")}/{year}
                         </span>
                       )}
                     </div>
                   )}
                 </div>
-                <div className="flex items-start gap-0 shrink-0 -mr-1">
+
+                <div className="flex items-center gap-0.5 shrink-0">
                   <button
                     onClick={async (e) => {
                       e.stopPropagation();
@@ -494,19 +528,15 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                         toast.error("Không thể cập nhật");
                       }
                     }}
-                    title={
+                    title={isMandatory ? "Khoản chi bắt buộc" : "Đánh dấu là bắt buộc"}
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all active:scale-95 ${
                       isMandatory
-                        ? "Khoản chi bắt buộc"
-                        : "Đánh dấu là bắt buộc"
-                    }
-                    className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-full transition-all active:scale-95 ${
-                      isMandatory
-                        ? "text-amber-500 bg-amber-50 hover:bg-amber-100"
-                        : "text-slate-300 hover:bg-slate-100 hover:text-amber-400"
+                        ? "text-amber-500 bg-amber-100/80"
+                        : "text-slate-300 hover:bg-slate-100 hover:text-amber-500"
                     }`}
                   >
                     <svg
-                      className="w-5 h-5"
+                      className="w-4.5 h-4.5"
                       fill={isMandatory ? "currentColor" : "none"}
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -519,16 +549,17 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                       />
                     </svg>
                   </button>
+
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDelete(b.budgetId);
                     }}
                     disabled={deletingId === b.budgetId}
-                    className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors"
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors"
                   >
                     <svg
-                      className="w-4.5 h-4.5"
+                      className="w-4 h-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -545,49 +576,21 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
               </div>
             </div>
 
-            {/* Bottom Row: Amounts & Badges */}
-            <div className="flex flex-col gap-2.5 w-full mt-3">
+            {/* Bottom Row */}
+            <div className="space-y-2 pt-1">
               <div className="flex justify-between items-end">
-                <div className="flex flex-col gap-0.5">
-                  {b.type === "FLEXIBLE" ? (
-                    <>
-                      <span className="text-[20px] text-slate-800 font-black tracking-tight leading-none mb-0.5">
-                        {new Intl.NumberFormat("vi-VN").format(b.limitAmount)}
-                        <span className="text-[13px] font-bold text-slate-400 ml-0.5">
-                          đ
-                        </span>
-                      </span>
-                      <span className="text-[13px] font-medium text-slate-500">
-                        Đã chi:{" "}
-                        <span className="font-bold text-slate-700">
-                          {new Intl.NumberFormat("vi-VN").format(b.spentAmount)}
-                          đ
-                        </span>
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-[20px] text-slate-800 font-black tracking-tight leading-none mb-0.5">
-                        {new Intl.NumberFormat("vi-VN").format(b.limitAmount)}
-                        <span className="text-[13px] font-bold text-slate-400 ml-0.5">
-                          đ
-                        </span>
-                      </span>
-                      <span className="text-[13px] font-medium text-slate-500">
-                        Đã chi:{" "}
-                        <span className="font-bold text-slate-700">
-                          {new Intl.NumberFormat("vi-VN").format(b.spentAmount)}
-                          đ
-                        </span>
-                      </span>
-                    </>
-                  )}
+                <div>
+                  <span className="text-[20px] text-slate-900 font-black tracking-tight leading-none block">
+                    {new Intl.NumberFormat("vi-VN").format(b.limitAmount)}
+                    <span className="text-[13px] font-bold text-slate-400 ml-0.5">đ</span>
+                  </span>
+                  <span className="text-[12px] font-medium text-slate-500 mt-1 block">
+                    Đã chi: <span className="font-bold text-slate-700">{new Intl.NumberFormat("vi-VN").format(b.spentAmount)}đ</span>
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`px-2.5 py-1.5 rounded-lg text-[12px] font-bold whitespace-nowrap ${badgeClass}`}
-                  >
+                  <span className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold whitespace-nowrap ${badgeClass}`}>
                     {badgeText}
                   </span>
                   {b.type !== "FLEXIBLE" && !isPaid && (
@@ -596,20 +599,10 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
                         e.stopPropagation();
                         setPayingBudget(b);
                       }}
-                      className="bg-[#2BA76F] hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[12px] font-bold whitespace-nowrap transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 shadow-sm shadow-emerald-500/20"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl text-[11px] font-extrabold whitespace-nowrap transition-all flex items-center gap-1 active:scale-95 shadow-sm shadow-emerald-500/20"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={3}
-                          d="M5 13l4 4L19 7"
-                        />
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                       Trả ngay
                     </button>
@@ -618,11 +611,8 @@ export function BudgetTab({ year, month, walletBalance }: BudgetTabProps) {
               </div>
 
               {/* Progress bar */}
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${barClass}`}
-                  style={{ width: `${barWidth}%` }}
-                />
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-500 ${barClass}`} style={{ width: `${barWidth}%` }} />
               </div>
             </div>
           </div>

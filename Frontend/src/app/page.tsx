@@ -21,6 +21,7 @@ import { ProfileTab } from "@/components/tab-ca-nhan";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [targetBudgetId, setTargetBudgetId] = useState<string | null>(null);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showTxDrawer, setShowTxDrawer] = useState(false);
   const [txType, setTxType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
@@ -70,7 +71,13 @@ export default function Home() {
       }}
     >
       {activeTab === "dashboard" ? (
-        <DashboardTab onNavigate={(tab) => setActiveTab(tab as any)} refreshTrigger={refreshTrigger} />
+        <DashboardTab
+          onNavigate={(tab, extra) => {
+            setActiveTab(tab as any);
+            setTargetBudgetId(extra || null);
+          }}
+          refreshTrigger={refreshTrigger}
+        />
       ) : activeTab === "savings" ? (
         <>
           <header
@@ -210,6 +217,7 @@ export default function Home() {
               year={new Date().getFullYear()}
               month={new Date().getMonth() + 1}
               walletBalance={walletBalance}
+              targetBudgetId={targetBudgetId}
             />
           </div>
         </>

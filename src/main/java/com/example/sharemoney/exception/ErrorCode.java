@@ -39,6 +39,9 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST, "Số dư ví không đủ để thực hiện giao dịch."),
     INSUFFICIENT_SAVINGS_BALANCE(
             HttpStatus.BAD_REQUEST, "Số dư trong mục tiêu tiết kiệm không đủ để rút."),
+    SAFETY_RESERVE_VIOLATION(
+            HttpStatus.BAD_REQUEST,
+            "Số dư ví không đủ để đảm bảo quỹ dự trữ an toàn cho ngân sách và nợ phải trả."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy danh mục."),
     BUDGET_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy ngân sách."),
     LOAN_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy khoản vay."),

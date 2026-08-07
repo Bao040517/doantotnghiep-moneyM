@@ -183,6 +183,12 @@ public class BudgetService {
                             if (spent == null) spent = BigDecimal.ZERO;
                             return toSummaryResponse(b, spent);
                         })
+                .sorted((b1, b2) -> {
+                    boolean m1 = b1.isMandatory();
+                    boolean m2 = b2.isMandatory();
+                    if (m1 != m2) return m1 ? -1 : 1; // Priority (isMandatory = true) on top
+                    return 0;
+                })
                 .collect(Collectors.toList());
     }
 

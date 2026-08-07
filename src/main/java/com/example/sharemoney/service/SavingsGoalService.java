@@ -3,6 +3,7 @@ package com.example.sharemoney.service;
 import com.example.sharemoney.dto.request.FundSavingsGoalRequest;
 import com.example.sharemoney.dto.request.SavingsGoalRequest;
 import com.example.sharemoney.dto.request.WithdrawSavingsGoalRequest;
+import com.example.sharemoney.dto.response.AutoAllocateResponse;
 import com.example.sharemoney.dto.response.SavingsGoalResponse;
 import com.example.sharemoney.entity.*;
 import com.example.sharemoney.exception.AppException;
@@ -13,6 +14,7 @@ import com.example.sharemoney.repository.TransactionRepository;
 import com.example.sharemoney.repository.UserRepository;
 import com.example.sharemoney.repository.WalletRepository;
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -213,6 +215,131 @@ public class SavingsGoalService {
         transactionRepository.save(transaction);
 
         return toResponse(goal);
+    }
+
+    /**
+     * Tự động phân bổ tiền nhàn rỗi (idle money) vào các mục tiêu tiết kiệm đang hoạt động,
+     * theo tỷ lệ (remaining / totalRemaining) cho mỗi goal.
+     * Tuân thủ nguyên tắc tài chính: KHÔNG được lấn vào quỹ dự trữ cho ngân sách & nợ phải trả.
+     */
+    @Transactional
+    public AutoAllocateResponse autoAllocateSavingsGoals(UUID userId) {
+        // 1. Tính toán quỹ dự trữ bắt buộc (required reserve = unpaid budgets + debt owing)
+        java.time.LocalDate today = java.time.LocalDate.now();
+        var currentBudgets = budgetService.getBudgetSummary(userId, today.getYear(), today.getMonthValue());
+        BigDecimal unpaidBudgets = BigDecimal.ZERO;
+        for (var b : currentBudgets) {
+            BigDecimal remaining = b.getLimitAmount().subtract(b.getSpentAmount());
+            if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+                unpaidBudgets = unpaidBudgets.add(remaining);
+            }
+        }
+        BigDecimal totalOwing = debtService.getUserDebtSummary(userId).getTotalOwing();
+        if (totalOwing == null) totalOwing = BigDecimal.ZERO;
+        BigDecimal requiredReserve = unpaidBudgets.add(totalOwing);
+
+        // 2. Tổng số dư ví
+        BigDecimal walletBalance = walletRepository.sumBalanceByUserId(userId);
+        if (walletBalance == null) walletBalance = BigDecimal.ZERO;
+
+        // 3. Tiền nhàn rỗi khả dụng = walletBalance - requiredReserve
+        BigDecimal idleMoney = walletBalance.subtract(requiredReserve);
+        if (idleMoney.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new AppException(ErrorCode.SAFETY_RESERVE_VIOLATION);
+        }
+
+        // 4. Lấy các mục tiêu tiết kiệm chưa hoàn thành
+        List<SavingsGoal> activeGoals = savingsGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId)
+                .stream()
+                .filter(g -> g.getStatus() == SavingsGoalStatus.IN_PROGRESS)
+                .filter(g -> g.getCurrentAmount().compareTo(g.getTargetAmount()) < 0)
+                .collect(Collectors.toList());
+
+        if (activeGoals.isEmpty()) {
+            return AutoAllocateResponse.builder()
+                    .totalAllocated(BigDecimal.ZERO)
+                    .safeToSpendRemaining(idleMoney)
+                    .requiredReserve(requiredReserve)
+                    .allocatedGoals(Collections.emptyList())
+                    .message("Không có mục tiêu tiết kiệm nào đang hoạt động.")
+                    .build();
+        }
+
+        // 5. Tính tổng số tiền còn thiếu của tất cả goals
+        BigDecimal totalRemaining = BigDecimal.ZERO;
+        for (SavingsGoal g : activeGoals) {
+            totalRemaining = totalRemaining.add(g.getTargetAmount().subtract(g.getCurrentAmount()));
+        }
+
+        // 6. Phân bổ theo tỷ lệ, tổng không vượt quá idleMoney
+        BigDecimal totalAllocated = BigDecimal.ZERO;
+        List<AutoAllocateResponse.AllocatedGoalDetail> details = new java.util.ArrayList<>();
+
+        // Lấy ví đầu tiên có đủ tiền
+        Wallet wallet = getWalletForSavings(userId, null, null);
+        Category savingsCategory = categoryService.getOrCreateCategory(
+                userId, "Mục tiêu tiết kiệm", TransactionType.EXPENSE, "🎯");
+
+        for (SavingsGoal g : activeGoals) {
+            BigDecimal goalRemaining = g.getTargetAmount().subtract(g.getCurrentAmount());
+            // Tỷ lệ phân bổ = goalRemaining / totalRemaining * idleMoney
+            BigDecimal allocation = goalRemaining.multiply(idleMoney)
+                    .divide(totalRemaining, 0, java.math.RoundingMode.FLOOR);
+            // Không phân bổ quá phần còn thiếu
+            if (allocation.compareTo(goalRemaining) > 0) {
+                allocation = goalRemaining;
+            }
+            if (allocation.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            // Kiểm tra ví còn đủ
+            if (wallet.getBalance().compareTo(allocation) < 0) {
+                allocation = wallet.getBalance();
+            }
+            if (allocation.compareTo(BigDecimal.ZERO) <= 0) break;
+
+            // Trừ ví
+            wallet.setBalance(wallet.getBalance().subtract(allocation));
+            // Cộng goal
+            g.setCurrentAmount(g.getCurrentAmount().add(allocation));
+            boolean completed = g.getCurrentAmount().compareTo(g.getTargetAmount()) >= 0;
+            if (completed) {
+                g.setStatus(SavingsGoalStatus.COMPLETED);
+            }
+            savingsGoalRepository.save(g);
+
+            // Tạo transaction
+            Transaction tx = Transaction.builder()
+                    .wallet(wallet)
+                    .amount(allocation)
+                    .type(TransactionType.EXPENSE)
+                    .category(savingsCategory)
+                    .note("Tự động phân bổ vào mục tiêu: " + g.getName())
+                    .excludeFromBudget(true)
+                    .build();
+            transactionRepository.save(tx);
+
+            totalAllocated = totalAllocated.add(allocation);
+
+            details.add(AutoAllocateResponse.AllocatedGoalDetail.builder()
+                    .goalId(g.getId().toString())
+                    .goalName(g.getName())
+                    .allocatedAmount(allocation)
+                    .newCurrentAmount(g.getCurrentAmount())
+                    .targetAmount(g.getTargetAmount())
+                    .isCompleted(completed)
+                    .build());
+        }
+
+        walletRepository.save(wallet);
+
+        return AutoAllocateResponse.builder()
+                .totalAllocated(totalAllocated)
+                .safeToSpendRemaining(idleMoney.subtract(totalAllocated))
+                .requiredReserve(requiredReserve)
+                .allocatedGoals(details)
+                .message(String.format("Đã tự động phân bổ %,.0fđ vào %d mục tiêu tiết kiệm.",
+                        totalAllocated.doubleValue(), details.size()))
+                .build();
     }
 
     @Transactional

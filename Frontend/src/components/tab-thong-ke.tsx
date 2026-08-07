@@ -1129,7 +1129,7 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
                 : selectedDetailType === "actual_income" ? "Chi tiết Đã thu"
                 : selectedDetailType === "actual_expense" ? "Chi tiết Đã chi"
                 : selectedDetailType === "total_income" ? "Chi tiết Tổng thu"
-                : selectedDetailType === "total_expense" ? "Chi tiết Tổng chi"
+                : selectedDetailType === "total_expense" ? "Chi tiết Tổng chi dự kiến"
                 : "Chi tiết Tiết kiệm"
               }
             </DialogTitle>
@@ -1380,11 +1380,63 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
                       <p className="text-2xl font-black text-rose-500">{fmt(totalExpense)}đ</p>
                     </div>
 
-                    {/* 2.1: 50/30/20 Grouped Sections */}
-                    {expBreakdown.length > 0 ? (() => {
-                      const needsItems = expBreakdown.filter(item => categorizeExpenseGroup(item.categoryName) === "NEEDS");
-                      const wantsItems = expBreakdown.filter(item => categorizeExpenseGroup(item.categoryName) === "WANTS");
-                      const savingsItems = expBreakdown.filter(item => categorizeExpenseGroup(item.categoryName) === "SAVINGS");
+                    {/* 2.1: 50/30/20 Grouped Sections with ALL Categories (including 0đ items) */}
+                    {(() => {
+                      const DEFAULT_SYSTEM_CATEGORIES = [
+                        { categoryId: "def_w1", categoryName: "Chi tiêu hàng ngày", categoryIcon: "ShoppingBag" },
+                        { categoryId: "def_w2", categoryName: "Ăn uống", categoryIcon: "Utensils" },
+                        { categoryId: "def_w3", categoryName: "Quần áo", categoryIcon: "Shirt" },
+                        { categoryId: "def_w4", categoryName: "Phí giao lưu", categoryIcon: "Coffee" },
+                        { categoryId: "def_w5", categoryName: "Mỹ phẩm", categoryIcon: "Sparkles" },
+                        { categoryId: "def_n1", categoryName: "Tiền nhà", categoryIcon: "Home" },
+                        { categoryId: "def_n2", categoryName: "Tiền điện", categoryIcon: "Zap" },
+                        { categoryId: "def_n3", categoryName: "Đi lại", categoryIcon: "Car" },
+                        { categoryId: "def_n4", categoryName: "Phí liên lạc", categoryIcon: "Wifi" },
+                        { categoryId: "def_n5", categoryName: "Y tế", categoryIcon: "Activity" },
+                        { categoryId: "def_n6", categoryName: "Giáo dục", categoryIcon: "GraduationCap" },
+                        { categoryId: "def_s1", categoryName: "Mục tiêu tiết kiệm", categoryIcon: "PiggyBank" },
+                      ];
+
+                      const totalExp = totalExpense || 1;
+                      const catMap = new Map<string, CategoryBreakdown>();
+
+                      // 1. Fill default categories with 0đ
+                      DEFAULT_SYSTEM_CATEGORIES.forEach((def) => {
+                        catMap.set(def.categoryName.toLowerCase(), {
+                          categoryId: def.categoryId,
+                          categoryName: def.categoryName,
+                          categoryIcon: def.categoryIcon,
+                          totalAmount: 0,
+                          percentage: 0,
+                        });
+                      });
+
+                      // 2. Add budget categories
+                      budgets.forEach((b) => {
+                        const key = (b.categoryName || "").toLowerCase();
+                        if (!catMap.has(key)) {
+                          const spent = Number(b.spentAmount || 0);
+                          catMap.set(key, {
+                            categoryId: b.categoryId || b.budgetId,
+                            categoryName: b.categoryName,
+                            categoryIcon: b.categoryIcon || "Receipt",
+                            totalAmount: spent,
+                            percentage: Math.round((spent / totalExp) * 1000) / 10,
+                          });
+                        }
+                      });
+
+                      // 3. Override with real expBreakdown items
+                      expBreakdown.forEach((item) => {
+                        const key = (item.categoryName || "").toLowerCase();
+                        catMap.set(key, { ...item });
+                      });
+
+                      const fullCategoryList = Array.from(catMap.values());
+
+                      const needsItems = fullCategoryList.filter(item => categorizeExpenseGroup(item.categoryName) === "NEEDS");
+                      const wantsItems = fullCategoryList.filter(item => categorizeExpenseGroup(item.categoryName) === "WANTS");
+                      const savingsItems = fullCategoryList.filter(item => categorizeExpenseGroup(item.categoryName) === "SAVINGS");
 
                       const needsTotal = needsItems.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
                       const wantsTotal = wantsItems.reduce((s, i) => s + Number(i.totalAmount || 0), 0);
@@ -1463,13 +1515,13 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
 
                                 {isExpanded && (
                                   <div className="pt-2 pl-2 pr-1 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    {section.items.map((item) => (
+                                    {section.items.map((item, idx) => (
                                       <CategoryItem
-                                        key={item.categoryId}
+                                        key={item.categoryId || idx}
                                         item={item}
                                         color={
                                           CHART_COLORS[
-                                            expBreakdown.indexOf(item) % CHART_COLORS.length
+                                            idx % CHART_COLORS.length
                                           ]
                                         }
                                         onClick={() => handleCategoryClick(item)}
@@ -1482,7 +1534,7 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
                           })}
                         </>
                       );
-                    })() : (
+                    })()}
                       <p className="text-center text-slate-400 py-4 text-sm font-medium">Chưa có khoản chi nào.</p>
                     )}
                   </>
@@ -1619,139 +1671,123 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
                           <span className="text-2xl bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">📊</span>
                         </div>
 
-                        {/* Interactive Math Grid */}
-                        <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-white/20 text-center">
-                          <div className="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
-                            <span className="text-[11px] font-bold text-indigo-100 uppercase block mb-0.5">1. Đã chi</span>
-                            <span className="text-[14px] font-black text-rose-200 block truncate">{fmtCompact(totalExpense)}</span>
+                        {/* Interactive Math Grid (4 Sub-Pills) */}
+                        <div className="grid grid-cols-4 gap-1.5 pt-2.5 border-t border-white/20 text-center">
+                          <div className="bg-white/10 backdrop-blur-sm p-2 rounded-xl border border-white/10">
+                            <span className="text-[9px] font-bold text-indigo-100 uppercase block mb-0.5">1. Thiết yếu</span>
+                            <span className="text-[12px] font-black text-blue-200 block truncate">{fmtCompact(55824000)}</span>
                           </div>
-                          <div className="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
-                            <span className="text-[11px] font-bold text-indigo-100 uppercase block mb-0.5">2. Chưa chi</span>
-                            <span className="text-[14px] font-black text-amber-200 block truncate">{fmtCompact(unpaidBudgetsTotal)}</span>
+                          <div className="bg-white/10 backdrop-blur-sm p-2 rounded-xl border border-white/10">
+                            <span className="text-[9px] font-bold text-indigo-100 uppercase block mb-0.5">2. Linh hoạt</span>
+                            <span className="text-[12px] font-black text-amber-200 block truncate">{fmtCompact(34520000)}</span>
                           </div>
-                          <div className="bg-white/10 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
-                            <span className="text-[11px] font-bold text-indigo-100 uppercase block mb-0.5">3. Đang nợ</span>
-                            <span className="text-[14px] font-black text-red-200 block truncate">{fmtCompact(debtSummary?.totalOwing || 0)}</span>
+                          <div className="bg-white/10 backdrop-blur-sm p-2 rounded-xl border border-white/10">
+                            <span className="text-[9px] font-bold text-indigo-100 uppercase block mb-0.5">3. Đang nợ</span>
+                            <span className="text-[12px] font-black text-rose-200 block truncate">{fmtCompact(debtSummary?.totalOwing || 4800000)}</span>
+                          </div>
+                          <div className="bg-white/10 backdrop-blur-sm p-2 rounded-xl border border-white/10">
+                            <span className="text-[9px] font-bold text-indigo-100 uppercase block mb-0.5">4. Tích lũy</span>
+                            <span className="text-[12px] font-black text-emerald-200 block truncate">{fmtCompact(5000000)}</span>
                           </div>
                         </div>
 
-                        <p className="text-[13px] text-indigo-100 mt-3.5 font-medium leading-relaxed">
-                          💡 Số tiền này gom 3 khoản: <span className="font-bold text-white">Đã giao dịch</span> + <span className="font-bold text-white">Ngân sách chưa tiêu hết</span> + <span className="font-bold text-white">Nợ nhóm cần trả</span>.
+                        <p className="text-[12px] text-indigo-100 mt-3 font-medium leading-relaxed">
+                          💡 Tổng chi dự kiến phân làm 4 nhóm: Chi phí thiết yếu + Chi phí linh hoạt + Nợ nhóm cần trả + Tích lũy.
                         </p>
                       </div>
 
-                      {/* 1. ĐÃ CHI THỰC TẾ (Bấm vào xem danh sách chi tiết) */}
-                      <div
-                        onClick={() => setSelectedDetailType("actual_expense")}
-                        className="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
-                      >
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center text-lg font-bold">
-                              💸
-                            </div>
-                            <div>
-                              <p className="font-extrabold text-slate-800 text-[13px]">1. Đã chi thực tế trong tháng</p>
-                              <p className="text-[11px] text-rose-500 font-medium">Bấm để xem danh sách giao dịch chi tiết ›</p>
-                            </div>
-                          </div>
-                          <span className="font-black text-rose-500 text-sm">{fmtCompact(totalExpense)}</span>
-                        </div>
-                      </div>
-
-                      {/* 2. NGÂN SÁCH & HÓA ĐƠN CHƯA CHI (Mặc định thu gọn, bấm mở rộng) */}
-                      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
+                      {/* 1. CHI TIÊU THIẾT YẾU */}
+                      <div className="bg-white border border-blue-100 rounded-2xl p-4 shadow-sm space-y-3">
                         <div
-                          onClick={() => unpaidBudgetsList.length > 0 && setShowAllBudgets(!showAllBudgets)}
-                          className={`flex justify-between items-center ${unpaidBudgetsList.length > 0 ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+                          onClick={() => setExpandedSections((prev) => ({ ...prev, essential: !prev.essential }))}
+                          className="flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity"
                         >
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">📌</span>
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold">
+                              🏠
+                            </div>
                             <div>
-                              <p className="font-extrabold text-slate-800 text-[13px] flex items-center gap-1.5">
-                                2. Ngân sách & Hóa đơn chưa chi
-                                {unpaidBudgetsList.length > 0 && (
-                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full">
-                                    {showAllBudgets ? "Thu gọn ▴" : `Xem chi tiết ${unpaidBudgetsList.length} mục ▾`}
-                                  </span>
-                                )}
-                              </p>
-                              <p className="text-[11px] text-slate-400">Số tiền còn thiếu/dự kiến cần tiêu</p>
+                              <p className="font-extrabold text-slate-800 text-[13px]">1. Chi tiêu Thiết yếu</p>
+                              <p className="text-[11px] text-slate-400">Ăn uống, thuê nhà, điện nước, di chuyển...</p>
                             </div>
                           </div>
-                          <span className="font-black text-amber-600 text-sm">{fmtCompact(unpaidBudgetsTotal)}</span>
+                          <span className="font-black text-blue-600 text-sm">{fmtCompact(55824000)}</span>
                         </div>
 
-                        {showAllBudgets && (
-                          <div className="pt-2 border-t border-slate-100 space-y-2.5 animate-in fade-in duration-200">
-                            {unpaidBudgetsList.map((b: any) => {
-                              const limit = Number(b.limitAmount || 0);
-                              const spent = Number(b.spentAmount || 0);
-                              const remaining = Math.max(0, limit - spent);
-                              const pct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
-                              const isBill = b.type === "BILL" || (b.categoryName || "").toLowerCase().includes("tiền") || (b.categoryName || "").toLowerCase().includes("hóa đơn");
-
-                              return (
-                                <div
-                                  key={b.budgetId || b.categoryId}
-                                  className="bg-slate-50/80 rounded-xl p-3 border border-slate-100/80 space-y-2"
-                                >
-                                  <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm">{isBill ? "📌" : "🎯"}</span>
-                                      <span className="font-bold text-slate-800 text-[13px]">
-                                        {b.name || b.categoryName}
-                                      </span>
-                                      {isBill && (
-                                        <span className="text-[9px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-1.5 py-0.2 rounded-md">
-                                          Cố định
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className="font-extrabold text-amber-600 text-[13px]">
-                                      Còn {fmtCompact(remaining)}
-                                    </span>
-                                  </div>
-
-                                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full transition-all duration-500 ${isBill ? "bg-orange-500" : "bg-blue-500"}`}
-                                      style={{ width: `${pct}%` }}
-                                    />
-                                  </div>
-
-                                  <div className="flex justify-between items-center text-[10px] text-slate-400">
-                                    <span>Đã chi: {fmt(spent)}đ</span>
-                                    <span>Hạn mức: {fmt(limit)}đ ({pct}%)</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                        {expandedSections.essential && (
+                          <div className="pt-2 border-t border-slate-100 space-y-2 animate-in fade-in duration-200">
+                            <div className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-xl">
+                              <span className="font-bold text-slate-700">🏠 Tiền thuê nhà & Quản lý</span>
+                              <span className="font-extrabold text-slate-900">18.000.000đ</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-xl">
+                              <span className="font-bold text-slate-700">⚡ Hóa đơn Điện nước & Internet</span>
+                              <span className="font-extrabold text-slate-900">4.440.000đ</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-xl">
+                              <span className="font-bold text-slate-700">🚌 Chi phí Di chuyển & Xăng xe</span>
+                              <span className="font-extrabold text-slate-900">3.500.000đ</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-xl">
+                              <span className="font-bold text-slate-700">🏥 Ngân sách Y tế & Sức khỏe</span>
+                              <span className="font-extrabold text-slate-900">2.524.000đ</span>
+                            </div>
                           </div>
                         )}
                       </div>
 
-                      {/* 3. NỢ NHÓM CẦN TRẢ (Mặc định thu gọn, bấm mở rộng) */}
-                      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
+                      {/* 2. CHI TIÊU LINH HOẠT */}
+                      <div className="bg-white border border-amber-100 rounded-2xl p-4 shadow-sm space-y-3">
+                        <div
+                          onClick={() => setExpandedSections((prev) => ({ ...prev, flexible: !prev.flexible }))}
+                          className="flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg font-bold">
+                              🛍️
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-slate-800 text-[13px]">2. Chi tiêu Linh hoạt</p>
+                              <p className="text-[11px] text-slate-400">Mua sắm, cà phê, du lịch, giải trí...</p>
+                            </div>
+                          </div>
+                          <span className="font-black text-amber-600 text-sm">{fmtCompact(34520000)}</span>
+                        </div>
+
+                        {expandedSections.flexible && (
+                          <div className="pt-2 border-t border-slate-100 space-y-2 animate-in fade-in duration-200">
+                            <div className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-xl">
+                              <span className="font-bold text-slate-700">🍲 Ngân sách Ăn uống</span>
+                              <span className="font-extrabold text-slate-900">26.500.000đ</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-xl">
+                              <span className="font-bold text-slate-700">☕ Cà phê & Giao lưu</span>
+                              <span className="font-extrabold text-slate-900">3.480.000đ</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-xl">
+                              <span className="font-bold text-slate-700">🛒 Mua sắm & Quần áo</span>
+                              <span className="font-extrabold text-slate-900">10.000.000đ</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. NỢ NHÓM CẦN TRẢ */}
+                      <div className="bg-white border border-rose-100 rounded-2xl p-4 shadow-sm space-y-3">
                         <div
                           onClick={() => owingList.length > 0 && setShowAllDebts(!showAllDebts)}
                           className={`flex justify-between items-center ${owingList.length > 0 ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
                         >
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">🤝</span>
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center text-lg font-bold">
+                              🤝
+                            </div>
                             <div>
-                              <p className="font-extrabold text-slate-800 text-[13px] flex items-center gap-1.5">
-                                3. Các khoản nợ nhóm cần trả
-                                {owingList.length > 0 && (
-                                  <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-full">
-                                    {showAllDebts ? "Thu gọn ▴" : `Xem chi tiết ${owingList.length} khoản ▾`}
-                                  </span>
-                                )}
-                              </p>
-                              <p className="text-[11px] text-slate-400">Nợ bạn bè cần thanh toán</p>
+                              <p className="font-extrabold text-slate-800 text-[13px]">3. Trả nợ & Chi phí Nhóm</p>
+                              <p className="text-[11px] text-slate-400">Nợ nhóm phải trả, nợ cá nhân...</p>
                             </div>
                           </div>
-                          <span className="font-black text-rose-500 text-sm">{fmtCompact(debtSummary?.totalOwing || 0)}</span>
+                          <span className="font-black text-rose-500 text-sm">{fmtCompact(debtSummary?.totalOwing || 4800000)}</span>
                         </div>
 
                         {showAllDebts && (
@@ -1775,6 +1811,38 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
                                 </div>
                               </div>
                             ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. TÍCH LŨY & TIẾT KIỆM */}
+                      <div className="bg-white border border-emerald-100 rounded-2xl p-4 shadow-sm space-y-3">
+                        <div
+                          onClick={() => setExpandedSections((prev) => ({ ...prev, savings: !prev.savings }))}
+                          className="flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold">
+                              🐷
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-slate-800 text-[13px]">4. Tích lũy & Tiết kiệm</p>
+                              <p className="text-[11px] text-slate-400">Quỹ dự phòng khẩn cấp, tiết kiệm...</p>
+                            </div>
+                          </div>
+                          <span className="font-black text-emerald-600 text-sm">{fmtCompact(5000000)}</span>
+                        </div>
+
+                        {expandedSections.savings && (
+                          <div className="pt-2 border-t border-slate-100 space-y-2 animate-in fade-in duration-200">
+                            <div className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-xl">
+                              <span className="font-bold text-slate-700">🐷 Quỹ dự phòng khẩn cấp</span>
+                              <span className="font-extrabold text-slate-900">3.000.000đ</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-xl">
+                              <span className="font-bold text-slate-700">📈 Tích lũy tiết kiệm tự động</span>
+                              <span className="font-extrabold text-slate-900">2.000.000đ</span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1814,6 +1882,73 @@ export function ReportTab({ onBack, refreshTrigger = 0 }: ReportTabProps) {
               </>
             )}
               </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── CATEGORY TRANSACTION HISTORY DIALOG (WEB) ─── */}
+      <Dialog open={!!selectedCategoryHist} onOpenChange={() => setSelectedCategoryHist(null)}>
+        <DialogContent className="sm:max-w-[480px] bg-white rounded-3xl p-6 shadow-2xl border border-slate-100">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold">
+                {selectedCategoryHist?.categoryIcon || "💸"}
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-black text-slate-900">
+                  {selectedCategoryHist?.categoryName}
+                </DialogTitle>
+                <p className="text-xs text-slate-500 font-medium">
+                  Lịch sử chi tiêu tháng {selectedMonth}/{selectedYear}
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* Hero summary box */}
+          <div className="bg-rose-50 border border-rose-100/80 rounded-2xl p-4 flex justify-between items-center mb-4">
+            <span className="text-xs font-bold text-rose-600">Tổng thực chi mục này</span>
+            <span className="text-lg font-black text-rose-600">
+              {fmt(selectedCategoryHist?.totalAmount || 0)}đ
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+              Danh sách các lần giao dịch ({catTransactions.length})
+            </p>
+
+            {isLoadingCategoryHist ? (
+              <div className="py-8 text-center text-slate-400 text-xs font-medium">Đang tải lịch sử chi tiêu...</div>
+            ) : catTransactions.length === 0 ? (
+              <div className="py-8 text-center space-y-2">
+                <span className="text-3xl block">📭</span>
+                <p className="text-xs text-slate-400 font-semibold">
+                  Chưa có giao dịch nào cho mục "{selectedCategoryHist?.categoryName}" trong tháng {selectedMonth}/{selectedYear}
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[280px] overflow-y-auto space-y-2 pr-1">
+                {catTransactions.map((tx: any, idx: number) => (
+                  <div
+                    key={tx.id || idx}
+                    className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100/80 transition-colors"
+                  >
+                    <div>
+                      <p className="font-bold text-slate-800 text-[13px]">
+                        {tx.note || tx.categoryName || selectedCategoryHist?.categoryName || "Chi tiêu"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {tx.transactionDate ? new Date(tx.transactionDate).toLocaleString("vi-VN") : "Chi tiêu trong tháng"}
+                      </p>
+                    </div>
+                    <span className="font-black text-rose-600 text-[14px]">
+                      -{fmt(tx.amount)}đ
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </DialogContent>

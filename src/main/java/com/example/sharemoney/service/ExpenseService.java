@@ -143,11 +143,12 @@ public class ExpenseService {
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<ExpenseResponse> getGroupExpenses(
             UUID groupId, UUID userId, int page, int size) {
-        groupRepository
-                .findById(groupId)
-                .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+        Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
 
-        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId)) {
+        if (!isMemberOrOwner(group, userId)) {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 
@@ -427,6 +428,13 @@ public class ExpenseService {
     // ─────────────────────────────────────────────────────────────
     // Private: Resolve + validate danh sách user phải là thành viên nhóm
     // ─────────────────────────────────────────────────────────────
+    private boolean isMemberOrOwner(Group group, UUID userId) {
+        if (group != null && group.getOwner() != null && group.getOwner().getId().equals(userId)) {
+            return true;
+        }
+        return groupMemberRepository.existsByGroup_IdAndUser_Id(group.getId(), userId);
+    }
+
     private List<User> resolveMembersInGroup(List<UUID> userIds, UUID groupId) {
         List<User> users = new ArrayList<>();
         for (UUID uid : userIds) {

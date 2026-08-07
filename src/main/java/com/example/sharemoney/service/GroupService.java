@@ -119,7 +119,10 @@ public class GroupService {
                         .findById(groupId)
                         .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
 
-        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId)) {
+        boolean isOwner = group.getOwner() != null && group.getOwner().getId().equals(userId);
+        boolean isMember = groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId);
+
+        if (!isOwner && !isMember) {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 

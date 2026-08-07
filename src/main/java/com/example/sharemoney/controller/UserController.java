@@ -28,6 +28,16 @@ public class UserController {
 
     private final UserRepository userRepository;
 
+    @org.springframework.web.bind.annotation.GetMapping("/me")
+    public ResponseEntity<UserSummaryResponse> getMyProfile() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return ResponseEntity.ok(toUserSummary(user));
+    }
+
     @org.springframework.web.bind.annotation.GetMapping("/search")
     public ResponseEntity<UserSummaryResponse> searchByPhone(
             @org.springframework.web.bind.annotation.RequestParam String phone) {

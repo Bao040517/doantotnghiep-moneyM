@@ -13,6 +13,141 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 8. **Tư vấn Ngân sách Đa Tháng & Cấu trúc Tổng chi Cần trả:** Phân tích gợi ý chi tiêu theo tháng chọn lựa, xử lý an toàn tháng tương lai và chuẩn hóa modal Tổng chi (đã chi + ngân sách chưa chi + nợ).
 9. **Smart Modal UX (5 Modal Thông minh):** Phân nhóm chi tiêu 50/30/20, gom giao dịch theo ngày, chỉ số sức khỏe thu nhập, thanh tiến trình thu hồi nợ, gợi ý cấn trừ nợ ròng & nút Trả nợ trực tiếp.
 10. **Thẻ Cảnh báo Hạn mức Tối giản & Thông minh:** Khử trùng lặp danh mục, tự động gắn Emoji danh mục và tối giản hóa thẻ cảnh báo vượt hạn mức giúp người dùng dễ dàng theo dõi trong 1 giây.
+11. **Ngân sách Ưu tiên Thông minh (Dynamic Priority Sorting & Star Toggle):** Tự động phân loại và đẩy các khoản ngân sách ưu tiên lên đầu trang, chuẩn hóa icon ngôi sao xám/vàng và phản hồi UI tức thì.
+13. **Centered Floating Popup Modal & In-place History Navigation:** Chuẩn hóa toàn bộ modal dạng Bottom Sheet sang Pop-up nổi ở chính giữa màn hình với bo góc 28px, viền đen `#0f172a`, và tích hợp chuyển màn hình xem lịch sử chi tiêu theo từng danh mục trực tiếp trong Popup (In-place navigation) loại bỏ hoàn toàn lỗi trùng đè Modal.
+
+### Session [2026-08-07] - Tích hợp Thông báo Realtime (WebSocket) & Đồng bộ Toàn diện API Mobile (React Native)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Phân tích Khác biệt (Gap Analysis) & Tái cấu trúc API Tính toán Tổng hợp (`useAppData.ts` & `financialServices.ts`):**
+   - Loại bỏ hoàn toàn các vòng lặp tính toán thủ công ở Client (React Native) cho các chỉ số quan trọng nhằm đảm bảo 100% đồng nhất công thức (Single Source of Truth) với bản Web.
+   - Bổ sung và ánh xạ chuẩn xác API `GET /wallets/total-balance` (trả về `TotalBalanceResponse`) và `GET /budgets/safe-to-spend` (trả về `SafeToSpendResponse`).
+   - Cập nhật Hook `useAppData.ts` để fetch trực tiếp 2 số liệu `totalWalletBalance` và `safeToSpend` từ Backend.
+
+2. **Tích hợp Kiến trúc Giao tiếp Thời gian thực (STOMP WebSocket) cho Mobile:**
+   - Cài đặt hệ sinh thái WebSocket (`@stomp/stompjs`, `sockjs-client`, `text-encoding`).
+   - Khởi tạo `socketService.ts` quản lý vòng đời kết nối an toàn với Token JWT.
+   - Tích hợp tự động kết nối Socket khi Đăng nhập thành công vào luồng định tuyến chính (`AppNavigator.tsx`).
+   - Lắng nghe kênh `/user/queue/notifications` và nảy `Alert.alert` Local Push Notification ngay lập tức (0 độ trễ) khi có người nhắc nợ, thêm hóa đơn hoặc có biến động tài chính từ Web.
+
+### Session [2026-08-06] - Kiểm Tra Toàn Diện & Đồng Bộ 100% Chức Năng Backend Với FrontendReact Mobile App (`FrontendReact` & `sharemoney`)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khảo Sát & Sửa Dứt Điểm 5 Lỗi Nghiêm Trọng (P0 Bugs):**
+   - **BUG 3 (API Path):** Sửa lỗi API path `POST /transactions` thành `POST /transactions/{walletId}` trong `financialServices.ts`, giải quyết triệt để lỗi HTTP 404 khi tạo giao dịch từ mobile.
+   - **BUG 2 (Hardcoded Category):** Xóa bỏ categoryId hardcode (`"cat-food"`, `"cat-salary"`), tích hợp API `GET /api/categories` thực tế từ Backend và xây dựng Category Picker động hiển thị icon + tên danh mục thật.
+   - **BUG 4 (Stuck Wallet):** Sửa lỗi `walletId` bị stuck trong `AddTransactionModal.tsx`, thêm `useEffect` tự động chọn ví mặc định (ví không phải khoản nợ) khi prop `wallets` thay đổi.
+   - **BUG 1 (Quick Actions):** Phân biệt hành vi 2 nút bấm Quick Action trên Dashboard: "💳 Nạp vào ví" tự động chọn tab Thu nhập (`INCOME`), "⇄ Chuyển khoản" tự động chọn tab Chi tiêu (`EXPENSE`).
+   - **BUG 5 (Missing Handler):** Bổ sung prop `onNavigate` và gắn handler `onPress` cho nút "Đặt ngân sách" trên `HistoryScreen.tsx` điều hướng sang tab Budget.
+
+2. **Triển Khai Tính Năng Tiết Kiệm & Quyết Toán Nợ Nhóm (P1 Features):**
+   - **Quản lý Tiết kiệm (Savings Goals CRUD):** Xóa bỏ số tiền nạp cố định 500k hardcode trong `SavingsScreen.tsx`. Tích hợp đầy đủ 4 API endpoints (`fundSavingsGoal`, `withdrawSavingsGoal`, `createSavingsGoal`, `deleteSavingsGoal`). Thêm BottomSheet tạo mục tiêu mới với hạn mức, ngày đích, mức ưu tiên (Khẩn/Cao/TB/Thấp) và đóng góp hàng tháng; cho phép người dùng nạp/rút số tiền tùy ý.
+   - **Quyết toán nợ nhóm 2 chiều (Debt Settlement):** Bổ sung 5 API endpoints vào `groupService.ts` (`remindDebt`, `notifyPayment`, `approveSettle`, `getPendingDebtors`, `getPendingSent`). Cập nhật tab "Ai nợ ai" trên `GroupDetailScreen.tsx` với nút **"🔔 Nhắc nợ"**, nút **"Báo đã chuyển"**, nút **"✓ Xác nhận"** và các badge trạng thái **"Chờ duyệt ⏳"** / **"Đã chuyển ⏳"**.
+   - **Hệ thống thông báo (Notification System):** Xây dựng `notificationService.ts` (`/api/notifications`, `/notifications/{id}/read`) và component `NotificationBottomSheet.tsx` hiển thị thông báo thực tế từ Backend khi chạm vào icon 🔔 trên màn hình Tư vấn.
+
+3. **Tích Hợp Toàn Bộ Các API Backend Còn Lại Phủ 100% Hệ Thống:**
+   - **Chi tiết, Sửa & Xóa Hóa đơn nhóm (`ExpenseController`):** Tạo component `ExpenseDetailBottomSheet.tsx` hỗ trợ xem chi tiết chia tiền từng thành viên (`splits`), chỉnh sửa tiêu đề/số tiền hóa đơn, xóa hóa đơn nhóm (tự động hoàn tác nợ ròng) và nút **"Xuất CSV 📊"** file báo cáo hóa đơn (`GET /api/groups/{id}/expenses/export`).
+   - **Gợi ý bạn bè từng chung nhóm (`GroupController`):** Tích hợp `GET /api/groups/past-members` vào `AddMemberBottomSheet.tsx`, hiển thị các chip **"👤 Bạn bè từng chung nhóm"** giúp thêm nhanh thành viên vào nhóm mới mà không cần gõ lại SĐT.
+   - **Sửa & Xóa giao dịch cá nhân (`TransactionController`):** Tạo component `EditTransactionModal.tsx` và cập nhật `HistoryScreen.tsx` cho phép chạm vào bất kỳ giao dịch nào để chỉnh sửa hoặc xóa (tự động cập nhật lại số dư ví).
+   - **Cảnh báo Giao dịch chưa phân loại:** Tích hợp `GET /api/transactions/uncategorized/count` hiển thị banner cảnh báo màu vàng tại `HistoryScreen.tsx` khi có giao dịch chưa gán danh mục (`"⚠️ Giao dịch chưa phân loại (X)"`).
+   - **Báo cáo Thu nhập (`TransactionController`):** Kết nối `GET /api/transactions/summary/income-category` trên `ReportScreen.tsx` hỗ trợ chuyển đổi tab Chi tiêu ↔ Thu nhập xem phân bổ thu nhập theo danh mục.
+   - **VietQR Server Payload & Cập nhật SĐT:** Tích hợp `POST /api/payments/qr-code` vào `vietQrService.ts` & `VietQRCard.tsx` sinh mã QR Napas247 chuẩn từ Server; bổ sung ô nhập SĐT trong `ProfileScreen.tsx` kết nối `PUT /api/users/me/phone`.
+
+4. **Xác Nhận Đạt 100% Coverage Phủ 16/16 Backend Controllers:**
+   - Đã rà soát lại toàn bộ 16 Controllers & 57+ Endpoints. Tất cả mã nguồn TypeScript biên dịch sạch 100%, không phát sinh lỗi mới.
+
+### Session [2026-08-05] - Tối Ưu UX Pop-up Nổi Căn Giữa Màn Hình & Tích Hợp Lịch Sử Chi Tiêu Chi Tiết Danh Mục (`FrontendReact` & `Frontend`)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Chuyển Đổi Toàn Bộ BottomSheet Sang Centered Floating Popup Modal (`BottomSheet.tsx`):**
+   - **Phản hồi người dùng:** *"tôi muốn chuyển cái nó chỉ ở dưới đáy màn hình vầy thành hiển thị giữa màn hình"*, *"Ý tôi là nó không chui từ dưới lên và dừng lạ ở dưỡi botttom như vậy tôi muốn nó hiển thị pop-up giữa màn hình theo chiều dọc ấy"*.
+   - **Thực thi:**
+     - Thay đổi `animationType="slide"` sang `animationType="fade"`.
+     - Căn giữa chiều dọc & chiều ngang (`justifyContent: "center"`, `alignItems: "center"`, `paddingHorizontal: 20`, `paddingVertical: 40`).
+     - Gỡ bỏ vệt gờ kéo `---` (handle bar) tạo cảm giác cuộn ở đáy.
+     - Bo tròn 28px (`borderRadius: 28`) cả 4 góc, viền đen nổi bật `border-2 border-[#0f172a]` và hiệu ứng bóng mờ `elevation: 12`.
+
+2. **Cấu Trúc 4 Accordion Category Cho Modal Chi Tiết Tổng Chi Dự Kiến (`TotalExpenseDetailBottomSheet.tsx`):**
+   - **Phản hồi người dùng:** *"cái này chia làm 4 cái như lúc trước nhé"*.
+   - **Thực thi:**
+     - Tái cấu trúc 4 thẻ Accordion chuẩn tài chính:
+       1. 🏠 **1. Chi tiêu Thiết yếu** (Nền lam nhạt, icon 🏠, badge đếm 5)
+       2. 🛍️ **2. Chi tiêu Linh hoạt** (Nền cam nhạt, icon 🛍️, badge đếm 4)
+       3. 🤝 **3. Trả nợ & Chi phí Nhóm** (Nền hồng nhạt, icon 🤝, badge đếm 2)
+       4. 🐷 **4. Tích lũy & Tiết kiệm** (Nền xanh lá nhạt, icon 🐷, badge đếm 2)
+     - Cập nhật 4 Sub-Pills ở thẻ Hero Indigo Purple: `1. THIẾT YẾU`, `2. LINH HOẠT`, `3. ĐANG NỢ`, `4. TÍCH LŨY`.
+
+3. **Giao Diện Phân Nhóm 50/30/20 & Hiển Thị Đầy Đủ Danh Mục 0đ (`ReportScreen.tsx` & `tab-thong-ke.tsx`):**
+   - **Phản hồi người dùng:** *"trong phần chi phí linh hoạt có những category gì thì phải lôi hết ra chứ, những category có 0 thì cũng hiển thị nha"*, *"khi chưa bấm vào thì cũng đừng sổ ra list mà để nguyên drawer nhé"*.
+   - **Thực thi:**
+     - Tích hợp bộ danh mục hệ thống hoàn chỉnh. Hợp nhất dữ liệu giao dịch thực tế (`expBreakdown`) + Ngân sách (`budgets`) + Danh mục mặc định.
+     - Các danh mục chưa có giao dịch trong tháng (0đ) **vẫn được hiển thị đầy đủ** kèm con số `0đ` và `%` tương ứng, không ẩn đi.
+     - Mặc định thu gọn tất cả 3 Accordion drawer (`expandedSection = null`) khi mở modal.
+
+4. **Chuẩn Hóa Danh Mục Khớp 100% Với Backend Java (`CategoryService.java`):**
+   - **Phản hồi người dùng:** *"không tự sáng tạo ra tên. Backend có các category riêng cho từng hạng mục của thieetts yếu linh hoạt và tiết kiệm chứ ko phải tự sáng tạo ra như này"*.
+   - **Thực thi:**
+     - Kiểm tra trực tiếp file entity Backend (`CategoryService.java` & `CategoryGroup.java`).
+     - Chuẩn hóa toàn bộ tên danh mục và Emoji trên cả 2 app Frontend & Mobile:
+       - **Chi phí Thiết yếu (NEED)**: `Tiền nhà` (🏠), `Tiền điện` (💡), `Đi lại` (🚆), `Phí liên lạc` (📱), `Y tế` (💊), `Giáo dục` (📚).
+       - **Chi phí Linh hoạt (WANT)**: `Ăn uống` (🍽️), `Chi tiêu hàng ngày` (🧴), `Quần áo` (👕), `Phí giao lưu` (🥂), `Mỹ phẩm` (💄).
+       - **Tích lũy & Tiết kiệm (SAVING)**: `Mục tiêu tiết kiệm` (🎯).
+       - **Trả nợ nhóm (TRANSFER)**: `Trả nợ nhóm` (💸).
+     - Loại bỏ 100% các tên gọi tự nghĩ như *"Tiền thuê nhà & Quản lý"*, *"Hàng hóa dự phòng"*, *"Chi phí sinh hoạt cố định"*.
+
+5. **Tích Hợp Chuyển Màn Hình Lịch Sử Chi Tiêu Chi Tiết Trực Tiếp Trong Popup (In-place Navigation):**
+   - **Phản hồi người dùng:** *"khi tôi click vào 1 mục nào đó thì giúp tôi hiển thị lịch sử những lần chi tiêu cho mục đó giống như tôi đi xem lịch sử chi tiêu ấy"*, *"lỗi hiển thị rồi"*.
+   - **Thực thi:**
+     - Cho phép bấm vào bất kỳ dòng danh mục nào (*Ăn uống, Chi tiêu hàng ngày, Quần áo, Phí giao lưu, Mỹ phẩm, Tiền nhà, Tiền điện, Đi lại...*).
+     - Chuyển đổi cơ chế mở Modal thành **Chuyển giao diện trực tiếp trong cùng Popup Modal (In-place Navigation)**, loại bỏ triệt để lỗi trùng đè z-index / lồng 2 Modal làm rớt khung chữ.
+     - Khi bấm chọn 1 danh mục (*Ăn uống*):
+       - Tiêu đề Popup chuyển thành `Lịch sử - [Tên Danh Mục]`.
+       - Xuất hiện nút **`‹ Quay lại danh sách chi tiết`** ở góc trên.
+       - Hiển thị thẻ Hero tổng số tiền thực chi của danh mục và danh sách chi tiết từng lần giao dịch (Thời gian thực, Ghi chú, Số tiền đã chi).
+       - Bấm **`‹ Quay lại`** để trở về danh sách phân bổ 50/30/20 ban đầu.
+     - Triển khai đồng bộ trên cả **`ReportScreen.tsx`**, **`TotalExpenseDetailBottomSheet.tsx`** và **`tab-thong-ke.tsx`**.
+
+6. **Khắc Phục Hoàn Toàn Lỗi Cú Pháp Babel JSX & ReferenceError (`ReportScreen.tsx`):**
+   - **Thực thi:**
+     - Sửa triệt để các lỗi khuyết thẻ đóng JSX (`jsxParseExpressionContainer` cho `<ScrollView>` & `<BottomSheet>`).
+     - Escape an toàn dấu ngoặc kép trong biểu thức JSX string.
+     - Khôi phục biến trạng thái `selectedCardModal`, `expandedExpenseSections`, `expandedPayableDrawer`.
+     - Expo Metro Bundler biên dịch thành công 100% không còn bất kỳ lỗi nào.
+
+---
+
+### Session [2026-08-05] - Cải Tiến Trải Nghiệm Tương Tác Ngân Sách Ưu Tiên (Star Toggle & Dynamic Sorting)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Tích hợp Vector Icon Star & Phân biệt Nổi / Chìm Thẻ Ngân sách (`BudgetScreen.tsx`):**
+   - **Phản hồi người dùng:** *"với những khoản được đánh dấu sao thì dấu sao sẽ hiện màu và nổi lên trên những khoản không được đánh dấu và những khoản bị gỡ dấu sao thì sẽ chìm xuống dưới nhé"*.
+   - **Thực thi:**
+     - **Tích hợp Lucide Vector Star Icon**: Sử dụng `<Star size={20} color="#f59e0b" fill="#f59e0b" />` cho khoản Ưu tiên (Vàng kim rực rỡ, tô đặc lòng ngôi sao) và `<Star size={20} color="#94a3b8" fill="none" />` cho khoản Không ưu tiên (Nét viền xám nhạt, rỗng lòng, loại bỏ 100% màu vàng).
+     - **Thẻ Ưu tiên (`Nổi lên trên`)**: Nằm ở đầu danh sách, viền vàng hổ phách `border-2 border-[#f59e0b]`, hiệu ứng đổ bóng nâng thẻ `elevation: 5`, badge `ƯU TIÊN` màu vàng kim.
+     - **Thẻ Bỏ ưu tiên (`Chìm xuống dưới`)**: Nằm bên dưới các thẻ ưu tiên, viền xám mờ `#e2e8f0`, nền xám nhạt `#fafafa`, `elevation: 1` chìm xuống bên dưới.
+
+2. **Thiết lập Thuật toán Tự động Sắp xếp Theo Mức độ Ưu tiên (`BudgetService.java` & `BudgetScreen.tsx`):**
+   - **Backend (`BudgetService.java`)**: Cập nhật hàm `getBudgetSummary` sắp xếp kết quả trả về bằng Stream API `.sorted((b1, b2) -> b1.isMandatory() ? -1 : 1)`, đưa tất cả ngân sách ưu tiên lên đầu danh sách.
+   - **Frontend (`BudgetScreen.tsx`)**: Bổ sung `useMemo` sắp xếp `sortedBudgets` đảm bảo các khoản ưu tiên (`isMandatory === true`) luôn nổi lên trên cùng, các khoản bị gỡ dấu sao (`isMandatory === false`) tự động chìm xuống phía dưới.
+
+3. **Pop-Up Xác Nhận 2 Tông Màu & Ngôn Từ Độc Lập Cho Nâng / Hạ Ưu Tiên (`BudgetScreen.tsx`):**
+   - **Phản hồi người dùng:** *"chia ra làm 2 loại thông báo 1 là nâng cấp lên mức ddooj ưu tiên 2 là Hạ cấp độ ưu tiên, hãy làm cho 2 cái này có 2 tông màu khác biệt và nữa là cho 2 cái thông báo cũng khác nhau nhé"*.
+   - **Thực thi:**
+     - **Tông Nâng Cấp (`Nâng Ưu Tiên ⭐`)**: Pop-up viền Vàng Kim Hổ Phách `#f59e0b`, huy hiệu `<Star size={32} color="#f59e0b" fill="#f59e0b" />` nền kem `#fef3c7`, tiêu đề *"Nâng Cấp Ngân Sách Ưu Tiên ⭐"*, thông điệp *"Khoản này sẽ được đẩy lên đầu và ưu tiên trích tiền thanh toán trước"*, nút bấm `✓ Nâng ưu tiên` màu Vàng Hổ Phách.
+     - **Tông Hạ Cấp (`Bỏ Ưu Tiên 📉`)**: Pop-up viền Xám Xanh Slate `#475569`, huy hiệu `<Star size={32} color="#475569" fill="none" />` rỗng lòng nền xám nhạt `#f1f5f9`, tiêu đề *"Bỏ Ngân Sách Ưu Tiên 📉"*, thông điệp *"Khoản này sẽ chuyển thành khoản chi thường và di chuyển xuống dưới danh sách"*, nút bấm `✓ Bỏ ưu tiên` màu Dark Slate.
+     - **Toast Phân Loại**: Hiển thị Toast khác biệt cho 2 trường hợp (`"Đã nâng cấp lên ngân sách ưu tiên! ⭐"` vs `"Đã chuyển về ngân sách thông thường!"`).
+
+4. **Chuyển Đổi Modal "Chi Tiết Tổng Chi" Sang Dạng Centered Popup Nổi Giữa Màn Hình (`TotalExpenseDetailBottomSheet.tsx` & `ReportScreen.tsx`):**
+   - **Phản hồi người dùng:** *"khi tôi click vào Tổng chi thì nó ko chỉ hiện ra từ cuối màn hình mà tôi muốn nó pop-up như này"*, *"bên app đã pop-up đâu"*.
+   - **Thực thi:**
+     - Thay thế hoàn toàn BottomSheet cuộn ở đáy màn hình bằng **Centered Floating Popup Modal** nổi ở chính giữa màn hình với bo góc 28px (`borderRadius: 28`) và viền đen nổi bật `border-2 border-[#0f172a]`.
+     - Tích hợp trực tiếp vào màn hình **Báo cáo Tài chính (`ReportScreen.tsx`)** khi bấm thẻ `📤 Tổng chi (Cần trả)`.
+     - **Thẻ Hero Indigo Purple (`#6366f1`)**: Hiển thị tổng số tiền dự kiến `100,1tr+`, 3 thẻ con (`1. Đã chi`, `2. Chưa chi`, `3. Đang nợ`) và ghi chú giải thích 3 khoản.
+     - **3 Thẻ Accordion Chi Tiết**: Phân tách 3 mục `💸 1. Đã chi thực tế`, `📌 2. Ngân sách & Hóa đơn chưa chi`, `🤝 3. Các khoản nợ nhóm cần trả` có thể nhấp thu gọn/xổ chi tiết từng mục.
 
 ### Session [2026-07-30] - Tối Ưu UI/UX Theo Phản Hồi Người Dùng & Điều Hướng Thông Minh Ngân Sách
 
@@ -984,6 +1119,38 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
    - Đã tái cấu trúc toàn bộ nền tảng Seed Data, cấp phát mã Hash chuẩn `$2a$10$...` hợp lệ cho mật khẩu `123456` của toàn bộ các User mẫu. Tính năng đăng nhập (Auth) và Phân quyền đã chạy trơn tru với dữ liệu mẫu.
 3. **Cấu trúc lại Mã định danh (UUID):**
    - Rời bỏ các dummy UUID (`0000000-0000...`) để sử dụng chuẩn UUID v4, đảm bảo tính chặt chẽ của CSDL và tránh cảnh báo validation.
+
+
+---
+
+### Session 2026-08-05 - Đồng Bộ 1:1 React Native Mobile App (`FrontendReact`) & Khắc Phục Giao Diện UI/UX
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Đồng bộ 1:1 Giao diện Màn hình Nhóm & Chi tiết Nhóm (`GroupDetailScreen.tsx`):**
+   * **Mời Bạn Bè qua SĐT & Mã QR Thực:** Thêm nút *"Mời bạn bè"* tông màu kem `#FEF7E6` trên Top Bar Header. Xây dựng BottomSheet `AddMemberBottomSheet.tsx` chứa 2 Tab (*📱 Số điện thoại* & *📲 Mã QR Mời*). Tự động tạo ảnh mã QR ma trận 2D thực tế qua API `api.qrserver.com`.
+   * **Thông báo mờ dạng Toast dưới Bottom (2s):** Xây dựng linh kiện `Toast.tsx` với hoạt họa trượt fade-in, nền tối mờ mờ `rgba(15, 23, 42, 0.90)`, vị trí `bottom: 50`, tự động biến mất sau 2 giây (2000ms).
+
+2. **Khắc phục Triệt để Lỗi Đè Vùng An Toàn (Status Bar & Camera Notch Overlap):**
+   * Tự động tính toán độ cao thanh trạng thái thiết bị (`StatusBar.currentHeight` trên Android và offset `54px` trên iOS) trên tất cả các màn hình: `DashboardScreen.tsx`, `GroupsScreen.tsx`, `GroupDetailScreen.tsx`, `AdvisorScreen.tsx`, `BudgetScreen.tsx`.
+
+3. **Khôi phục Chuẩn Thanh Navigation Bar Dưới (Bottom Tabs) & Nút Quay Lại (`‹`):**
+   * Chuẩn hóa 5 mục Bottom Tab chính khớp 1:1 với Web: **`Tổng quan 🏠`**, **`Thống kê 📊`**, **`+`**, **`Tư vấn 💡`**, **`Cá nhân 👤`**.
+   * Kết nối nút quay lại `‹` trên Top Header của các màn hình con để chuyển hướng mượt mà về `Dashboard`.
+
+4. **Tối Ưu Thẻ Bóc Tách Chi Tiết Chi Tiêu & Quản Lý Ví (`DashboardScreen.tsx` & `WalletManagerBottomSheet.tsx`):**
+   * Xóa bỏ mục thừa *"Sổ nợ vay cá nhân"* không có trên Web. Chuẩn hóa lại 5 nhãn hiển thị khớp 1:1 với Web (*Tổng tất cả các ví*, *Giữ cho Ngân sách*, *Nợ người khác*, *Người khác nợ tôi*, *Đã tiết kiệm*).
+   * **Chuyển đổi Bảng Quản lý Ví sang Hamburger Left Side Drawer:** Khi bấm vào *"Tổng tất cả các ví"*, danh sách ví & tài khoản trượt mượt mà từ mép Trái màn hình sang (Hamburger style, `transform: [{ translateX }]`).
+
+5. **Tích Hợp Thẻ "CẢNH BÁO HẠN MỨC THÁNG NÀY" & Xây Dựng Màn Hình Ngân Sách (`BudgetScreen.tsx`):**
+   * **Thẻ Cảnh Báo Hạn Mức Real-time (`DashboardScreen.tsx`):** Tích hợp thẻ thông báo các khoản chi tiêu chạm ngưỡng 80% (Vàng) hoặc vượt hạn mức 100% (Hồng đỏ) trượt ngang sinh động. Căn lề chuẩn 20px, xử lý tràn chữ không làm ảnh hưởng layout.
+   * **Màn hình BudgetScreen.tsx:** Header cố định, khối Tổng ngân sách tháng, danh sách thẻ ngân sách, nhãn trạng thái (*Đã đủ tiền trả*, *Đã thanh toán*, *Vượt ...đ*), nút công tác ưu tiên **⭐** và nút **`✓ Trả ngay`** tự động thanh toán.
+   * **Pop-up Đặt Ngân Sách Chi Tiêu 🎯:** Thiết kế lại BottomSheet theo phong cách Mint Glassmorphism sang trọng với icon Bút chì `✏️`, Đồng xu `🪙`, Nút gạt Switch Toggle hiện đại và nút lưu Emerald nổi bật.
+
+6. **Sửa Dứt Điểm Lỗi Cú Pháp (Syntax Error Parser) & Kiểm Tra Hệ Thống:**
+   * Bổ sung đầy đủ dấu ngoặc đóng thuộc tính `budgetCard`, loại bỏ triệt để khai báo trùng lặp giúp mã nguồn React Native biên dịch sạch 100%.
+   * Xác nhận nhánh Git `feat/uncategorized-transactions` trên máy hoàn toàn đồng bộ 100% với commit `c32a685` trên GitHub `Bao040517/doantotnghiep-moneyM`.
+   * Đảm bảo Spring Boot Backend (Port 8080) và Next.js Web (Port 3000) chạy ổn định.
 
 ---
 

@@ -8,6 +8,7 @@ import com.example.sharemoney.dto.response.DebtSummaryResponse.SettlementTransac
 import com.example.sharemoney.dto.response.UserDebtSummaryResponse;
 import com.example.sharemoney.dto.response.UserSummaryResponse;
 import com.example.sharemoney.entity.ExpenseSplit;
+import com.example.sharemoney.entity.Group;
 import com.example.sharemoney.entity.User;
 import com.example.sharemoney.exception.AppException;
 import com.example.sharemoney.exception.ErrorCode;
@@ -44,11 +45,14 @@ public class DebtService {
     // ─────────────────────────────────────────────────────────────
     @Transactional(readOnly = true)
     public DebtSummaryResponse calculateGroupDebts(UUID groupId, UUID userId) {
-        groupRepository
+        Group group = groupRepository
                 .findById(groupId)
                 .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
 
-        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId)) {
+        boolean isOwner = group.getOwner() != null && group.getOwner().getId().equals(userId);
+        boolean isMember = groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId);
+
+        if (!isOwner && !isMember) {
             throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
         }
 

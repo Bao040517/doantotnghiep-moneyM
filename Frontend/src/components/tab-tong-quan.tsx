@@ -712,8 +712,8 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
 
             <div className="flex justify-between items-end mb-3 relative z-10">
               <div>
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">
-                  Đã chi tiêu
+                <p className="text-emerald-600 text-xs font-black uppercase tracking-wider mb-1">
+                  ĐÃ CHI TIÊU 🎯
                 </p>
                 <p className="text-2xl font-black text-gray-800 tracking-tight">
                   {showBalance ? fmt(totalBudgetSpent) : "••••••"}{" "}
@@ -721,9 +721,6 @@ export function DashboardTab({ onNavigate, refreshTrigger }: DashboardTabProps) 
                     / {showBalance ? fmt(totalBudgetLimit) : "••••••"}
                   </span>
                 </p>
-              </div>
-              <div className="bg-[#e8f5f1] text-[#6366f1] px-4 py-1.5 rounded-full text-xs font-bold shrink-0">
-                Quản lý Ngân sách
               </div>
             </div>
 

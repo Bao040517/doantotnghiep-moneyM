@@ -10,7 +10,7 @@ export const groupService = {
     api.get<{ content: GroupExpense[] }>(`/groups/${groupId}/expenses?page=${page}&size=${size}`).then((res) => res.data),
   exportExpenses: (groupId: string) =>
     api.get<any>(`/groups/${groupId}/expenses/export`, { responseType: "blob" }).then((res) => res.data),
-  createGroupExpense: (groupId: string, payload: { title: string; amount: number; category?: string; payerId?: string; splitMemberIds?: string[] }) =>
+  createGroupExpense: (groupId: string, payload: { title: string; amount: number; category?: string; paidBy?: string; splitUserIds?: string[] }) =>
     api.post<GroupExpense>(`/groups/${groupId}/expenses`, payload).then((res) => res.data),
   getExpenseDetail: (groupId: string, expenseId: string) =>
     api.get<any>(`/groups/${groupId}/expenses/${expenseId}`).then((res) => res.data),

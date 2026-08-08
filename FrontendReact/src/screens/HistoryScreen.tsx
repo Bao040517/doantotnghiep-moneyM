@@ -81,9 +81,10 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
     .filter((t) => t.type === "INCOME")
     .reduce((sum, t) => sum + t.amount, 0) || (summary?.currentMonth?.totalIncome ?? summary?.totalIncome ?? 0);
 
-  const filtered = transactions.filter(
-    (t) => matchVietnamese(t.categoryName, search) || matchVietnamese(t.note, search)
-  );
+  const filtered = transactions.filter((t: any) => {
+    const catName = t.categoryName || t.category?.name || "";
+    return matchVietnamese(catName, search) || matchVietnamese(t.note, search);
+  });
 
   const fmt = (n: number) => {
     const safe = Math.round(Math.abs(Number(n) || 0));
@@ -233,19 +234,19 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
                     ]}
                   >
                     <Text style={{ fontSize: 18 }}>
-                      {item.categoryIcon || (item.type === "INCOME" ? "💵" : "🛍️")}
+                      {item.categoryIcon || (item as any).category?.iconName || (item.type === "INCOME" ? "💵" : "🛍️")}
                     </Text>
                   </View>
 
                   {/* Transaction Info */}
                   <View style={styles.txMainInfo}>
                     <Text style={styles.txNameText} numberOfLines={1}>
-                      {item.note || item.categoryName || "Giao dịch"}
+                      {item.note || item.categoryName || (item as any).category?.name || "Giao dịch"}
                     </Text>
                     <Text style={styles.txDateText}>{formatDateStr(item.transactionDate)}</Text>
-                    {item.categoryName && (
+                    {(item.categoryName || (item as any).category?.name) && (
                       <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryBadgeText}>🧾 {item.categoryName}</Text>
+                        <Text style={styles.categoryBadgeText}>🧾 {item.categoryName || (item as any).category?.name}</Text>
                       </View>
                     )}
                   </View>

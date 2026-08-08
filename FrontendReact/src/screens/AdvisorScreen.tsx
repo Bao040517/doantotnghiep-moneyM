@@ -14,6 +14,8 @@ import { useNavigation } from "@react-navigation/native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
+import { financialServices } from "../services/financialServices";
+import { Toast } from "../components/ui/Toast";
 import { NotificationBottomSheet } from "../components/modals/NotificationBottomSheet";
 
 interface AdviceData {
@@ -28,9 +30,11 @@ interface AdviceData {
     recommendations: string[];
   };
   budgetPlan?: Array<{
+    categoryId?: string;
     categoryName: string;
     categoryIcon: string;
     suggestedAmount: number;
+    currentBudget?: number | null;
     avgSpent3Months: number;
     reasoning: string;
   }>;
@@ -47,29 +51,143 @@ interface AdviceData {
 export const AdvisorScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+
+  const changeMonth = (offset: number) => {
+    let m = selectedMonth + offset;
+    let y = selectedYear;
+    if (m > 12) {
+      m = 1;
+      y++;
+    } else if (m < 1) {
+      m = 12;
+      y--;
+    }
+    setSelectedMonth(m);
+    setSelectedYear(y);
+  };
+
   const [data, setData] = useState<AdviceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"habits" | "plan" | "alerts">("habits");
+  const [activeSection, setActiveSection] = useState<"habits" | "plan" | "alerts">("plan");
   const [notifVisible, setNotifVisible] = useState(false);
+  const [applyingCategory, setApplyingCategory] = useState<string | null>(null);
+
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+  const [toastType, setToastType] = useState<"success" | "error" | "info">("info");
+
+  const showToast = (msg: string, type: "success" | "error" | "info" = "info") => {
+    setToastMsg(msg);
+    setToastType(type);
+    setToastVisible(true);
+  };
 
   const fmt = (n?: number) => new Intl.NumberFormat("vi-VN").format(Math.round(Number(n) || 0)) + "đ";
   const userName = user?.name ? user.name.split(" ").pop() : "Bạn";
 
-  useEffect(() => {
-    const fetchAdvisorData = async () => {
-      if (!user?.id) return;
-      setLoading(true);
-      try {
-        const res = await api.get(`/advisor/insights/${user.id}`);
-        setData(res.data);
-      } catch (err) {
-        console.log("Advisor fetch error:", err);
-      } finally {
-        setLoading(false);
+  const getSmartInsight = (item: any) => {
+    const suggested = Number(item.suggestedAmount || 0);
+    const avg = Number(item.avgSpent3Months || 0);
+    const current = item.currentBudget !== null && item.currentBudget !== undefined ? Number(item.currentBudget) : null;
+    const lastBudget = item.lastMonthBudget !== null && item.lastMonthBudget !== undefined ? Number(item.lastMonthBudget) : null;
+
+    // Has previous month budget to compare
+    if (lastBudget !== null) {
+      const diffFromLast = suggested - lastBudget;
+      if (diffFromLast < 0) {
+        return {
+          icon: "📉",
+          title: `Đề xuất giảm ${fmt(Math.abs(diffFromLast))} so với tháng trước`,
+          description: `Tháng trước bạn đặt ${fmt(lastBudget)} nhưng thực chi TB 3 tháng qua là ${fmt(avg)}. Đề xuất tháng này hạ về ${fmt(suggested)} để tiết kiệm ${fmt(Math.abs(diffFromLast))}!`,
+          bgStyle: styles.insightBgGreen,
+          titleColor: "#065f46",
+        };
+      } else if (diffFromLast > 0) {
+        return {
+          icon: "📈",
+          title: `Đề xuất tăng ${fmt(diffFromLast)} so với tháng trước`,
+          description: `Tháng trước bạn đặt ${fmt(lastBudget)} nhưng mức chi trung bình 3 tháng gần nhất là ${fmt(avg)}. Nâng hạn mức lên ${fmt(suggested)} để tránh vỡ kế hoạch chi tiêu.`,
+          bgStyle: styles.insightBgAmber,
+          titleColor: "#92400e",
+        };
+      } else {
+        return {
+          icon: "⚖️",
+          title: `Bám sát ngân sách tháng trước (${fmt(lastBudget)})`,
+          description: `Thói quen chi tiêu 3 tháng gần nhất (TB: ${fmt(avg)}) hoàn toàn trùng khớp với hạn mức tháng trước. Giữ nguyên ${fmt(suggested)} để duy trì ổn định.`,
+          bgStyle: styles.insightBgBlue,
+          titleColor: "#1e40af",
+        };
       }
+    }
+
+    // No previous month budget
+    return {
+      icon: "🎯",
+      title: "Chưa có hạn mức tháng trước",
+      description: `Dựa trên dữ liệu chi tiêu 3 tháng gần nhất (TB ${fmt(avg)}/tháng), hệ thống đề xuất đặt ${fmt(suggested)} để bắt đầu kiểm soát danh mục này.`,
+      bgStyle: styles.insightBgGray,
+      titleColor: "#475569",
     };
+  };
+
+  const fetchAdvisorData = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const res = await api.get(`/advisor/insights/${user.id}`, {
+        params: { year: selectedYear, month: selectedMonth },
+      });
+      setData(res.data);
+    } catch (err) {
+      console.log("Error fetching advisor data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAdvisorData();
-  }, [user?.id]);
+  }, [user?.id, selectedYear, selectedMonth]);
+
+  const handleApplyBudget = async (item: any) => {
+    if (!user?.id) return;
+    setApplyingCategory(item.categoryName);
+    try {
+      let catId = item.categoryId;
+      if (!catId) {
+        const cats = await financialServices.getCategories();
+        const found = cats.find((c) => c.name.toLowerCase() === item.categoryName.toLowerCase());
+        if (found) catId = found.id;
+      }
+
+      if (!catId) {
+        showToast("Không tìm thấy mã danh mục để tạo ngân sách", "error");
+        return;
+      }
+
+      await financialServices.createBudget({
+        categoryId: catId,
+        limitAmount: item.suggestedAmount,
+        month: selectedMonth,
+        year: selectedYear,
+        name: `Ngân sách ${item.categoryName}`,
+        type: "FLEXIBLE",
+        mandatory: false,
+      } as any);
+
+      showToast(`Đã thiết lập ngân sách T${selectedMonth}/${selectedYear} cho ${item.categoryName} (${fmt(item.suggestedAmount)})! 🎉`, "success");
+      fetchAdvisorData();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Không thể thiết lập ngân sách", "error");
+    } finally {
+      setApplyingCategory(null);
+    }
+  };
 
   const habits = data?.habitAnalysis || {
     verdict: "Tài chính của bạn khá cân bằng. Tiết kiệm đang chiếm 20% tổng thu nhập.",
@@ -119,38 +237,31 @@ export const AdvisorScreen: React.FC = () => {
             <TouchableOpacity style={styles.iconCircle} onPress={() => setNotifVisible(true)}>
               <Text style={{ fontSize: 15 }}>🔔</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconCircle} onPress={() => navigation.navigate("Profile")}>
-              <Text style={{ fontSize: 15 }}>⚙️</Text>
-            </TouchableOpacity>
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarText}>{user?.name?.charAt(0) || "U"}</Text>
             </View>
           </View>
         </View>
-
-        <Text style={styles.greetingText}>
-          Chào ngày mới, <Text style={styles.greetingName}>{userName} 👋</Text>
-        </Text>
       </View>
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
         {/* ─── SECTION PILLS ─── */}
         <View style={styles.sectionRow}>
           <TouchableOpacity
-            onPress={() => setActiveSection("habits")}
-            style={[styles.sectionPill, activeSection === "habits" && styles.sectionPillActive]}
+            onPress={() => setActiveSection("plan")}
+            style={[styles.sectionPill, activeSection === "plan" && styles.sectionPillActive]}
           >
-            <Text style={[styles.sectionPillText, activeSection === "habits" && styles.sectionPillTextActive]}>
-              📊 Thói quen
+            <Text style={[styles.sectionPillText, activeSection === "plan" && styles.sectionPillTextActive]}>
+              💡 Gợi ý chi tiêu
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setActiveSection("plan")}
-            style={[styles.sectionPill, activeTabStyle(activeSection === "plan")]}
+            onPress={() => setActiveSection("habits")}
+            style={[styles.sectionPill, activeTabStyle(activeSection === "habits")]}
           >
-            <Text style={[styles.sectionPillText, activeSection === "plan" && styles.sectionPillTextActive]}>
-              📅 Kế hoạch
+            <Text style={[styles.sectionPillText, activeSection === "habits" && styles.sectionPillTextActive]}>
+              📊 Thói quen
             </Text>
           </TouchableOpacity>
 
@@ -241,20 +352,141 @@ export const AdvisorScreen: React.FC = () => {
           </View>
         ) : activeSection === "plan" ? (
           <View style={styles.tabContent}>
-            <Text style={styles.cardHeaderTitle}>📅 Kế hoạch Ngân sách Đề xuất</Text>
-            {plan.map((item, idx) => (
-              <View key={idx} style={styles.planCard}>
-                <View style={styles.planHeader}>
-                  <Text style={{ fontSize: 20 }}>{item.categoryIcon}</Text>
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.planCategory}>{item.categoryName}</Text>
-                    <Text style={styles.planSub}>TB 3 tháng: {fmt(item.avgSpent3Months)}</Text>
-                  </View>
-                  <Text style={styles.planAmount}>{fmt(item.suggestedAmount)}</Text>
-                </View>
-                <Text style={styles.planReason}>{item.reasoning}</Text>
+            {/* Month Selector Pill specifically inside Gợi ý chi tiêu Tab */}
+            <View style={styles.planMonthRow}>
+              <View style={styles.monthSelectorPill}>
+                <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthNavBtn}>
+                  <Text style={styles.monthNavText}>‹</Text>
+                </TouchableOpacity>
+                <Text style={styles.monthText}>
+                  Gợi ý cho Tháng {selectedMonth}/{selectedYear}
+                </Text>
+                <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthNavBtn}>
+                  <Text style={styles.monthNavText}>›</Text>
+                </TouchableOpacity>
               </View>
-            ))}
+            </View>
+
+            {plan.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={{ fontSize: 36, marginBottom: 8 }}>📭</Text>
+                <Text style={styles.emptyTitle}>Chưa đủ dữ liệu gợi ý</Text>
+                <Text style={styles.emptySub}>
+                  Hãy ghi chép thu chi ít nhất 1 tháng để hệ thống gợi ý hạn mức chuẩn xác.
+                </Text>
+              </View>
+            ) : (
+              plan.map((item, idx) => {
+                const hasCurrentBudget = item.currentBudget !== null && item.currentBudget !== undefined;
+                const isMatch = hasCurrentBudget && item.currentBudget! === item.suggestedAmount;
+                const isApplying = applyingCategory === item.categoryName;
+                const insight = getSmartInsight(item);
+
+                return (
+                  <View key={idx} style={styles.planCard}>
+                    {/* Top Row: Icon & Category Name */}
+                    <View style={styles.planHeader}>
+                      <View style={styles.planIconBox}>
+                        <Text style={{ fontSize: 24 }}>{item.categoryIcon || "📋"}</Text>
+                      </View>
+
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.planCategory}>{item.categoryName}</Text>
+                        <Text style={styles.planSub}>
+                          Dựa trên dữ liệu phân tích 3 tháng & tháng trước
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* 3-Pillar Data Comparison Row */}
+                    <View style={styles.metricsCompareRow}>
+                      <View style={styles.metricColumn}>
+                        <Text style={styles.metricColumnLabel}>TB 3 THÁNG</Text>
+                        <Text style={styles.metricColumnValue}>{fmt(item.avgSpent3Months)}</Text>
+                      </View>
+
+                      <View style={styles.metricDivider} />
+
+                      <View style={styles.metricColumn}>
+                        <Text style={styles.metricColumnLabel}>THÁNG TRƯỚC</Text>
+                        <Text
+                          style={[
+                            styles.metricColumnValue,
+                            !item.lastMonthBudget && { color: colors.slate400, fontSize: 13 },
+                          ]}
+                        >
+                          {item.lastMonthBudget ? fmt(item.lastMonthBudget) : "Chưa đặt"}
+                        </Text>
+                      </View>
+
+                      <View style={styles.metricDivider} />
+
+                      <View style={[styles.metricColumn, styles.metricColumnHighlight]}>
+                        <Text style={[styles.metricColumnLabel, { color: colors.emerald700 }]}>
+                          ĐỀ XUẤT THÁNG NÀY
+                        </Text>
+                        <Text style={[styles.metricColumnValue, { color: colors.emerald700, fontWeight: "900" }]}>
+                          {fmt(item.suggestedAmount)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Single Smart AI Insight Box (Combines 3-Month + Last Month comparison) */}
+                    <View style={[styles.smartInsightCard, insight.bgStyle]}>
+                      <View style={styles.smartInsightHeader}>
+                        <Text style={{ fontSize: 16, marginRight: 6 }}>{insight.icon}</Text>
+                        <Text style={[styles.smartInsightTitle, { color: insight.titleColor }]}>
+                          {insight.title}
+                        </Text>
+                      </View>
+                      <Text style={styles.smartInsightDesc}>{insight.description}</Text>
+                    </View>
+
+                    {/* Action Button: Thêm ngân sách / Áp dụng */}
+                    <View style={styles.planActionRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.applyBudgetBtn,
+                          hasCurrentBudget && isMatch && styles.applyBudgetBtnDisabled,
+                        ]}
+                        onPress={() => handleApplyBudget(item)}
+                        disabled={isApplying || (hasCurrentBudget && isMatch)}
+                        activeOpacity={0.85}
+                      >
+                        {isApplying ? (
+                          <ActivityIndicator size="small" color={colors.white} />
+                        ) : hasCurrentBudget && isMatch ? (
+                          <Text style={styles.applyBudgetBtnText}>✓ Đã thiết lập chuẩn</Text>
+                        ) : hasCurrentBudget ? (
+                          <Text style={styles.applyBudgetBtnText}>
+                            ✏️ Cập nhật hạn mức ({fmt(item.suggestedAmount)})
+                          </Text>
+                        ) : (
+                          <Text style={styles.applyBudgetBtnText}>
+                            + Thêm ngân sách ({fmt(item.suggestedAmount)}) 🎯
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+
+            {/* Link to Full Budget Manager Screen */}
+            <TouchableOpacity
+              style={styles.fullBudgetLinkCard}
+              onPress={() => navigation.navigate("Budget")}
+              activeOpacity={0.85}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fullBudgetLinkTitle}>🎯 Xem danh sách Hạn mức đầy đủ</Text>
+                <Text style={styles.fullBudgetLinkSub}>
+                  Kiểm tra tiến độ chi tiêu, phân bổ và ưu tiên thanh toán
+                </Text>
+              </View>
+              <Text style={styles.fullBudgetLinkArrow}>›</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.tabContent}>
@@ -281,6 +513,14 @@ export const AdvisorScreen: React.FC = () => {
       <NotificationBottomSheet
         visible={notifVisible}
         onClose={() => setNotifVisible(false)}
+      />
+
+      {/* Toast Feedback */}
+      <Toast
+        visible={toastVisible}
+        message={toastMsg}
+        type={toastType}
+        onDismiss={() => setToastVisible(false)}
       />
     </View>
   );
@@ -335,6 +575,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  planMonthRow: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  monthSelectorPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
+    gap: 14,
+  },
+  monthNavBtn: {
+    paddingHorizontal: 6,
+  },
+  monthNavText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#047857",
+  },
+  monthText: {
+    fontSize: 13.5,
+    fontWeight: "800",
+    color: "#065f46",
   },
   iconCircle: {
     width: 36,
@@ -506,35 +774,228 @@ const styles = StyleSheet.create({
   },
   planCard: {
     backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  planBannerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#eff6ff",
     borderRadius: 20,
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    marginBottom: 6,
+  },
+  planBannerTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#1e40af",
+    marginBottom: 3,
+  },
+  planBannerSub: {
+    fontSize: 12.5,
+    color: "#3b82f6",
+    lineHeight: 17,
+    fontWeight: "500",
+  },
+  planBannerAddBtn: {
+    backgroundColor: "#2563eb",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 14,
+    shadowColor: "#2563eb",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  planBannerAddBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.white,
   },
   planHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  planIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
   },
   planCategory: {
-    fontSize: 15,
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.slate900,
+    marginBottom: 2,
+  },
+  planSub: {
+    fontSize: 13,
+    color: colors.slate600,
+    fontWeight: "500",
+  },
+  planSuggestedLabel: {
+    fontSize: 11.5,
+    fontWeight: "900",
+    color: colors.emerald600,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  planAmount: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: colors.emerald700,
+  },
+  metricsCompareRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  metricColumn: {
+    flex: 1,
+    alignItems: "center",
+  },
+  metricColumnHighlight: {
+    backgroundColor: "#ecfdf5",
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  metricColumnLabel: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: colors.slate500,
+    marginBottom: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  metricColumnValue: {
+    fontSize: 14,
     fontWeight: "800",
     color: colors.slate900,
   },
-  planSub: {
-    fontSize: 11,
-    color: colors.slate400,
+  metricDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: "#cbd5e1",
+    marginHorizontal: 4,
   },
-  planAmount: {
-    fontSize: 16,
+  insightBgGray: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+  },
+  insightBgBlue: {
+    backgroundColor: "#eff6ff",
+    borderColor: "#bfdbfe",
+  },
+  insightBgAmber: {
+    backgroundColor: "#fffbeb",
+    borderColor: "#fef08a",
+  },
+  insightBgGreen: {
+    backgroundColor: "#f0fdf4",
+    borderColor: "#bbf7d0",
+  },
+  smartInsightCard: {
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  smartInsightHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  smartInsightTitle: {
+    fontSize: 13.5,
+    fontWeight: "800",
+    flex: 1,
+  },
+  smartInsightDesc: {
+    fontSize: 12.5,
+    color: "#334155",
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  planActionRow: {
+    width: "100%",
+  },
+  applyBudgetBtn: {
+    backgroundColor: colors.emerald600,
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.emerald600,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  applyBudgetBtnDisabled: {
+    backgroundColor: "#cbd5e1",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  applyBudgetBtnText: {
+    fontSize: 15,
     fontWeight: "900",
-    color: colors.indigo600,
+    color: colors.white,
   },
-  planReason: {
-    fontSize: 12,
-    color: colors.slate600,
-    backgroundColor: colors.slate50,
-    padding: 10,
-    borderRadius: 12,
+  fullBudgetLinkCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 16,
+    marginTop: 6,
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: colors.emerald200,
+    shadowColor: colors.emerald600,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  fullBudgetLinkTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.emerald900,
+    marginBottom: 2,
+  },
+  fullBudgetLinkSub: {
+    fontSize: 11,
+    color: colors.slate500,
+  },
+  fullBudgetLinkArrow: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: colors.emerald600,
+    marginLeft: 8,
   },
   warningCard: {
     backgroundColor: "#fff1f2",

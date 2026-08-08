@@ -7,7 +7,7 @@ import { BottomTabNavigator } from "./BottomTabNavigator";
 import { useAuth } from "../hooks/useAuth";
 import { colors } from "../constants/colors";
 import { socketService } from "../services/socketService";
-import { Alert } from "react-native";
+import { Alert, DeviceEventEmitter } from "react-native";
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +19,7 @@ export const AppNavigator: React.FC = () => {
       socketService.connect(() => {
         socketService.subscribe(`/user/queue/notifications`, (message) => {
           console.log("[SOCKET NOTIFICATION]", message);
+          DeviceEventEmitter.emit('new_notification');
           Alert.alert("Thông báo mới 🔔", message.message || "Bạn có thông báo mới.");
         });
       });

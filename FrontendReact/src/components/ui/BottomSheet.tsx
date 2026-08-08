@@ -6,24 +6,26 @@ interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
   title?: string;
+  headerRight?: React.ReactNode;
   children: React.ReactNode;
 }
 
-export const BottomSheet: React.FC<BottomSheetProps> = ({ visible, onClose, title, children }) => {
+export const BottomSheet: React.FC<BottomSheetProps> = ({ visible, onClose, title, headerRight, children }) => {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={StyleSheet.absoluteFillObject} />
-        </TouchableWithoutFeedback>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
         <View style={styles.modalCard}>
           {title && (
             <View style={styles.header}>
               <Text style={styles.title}>{title}</Text>
-              <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtnWrapper}>
-                <Text style={styles.closeBtn}>✕</Text>
-              </Pressable>
+              <View style={styles.headerRightContainer}>
+                {headerRight}
+                <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtnWrapper}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </Pressable>
+              </View>
             </View>
           )}
           <View style={{ flexShrink: 1 }}>
@@ -74,6 +76,11 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#0f172a",
     fontFamily: "Roboto",
+  },
+  headerRightContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   closeBtnWrapper: {
     width: 30,

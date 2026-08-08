@@ -13,6 +13,8 @@ import {
   LayoutAnimation,
   UIManager,
   Modal,
+  TextInput,
+  Pressable,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Star, X } from "lucide-react-native";
@@ -21,17 +23,41 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { BottomSheet } from "../components/ui/BottomSheet";
 import { colors } from "../constants/colors";
-import { financialServices } from "../services/financialServices";
+import { useAuth } from "../hooks/useAuth";
+import { financialServices, Category } from "../services/financialServices";
 import { BudgetSummary } from "../types";
 import { api } from "../services/api";
 import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
+import { BudgetTransactionsBottomSheet } from "../components/modals/BudgetTransactionsBottomSheet";
+
+const CATEGORY_ICONS: Record<string, string> = {
+  "Ăn uống": "🍽️",
+  "Chi tiêu hàng ngày": "🧴",
+  "Quần áo": "👕",
+  "Phí giao lưu": "🥂",
+  "Mỹ phẩm": "💄",
+  "Tiền nhà": "🏠",
+  "Tiền điện": "💡",
+  "Đi lại": "🚆",
+  "Phí liên lạc": "📱",
+  "Y tế": "💊",
+  "Giáo dục": "📚",
+  "Mục tiêu tiết kiệm": "🎯",
+  "Trả nợ nhóm": "💸",
+  "Lương": "💰",
+  "Thưởng": "🎁",
+  "Thu nhập khác": "📥",
+};
 
 export const BudgetScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { user } = useAuth();
   const targetBudgetId = route.params?.targetBudgetId;
 
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
+  const [advisorSuggestions, setAdvisorSuggestions] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [focusedBudgetId, setFocusedBudgetId] = useState<string | null>(null);
@@ -65,12 +91,24 @@ export const BudgetScreen: React.FC = () => {
     categoryId?: string;
   } | null>(null);
 
+  // Budget Transactions Breakdown Sheet state
+  const [selectedBudgetForDetail, setSelectedBudgetForDetail] = useState<BudgetSummary | null>(null);
+  const [budgetTxSheetVisible, setBudgetTxSheetVisible] = useState(false);
+
   // Create Budget Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [budgetName, setBudgetName] = useState("");
   const [limitAmount, setLimitAmount] = useState("");
   const [isMandatory, setIsMandatory] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [type, setType] = useState<"FLEXIBLE" | "BILL">("FLEXIBLE");
   const [submitting, setSubmitting] = useState(false);
+
+  // Category states
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
 
   const now = new Date();
   const year = now.getFullYear();
@@ -96,7 +134,30 @@ export const BudgetScreen: React.FC = () => {
 
   useEffect(() => {
     fetchBudgets();
-  }, []);
+    setLoadingCategories(true);
+    financialServices
+      .getCategories()
+      .then((data) => {
+        setCategories(data || []);
+        if (data && data.length > 0) {
+          const expenses = data.filter(c => c.type === "EXPENSE");
+          setSelectedCategoryId(expenses.length > 0 ? expenses[0].id : data[0].id);
+        }
+      })
+      .catch((err) => console.log(err))
+      .finally(() => setLoadingCategories(false));
+
+    if (user?.id) {
+      api
+        .get(`/advisor/insights/${user.id}`)
+        .then((res) => {
+          if (res.data?.budgetPlan) {
+            setAdvisorSuggestions(res.data.budgetPlan);
+          }
+        })
+        .catch((err) => console.log("Advisor insights fetch in budget error:", err));
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (targetBudgetId && budgets.length > 0) {
@@ -227,22 +288,30 @@ export const BudgetScreen: React.FC = () => {
       showToast("Vui lòng nhập số tiền hạn mức hợp lệ", "error");
       return;
     }
+    if (!selectedCategoryId) {
+      showToast("Vui lòng chọn danh mục áp dụng", "error");
+      return;
+    }
 
     setSubmitting(true);
     try {
       await financialServices.createBudget({
-        name: budgetName.trim() || "Ngân sách chi tiêu",
+        categoryId: selectedCategoryId,
+        name: budgetName.trim() || undefined,
         limitAmount: rawNumber,
         year,
         month,
         mandatory: isMandatory,
-        type: "BILL",
-      });
+        type: type,
+        isRecurring: isRecurring,
+      } as any);
 
       showToast("Đã tạo ngân sách chi tiêu mới! 🎉", "success");
       setBudgetName("");
       setLimitAmount("");
       setIsMandatory(false);
+      setIsRecurring(false);
+      setType("FLEXIBLE");
       setModalVisible(false);
       fetchBudgets();
     } catch (err: any) {
@@ -254,16 +323,25 @@ export const BudgetScreen: React.FC = () => {
 
   const fmt = (n?: number) => new Intl.NumberFormat("vi-VN").format(Math.round(Number(n) || 0));
 
-  const sortedBudgets = React.useMemo(() => {
-    return [...budgets].sort((a, b) => {
+  const filteredBudgets = React.useMemo(() => {
+    let list = [...budgets];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (b) =>
+          (b.name && b.name.toLowerCase().includes(q)) ||
+          (b.categoryName && b.categoryName.toLowerCase().includes(q))
+      );
+    }
+    return list.sort((a, b) => {
       const aMandatory = a.isMandatory || (a as any).mandatory ? 1 : 0;
       const bMandatory = b.isMandatory || (b as any).mandatory ? 1 : 0;
       if (aMandatory !== bMandatory) {
-        return bMandatory - aMandatory; // Ưu tiên (1) đứng trên, bỏ ưu tiên (0) xuống dưới
+        return bMandatory - aMandatory;
       }
       return 0;
     });
-  }, [budgets]);
+  }, [budgets, searchQuery]);
 
   const totalLimit = budgets.reduce((sum, b) => sum + (b.limitAmount || 0), 0);
 
@@ -314,26 +392,53 @@ export const BudgetScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* ─── SEARCH INPUT FIELD ─── */}
+        <View style={styles.searchBarContainer}>
+          <View style={styles.searchIconBox}>
+            <Text style={{ fontSize: 16 }}>🔍</Text>
+          </View>
+          <TextInput
+            placeholder="Tìm kiếm ngân sách theo tên, danh mục..."
+            placeholderTextColor={colors.slate400}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={styles.searchInput}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.searchClearBtn}>
+              <Text style={{ fontSize: 13, color: colors.slate500, fontWeight: "800" }}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* ─── BUDGET LIST ─── */}
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color={colors.emerald600} />
             <Text style={styles.loadingText}>Đang tải danh sách ngân sách...</Text>
           </View>
-        ) : sortedBudgets.length === 0 ? (
+        ) : filteredBudgets.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={{ fontSize: 44, marginBottom: 8 }}>🎯</Text>
-            <Text style={styles.emptyTitle}>Chưa có khoản chi nào</Text>
-            <Text style={styles.emptySub}>Đặt giới hạn chi tiêu để kiểm soát tài chính hiệu quả!</Text>
-            <Button
-              title="+ Tạo Ngân Sách Đầu Tiên"
-              variant="primary"
-              onPress={() => setModalVisible(true)}
-              style={{ marginTop: 16 }}
-            />
+            <Text style={{ fontSize: 44, marginBottom: 8 }}>{searchQuery ? "🔍" : "🎯"}</Text>
+            <Text style={styles.emptyTitle}>
+              {searchQuery ? "Không tìm thấy ngân sách" : "Chưa có khoản chi nào"}
+            </Text>
+            <Text style={styles.emptySub}>
+              {searchQuery
+                ? `Không có ngân sách nào khớp với "${searchQuery}".`
+                : "Đặt giới hạn chi tiêu để kiểm soát tài chính hiệu quả!"}
+            </Text>
+            {!searchQuery && (
+              <Button
+                title="+ Tạo Ngân Sách Đầu Tiên"
+                variant="primary"
+                onPress={() => setModalVisible(true)}
+                style={{ marginTop: 16 }}
+              />
+            )}
           </View>
         ) : (
-          sortedBudgets.map((b) => {
+          filteredBudgets.map((b) => {
             const isPaid = b.spentAmount >= b.limitAmount;
             const remaining = Math.max(0, b.limitAmount - b.spentAmount);
             const pct = b.limitAmount > 0 ? Math.min(100, Math.round((b.spentAmount / b.limitAmount) * 100)) : 0;
@@ -355,8 +460,13 @@ export const BudgetScreen: React.FC = () => {
             }
 
             return (
-              <View
-                key={b.budgetId}
+              <TouchableOpacity
+                key={b.budgetId || b.categoryId}
+                activeOpacity={0.88}
+                onPress={() => {
+                  setSelectedBudgetForDetail(b);
+                  setBudgetTxSheetVisible(true);
+                }}
                 onLayout={(e) => {
                   const y = e.nativeEvent.layout.y;
                   itemPositions.current[b.budgetId] = y;
@@ -366,6 +476,7 @@ export const BudgetScreen: React.FC = () => {
                   styles.budgetCard,
                   isMandatoryFlag ? styles.budgetCardMandatory : styles.budgetCardUnstar,
                   isFocused && styles.budgetCardFocused,
+                  pct >= 100 && styles.budgetCardOverBorder,
                 ]}
               >
                 {/* Top Row: Icon, Title, Actions */}
@@ -376,10 +487,7 @@ export const BudgetScreen: React.FC = () => {
 
                   <View style={styles.cardTitleBox}>
                     <Text style={styles.cardTitle} numberOfLines={1}>
-                      {b.name || b.categoryName}
-                    </Text>
-                    <Text style={styles.cardSubText}>
-                      Hạn ngạch: {fmt(b.limitAmount)}đ
+                      {(b.name || b.categoryName || "").replace(/^Ngân sách\s+/i, "")}
                     </Text>
                   </View>
 
@@ -409,6 +517,25 @@ export const BudgetScreen: React.FC = () => {
                     </TouchableOpacity>
                   </View>
                 </View>
+
+                {/* Dedicated Full-Width Smart Advisor Banner */}
+                {(() => {
+                  const matched = advisorSuggestions.find(
+                    (s) =>
+                      (s.categoryId && s.categoryId === b.categoryId) ||
+                      (b.categoryName && s.categoryName && s.categoryName.toLowerCase() === b.categoryName.toLowerCase()) ||
+                      (b.name && s.categoryName && b.name.toLowerCase().includes(s.categoryName.toLowerCase()))
+                  );
+                  if (!matched) return null;
+                  return (
+                    <View style={styles.cardAdvisorBanner}>
+                      <Text style={styles.cardAdvisorBannerText}>
+                        💡 Gợi ý: <Text style={{ fontWeight: "900", color: "#065f46" }}>{fmt(matched.suggestedAmount)}đ</Text>
+                        {matched.lastMonthBudget ? ` • T.trước: ${fmt(matched.lastMonthBudget)}đ` : ""}
+                      </Text>
+                    </View>
+                  );
+                })()}
 
                 {/* Amount Details */}
                 <View style={styles.cardAmountRow}>
@@ -448,7 +575,7 @@ export const BudgetScreen: React.FC = () => {
                     ]}
                   />
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })
         )}
@@ -458,71 +585,300 @@ export const BudgetScreen: React.FC = () => {
       <BottomSheet
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        title="Đặt Ngân Sách Chi Tiêu 🎯"
+        title="Tạo Ngân Sách Mới 🎯"
       >
-        <View style={styles.formBox}>
-          {/* Budget Name Input with Pencil Icon */}
-          <View style={styles.inputCard}>
-            <Text style={styles.inputIcon}>✏️</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.inputCardLabel}>Tên khoản chi (*)</Text>
-              <Input
-                placeholder="VD: Ngân sách Tiền điện, Tiền nhà..."
+        <ScrollView 
+          style={styles.modalScrollForm} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Pressable onPress={() => categoryDropdownOpen && setCategoryDropdownOpen(false)}>
+            {/* Header Badge */}
+            <View style={styles.modalBadgeRow}>
+              <View style={styles.modalBadge}>
+                <Text style={styles.modalBadgeText}>✨ Quản lý hạn mức chi tiêu</Text>
+              </View>
+            </View>
+
+            {/* Field 1: Amount Limit */}
+            <View style={styles.fieldBlock}>
+              <Text style={styles.fieldBlockLabel}>
+                HẠN MỨC SỐ TIỀN <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <View style={styles.fieldCard}>
+                <View style={styles.fieldCardIconBox}>
+                  <Text style={{ fontSize: 20 }}>🪙</Text>
+                </View>
+                <TextInput
+                  placeholder="VD: 5.000.000"
+                  placeholderTextColor={colors.slate400}
+                  keyboardType="numeric"
+                  value={limitAmount}
+                  onFocus={() => setCategoryDropdownOpen(false)}
+                  onChangeText={(text) => {
+                    const raw = text.replace(/\D/g, "");
+                    setLimitAmount(raw ? parseInt(raw, 10).toLocaleString("vi-VN") : "");
+                  }}
+                  style={styles.fieldCardAmountInput}
+                />
+                <View style={styles.currencyTag}>
+                  <Text style={styles.currencyTagText}>VNĐ</Text>
+                </View>
+              </View>
+            </View>
+
+          {/* Field 2: Category Selector Dropdown */}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldBlockLabel}>
+              DANH MỤC ÁP DỤNG <Text style={styles.requiredStar}>*</Text>
+            </Text>
+            
+            {/* Dropdown Trigger */}
+            <TouchableOpacity
+              style={[
+                styles.dropdownTrigger,
+                categoryDropdownOpen && styles.dropdownTriggerActive,
+              ]}
+              onPress={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.dropdownSelectedContent}>
+                {(() => {
+                  const selectedCat = categories.find((c) => c.id === selectedCategoryId);
+                  return (
+                    <>
+                      <Text style={styles.dropdownSelectedIcon}>
+                        {selectedCat ? CATEGORY_ICONS[selectedCat.name] || "📊" : "📋"}
+                      </Text>
+                      <Text style={[
+                        styles.dropdownSelectedText,
+                        !selectedCat && { color: colors.slate400, fontWeight: "500" }
+                      ]}>
+                        {selectedCat ? selectedCat.name : "Chọn danh mục chi tiêu..."}
+                      </Text>
+                    </>
+                  );
+                })()}
+              </View>
+              <Text style={styles.dropdownChevron}>
+                {categoryDropdownOpen ? "▲" : "▼"}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Dropdown List */}
+            {categoryDropdownOpen && (
+              <View style={styles.dropdownListCard}>
+                {loadingCategories ? (
+                  <ActivityIndicator size="small" color={colors.emerald600} style={{ paddingVertical: 14, alignSelf: "center" }} />
+                ) : (
+                  <ScrollView
+                    nestedScrollEnabled={true}
+                    style={{ maxHeight: 180 }}
+                    showsVerticalScrollIndicator={true}
+                  >
+                    {categories
+                      .filter((c) => c.type === "EXPENSE" && c.name !== "Mục tiêu tiết kiệm")
+                      .map((cat) => {
+                        const isSelected = selectedCategoryId === cat.id;
+                        return (
+                          <TouchableOpacity
+                            key={cat.id}
+                            style={[
+                              styles.dropdownItem,
+                              isSelected && styles.dropdownItemActive,
+                            ]}
+                            onPress={() => {
+                              setSelectedCategoryId(cat.id);
+                              setCategoryDropdownOpen(false);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <View style={styles.dropdownItemLeft}>
+                              <View style={[styles.dropdownItemIconBox, isSelected && styles.dropdownItemIconBoxActive]}>
+                                <Text style={{ fontSize: 16 }}>{CATEGORY_ICONS[cat.name] || "📊"}</Text>
+                              </View>
+                              <Text style={[
+                                styles.dropdownItemText,
+                                isSelected && styles.dropdownItemTextActive,
+                              ]}>
+                                {cat.name}
+                              </Text>
+                            </View>
+                            {isSelected && (
+                              <View style={styles.dropdownCheckBadge}>
+                                <Text style={{ fontSize: 12, color: "#059669", fontWeight: "900" }}>✓</Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+
+            {/* Smart Advisor AI Suggestion Box */}
+            {(() => {
+              const selectedCat = categories.find((c) => c.id === selectedCategoryId);
+              const matched = advisorSuggestions.find(
+                (s) =>
+                  (s.categoryId && s.categoryId === selectedCategoryId) ||
+                  (selectedCat && s.categoryName && s.categoryName.toLowerCase() === selectedCat.name.toLowerCase())
+              );
+              if (!matched) return null;
+              return (
+                <View style={styles.modalAdvisorBox}>
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text style={styles.modalAdvisorTitle}>
+                      💡 Gợi ý: {fmt(matched.suggestedAmount)}đ
+                    </Text>
+                    <Text style={styles.modalAdvisorSub}>
+                      {matched.lastMonthBudget
+                        ? `Tháng trước: ${fmt(matched.lastMonthBudget)}đ • TB 3 tháng: ${fmt(matched.avgSpent3Months)}đ`
+                        : `TB 3 tháng: ${fmt(matched.avgSpent3Months)}đ • Chưa đặt tháng trước`}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.modalAdvisorApplyBtn}
+                    onPress={() => {
+                      setLimitAmount(parseInt(String(matched.suggestedAmount), 10).toLocaleString("vi-VN"));
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.modalAdvisorApplyBtnText}>Áp dụng ✨</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
+          </View>
+
+          {/* Field 3: Budget Name (Optional) */}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldBlockLabel}>
+              TÊN GỢI NHỚ <Text style={styles.optionalNote}>(Tùy chọn)</Text>
+            </Text>
+            <View style={styles.fieldCard}>
+              <View style={styles.fieldCardIconBoxGray}>
+                <Text style={{ fontSize: 16 }}>✏️</Text>
+              </View>
+              <TextInput
+                placeholder="VD: Ngân sách Ăn uống T7"
+                placeholderTextColor={colors.slate400}
                 value={budgetName}
+                onFocus={() => setCategoryDropdownOpen(false)}
                 onChangeText={setBudgetName}
-                style={styles.borderlessInput}
+                style={styles.fieldCardTextInput}
               />
             </View>
           </View>
 
-          {/* Amount Input with Coin Icon */}
-          <View style={styles.inputCard}>
-            <Text style={styles.inputIcon}>🪙</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.inputCardLabel}>Số tiền hạn mức (VND) (*)</Text>
-              <Input
-                placeholder="VD: 2.000.000"
-                keyboardType="numeric"
-                value={limitAmount}
-                onChangeText={(text) => {
-                  const raw = text.replace(/\D/g, "");
-                  setLimitAmount(raw ? parseInt(raw, 10).toLocaleString("vi-VN") : "");
+          {/* Field 4: Budget Type (FLEXIBLE vs BILL) */}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldBlockLabel}>PHÂN LOẠI CHI TIÊU</Text>
+            <View style={styles.typeSegmentBox}>
+              <TouchableOpacity
+                style={[styles.typeSegmentItem, type === "FLEXIBLE" && styles.typeSegmentItemActive]}
+                onPress={() => {
+                  setType("FLEXIBLE");
+                  setCategoryDropdownOpen(false);
                 }}
-                style={styles.borderlessInput}
-              />
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.typeSegmentItemText, type === "FLEXIBLE" && styles.typeSegmentItemTextActive]}>
+                  🎯 Linh hoạt
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeSegmentItem, type === "BILL" && styles.typeSegmentItemActive]}
+                onPress={() => {
+                  setType("BILL");
+                  setCategoryDropdownOpen(false);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.typeSegmentItemText, type === "BILL" && styles.typeSegmentItemTextActive]}>
+                  📌 Hóa đơn cố định
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Toggles */}
-          <TouchableOpacity
-            onPress={() => setIsMandatory(!isMandatory)}
-            style={[styles.toggleBox, isMandatory && styles.toggleBoxActive]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>⭐ Ưu tiên thanh toán (Bắt buộc)</Text>
-              <Text style={styles.toggleSub}>Hệ thống sẽ ưu tiên trích tiền từ ví cho khoản này trước.</Text>
+          {/* Field 5: Advanced Options (Toggles) */}
+          <View style={styles.togglesCard}>
+            {/* Priority Toggle */}
+            <View style={styles.toggleRowItem}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <View style={styles.toggleTitleRow}>
+                  <Text style={{ fontSize: 15, marginRight: 6 }}>⭐</Text>
+                  <Text style={styles.toggleRowTitle}>Ưu tiên thanh toán (Bắt buộc)</Text>
+                </View>
+                <Text style={styles.toggleRowSub}>
+                  Hệ thống sẽ ưu tiên trích tiền từ ví cho khoản này trước.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsMandatory(!isMandatory);
+                  setCategoryDropdownOpen(false);
+                }}
+                style={[styles.customSwitchTrack, isMandatory && styles.customSwitchTrackAmber]}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.customSwitchThumb, isMandatory && styles.switchThumbActive]} />
+              </TouchableOpacity>
             </View>
-            <View style={[styles.switchTrack, isMandatory && styles.switchTrackActive]}>
-              <View style={[styles.switchThumb, isMandatory && styles.switchThumbActive]} />
-            </View>
-          </TouchableOpacity>
 
-          <View style={styles.modalBtnRow}>
-            <Button
-              title="Hủy"
-              variant="secondary"
+            <View style={styles.toggleDivider} />
+
+            {/* Recurring Toggle */}
+            <View style={styles.toggleRowItem}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <View style={styles.toggleTitleRow}>
+                  <Text style={{ fontSize: 15, marginRight: 6 }}>🔁</Text>
+                  <Text style={styles.toggleRowTitle}>Tự động lặp lại hàng tháng</Text>
+                </View>
+                <Text style={styles.toggleRowSub}>
+                  Duy trì hạn mức này sang tháng sau mà không cần thiết lập lại.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsRecurring(!isRecurring);
+                  setCategoryDropdownOpen(false);
+                }}
+                style={[styles.customSwitchTrack, isRecurring && styles.customSwitchTrackEmerald]}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.customSwitchThumb, isRecurring && styles.customSwitchThumbActive]} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.modalActionBtnRow}>
+            <TouchableOpacity
+              style={styles.modalActionCancelBtn}
               onPress={() => setModalVisible(false)}
-              style={styles.cancelBtn}
-            />
-            <Button
-              title={submitting ? "Đang lưu..." : "🎯 Lưu Ngân Sách"}
-              variant="primary"
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalActionCancelText}>Hủy</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalActionSubmitBtn}
               onPress={handleCreateBudget}
-              loading={submitting}
-              style={styles.submitBtn}
-            />
+              disabled={submitting}
+              activeOpacity={0.85}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.modalActionSubmitText}>🎯 Lưu Ngân Sách</Text>
+              )}
+            </TouchableOpacity>
           </View>
-        </View>
+          </Pressable>
+        </ScrollView>
       </BottomSheet>
 
       {/* ─── CUSTOM DUAL-THEME CONFIRMATION POPUP MODAL ─── */}
@@ -622,6 +978,15 @@ export const BudgetScreen: React.FC = () => {
           setSandboxDebtInfo(null);
         }}
         onPaymentSuccess={handleSandboxPaymentSuccess}
+      />
+
+      {/* ─── BUDGET TRANSACTIONS INVOICE BREAKDOWN BOTTOM SHEET ─── */}
+      <BudgetTransactionsBottomSheet
+        visible={budgetTxSheetVisible}
+        onClose={() => setBudgetTxSheetVisible(false)}
+        budget={selectedBudgetForDetail}
+        year={year}
+        month={month}
       />
 
       {/* ─── TOAST NOTIFICATION ─── */}
@@ -751,6 +1116,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  /* Search Bar Styles */
+  searchBarContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === "ios" ? 10 : 4,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  searchIconBox: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.slate900,
+    paddingVertical: 6,
+  },
+  searchClearBtn: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: colors.slate100,
+  },
   loadingBox: {
     height: 200,
     alignItems: "center",
@@ -821,6 +1218,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  budgetCardOverBorder: {
+    borderColor: "#FECDD3",
+    borderWidth: 1.5,
+  },
   cardTopRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -880,6 +1281,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+  },
+  cardAdvisorBanner: {
+    backgroundColor: "#f0fdf4",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  cardAdvisorBannerText: {
+    fontSize: 11.5,
+    color: "#166534",
+    fontWeight: "600",
+    lineHeight: 16,
   },
   cardAmountRow: {
     flexDirection: "row",
@@ -1024,17 +1440,382 @@ const styles = StyleSheet.create({
   switchThumbActive: {
     transform: [{ translateX: 20 }],
   },
-  modalBtnRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 10,
+  // ─── REDESIGNED MODAL STYLES ───
+  modalScrollForm: {
+    maxHeight: 520,
   },
-  cancelBtn: {
+  modalBadgeRow: {
+    marginBottom: 14,
+  },
+  modalBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#d1fae5",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  modalBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#065f46",
+  },
+  fieldBlock: {
+    marginBottom: 14,
+  },
+  fieldBlockLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.slate600,
+    marginBottom: 6,
+    letterSpacing: 0.5,
+  },
+  requiredStar: {
+    color: colors.rose500,
+  },
+  optionalNote: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: colors.slate400,
+  },
+  fieldCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  fieldCardIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "#ecfdf5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  fieldCardIconBoxGray: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.slate100,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  fieldCardAmountInput: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.slate900,
+    padding: 0,
+  },
+  fieldCardTextInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.slate900,
+    padding: 0,
+  },
+  currencyTag: {
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  currencyTagText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#059669",
+  },
+  // ─── DROPDOWN SELECTOR STYLES ───
+  dropdownTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  dropdownTriggerActive: {
+    borderColor: colors.emerald600,
+    backgroundColor: "#f0fdf4",
+  },
+  dropdownSelectedContent: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
-  submitBtn: {
-    flex: 1.5,
-    backgroundColor: "#10b981",
+  dropdownSelectedIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  dropdownSelectedText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.slate900,
+  },
+  dropdownChevron: {
+    fontSize: 12,
+    color: colors.slate500,
+    marginLeft: 8,
+    fontWeight: "800",
+  },
+  dropdownListCard: {
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    marginTop: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  dropdownItemActive: {
+    backgroundColor: "#ecfdf5",
+  },
+  dropdownItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  dropdownItemIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors.slate100,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  cardAdvisorChip: {
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 4,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
+  },
+  cardAdvisorChipText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    color: "#047857",
+  },
+  modalAdvisorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#eff6ff",
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  modalAdvisorTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#1e40af",
+    marginBottom: 2,
+  },
+  modalAdvisorSub: {
+    fontSize: 11,
+    color: "#3b82f6",
+    fontWeight: "500",
+  },
+  modalAdvisorApplyBtn: {
+    backgroundColor: "#2563eb",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  modalAdvisorApplyBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.slate700,
+  },
+  dropdownItemTextActive: {
+    color: "#065f46",
+    fontWeight: "900",
+  },
+  dropdownCheckBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#d1fae5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  typeSegmentBox: {
+    flexDirection: "row",
+    backgroundColor: colors.slate100,
+    borderRadius: 16,
+    padding: 4,
+    gap: 4,
+  },
+  typeSegmentItem: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  typeSegmentItemActive: {
+    backgroundColor: colors.white,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  typeSegmentItemText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.slate500,
+  },
+  typeSegmentItemTextActive: {
+    color: "#047857",
+    fontWeight: "800",
+  },
+  togglesCard: {
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    padding: 14,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  toggleRowItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  toggleTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  toggleRowTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.slate800,
+  },
+  toggleRowSub: {
+    fontSize: 11,
+    color: colors.slate500,
+    lineHeight: 15,
+  },
+  toggleDivider: {
+    height: 1,
+    backgroundColor: "#f1f5f9",
+    marginVertical: 12,
+  },
+  customSwitchTrack: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.slate200,
+    padding: 2,
+    justifyContent: "center",
+  },
+  customSwitchTrackAmber: {
+    backgroundColor: "#f59e0b",
+  },
+  customSwitchTrackEmerald: {
+    backgroundColor: colors.emerald600,
+  },
+  customSwitchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  customSwitchThumbActive: {
+    transform: [{ translateX: 20 }],
+  },
+  modalActionBtnRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  modalActionCancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: colors.slate100,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.slate200,
+  },
+  modalActionCancelText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.slate600,
+  },
+  modalActionSubmitBtn: {
+    flex: 1.8,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: colors.emerald600,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.emerald600,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modalActionSubmitText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.white,
   },
   modalOverlay: {
     flex: 1,

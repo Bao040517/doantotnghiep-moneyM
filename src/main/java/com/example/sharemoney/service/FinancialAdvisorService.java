@@ -136,9 +136,14 @@ public class FinancialAdvisorService {
             evalDayOfMonth = 1;
         }
 
+        YearMonth lastYM = targetYM.minusMonths(1);
+        List<BudgetSummaryResponse> lastMonthBudgets =
+                budgetService.getBudgetSummary(userId, lastYM.getYear(), lastYM.getMonthValue());
+        if (lastMonthBudgets == null) lastMonthBudgets = Collections.emptyList();
+
         return FinancialAdviceResponse.builder()
                 .budgetPlan(
-                        generateBudgetPlan(categoryHistory, currentBudgets, currentMonthSpending))
+                        generateBudgetPlan(categoryHistory, currentBudgets, lastMonthBudgets, currentMonthSpending))
                 .warnings(
                         generateWarnings(
                                 categoryHistory,
@@ -156,12 +161,13 @@ public class FinancialAdvisorService {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // FEATURE 1: One-Click Budget (Thuật toán Moving Average)
+    // FEATURE 1: One-Click Budget (Thuật toán Moving Average & So sánh tháng trước)
     // ═══════════════════════════════════════════════════════════════
 
     private List<BudgetSuggestion> generateBudgetPlan(
             Map<String, List<BigDecimal>> categoryHistory,
             List<BudgetSummaryResponse> currentBudgets,
+            List<BudgetSummaryResponse> lastMonthBudgets,
             Map<String, BigDecimal> currentMonthSpending) {
 
         List<BudgetSuggestion> suggestions = new ArrayList<>();
@@ -172,6 +178,16 @@ public class FinancialAdvisorService {
             for (BudgetSummaryResponse b : currentBudgets) {
                 if (b != null && b.getCategoryName() != null) {
                     budgetMap.putIfAbsent(b.getCategoryName(), b);
+                }
+            }
+        }
+
+        // Map budget tháng trước theo categoryName
+        Map<String, BudgetSummaryResponse> lastBudgetMap = new HashMap<>();
+        if (lastMonthBudgets != null) {
+            for (BudgetSummaryResponse b : lastMonthBudgets) {
+                if (b != null && b.getCategoryName() != null) {
+                    lastBudgetMap.putIfAbsent(b.getCategoryName(), b);
                 }
             }
         }
@@ -201,6 +217,10 @@ public class FinancialAdvisorService {
             BigDecimal currentBudgetAmt =
                     existingBudget != null ? existingBudget.getLimitAmount() : null;
 
+            BudgetSummaryResponse lastBudget = lastBudgetMap.get(catName);
+            BigDecimal lastMonthBudgetAmt = lastBudget != null ? lastBudget.getLimitAmount() : null;
+            BigDecimal lastMonthSpentAmt = lastBudget != null ? lastBudget.getSpentAmount() : null;
+
             String reasoning;
             if (currentBudgetAmt == null) {
                 reasoning =
@@ -225,13 +245,15 @@ public class FinancialAdvisorService {
                             .categoryIcon(
                                     existingBudget != null
                                             ? existingBudget.getCategoryIcon()
-                                            : null)
+                                            : (lastBudget != null ? lastBudget.getCategoryIcon() : null))
                             .categoryId(
                                     existingBudget != null && existingBudget.getCategoryId() != null
                                             ? existingBudget.getCategoryId().toString()
-                                            : null)
+                                            : (lastBudget != null && lastBudget.getCategoryId() != null ? lastBudget.getCategoryId().toString() : null))
                             .suggestedAmount(suggested)
                             .currentBudget(currentBudgetAmt)
+                            .lastMonthBudget(lastMonthBudgetAmt)
+                            .lastMonthSpent(lastMonthSpentAmt)
                             .avgSpent3Months(cleanAvg)
                             .reasoning(reasoning)
                             .build());

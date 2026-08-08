@@ -15,6 +15,7 @@ import { WalletManagerBottomSheet } from "../components/modals/WalletManagerBott
 import { AddTransactionModal } from "../components/modals/AddTransactionModal";
 import { TransferBottomSheet } from "../components/modals/TransferBottomSheet";
 import { ExternalLoanManagerBottomSheet } from "../components/modals/ExternalLoanManagerBottomSheet";
+import { NotificationsBottomSheet } from "../components/modals/NotificationsBottomSheet";
 import { FinancialHealthCard } from "../components/features/FinancialHealthCard";
 import { colors } from "../constants/colors";
 import { useAppData } from "../hooks/useAppData";
@@ -47,6 +48,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const [transferVisible, setTransferVisible] = useState(false);
   const [defaultTxType, setDefaultTxType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
   const [loanSheetVisible, setLoanSheetVisible] = useState(false);
+  const [notifSheetVisible, setNotifSheetVisible] = useState(false);
 
   const handleAddWallet = async (payload: WalletPayload) => {
     await financialServices.createWallet(payload);
@@ -102,9 +104,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               </View>
             </View>
 
-            <TouchableOpacity onPress={() => setShowBalance(!showBalance)} style={styles.eyeBtn}>
-              <Text style={{ fontSize: 18 }}>{showBalance ? "👁️" : "🙈"}</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <TouchableOpacity onPress={() => setNotifSheetVisible(true)} style={styles.eyeBtn}>
+                <Text style={{ fontSize: 18 }}>🔔</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowBalance(!showBalance)} style={styles.eyeBtn}>
+                <Text style={{ fontSize: 18 }}>{showBalance ? "👁️" : "🙈"}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Main Available Balance Display */}
@@ -164,68 +171,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           </View>
         </View>
 
-        {/* ─── WHITE SUMMARY BREAKDOWN CARD (Overlaid) ─── */}
-        <Card style={styles.breakdownCard}>
-          <TouchableOpacity style={styles.breakdownRow} onPress={() => setWalletSheetVisible(true)}>
-            <View style={styles.breakdownLeft}>
-              <View style={[styles.miniIconBg, { backgroundColor: "#E0F2FE" }]}>
-                <Text style={{ fontSize: 12 }}>💳</Text>
-              </View>
-              <Text style={styles.breakdownLabelBold}>Tổng tất cả các ví</Text>
-            </View>
-            <Text style={styles.breakdownValBold}>{showBalance ? fmt(totalWalletBalance) : "••••••••"}</Text>
-          </TouchableOpacity>
 
-          <View style={styles.breakdownDivider} />
-
-          <View style={styles.breakdownRow}>
-            <View style={styles.breakdownLeft}>
-              <View style={[styles.miniIconBg, { backgroundColor: "#FEF3C7" }]}>
-                <Text style={{ fontSize: 12 }}>🔒</Text>
-              </View>
-              <Text style={styles.breakdownLabel}>Giữ cho Ngân sách</Text>
-            </View>
-            <Text style={[styles.breakdownVal, { color: colors.amber600 }]}>
-              {showBalance ? fmt(unpaidBudgetsAmount) : "••••••••"}
-            </Text>
-          </View>
-
-          <TouchableOpacity style={styles.breakdownRow} onPress={() => onNavigate?.("groups")}>
-            <View style={styles.breakdownLeft}>
-              <View style={[styles.miniIconBg, { backgroundColor: "#FFE4E6" }]}>
-                <Text style={{ fontSize: 12 }}>💸</Text>
-              </View>
-              <Text style={styles.breakdownLabel}>Nợ người khác</Text>
-            </View>
-            <Text style={[styles.breakdownVal, { color: colors.rose600 }]}>
-              {showBalance ? fmt(debtSummary.totalOwing) : "••••••••"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.breakdownRow} onPress={() => onNavigate?.("groups")}>
-            <View style={styles.breakdownLeft}>
-              <View style={[styles.miniIconBg, { backgroundColor: "#EFF6FF" }]}>
-                <Text style={{ fontSize: 12 }}>🤝</Text>
-              </View>
-              <Text style={styles.breakdownLabel}>Người khác nợ tôi</Text>
-            </View>
-            <Text style={[styles.breakdownVal, { color: colors.indigo600 }]}>
-              {showBalance ? fmt(debtSummary.totalOwed) : "••••••••"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.breakdownRow} onPress={() => onNavigate?.("savings")}>
-            <View style={styles.breakdownLeft}>
-              <View style={[styles.miniIconBg, { backgroundColor: "#D1FAE5" }]}>
-                <Text style={{ fontSize: 12 }}>💰</Text>
-              </View>
-              <Text style={styles.breakdownLabel}>Đã tiết kiệm</Text>
-            </View>
-            <Text style={[styles.breakdownVal, { color: colors.emerald600 }]}>
-              {showBalance ? fmt(totalSavings) : "••••••••"}
-            </Text>
-          </TouchableOpacity>
-        </Card>
 
         {/* ─── AT-RISK BUDGET WARNING / ALL GOOD CARD ─── */}
         {totalWarningCount > 0 ? (
@@ -250,7 +196,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.warningPillsScroll}>
               {/* Over Limit Budgets (Red) */}
               {overLimitBudgets.map((b, idx) => {
-                const catName = b.name || b.categoryName || "Khoản chi";
+                const catName = (b.name || b.categoryName || "Khoản chi").replace(/^Ngân sách\s+/i, "");
                 const pct = Math.round(((b.spentAmount || 0) / b.limitAmount) * 100);
                 const overAmt = (b.spentAmount || 0) - b.limitAmount;
 
@@ -281,7 +227,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
               {/* Approaching Limit Budgets (Amber) */}
               {approachingBudgets.map((b, idx) => {
-                const catName = b.name || b.categoryName || "Khoản chi";
+                const catName = (b.name || b.categoryName || "Khoản chi").replace(/^Ngân sách\s+/i, "");
                 const pct = Math.round(((b.spentAmount || 0) / b.limitAmount) * 100);
                 const remainAmt = b.limitAmount - (b.spentAmount || 0);
 
@@ -491,6 +437,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
       <ExternalLoanManagerBottomSheet
         visible={loanSheetVisible}
         onClose={() => setLoanSheetVisible(false)}
+      />
+
+      {/* Notifications Bottom Sheet */}
+      <NotificationsBottomSheet
+        visible={notifSheetVisible}
+        onClose={() => setNotifSheetVisible(false)}
+        onReadAction={() => {}} // Could refresh unread count if needed
       />
     </View>
   );

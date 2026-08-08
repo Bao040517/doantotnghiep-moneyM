@@ -116,9 +116,29 @@ export const ExternalLoanManagerBottomSheet: React.FC<ExternalLoanManagerBottomS
                       {item.type === "BORROW" ? "🔴 Bạn nợ người này" : "🟢 Người này nợ bạn"}
                     </Text>
                   </View>
-                  <Text style={[styles.loanAmount, { color: item.type === "BORROW" ? colors.rose600 : colors.emerald600 }]}>
-                    {(item.amount ?? 0).toLocaleString("vi-VN")} ₫
-                  </Text>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={[styles.loanAmount, { color: item.type === "BORROW" ? colors.rose600 : colors.emerald600 }]}>
+                      {(item.amount ?? 0).toLocaleString("vi-VN")} ₫
+                    </Text>
+                    <Button 
+                      title="Xóa" 
+                      variant="danger" 
+                      style={{ paddingVertical: 4, paddingHorizontal: 12, marginTop: 4 }} 
+                      onPress={() => {
+                        Alert.alert("Xác nhận", "Bạn có chắc muốn xoá khoản nợ này?", [
+                          { text: "Hủy", style: "cancel" },
+                          { text: "Xóa", style: "destructive", onPress: async () => {
+                            try {
+                              await loanService.deleteLoan(item.id);
+                              fetchLoans();
+                            } catch (e: any) {
+                              Alert.alert("Lỗi", "Không thể xoá khoản nợ");
+                            }
+                          }}
+                        ]);
+                      }}
+                    />
+                  </View>
                 </View>
               )}
               style={styles.list}

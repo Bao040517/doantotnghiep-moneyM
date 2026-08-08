@@ -70,8 +70,31 @@ Bộ dữ liệu **Seed V3 (`seed_v3.sql`)** tuân thủ nghiêm ngặt quy tắ
 
 ---
 
-## 5. Tóm tắt các Script đang sử dụng
+---
+
+## 5. Đặc tả Bộ dữ liệu mẫu V7 (Seed V7 Data Specs)
+
+Bộ dữ liệu **Seed V7 (`seed_v7.sql` & `generate_seed_v7.js`)** nâng cấp toàn diện và hoàn thiện 100% dữ liệu cho mọi Entity:
+*   **Loại bỏ chữ "Ngân sách " lặp lại:** Tên ngân sách được đặt tự nhiên, sạch sẽ (VD: `Tiền nhà T8/2026`, `Tiền điện T8/2026`, `Ăn uống T8/2026`, `Phí liên lạc T8/2026`).
+*   **Đầy đủ các trường Entity:**
+    *   `budgets`: Đầy đủ `due_day_of_month`, `payee_bank_bin`, `payee_bank_account`, `payee_account_name`.
+    *   `external_loans`: Đầy đủ `counterparty_phone`, `interest_rate`, `start_date`, `due_date`.
+    *   `savings_goals`: Đầy đủ mục tiêu và tiến độ tiết kiệm chuẩn xác.
+*   **Hệ thống thông báo Realtime đa dạng (`notifications`):**
+    *   `BUDGET_WARNING`: Cảnh báo sắp chạm 85% hạn mức ngân sách.
+    *   `BUDGET_OVER`: Cảnh báo vượt 122% hạn mức Tiền nhà.
+    *   `Z_SCORE_ANOMALY`: Cảnh báo phát hiện chi tiêu tăng đột biến bất thường.
+    *   `DEBT_REMINDER`: Nhắc nợ nhóm từ AI / bạn bè.
+    *   `DEBT_PAYMENT_NOTIFIED`: Báo đã thanh toán tiền mặt chờ duyệt.
+    *   `DEBT_SETTLED`: Xác nhận thu hồi nợ thành công qua VietQR.
+    *   `EXPENSE_CREATED`: Thông báo hóa đơn nhóm mới.
+    *   `SAVINGS_MILESTONE`: Chúc mừng cột mốc tiết kiệm.
+    *   `SALARY_RECEIVED`: Thông báo cộng lương hàng tháng.
+
+---
+
+## 6. Tóm tắt các Script đang sử dụng
 *   `check_entities.js`: Tool nội bộ dùng để quét file `.java` và validate cấu trúc cột `NOT NULL`.
-*   `generate_seed_v3.js`: Kịch bản chính, loop 7 tháng (T1-T7/2026), sinh mảng dữ liệu, ráp lệnh SQL và ghi ra file `seed_v3.sql`.
-*   `seed_v3.sql`: File thành phẩm mới nhất sẵn sàng copy paste vào pgAdmin.
+*   `generate_seed_v7.js`: Kịch bản thế hệ mới nhất V7, loop dữ liệu, sinh mảng thực thể hoàn chỉnh và xuất ra `seed_v7.sql`.
+*   `seed_v7.sql`: File SQL thành phẩm V7 hoàn thiện 1.5MB sẵn sàng thực thi trên pgAdmin / DataGrip.
 

@@ -49,11 +49,17 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputWrapper, error ? styles.errorBorder : null]}>
+      <View
+        style={[
+          styles.inputWrapper,
+          rest.multiline && styles.multilineWrapper,
+          error ? styles.errorBorder : null,
+        ]}
+      >
         {icon && <View style={styles.iconWrapper}>{icon}</View>}
         <TextInput
           ref={inputRef}
-          style={[styles.input, style]}
+          style={[styles.input, rest.multiline && styles.multilineInput, style]}
           placeholderTextColor={colors.slate400}
           autoCorrect={autoCorrect}
           autoCapitalize={autoCapitalize}
@@ -86,7 +92,15 @@ const styles = StyleSheet.create({
     borderColor: colors.slate200,
     borderRadius: 16,
     paddingHorizontal: 16,
-    height: 52,
+    minHeight: 52,
+  },
+  multilineWrapper: {
+    alignItems: "flex-start",
+    paddingVertical: 12,
+    minHeight: 96,
+  },
+  multilineInput: {
+    textAlignVertical: "top",
   },
   errorBorder: {
     borderColor: colors.rose500,

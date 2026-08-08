@@ -17,6 +17,7 @@ import { Card } from "../components/ui/Card";
 import { BottomSheet } from "../components/ui/BottomSheet";
 import { TotalExpenseDetailBottomSheet } from "../components/modals/TotalExpenseDetailBottomSheet";
 import { colors } from "../constants/colors";
+import { useNavigation } from "@react-navigation/native";
 import { financialServices } from "../services/financialServices";
 import { groupService } from "../services/groupService";
 import { CategoryBreakdown, MonthlySummary, BudgetSummary, Transaction } from "../types";
@@ -47,6 +48,7 @@ function categorizeExpenseGroup(categoryName: string): "NEEDS" | "WANTS" | "SAVI
 }
 
 export const ReportScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -285,9 +287,22 @@ export const ReportScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={[colors.indigo600]} />}
       >
-        {/* ─── MONTH PICKER CARD ─── */}
+        {/* ─── MONTH PICKER CARD WITH BACK BUTTON ─── */}
         <Card style={styles.headerCard}>
-          <Text style={styles.pageTitle}>Báo cáo tài chính</Text>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => navigation.navigate("Dashboard")}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.backArrow}>‹</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.pageTitle}>Báo cáo tài chính</Text>
+
+            <View style={{ width: 36 }} />
+          </View>
+
           <View style={styles.monthSelectorPill}>
             <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthNavBtn}>
               <Text style={styles.monthNavText}>‹</Text>
@@ -975,11 +990,45 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     marginBottom: 16,
   },
+  headerTopRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.slate100,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  backArrow: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: colors.slate800,
+    marginTop: -2,
+  },
+  settingsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.slate100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   pageTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "900",
     color: colors.slate900,
-    marginBottom: 12,
+    textAlign: "center",
   },
   monthSelectorPill: {
     flexDirection: "row",

@@ -6,6 +6,7 @@ import { Button } from "../ui/Button";
 import { TransactionPayload, Wallet } from "../../types";
 import { financialServices, Category } from "../../services/financialServices";
 import { colors } from "../../constants/colors";
+import { ScanReceiptModal } from "./ScanReceiptModal";
 
 interface AddTransactionModalProps {
   visible: boolean;
@@ -30,8 +31,12 @@ const CATEGORY_ICONS: Record<string, string> = {
   "Mục tiêu tiết kiệm": "🎯",
   "Trả nợ nhóm": "💸",
   "Lương": "💰",
+  "Tiền lương": "💰",
   "Thưởng": "🎁",
+  "Tiền thưởng": "🎁",
+  "Hoàn tiền": "🔄",
   "Thu nhập khác": "📥",
+  "Nạp tiền ví": "💳",
 };
 
 export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
@@ -46,6 +51,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   const [selectedWalletId, setSelectedWalletId] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const [scanModalVisible, setScanModalVisible] = useState(false);
+
+  // Dropdown states
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [walletDropdownOpen, setWalletDropdownOpen] = useState(false);
 
   // Category state
   const [categories, setCategories] = useState<Category[]>([]);
@@ -79,10 +89,12 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     }
   }, [visible]);
 
-  // Reset type when defaultType changes
+  // Reset type and dropdown when defaultType changes
   useEffect(() => {
     setType(defaultType);
-  }, [defaultType]);
+    setCategoryDropdownOpen(false);
+    setWalletDropdownOpen(false);
+  }, [defaultType, visible]);
 
   // Auto-select first category when type changes
   useEffect(() => {
@@ -128,93 +140,178 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   };
 
   const filteredCategories = categories.filter((c) => c.type === type);
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId) || filteredCategories[0];
+  const selectedWallet = wallets.find((w) => w.id === selectedWalletId) || wallets[0];
 
   return (
     <BottomSheet
       visible={visible}
       onClose={onClose}
-      title={type === "EXPENSE" ? "Thêm Giao Dịch Chi Tiêu" : "Thêm Giao Dịch Thu Nhập"}
+      title={type === "EXPENSE" ? "Thêm Giao Dịch Chi Tiêu 💸" : "Nạp Tiền / Thu Nhập Vào Ví 💳"}
     >
+      <ScanReceiptModal 
+        visible={scanModalVisible} 
+        onClose={() => setScanModalVisible(false)} 
+        onScanSuccess={(data: any) => {
+          if (data && data.totalAmount) {
+            setAmount(data.totalAmount.toLocaleString("vi-VN"));
+          }
+          if (data && data.merchantName) {
+            setNote(`Hoá đơn ${data.merchantName}`);
+          }
+        }} 
+      />
       <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-        {/* Type Selector */}
-        <View style={styles.tabRow}>
-          <Button
-            title="💸 Chi tiêu"
-            variant={type === "EXPENSE" ? "danger" : "secondary"}
-            onPress={() => setType("EXPENSE")}
-            style={styles.flexTab}
-          />
-          <Button
-            title="💵 Thu nhập"
-            variant={type === "INCOME" ? "primary" : "secondary"}
-            onPress={() => setType("INCOME")}
-            style={styles.flexTab}
-          />
-        </View>
+        {/* AI Scan Button for Expense */}
+        {type === "EXPENSE" && (
+          <TouchableOpacity style={styles.scanBtn} onPress={() => setScanModalVisible(true)}>
+            <View style={styles.scanIconBg}>
+              <Text style={{ fontSize: 18 }}>📸</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.scanTitle}>Quét hoá đơn bằng AI</Text>
+              <Text style={styles.scanSub}>Tự động điền số tiền từ ảnh</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
-        {/* Wallet Selector */}
+        {/* Wallet Selector (Dropdown List) */}
         {wallets.length > 1 && (
           <View style={styles.sectionBox}>
-            <Text style={styles.sectionLabel}>Chọn ví thanh toán</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsRow}>
-              {wallets
-                .filter((w) => !w.isLiability)
-                .map((w) => (
-                  <TouchableOpacity
-                    key={w.id}
-                    onPress={() => setSelectedWalletId(w.id)}
-                    style={[styles.pill, selectedWalletId === w.id && styles.pillActive]}
-                  >
-                    <Text style={[styles.pillText, selectedWalletId === w.id && styles.pillTextActive]}>
-                      💳 {w.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-            </ScrollView>
+            <Text style={styles.sectionLabel}>
+              {type === "EXPENSE" ? "Chọn ví thanh toán trừ tiền" : "Chọn ví nhận tiền nạp vào"}
+            </Text>
+            <TouchableOpacity
+              style={styles.dropdownBtn}
+              onPress={() => setWalletDropdownOpen(!walletDropdownOpen)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.dropdownBtnLeft}>
+                <Text style={{ fontSize: 18 }}>💳</Text>
+                <Text style={styles.dropdownSelectedText}>
+                  {selectedWallet?.name || "Chọn ví..."}
+                </Text>
+              </View>
+              <Text style={styles.dropdownArrow}>{walletDropdownOpen ? "▲" : "▼"}</Text>
+            </TouchableOpacity>
+
+            {walletDropdownOpen && (
+              <View style={styles.dropdownListBox}>
+                <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 180 }} showsVerticalScrollIndicator={true}>
+                  {wallets
+                    .filter((w) => !w.isLiability)
+                    .map((w) => {
+                      const isSelected = selectedWalletId === w.id;
+                      return (
+                        <TouchableOpacity
+                          key={w.id}
+                          style={[styles.dropdownItemRow, isSelected && styles.dropdownItemRowActive]}
+                          onPress={() => {
+                            setSelectedWalletId(w.id);
+                            setWalletDropdownOpen(false);
+                          }}
+                        >
+                          <View style={styles.catRowLeft}>
+                            <Text style={{ fontSize: 18 }}>💳</Text>
+                            <Text style={[styles.catNameText, isSelected && styles.catNameTextActive]}>
+                              {w.name}
+                            </Text>
+                          </View>
+                          {isSelected && (
+                            <View style={styles.checkBadge}>
+                              <Text style={styles.checkBadgeText}>✓</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                </ScrollView>
+              </View>
+            )}
           </View>
         )}
 
         {/* Amount Input */}
         <Input
-          label="Số tiền (VND) *"
+          label={type === "EXPENSE" ? "Số tiền chi (VND) *" : "Số tiền nạp vào ví (VND) *"}
           placeholder="VD: 100.000"
           keyboardType="numeric"
           value={amount}
           onChangeText={handleAmountChange}
         />
 
-        {/* Category Selector */}
+        {/* Category Selector (Vertical List & Dropdown) */}
         <View style={styles.sectionBox}>
-          <Text style={styles.sectionLabel}>Danh mục *</Text>
+          <Text style={styles.sectionLabel}>
+            {type === "EXPENSE" ? "Danh mục chi tiêu *" : "Nguồn thu nhập / Danh mục *"}
+          </Text>
           {loadingCategories ? (
             <ActivityIndicator size="small" color={colors.indigo600} style={{ marginVertical: 12 }} />
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsRow}>
-              {filteredCategories.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setSelectedCategoryId(cat.id)}
-                  style={[styles.pill, selectedCategoryId === cat.id && styles.pillActive]}
-                >
-                  <Text style={[styles.pillText, selectedCategoryId === cat.id && styles.pillTextActive]}>
-                    {CATEGORY_ICONS[cat.name] || "📊"} {cat.name}
+            <View>
+              {/* Dropdown Header */}
+              <TouchableOpacity
+                style={styles.dropdownBtn}
+                onPress={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.dropdownBtnLeft}>
+                  <Text style={{ fontSize: 20 }}>
+                    {selectedCategory ? (CATEGORY_ICONS[selectedCategory.name] || "📊") : "📂"}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                  <Text style={styles.dropdownSelectedText}>
+                    {selectedCategory ? selectedCategory.name : "Chọn danh mục..."}
+                  </Text>
+                </View>
+                <Text style={styles.dropdownArrow}>{categoryDropdownOpen ? "▲" : "▼"}</Text>
+              </TouchableOpacity>
+
+              {/* Vertical Category List */}
+              {categoryDropdownOpen && (
+                <View style={styles.dropdownListBox}>
+                  <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 180 }} showsVerticalScrollIndicator={true}>
+                    {filteredCategories.map((cat) => {
+                      const isSelected = selectedCategoryId === cat.id;
+                      return (
+                        <TouchableOpacity
+                          key={cat.id}
+                          style={[styles.dropdownItemRow, isSelected && styles.dropdownItemRowActive]}
+                          onPress={() => {
+                            setSelectedCategoryId(cat.id);
+                            setCategoryDropdownOpen(false);
+                          }}
+                        >
+                          <View style={styles.catRowLeft}>
+                            <Text style={{ fontSize: 20 }}>{CATEGORY_ICONS[cat.name] || "📊"}</Text>
+                            <Text style={[styles.catNameText, isSelected && styles.catNameTextActive]}>
+                              {cat.name}
+                            </Text>
+                          </View>
+                          {isSelected && (
+                            <View style={styles.checkBadge}>
+                              <Text style={styles.checkBadgeText}>✓</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
           )}
         </View>
 
         {/* Note */}
         <Input
           label="Ghi chú"
-          placeholder="VD: Highlands Coffee, Ăn trưa"
+          placeholder={type === "EXPENSE" ? "VD: Highlands Coffee, Ăn trưa" : "VD: Tiền thưởng dự án, Nạp ví lương"}
           value={note}
           onChangeText={setNote}
         />
 
         <Button
-          title="Lưu giao dịch"
+          title={type === "EXPENSE" ? "Lưu giao dịch chi tiêu" : "Nạp tiền vào ví ngay 🚀"}
           variant="primary"
           onPress={handleSubmit}
           loading={loading}
@@ -229,14 +326,34 @@ const styles = StyleSheet.create({
   form: {
     paddingTop: 8,
   },
-  tabRow: {
+  scanBtn: {
     flexDirection: "row",
-    gap: 12,
+    alignItems: "center",
+    backgroundColor: "#F0F9FF",
+    padding: 12,
+    borderRadius: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#BAE6FD",
   },
-  flexTab: {
-    flex: 1,
-    paddingVertical: 10,
+  scanIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  scanTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0369A1",
+  },
+  scanSub: {
+    fontSize: 11,
+    color: "#0EA5E9",
+    marginTop: 2,
   },
   sectionBox: {
     marginBottom: 14,
@@ -247,30 +364,87 @@ const styles = StyleSheet.create({
     color: colors.slate700,
     marginBottom: 8,
   },
-  pillsRow: {
+
+  /* Dropdown Styles */
+  dropdownBtn: {
     flexDirection: "row",
-    gap: 8,
-  },
-  pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.slate200,
     borderRadius: 16,
-    backgroundColor: colors.slate100,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  dropdownBtnLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  dropdownSelectedText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.slate900,
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: colors.slate400,
+    fontWeight: "800",
+  },
+  dropdownListBox: {
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: colors.slate200,
+    borderRadius: 16,
+    marginTop: 6,
+    padding: 6,
+    gap: 4,
   },
-  pillActive: {
-    backgroundColor: colors.indigo600,
-    borderColor: colors.indigo600,
+  dropdownItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.white,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.transparent,
   },
-  pillText: {
+  dropdownItemRowActive: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#93C5FD",
+  },
+  catRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  catNameText: {
     fontSize: 13,
     fontWeight: "700",
-    color: colors.slate700,
+    color: colors.slate800,
   },
-  pillTextActive: {
+  catNameTextActive: {
+    color: "#1D4ED8",
+    fontWeight: "900",
+  },
+  checkBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.emerald600,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkBadgeText: {
     color: colors.white,
+    fontSize: 12,
+    fontWeight: "900",
   },
+
   submitBtn: {
     marginTop: 12,
     marginBottom: 24,

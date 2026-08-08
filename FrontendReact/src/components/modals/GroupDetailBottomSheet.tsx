@@ -27,13 +27,22 @@ interface GroupDetailBottomSheetProps {
 }
 
 const CATEGORY_EMOJI: Record<string, string> = {
-  "Ăn uống": "🍜",
-  "Di chuyển": "🚗",
-  "Lưu trú": "🏨",
-  "Giải trí": "🎮",
+  "Ăn uống": "🍽️",
+  "Chi tiêu hàng ngày": "🧴",
+  "Quần áo": "👕",
+  "Mỹ phẩm": "💄",
+  "Phí giao lưu": "🥂",
+  "Y tế": "💊",
+  "Giáo dục": "📚",
+  "Tiền điện": "💡",
+  "Đi lại": "🚆",
+  "Phí liên lạc": "📱",
+  "Tiền nhà": "🏠",
+  "Mục tiêu tiết kiệm": "🎯",
   "Mua sắm": "🛍️",
-  "Sức khỏe": "💊",
-  "Hóa đơn": "🧾",
+  "Giải trí": "🎮",
+  "Lưu trú": "🏨",
+  "Di chuyển": "🚗",
   "Khác": "📦",
 };
 
@@ -61,6 +70,11 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Ăn uống");
+  const [paidBy, setPaidBy] = useState<string>("");
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [payerDropdownOpen, setPayerDropdownOpen] = useState(false);
+  const [splitMode, setSplitMode] = useState<"all" | "custom">("all");
+  const [selectedSplitUserIds, setSelectedSplitUserIds] = useState<string[]>([]);
   const [savingExpense, setSavingExpense] = useState(false);
 
   // VietQR settlement state
@@ -82,6 +96,16 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
       setGroup(gData);
       setExpenses(expData.content || []);
       setDebts(debtData);
+
+      if (gData?.members && gData.members.length > 0) {
+        const allIds = gData.members.map((m: any) => m.user?.id || m.id);
+        setSelectedSplitUserIds(allIds);
+        if (!paidBy) {
+          const myId = user?.id;
+          const foundMe = gData.members.find((m: any) => (m.user?.id || m.id) === myId);
+          setPaidBy(foundMe ? (foundMe.user?.id || foundMe.id) : allIds[0]);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -107,16 +131,34 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
 
   const handleSaveExpense = async () => {
     const rawNumber = parseFloat(amount.replace(/\./g, "")) || 0;
-    if (!title.trim() || rawNumber <= 0 || !groupId || !group) return;
+    if (!title.trim() || rawNumber <= 0 || !groupId || !group) {
+      Alert.alert("Lỗi", "Vui lòng nhập tên và số tiền hợp lệ");
+      return;
+    }
+
+    const currentPayerId = paidBy || user?.id || (group.members?.[0]?.user?.id || group.members?.[0]?.id);
+    if (!currentPayerId) {
+      Alert.alert("Lỗi", "Vui lòng chọn người thanh toán");
+      return;
+    }
+
+    const targetSplitIds = splitMode === "all"
+      ? (group.members?.map((m) => m.user?.id || m.id) || [])
+      : selectedSplitUserIds;
+
+    if (targetSplitIds.length === 0) {
+      Alert.alert("Lỗi", "Vui lòng chọn ít nhất 1 người để chia tiền");
+      return;
+    }
+
     setSavingExpense(true);
     try {
-      const memberIds = group.members?.map((m) => m.user?.id || m.id) || [];
       await groupService.createGroupExpense(groupId, {
         title: title.trim(),
         amount: rawNumber,
         category,
-        payerId: user?.id,
-        splitMemberIds: memberIds,
+        paidBy: currentPayerId,
+        splitUserIds: targetSplitIds,
       });
       setTitle("");
       setAmount("");
@@ -148,29 +190,225 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
           <Text style={styles.emptyText}>Không tìm thấy thông tin nhóm</Text>
         </View>
       ) : isAddingExpense ? (
-        <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>Thêm Hóa Đơn Chi Tiêu Mới</Text>
-          <Input label="Tên khoản chi (*)" placeholder="VD: Tiền Ăn Tối, Xe Ô Tô Du Lịch" value={title} onChangeText={setTitle} />
-          <Input label="Số tiền (VND) (*)" placeholder="VD: 500.000" keyboardType="numeric" value={amount} onChangeText={handleAmountChange} />
+        <View style={styles.modalBodyWrapper}>
+          <ScrollView
+            style={styles.formScrollArea}
+            contentContainerStyle={styles.formScrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+          >
+            <Text style={styles.formTitle}>Thêm Hóa Đơn Chi Tiêu Mới</Text>
+            <Input label="Tên khoản chi (*)" placeholder="VD: Tiền Ăn Tối, Xe Ô Tô Du Lịch" value={title} onChangeText={setTitle} />
+            <Input label="Số tiền (VND) (*)" placeholder="VD: 500.000" keyboardType="numeric" value={amount} onChangeText={handleAmountChange} />
 
+            {/* Danh mục chi tiêu Dropdown */}
           <Text style={styles.label}>Danh mục chi tiêu</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catPillsRow}>
-            {Object.keys(CATEGORY_EMOJI).map((catName) => (
+          <TouchableOpacity
+            style={[styles.dropdownTrigger, categoryDropdownOpen && styles.dropdownTriggerActive]}
+            onPress={() => {
+              setCategoryDropdownOpen(!categoryDropdownOpen);
+              setPayerDropdownOpen(false);
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={styles.dropdownSelectedContent}>
+              <Text style={styles.dropdownSelectedIcon}>
+                {CATEGORY_EMOJI[category] || "📦"}
+              </Text>
+              <Text style={styles.dropdownSelectedText}>
+                {category}
+              </Text>
+            </View>
+            <Text style={styles.dropdownChevron}>
+              {categoryDropdownOpen ? "▲" : "▼"}
+            </Text>
+          </TouchableOpacity>
+
+          {categoryDropdownOpen && (
+            <View style={styles.dropdownListCard}>
+              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 180 }} showsVerticalScrollIndicator={true}>
+                {Object.keys(CATEGORY_EMOJI).map((catName) => {
+                  const isSelected = category === catName;
+                  return (
+                    <TouchableOpacity
+                      key={catName}
+                      style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
+                      onPress={() => {
+                        setCategory(catName);
+                        setCategoryDropdownOpen(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.dropdownItemLeft}>
+                        <View style={[styles.dropdownItemIconBox, isSelected && styles.dropdownItemIconBoxActive]}>
+                          <Text style={{ fontSize: 16 }}>{CATEGORY_EMOJI[catName]}</Text>
+                        </View>
+                        <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>
+                          {catName}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <View style={styles.dropdownCheckBadge}>
+                          <Text style={{ fontSize: 12, color: "#059669", fontWeight: "900" }}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Ai là người trả tiền? Dropdown */}
+          <Text style={[styles.label, { marginTop: 12 }]}>Ai là người trả tiền? (*)</Text>
+          <TouchableOpacity
+            style={[styles.dropdownTrigger, payerDropdownOpen && styles.dropdownTriggerActive]}
+            onPress={() => {
+              setPayerDropdownOpen(!payerDropdownOpen);
+              setCategoryDropdownOpen(false);
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={styles.dropdownSelectedContent}>
+              {(() => {
+                const currentPayerId = paidBy || user?.id || (group?.members?.[0]?.user?.id || group?.members?.[0]?.id);
+                const selectedMember = group?.members?.find((m) => (m.user?.id || m.id) === currentPayerId);
+                const name = selectedMember?.user?.name || user?.name || "Chọn người trả";
+                const isMe = (selectedMember?.user?.id || selectedMember?.id) === user?.id;
+                return (
+                  <>
+                    <View style={styles.payerSelectedAvatar}>
+                      <Text style={styles.payerSelectedAvatarText}>{name.charAt(0)}</Text>
+                    </View>
+                    <Text style={styles.dropdownSelectedText} numberOfLines={1}>
+                      {name} {isMe ? "(Bạn)" : selectedMember?.role === "OWNER" ? "(Chủ nhóm)" : ""}
+                    </Text>
+                  </>
+                );
+              })()}
+            </View>
+            <Text style={styles.dropdownChevron}>
+              {payerDropdownOpen ? "▲" : "▼"}
+            </Text>
+          </TouchableOpacity>
+
+          {payerDropdownOpen && (
+            <View style={styles.dropdownListCard}>
+              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 180 }} showsVerticalScrollIndicator={true}>
+                {group?.members?.map((m) => {
+                  const uId = m.user?.id || m.id;
+                  const uName = m.user?.name || "Thành viên";
+                  const isSelected = (paidBy || user?.id) === uId;
+                  const isMe = uId === user?.id;
+                  return (
+                    <TouchableOpacity
+                      key={uId}
+                      style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
+                      onPress={() => {
+                        setPaidBy(uId);
+                        setPayerDropdownOpen(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.dropdownItemLeft}>
+                        <View style={[styles.payerSelectedAvatar, isSelected && { backgroundColor: "#10b981" }]}>
+                          <Text style={[styles.payerSelectedAvatarText, isSelected && { color: colors.white }]}>
+                            {uName.charAt(0)}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]} numberOfLines={1}>
+                            {uName} {isMe ? "(Bạn)" : m.role === "OWNER" ? "(Chủ nhóm)" : ""}
+                          </Text>
+                          {m.user?.email && (
+                            <Text style={styles.dropdownItemSubText} numberOfLines={1}>{m.user.email}</Text>
+                          )}
+                        </View>
+                      </View>
+                      {isSelected && (
+                        <View style={styles.dropdownCheckBadge}>
+                          <Text style={{ fontSize: 12, color: "#059669", fontWeight: "900" }}>✓</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Chia cho những ai? */}
+          <View style={styles.splitSectionHeader}>
+            <Text style={styles.label}>Chia cho những ai? (*)</Text>
+            <View style={styles.splitModeToggle}>
               <TouchableOpacity
-                key={catName}
-                onPress={() => setCategory(catName)}
-                style={[styles.catPill, category === catName && styles.catPillActive]}
+                onPress={() => setSplitMode("all")}
+                style={[styles.splitModeBtn, splitMode === "all" && styles.splitModeBtnActive]}
               >
-                <Text style={styles.catPillText}>
-                  {CATEGORY_EMOJI[catName]} {catName}
+                <Text style={[styles.splitModeText, splitMode === "all" && styles.splitModeTextActive]}>
+                  Tất cả ({group?.members?.length || 0})
                 </Text>
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity
+                onPress={() => {
+                  setSplitMode("custom");
+                  if (selectedSplitUserIds.length === 0) {
+                    setSelectedSplitUserIds(group?.members?.map((m) => m.user?.id || m.id) || []);
+                  }
+                }}
+                style={[styles.splitModeBtn, splitMode === "custom" && styles.splitModeBtnActive]}
+              >
+                <Text style={[styles.splitModeText, splitMode === "custom" && styles.splitModeTextActive]}>
+                  Tùy chọn
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {splitMode === "all" ? (
+            <View style={styles.splitAllNotice}>
+              <Text style={styles.splitAllNoticeText}>
+                👥 Hóa đơn sẽ được chia đều cho tất cả {group?.members?.length || 0} thành viên trong nhóm.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.splitCustomList}>
+              {group?.members?.map((m) => {
+                const uId = m.user?.id || m.id;
+                const uName = m.user?.name || "Thành viên";
+                const isSelected = selectedSplitUserIds.includes(uId);
+                return (
+                  <TouchableOpacity
+                    key={uId}
+                    onPress={() => {
+                      if (isSelected) {
+                        setSelectedSplitUserIds(selectedSplitUserIds.filter((id) => id !== uId));
+                      } else {
+                        setSelectedSplitUserIds([...selectedSplitUserIds, uId]);
+                      }
+                    }}
+                    style={[styles.memberCheckRow, isSelected && styles.memberCheckRowActive]}
+                  >
+                    <View style={styles.memberCheckLeft}>
+                      <View style={styles.memberAvatarCircle}>
+                        <Text style={styles.memberAvatarText}>{uName.charAt(0)}</Text>
+                      </View>
+                      <Text style={styles.memberCheckName}>{uName}</Text>
+                    </View>
+                    <View style={[styles.checkCircle, isSelected && styles.checkCircleActive]}>
+                      {isSelected && <Text style={styles.checkMark}>✓</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
           </ScrollView>
 
-          <View style={styles.btnRow}>
-            <Button title="Hủy" variant="secondary" onPress={() => setIsAddingExpense(false)} style={styles.flexBtn} />
-            <Button title="Lưu hóa đơn" variant="primary" onPress={handleSaveExpense} loading={savingExpense} style={styles.flexBtn} />
+          {/* Sticky Bottom Footer */}
+          <View style={styles.stickyFooterBox}>
+            <Button title="Lưu hóa đơn" variant="primary" onPress={handleSaveExpense} loading={savingExpense} />
           </View>
         </View>
       ) : (
@@ -264,53 +502,112 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
           {activeTab === "balances" && (
             <View style={styles.tabContent}>
               {/* Column 1: Người khác nợ bạn */}
-              <View style={styles.balanceSection}>
-                <Text style={[styles.balanceHeader, { color: colors.emerald600 }]}>🟢 Người khác nợ bạn</Text>
+              <View style={styles.debtSectionCard}>
+                <View style={styles.debtSectionHeader}>
+                  <View style={styles.debtHeaderTitleRow}>
+                    <View style={[styles.debtDot, { backgroundColor: "#10b981" }]} />
+                    <Text style={styles.debtSectionTitle}>Người khác nợ bạn</Text>
+                  </View>
+                  {owedToMe.length > 0 && (
+                    <View style={styles.totalBadgeReceivable}>
+                      <Text style={styles.totalBadgeReceivableText}>
+                        Tổng: {fmt(owedToMe.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0))}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
                 {owedToMe.length === 0 ? (
-                  <Text style={styles.emptySubText}>Không ai nợ bạn trong nhóm này 🎉</Text>
+                  <View style={styles.emptyDebtBox}>
+                    <Text style={styles.emptyDebtEmoji}>🎉</Text>
+                    <Text style={styles.emptyDebtText}>Không ai nợ bạn trong nhóm này</Text>
+                    <Text style={styles.emptyDebtSub}>Mọi người đã thanh toán sòng phẳng!</Text>
+                  </View>
                 ) : (
-                  owedToMe.map((t: any, i: number) => (
-                    <View key={i} style={styles.debtItemRow}>
-                      <View style={{ flex: 1, marginRight: 8 }}>
-                        <Text style={styles.debtMemberName}>{t.from?.name}</Text>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                          <Text style={styles.debtSubLabel}>Nợ bạn:</Text>
-                          <Text style={[styles.debtAmountInline, { color: colors.emerald600 }]}>{fmt(t.amount)}</Text>
+                  owedToMe.map((t: any, i: number) => {
+                    const debtorName = t.from?.name || "Người nợ";
+                    return (
+                      <View key={i} style={styles.debtCompactRow}>
+                        <View style={styles.debtMemberInfo}>
+                          <View style={styles.debtAvatarBox}>
+                            <Text style={styles.debtAvatarText}>{debtorName.charAt(0)}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.debtNameText} numberOfLines={1}>{debtorName}</Text>
+                            <Text style={styles.debtAmountReceivable}>
+                              +{fmt(t.amount)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Action Pill Buttons */}
+                        <View style={styles.debtCardActions}>
+                          <TouchableOpacity
+                            onPress={() => setRemindDebtData(t)}
+                            style={styles.remindCompactBtn}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.remindCompactBtnText}>🔔 Nhắc nợ</Text>
+                          </TouchableOpacity>
                         </View>
                       </View>
-                      <View style={{ flexDirection: "row", gap: 6 }}>
-                        <TouchableOpacity onPress={() => setRemindDebtData(t)} style={[styles.qrSmallBtn, { backgroundColor: colors.indigo50 }]}>
-                          <Text style={[styles.qrSmallBtnText, { color: colors.indigo600 }]}>Nhắc nợ 🔔</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setQrSettleDebt(t)} style={styles.qrSmallBtn}>
-                          <Text style={styles.qrSmallBtnText}>VietQR 📲</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))
+                    );
+                  })
                 )}
               </View>
 
               {/* Column 2: Bạn nợ người khác */}
-              <View style={[styles.balanceSection, { marginTop: 16 }]}>
-                <Text style={[styles.balanceHeader, { color: colors.rose600 }]}>🔴 Bạn nợ người khác</Text>
+              <View style={[styles.debtSectionCard, { marginTop: 18 }]}>
+                <View style={styles.debtSectionHeader}>
+                  <View style={styles.debtHeaderTitleRow}>
+                    <View style={[styles.debtDot, { backgroundColor: "#ef4444" }]} />
+                    <Text style={[styles.debtSectionTitle, { color: "#991b1b" }]}>Bạn nợ người khác</Text>
+                  </View>
+                  {myDebts.length > 0 && (
+                    <View style={styles.totalBadgePayable}>
+                      <Text style={styles.totalBadgePayableText}>
+                        Tổng: {fmt(myDebts.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0))}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
                 {myDebts.length === 0 ? (
-                  <Text style={styles.emptySubText}>Bạn không nợ ai trong nhóm này 😎</Text>
+                  <View style={styles.emptyDebtBox}>
+                    <Text style={styles.emptyDebtEmoji}>😎</Text>
+                    <Text style={styles.emptyDebtText}>Bạn không nợ ai trong nhóm này</Text>
+                    <Text style={styles.emptyDebtSub}>Bạn quản lý tài chính rất chuẩn mực!</Text>
+                  </View>
                 ) : (
-                  myDebts.map((t: any, i: number) => (
-                    <View key={i} style={styles.debtItemRow}>
-                      <View style={{ flex: 1, marginRight: 8 }}>
-                        <Text style={styles.debtMemberName}>{t.to?.name}</Text>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                          <Text style={styles.debtSubLabel}>Bạn nợ:</Text>
-                          <Text style={[styles.debtAmountInline, { color: colors.rose600 }]}>{fmt(t.amount)}</Text>
+                  myDebts.map((t: any, i: number) => {
+                    const creditorName = t.to?.name || "Chủ nợ";
+                    return (
+                      <View key={i} style={[styles.debtCompactRow, { backgroundColor: "#fff5f5", borderColor: "#fed7d7" }]}>
+                        <View style={styles.debtMemberInfo}>
+                          <View style={[styles.debtAvatarBox, { backgroundColor: "#fee2e2" }]}>
+                            <Text style={[styles.debtAvatarText, { color: "#b91c1c" }]}>{creditorName.charAt(0)}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.debtNameText} numberOfLines={1}>{creditorName}</Text>
+                            <Text style={styles.debtAmountPayable}>
+                              -{fmt(t.amount)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Action Pill Buttons */}
+                        <View style={styles.debtCardActions}>
+                          <TouchableOpacity
+                            onPress={() => setQrSettleDebt(t)}
+                            style={styles.payNowCompactBtn}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.payNowCompactBtnText}>Trả nợ 📲</Text>
+                          </TouchableOpacity>
                         </View>
                       </View>
-                      <TouchableOpacity onPress={() => setQrSettleDebt(t)} style={[styles.qrSmallBtn, { backgroundColor: colors.rose50 }]}>
-                        <Text style={[styles.qrSmallBtnText, { color: colors.rose600 }]}>Trả nợ 📲</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))
+                    );
+                  })
                 )}
               </View>
             </View>
@@ -573,6 +870,160 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.slate900,
   },
+  // ─── DEBT & BALANCE STYLES ───
+  debtSectionCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.05)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  debtSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate100,
+  },
+  debtHeaderTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  debtDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  debtSectionTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#065f46",
+  },
+  totalBadgeReceivable: {
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
+  },
+  totalBadgeReceivableText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#059669",
+  },
+  totalBadgePayable: {
+    backgroundColor: "#fef2f2",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+  },
+  totalBadgePayableText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#dc2626",
+  },
+  emptyDebtBox: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  emptyDebtEmoji: {
+    fontSize: 32,
+    marginBottom: 6,
+  },
+  emptyDebtText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.slate800,
+  },
+  emptyDebtSub: {
+    fontSize: 12,
+    color: colors.slate400,
+    marginTop: 2,
+  },
+  debtCompactRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.slate50,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    gap: 12,
+  },
+  debtMemberInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  remindCompactBtn: {
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  remindCompactBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#b45309",
+  },
+  payNowCompactBtn: {
+    backgroundColor: "#f43f5e",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  payNowCompactBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  debtAvatarBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#d1fae5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  debtAvatarText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#059669",
+  },
+  debtNameText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.slate900,
+  },
+  debtAmountReceivable: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#059669",
+    marginTop: 1,
+  },
+  debtAmountPayable: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#dc2626",
+    marginTop: 1,
+  },
   balanceSection: {
     backgroundColor: colors.white,
     borderRadius: 20,
@@ -596,8 +1047,8 @@ const styles = StyleSheet.create({
     color: colors.slate900,
   },
   debtSubLabel: {
-    fontSize: 11,
-    color: colors.slate400,
+    fontSize: 12,
+    color: colors.slate500,
   },
   debtAmount: {
     fontSize: 15,
@@ -667,6 +1118,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.slate200,
   },
+  modalBodyWrapper: {
+    maxHeight: 520,
+  },
+  formScrollArea: {
+    flexShrink: 1,
+  },
+  formScrollContent: {
+    paddingBottom: 8,
+  },
+  stickyFooterBox: {
+    paddingTop: 12,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.06)",
+    backgroundColor: colors.white,
+  },
   formContainer: {
     paddingTop: 4,
   },
@@ -701,6 +1168,213 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: colors.slate700,
+  },
+  dropdownTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#eafaf1",
+    borderWidth: 1.5,
+    borderColor: "#d4efdf",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  dropdownTriggerActive: {
+    borderColor: "#10b981",
+    backgroundColor: "#f0fdf4",
+  },
+  dropdownSelectedContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  dropdownSelectedIcon: {
+    fontSize: 18,
+  },
+  dropdownSelectedText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.slate800,
+    flex: 1,
+  },
+  dropdownChevron: {
+    fontSize: 12,
+    color: colors.slate500,
+    marginLeft: 8,
+  },
+  dropdownListCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    padding: 6,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 2,
+  },
+  dropdownItemActive: {
+    backgroundColor: "#ecfdf5",
+  },
+  dropdownItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  dropdownItemIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors.slate100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dropdownItemIconBoxActive: {
+    backgroundColor: "#d1fae5",
+  },
+  dropdownItemText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.slate700,
+  },
+  dropdownItemTextActive: {
+    color: "#065f46",
+    fontWeight: "800",
+  },
+  dropdownItemSubText: {
+    fontSize: 11,
+    color: colors.slate400,
+  },
+  dropdownCheckBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#a7f3d0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payerSelectedAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#b3e5d1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payerSelectedAvatarText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#065f46",
+  },
+  splitSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  splitModeToggle: {
+    flexDirection: "row",
+    backgroundColor: colors.slate100,
+    borderRadius: 12,
+    padding: 2,
+  },
+  splitModeBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  splitModeBtnActive: {
+    backgroundColor: colors.white,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  splitModeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.slate500,
+  },
+  splitModeTextActive: {
+    color: colors.slate900,
+  },
+  splitAllNotice: {
+    backgroundColor: "#ecfdf5",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
+  },
+  splitAllNoticeText: {
+    fontSize: 12,
+    color: "#065f46",
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  splitCustomList: {
+    gap: 8,
+    marginBottom: 16,
+    maxHeight: 180,
+  },
+  memberCheckRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.slate50,
+    padding: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+  },
+  memberCheckRowActive: {
+    backgroundColor: "#f0fdf4",
+    borderColor: "#86efac",
+  },
+  memberCheckLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  memberCheckName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.slate800,
+  },
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: colors.slate300,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+  },
+  checkCircleActive: {
+    backgroundColor: "#10b981",
+    borderColor: "#10b981",
+  },
+  checkMark: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "900",
   },
   btnRow: {
     flexDirection: "row",

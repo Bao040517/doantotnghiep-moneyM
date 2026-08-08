@@ -35,12 +35,24 @@ export interface GroupExpense {
 }
 
 export interface GroupDebtDetail {
-  otherMemberId: string;
-  otherMemberName: string;
+  groupId?: string;
+  groupName?: string;
+  counterparty?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    bankBin?: string;
+    bankAccountNo?: string;
+    bankAccountName?: string;
+  };
+  otherMemberId?: string;
+  otherMemberName?: string;
   bankBin?: string;
   bankAccountNo?: string;
   bankAccountName?: string;
   amount: number; // positive = other owes me, negative = I owe other
+  type?: "OWED" | "OWING";
 }
 
 export interface GroupDebtSummary {

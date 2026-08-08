@@ -1,9 +1,10 @@
 import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import { getBaseUrl } from "./api";
 import { safeStorage } from "./storage";
 import { Platform } from "react-native";
-import { TextEncoder, TextDecoder } from "text-encoding";
+
+const SockJS = require("sockjs-client");
+const { TextEncoder, TextDecoder } = require("text-encoding");
 
 // Polyfill text-encoding for React Native
 if (typeof global.TextEncoder === "undefined") {

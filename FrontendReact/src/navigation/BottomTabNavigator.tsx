@@ -9,11 +9,15 @@ import { AdvisorScreen } from "../screens/AdvisorScreen";
 import { BudgetScreen } from "../screens/BudgetScreen";
 import { SavingsScreen } from "../screens/SavingsScreen";
 import { AddTransactionModal } from "../components/modals/AddTransactionModal";
+import { QuickActionBottomSheet } from "../components/modals/QuickActionBottomSheet";
+import { CreateGroupBottomSheet } from "../components/modals/CreateGroupBottomSheet";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { colors } from "../constants/colors";
 import { UserSummary } from "../types";
 import { useAppData } from "../hooks/useAppData";
 import { financialServices } from "../services/financialServices";
+
+import { Home, BarChart3, Sparkles, User, Plus } from "lucide-react-native";
 
 export type BottomTabParamList = {
   Dashboard: undefined;
@@ -38,8 +42,24 @@ interface BottomTabNavigatorProps {
 const NullComponent = () => null;
 
 export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({ user, onLogout, onRefreshUser }) => {
+  const [quickActionVisible, setQuickActionVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [transactionType, setTransactionType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
+  const [createGroupVisible, setCreateGroupVisible] = useState(false);
+
   const { wallets, refresh } = useAppData();
+
+  const handleSelectAction = (action: "expense" | "group" | "income") => {
+    if (action === "expense") {
+      setTransactionType("EXPENSE");
+      setAddModalVisible(true);
+    } else if (action === "income") {
+      setTransactionType("INCOME");
+      setAddModalVisible(true);
+    } else if (action === "group") {
+      setCreateGroupVisible(true);
+    }
+  };
 
   return (
     <>
@@ -74,17 +94,38 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({ user, on
             marginTop: 2,
           },
           tabBarIcon: ({ focused }) => {
-            let icon = "🏠";
-            if (route.name === "Dashboard") icon = "🏠";
-            else if (route.name === "Report") icon = "📊";
-            else if (route.name === "Advisor") icon = "💡";
-            else if (route.name === "Profile") icon = "👤";
+            const iconColor = focused ? "#10B981" : "#94A3B8";
+            const strokeWidth = focused ? 2.5 : 2;
 
-            return (
-              <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
-                <Text style={{ fontSize: focused ? 22 : 19 }}>{icon}</Text>
-              </View>
-            );
+            if (route.name === "Dashboard") {
+              return (
+                <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
+                  <Home size={22} color={iconColor} strokeWidth={strokeWidth} />
+                </View>
+              );
+            }
+            if (route.name === "Report") {
+              return (
+                <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
+                  <BarChart3 size={22} color={iconColor} strokeWidth={strokeWidth} />
+                </View>
+              );
+            }
+            if (route.name === "Advisor") {
+              return (
+                <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
+                  <Sparkles size={22} color={iconColor} strokeWidth={strokeWidth} />
+                </View>
+              );
+            }
+            if (route.name === "Profile") {
+              return (
+                <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
+                  <User size={22} color={iconColor} strokeWidth={strokeWidth} />
+                </View>
+              );
+            }
+            return null;
           },
         })}
       >
@@ -163,11 +204,11 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({ user, on
             tabBarButton: () => (
               <TouchableOpacity
                 style={styles.floatingCenterBtn}
-                onPress={() => setAddModalVisible(true)}
+                onPress={() => setQuickActionVisible(true)}
                 activeOpacity={0.85}
               >
                 <View style={styles.floatingCenterCircle}>
-                  <Text style={styles.plusIconText}>+</Text>
+                  <Plus size={30} color={colors.white} strokeWidth={3} />
                 </View>
               </TouchableOpacity>
             ),
@@ -181,15 +222,30 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({ user, on
         </Tab.Screen>
       </Tab.Navigator>
 
+      {/* Quick Action Selector Sheet (Tạo chi tiêu, Tạo nhóm, Nạp tiền) */}
+      <QuickActionBottomSheet
+        visible={quickActionVisible}
+        onClose={() => setQuickActionVisible(false)}
+        onSelectAction={handleSelectAction}
+      />
+
       {/* Floating Add Transaction Modal */}
       <AddTransactionModal
         visible={addModalVisible}
+        defaultType={transactionType}
         onClose={() => setAddModalVisible(false)}
         wallets={wallets}
         onAddTransaction={async (walletId, payload) => {
           await financialServices.createTransaction(walletId, payload);
           refresh();
         }}
+      />
+
+      {/* Floating Create Group Modal */}
+      <CreateGroupBottomSheet
+        visible={createGroupVisible}
+        onClose={() => setCreateGroupVisible(false)}
+        onGroupCreated={() => refresh()}
       />
     </>
   );

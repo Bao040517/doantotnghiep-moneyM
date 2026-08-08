@@ -31,6 +31,8 @@ public class FinancialAdviceResponse {
         private String categoryIcon;
         private BigDecimal suggestedAmount; // Số tiền đề xuất (trung bình 3 tháng)
         private BigDecimal currentBudget; // Ngân sách hiện tại (nếu có, null nếu chưa đặt)
+        private BigDecimal lastMonthBudget; // Ngân sách tháng trước (nếu có)
+        private BigDecimal lastMonthSpent; // Thực chi tháng trước
         private BigDecimal avgSpent3Months; // Trung bình chi 3 tháng
         private String reasoning; // Lý do ngắn gọn
     }

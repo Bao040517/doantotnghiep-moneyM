@@ -27,15 +27,15 @@ export function useAppData() {
       const month = now.getMonth() + 1;
 
       const [walletData, budgetData, summaryData, txData, catData, savingsData, debtData, totalBalanceData, safeToSpendData] = await Promise.all([
-        financialServices.getWallets().catch(() => []),
-        financialServices.getBudgetSummary(year, month).catch(() => []),
-        financialServices.getMonthlySummary(year, month).catch(() => null),
-        financialServices.getMonthlyTransactions(year, month).catch(() => []),
-        financialServices.getCategoryBreakdown(year, month).catch(() => []),
-        financialServices.getSavingsGoals().catch(() => []),
-        groupService.getGroupDebtSummary().catch(() => ({ totalOwed: 0, totalOwing: 0 })),
-        financialServices.getTotalBalance().catch(() => ({ totalBalance: 0 })),
-        financialServices.getSafeToSpend().catch(() => ({ safeBalanceTotal: 0 })),
+        typeof financialServices.getWallets === "function" ? financialServices.getWallets().catch(() => []) : Promise.resolve([]),
+        typeof financialServices.getBudgetSummary === "function" ? financialServices.getBudgetSummary(year, month).catch(() => []) : Promise.resolve([]),
+        typeof financialServices.getMonthlySummary === "function" ? financialServices.getMonthlySummary(year, month).catch(() => null) : Promise.resolve(null),
+        typeof financialServices.getMonthlyTransactions === "function" ? financialServices.getMonthlyTransactions(year, month).catch(() => []) : Promise.resolve([]),
+        typeof financialServices.getCategoryBreakdown === "function" ? financialServices.getCategoryBreakdown(year, month).catch(() => []) : Promise.resolve([]),
+        typeof financialServices.getSavingsGoals === "function" ? financialServices.getSavingsGoals().catch(() => []) : Promise.resolve([]),
+        typeof groupService.getGroupDebtSummary === "function" ? groupService.getGroupDebtSummary().catch(() => ({ totalOwed: 0, totalOwing: 0 })) : Promise.resolve({ totalOwed: 0, totalOwing: 0 }),
+        typeof financialServices.getTotalBalance === "function" ? financialServices.getTotalBalance().catch(() => ({ totalBalance: 0 })) : Promise.resolve({ totalBalance: 0 }),
+        typeof financialServices.getSafeToSpend === "function" ? financialServices.getSafeToSpend().catch(() => ({ safeBalanceTotal: 0 })) : Promise.resolve({ safeBalanceTotal: 0 }),
       ]);
 
       setWallets(walletData);

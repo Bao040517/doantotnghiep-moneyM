@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
+  ScrollView,
   Alert,
 } from "react-native";
 import { BottomSheet } from "../ui/BottomSheet";
@@ -13,7 +13,6 @@ import { Input } from "../ui/Input";
 import { colors } from "../../constants/colors";
 import { groupService } from "../../services/groupService";
 import { api } from "../../services/api";
-import { Send, Bot, Sparkles } from "lucide-react-native";
 
 interface RemindDebtBottomSheetProps {
   visible: boolean;
@@ -39,11 +38,33 @@ export const RemindDebtBottomSheet: React.FC<RemindDebtBottomSheetProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
+  const formattedAmount = new Intl.NumberFormat("vi-VN").format(amount) + " ₫";
+
+  const getMoodSample = (selectedMood: string) => {
+    switch (selectedMood) {
+      case "FUNNY":
+        return `Ê ${debtorName}, mầy còn nợ tao ${formattedAmount} tiền nhóm đó nha! Trả lẹ đi mậy! 😂`;
+      case "POLITE":
+        return `Chào ${debtorName}, phiền bạn kiểm tra và chuyển giùm mình ${formattedAmount} tiền quỹ nhóm khi thuận tiện nhé. Cảm ơn bạn rất nhiều! ☕`;
+      case "AGGRESSIVE":
+        return `Đòi nợ gấp! ${debtorName} chuyển ngay ${formattedAmount} cho tôi đi, trốn nợ hơi lâu rồi đấy nhé! 😡`;
+      case "POETIC":
+        return `Nắng chiều ngả bóng hoàng hôn, tiền nợ ${formattedAmount} xin đừng lãng quên hỡi ${debtorName} 🌸`;
+      default:
+        return `Ê ${debtorName}, mầy còn nợ tao ${formattedAmount} đó nha! Trả lẹ đi mậy!`;
+    }
+  };
+
   useEffect(() => {
     if (visible) {
-      setMessage(`Ê ${debtorName}, mầy còn nợ tao ${new Intl.NumberFormat("vi-VN").format(amount)}đ đó nha! Trả lẹ đi mậy!`);
+      setMessage(getMoodSample(mood));
     }
   }, [visible, debtorName, amount]);
+
+  const handleSelectMood = (newMood: string) => {
+    setMood(newMood);
+    setMessage(getMoodSample(newMood));
+  };
 
   const handleGenerateAI = async () => {
     try {
@@ -53,10 +74,13 @@ export const RemindDebtBottomSheet: React.FC<RemindDebtBottomSheetProps> = ({
         amount,
         mood,
       });
-      setMessage(res.data.message || res.data);
+      const generated = res.data?.message || res.data;
+      if (generated && typeof generated === "string") {
+        setMessage(generated);
+      }
     } catch (err: any) {
       console.error(err);
-      Alert.alert("Lỗi", "Không thể tạo tin nhắn AI lúc này.");
+      setMessage(getMoodSample(mood));
     } finally {
       setIsGenerating(false);
     }
@@ -64,7 +88,7 @@ export const RemindDebtBottomSheet: React.FC<RemindDebtBottomSheetProps> = ({
 
   const handleSendReminder = async () => {
     if (!message.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập lời nhắn!");
+      Alert.alert("Lỗi", "Vui lòng nhập nội dung lời nhắn!");
       return;
     }
 
@@ -73,9 +97,9 @@ export const RemindDebtBottomSheet: React.FC<RemindDebtBottomSheetProps> = ({
       await groupService.remindDebt(groupId, {
         debtorId,
         amount,
-        message,
+        message: message.trim(),
       });
-      Alert.alert("Thành công", "Đã gửi thông báo nhắc nợ thành công!");
+      Alert.alert("Thành công 🎉", `Đã gửi thông báo nhắc nợ tới ${debtorName}!`);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -87,65 +111,82 @@ export const RemindDebtBottomSheet: React.FC<RemindDebtBottomSheetProps> = ({
   };
 
   const MOODS = [
-    { value: "FUNNY", label: "Hài hước, Gen Z 😂" },
-    { value: "POLITE", label: "Lịch sự, nhẹ nhàng ☕" },
-    { value: "AGGRESSIVE", label: "Gắt gỏng, đòi ngay 😡" },
-    { value: "POETIC", label: "Thơ ca lãng mạn 🌸" },
+    { value: "FUNNY", label: "😂 Gen Z, Hài hước" },
+    { value: "POLITE", label: "☕ Lịch sự, Nhẹ nhàng" },
+    { value: "AGGRESSIVE", label: "😡 Đòi gấp, Nghiêm túc" },
+    { value: "POETIC", label: "🌸 Thơ ca, Lãng mạn" },
   ];
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title={`Nhắc nợ ${debtorName}`}>
-      <View style={styles.container}>
-        <Text style={styles.description}>
-          Gửi một lời nhắc nhẹ nhàng (hoặc mạnh mẽ) kèm mã QR thanh toán đến hòm thư của {debtorName}.
-        </Text>
-
-        <View style={styles.aiBox}>
-          <View style={styles.aiHeader}>
-            <Bot size={16} color={colors.slate500} />
-            <Text style={styles.aiTitle}>Trợ lý AI (Gemini)</Text>
-          </View>
-          
-          <View style={styles.moodSelector}>
-            {MOODS.map(m => (
-              <TouchableOpacity
-                key={m.value}
-                style={[styles.moodBtn, mood === m.value && styles.moodBtnActive]}
-                onPress={() => setMood(m.value)}
-              >
-                <Text style={[styles.moodText, mood === m.value && styles.moodTextActive]}>
-                  {m.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+    <BottomSheet visible={visible} onClose={onClose} title={`Nhắc nợ: ${debtorName}`}>
+      <View style={styles.modalBodyWrapper}>
+        <ScrollView
+          style={styles.scrollArea}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Amount info banner */}
+          <View style={styles.debtInfoBanner}>
+            <Text style={styles.debtInfoLabel}>Số tiền cần nhắc:</Text>
+            <Text style={styles.debtInfoAmount}>{formattedAmount}</Text>
           </View>
 
-          <Button
-            title={isGenerating ? "Đang nghĩ..." : "Soạn văn ✨"}
-            variant="primary"
-            onPress={handleGenerateAI}
-            loading={isGenerating}
-            style={{ backgroundColor: colors.indigo500, height: 44 }}
+          {/* AI Generator Box */}
+          <View style={styles.aiBox}>
+            <View style={styles.aiHeader}>
+              <Text style={{ fontSize: 16 }}>🤖</Text>
+              <Text style={styles.aiTitle}>Trợ lý AI soạn văn nhắc khéo (Gemini)</Text>
+            </View>
+
+            <Text style={styles.subLabel}>Chọn phong cách nhắc:</Text>
+            <View style={styles.moodSelector}>
+              {MOODS.map((m) => (
+                <TouchableOpacity
+                  key={m.value}
+                  style={[styles.moodBtn, mood === m.value && styles.moodBtnActive]}
+                  onPress={() => handleSelectMood(m.value)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.moodText, mood === m.value && styles.moodTextActive]}>
+                    {m.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Button
+              title={isGenerating ? "Đang sáng tác câu từ... ✨" : "Soạn câu nhắc khéo với AI ✨"}
+              variant="primary"
+              onPress={handleGenerateAI}
+              loading={isGenerating}
+              style={styles.aiGenBtn}
+              textStyle={styles.aiGenBtnText}
+            />
+          </View>
+
+          {/* Editable text message with pre-filled sample */}
+          <Input
+            label="Nội dung tin nhắn sẽ gửi (*)"
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Nhập lời nhắc nợ của bạn..."
+            multiline
+            numberOfLines={4}
+            containerStyle={{ marginTop: 4, marginBottom: 4 }}
           />
-        </View>
+        </ScrollView>
 
-        <Input
-          value={message}
-          onChangeText={setMessage}
-          placeholder="Nhập lời nhắc nợ của bạn..."
-          multiline
-          numberOfLines={4}
-          style={styles.messageInput}
-        />
-
-        <View style={styles.actionBox}>
+        {/* Sticky Action Footer */}
+        <View style={styles.stickyFooter}>
           <Button
-            title={isSending ? "Đang gửi..." : "Gửi ngay 🚀"}
+            title={isSending ? "Đang gửi thông báo..." : "Gửi thông báo nhắc nợ ngay 🚀"}
             variant="primary"
             onPress={handleSendReminder}
             loading={isSending}
             disabled={isSending || !message.trim()}
-            style={{ backgroundColor: colors.emerald500 }}
+            style={styles.sendBtn}
+            textStyle={{ fontSize: 15, fontWeight: "800" }}
           />
         </View>
       </View>
@@ -154,42 +195,70 @@ export const RemindDebtBottomSheet: React.FC<RemindDebtBottomSheetProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+  modalBodyWrapper: {
+    maxHeight: 560,
   },
-  description: {
-    fontSize: 14,
-    color: colors.slate500,
-    marginBottom: 16,
+  scrollArea: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    paddingBottom: 10,
+  },
+  debtInfoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#f0fdf4",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    marginBottom: 14,
+  },
+  debtInfoLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  debtInfoAmount: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#15803d",
   },
   aiBox: {
-    backgroundColor: colors.slate50,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    padding: 14,
     borderWidth: 1,
-    borderColor: colors.slate100,
-    marginBottom: 16,
+    borderColor: colors.slate200,
+    marginBottom: 14,
   },
   aiHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 10,
   },
   aiTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.slate800,
+  },
+  subLabel: {
+    fontSize: 12,
+    fontWeight: "700",
     color: colors.slate600,
-    marginLeft: 6,
+    marginBottom: 8,
   },
   moodSelector: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 16,
+    gap: 6,
+    marginBottom: 12,
   },
   moodBtn: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 12,
     backgroundColor: colors.white,
@@ -197,24 +266,39 @@ const styles = StyleSheet.create({
     borderColor: colors.slate200,
   },
   moodBtnActive: {
-    backgroundColor: colors.indigo50,
-    borderColor: colors.indigo200,
+    backgroundColor: "#eff6ff",
+    borderColor: "#3b82f6",
   },
   moodText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.slate600,
   },
   moodTextActive: {
-    color: colors.indigo600,
+    color: "#1d4ed8",
+    fontWeight: "800",
   },
-  messageInput: {
-    height: 120,
-    textAlignVertical: "top",
+  aiGenBtn: {
+    backgroundColor: "#6366f1",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+  },
+  aiGenBtnText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  stickyFooter: {
     paddingTop: 12,
-    marginBottom: 16,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.06)",
+    backgroundColor: colors.white,
   },
-  actionBox: {
-    marginTop: 8,
+  sendBtn: {
+    backgroundColor: "#10b981",
+    borderRadius: 16,
+    paddingVertical: 14,
   },
 });

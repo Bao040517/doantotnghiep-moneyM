@@ -10,15 +10,18 @@ import {
   Alert,
   Platform,
   StatusBar,
+  Modal,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { GroupDebtCard } from "../components/features/GroupDebtCard";
 import { VietQRCard } from "../components/features/VietQRCard";
 import { BottomSheet } from "../components/ui/BottomSheet";
 import { GroupDetailScreen } from "./GroupDetailScreen";
 import { CreateGroupBottomSheet } from "../components/modals/CreateGroupBottomSheet";
+import { RemindDebtBottomSheet } from "../components/modals/RemindDebtBottomSheet";
+import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
+import { Toast } from "../components/ui/Toast";
 import { colors } from "../constants/colors";
 import { groupService } from "../services/groupService";
 import { useAuth } from "../hooks/useAuth";
@@ -42,6 +45,22 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   // Group Detail Full Screen State
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
+  // Debt Modal State: "owed" (Ai nợ tôi) vs "owing" (Tôi nợ ai)
+  const [debtModalType, setDebtModalType] = useState<"owed" | "owing" | null>(null);
+  const [remindDebtData, setRemindDebtData] = useState<any | null>(null);
+  const [sandboxVisible, setSandboxVisible] = useState(false);
+
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+  const [toastType, setToastType] = useState<"success" | "error">("success");
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToastMsg(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
+
   const handleHeaderBack = () => {
     if (onBack) {
       onBack();
@@ -64,7 +83,72 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         groupService.getGroupDebtSummary().catch(() => null),
       ]);
       setGroups(gData);
-      setDebtSummary(dData);
+
+      let finalDebtSummary = dData;
+
+      // If dData?.details is empty or missing, aggregate debts across all groups
+      if (!dData?.details || dData.details.length === 0) {
+        const myId = user?.id;
+        const allDetails: GroupDebtDetail[] = [];
+        let totalOwed = 0;
+        let totalOwing = 0;
+
+        await Promise.all(
+          gData.map(async (g) => {
+            try {
+              const debtsRes = await groupService.getGroupDebts(g.id);
+              if (debtsRes?.transactions) {
+                debtsRes.transactions.forEach((tx: any) => {
+                  const isDebtor = tx.from?.id === myId;
+                  const isCreditor = tx.to?.id === myId;
+                  if (isDebtor) {
+                    const amt = Math.abs(Number(tx.amount) || 0);
+                    totalOwing += amt;
+                    allDetails.push({
+                      groupId: g.id,
+                      groupName: g.name,
+                      counterparty: tx.to,
+                      otherMemberId: tx.to?.id,
+                      otherMemberName: tx.to?.name,
+                      bankBin: tx.to?.bankBin,
+                      bankAccountNo: tx.to?.bankAccountNo,
+                      bankAccountName: tx.to?.name,
+                      amount: amt,
+                      type: "OWING",
+                    });
+                  }
+                  if (isCreditor) {
+                    const amt = Math.abs(Number(tx.amount) || 0);
+                    totalOwed += amt;
+                    allDetails.push({
+                      groupId: g.id,
+                      groupName: g.name,
+                      counterparty: tx.from,
+                      otherMemberId: tx.from?.id,
+                      otherMemberName: tx.from?.name,
+                      bankBin: tx.from?.bankBin,
+                      bankAccountNo: tx.from?.bankAccountNo,
+                      bankAccountName: tx.from?.name,
+                      amount: amt,
+                      type: "OWED",
+                    });
+                  }
+                });
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          })
+        );
+
+        finalDebtSummary = {
+          totalOwed: dData?.totalOwed || totalOwed,
+          totalOwing: dData?.totalOwing || totalOwing,
+          details: allDetails,
+        };
+      }
+
+      setDebtSummary(finalDebtSummary);
     } catch (e) {
       console.error(e);
     } finally {
@@ -98,6 +182,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setGroupDesc("");
       setCreateModalVisible(false);
       loadGroupData();
+      showToast("Tạo nhóm mới thành công! 🎉", "success");
     } catch (e: any) {
       Alert.alert("Lỗi", e.response?.data?.message || "Không thể tạo nhóm");
     } finally {
@@ -111,6 +196,49 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   const userName = user?.name ? user.name.split(" ").pop() : "Bạn";
+
+  const handlePaymentSuccess = async (amount: number, toUserId?: string) => {
+    try {
+      const gId = selectedDebt?.groupId || groups[0]?.id;
+      if (gId && toUserId) {
+        await groupService.notifyPayment(gId, { toUserId, amount });
+      }
+      showToast("Đã mô phỏng thanh toán Sandbox thành công! 🎉", "success");
+      setSandboxVisible(false);
+      setSelectedDebt(null);
+      loadGroupData();
+    } catch (e: any) {
+      console.error(e);
+      showToast("Đã ghi nhận giao dịch Sandbox!", "success");
+      setSandboxVisible(false);
+      setSelectedDebt(null);
+      loadGroupData();
+    }
+  };
+
+  const handleNotifyPaymentDirectly = async () => {
+    if (!selectedDebt) return;
+    try {
+      const gId = selectedDebt.groupId || groups[0]?.id;
+      const toUserId = selectedDebt.otherMemberId;
+      if (gId && toUserId) {
+        await groupService.notifyPayment(gId, { toUserId, amount: Math.abs(selectedDebt.amount) });
+        showToast(`Đã gửi thông báo thanh toán tiền mặt tới ${selectedDebt.otherMemberName}! 💵`, "success");
+        setSelectedDebt(null);
+        loadGroupData();
+      }
+    } catch (e: any) {
+      Alert.alert("Lỗi", e.response?.data?.message || "Không thể gửi thông báo chuyển tiền");
+    }
+  };
+
+  // Filter lists for modal
+  const owedList = (debtSummary?.details || []).filter(
+    (d) => d.type === "OWED" || (d.amount && d.amount > 0 && d.type !== "OWING")
+  );
+  const owingList = (debtSummary?.details || []).filter(
+    (d) => d.type === "OWING" || (d.amount && d.amount < 0)
+  );
 
   return (
     <View style={styles.container}>
@@ -145,25 +273,39 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadGroupData} colors={[colors.indigo600]} />}
       >
-        {/* ─── BENTO DEBT CARDS (2 Grid Cards) ─── */}
+        {/* ─── BENTO DEBT CARDS (Clickable Grid Cards) ─── */}
         <View style={styles.bentoRow}>
-          {/* Tiền đang bay về */}
-          <View style={[styles.bentoCard, styles.bentoCardOwed]}>
-            <Text style={styles.bentoCardLabel}>Tiền đang bay về 💰</Text>
+          {/* Tiền đang bay về 💰 */}
+          <TouchableOpacity
+            style={[styles.bentoCard, styles.bentoCardOwed]}
+            onPress={() => setDebtModalType("owed")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.bentoCardHeaderRow}>
+              <Text style={styles.bentoCardLabel}>Tiền đang bay về 💰</Text>
+              <Text style={styles.bentoArrowHint}>→</Text>
+            </View>
             <View>
               <Text style={styles.bentoCardVal}>{fmt(debtSummary?.totalOwed)}</Text>
-              <Text style={styles.bentoCardSub}>Người khác nợ bạn</Text>
+              <Text style={styles.bentoCardSub}>Người khác nợ bạn (Bấm xem)</Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
-          {/* Tiền cần trả */}
-          <View style={[styles.bentoCard, styles.bentoCardOwing]}>
-            <Text style={styles.bentoCardLabel}>Tiền cần trả 🥱</Text>
+          {/* Tiền cần trả 🥱 */}
+          <TouchableOpacity
+            style={[styles.bentoCard, styles.bentoCardOwing]}
+            onPress={() => setDebtModalType("owing")}
+            activeOpacity={0.8}
+          >
+            <View style={styles.bentoCardHeaderRow}>
+              <Text style={styles.bentoCardLabel}>Tiền cần trả 🥱</Text>
+              <Text style={styles.bentoArrowHint}>→</Text>
+            </View>
             <View>
               <Text style={styles.bentoCardVal}>{fmt(debtSummary?.totalOwing)}</Text>
-              <Text style={styles.bentoCardSub}>Bạn nợ người khác</Text>
+              <Text style={styles.bentoCardSub}>Bạn nợ người khác (Bấm xem)</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* ─── GROUPS SECTION ─── */}
@@ -199,15 +341,191 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             </TouchableOpacity>
           ))}
         </View>
-
-
       </ScrollView>
+
+      {/* ─── CENTERED FLOATING POPUP MODAL (PROJECT LAYOUT STANDARD) ─── */}
+      <Modal
+        visible={debtModalType !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setDebtModalType(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setDebtModalType(null)}
+        >
+          <TouchableOpacity style={styles.modalCard} activeOpacity={1}>
+            {/* Header Row: Title & Circle Close Button */}
+            <View style={styles.modalHeaderRow}>
+              <View style={styles.titleBadgeRow}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: debtModalType === "owed" ? "#10b981" : "#ef4444" },
+                  ]}
+                />
+                <Text style={styles.modalTitle}>
+                  {debtModalType === "owed" ? "Người khác nợ bạn 🟢" : "Bạn nợ người khác 🔴"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() => setDebtModalType(null)}
+              >
+                <Text style={styles.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Sub-header Banner */}
+            <View style={debtModalType === "owed" ? styles.heroCardOwed : styles.heroCardOwing}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroSubTitle}>
+                  {debtModalType === "owed" ? "TỔNG SỐ TIỀN NGƯỜI KHÁC CHƯA TRẢ BẠN" : "TỔNG SỐ TIỀN BẠN CẦN THANH TOÁN"}
+                </Text>
+                <Text style={debtModalType === "owed" ? styles.heroAmountOwed : styles.heroAmountOwing}>
+                  {debtModalType === "owed" ? fmt(debtSummary?.totalOwed) : fmt(debtSummary?.totalOwing)}
+                </Text>
+              </View>
+              <View style={styles.heroIconBox}>
+                <Text style={{ fontSize: 24 }}>{debtModalType === "owed" ? "💰" : "🥱"}</Text>
+              </View>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.scrollArea} showsVerticalScrollIndicator={false}>
+              {debtModalType === "owed" ? (
+                /* DANH SÁCH NGƯỜI KHÁC NỢ BẠN */
+                owedList.length === 0 ? (
+                  <View style={styles.emptyDebtBox}>
+                    <Text style={styles.emptyDebtEmoji}>🎉</Text>
+                    <Text style={styles.emptyDebtTitle}>Không ai nợ bạn</Text>
+                    <Text style={styles.emptyDebtSub}>Mọi người trong các nhóm đã thanh toán sòng phẳng!</Text>
+                  </View>
+                ) : (
+                  owedList.map((item, idx) => {
+                    const debtorName = item.counterparty?.name || item.otherMemberName || "Người nợ";
+                    const debtorId = item.counterparty?.id || item.otherMemberId || "";
+                    const gName = item.groupName || "Nhóm chi tiêu";
+
+                    return (
+                      <View key={idx} style={styles.debtProjectCard}>
+                        {/* Top row: Avatar + Name + Group pill + Amount */}
+                        <View style={styles.debtProjectTopRow}>
+                          <View style={styles.debtAvatarBoxGreen}>
+                            <Text style={styles.debtAvatarTextGreen}>{debtorName.charAt(0)}</Text>
+                          </View>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={styles.debtMemberName} numberOfLines={1}>{debtorName}</Text>
+                            <View style={styles.groupPill}>
+                              <Text style={styles.groupPillText} numberOfLines={1}>🏠 {gName}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.amountCol}>
+                            <Text style={styles.debtTagLabelGreen}>Nợ bạn:</Text>
+                            <Text style={styles.debtAmountGreen}>+{fmt(Math.abs(item.amount))}</Text>
+                          </View>
+                        </View>
+
+                        {/* Action Button */}
+                        <TouchableOpacity
+                          onPress={() => {
+                            setDebtModalType(null);
+                            setRemindDebtData({
+                              groupId: item.groupId || groups[0]?.id || "",
+                              from: { id: debtorId, name: debtorName },
+                              amount: Math.abs(item.amount),
+                            });
+                          }}
+                          style={styles.remindActionBtn}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.remindActionBtnText}>🔔 Soạn câu nhắc nợ với AI ✨</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })
+                )
+              ) : (
+                /* DANH SÁCH BẠN NỢ NGƯỜI KHÁC */
+                owingList.length === 0 ? (
+                  <View style={styles.emptyDebtBox}>
+                    <Text style={styles.emptyDebtEmoji}>😎</Text>
+                    <Text style={styles.emptyDebtTitle}>Bạn không nợ ai</Text>
+                    <Text style={styles.emptyDebtSub}>Bạn quản lý tài chính nhóm rất chuẩn mực!</Text>
+                  </View>
+                ) : (
+                  owingList.map((item, idx) => {
+                    const creditorName = item.counterparty?.name || item.otherMemberName || "Chủ nợ";
+                    const gName = item.groupName || "Nhóm chi tiêu";
+
+                    return (
+                      <View key={idx} style={[styles.debtProjectCard, { borderColor: "#fecdd3" }]}>
+                        {/* Top row: Avatar + Name + Group pill + Amount */}
+                        <View style={styles.debtProjectTopRow}>
+                          <View style={styles.debtAvatarBoxRed}>
+                            <Text style={styles.debtAvatarTextRed}>{creditorName.charAt(0)}</Text>
+                          </View>
+                          <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={styles.debtMemberName} numberOfLines={1}>{creditorName}</Text>
+                            <View style={styles.groupPill}>
+                              <Text style={styles.groupPillText} numberOfLines={1}>🏠 {gName}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.amountCol}>
+                            <Text style={styles.debtTagLabelRed}>Bạn nợ:</Text>
+                            <Text style={styles.debtAmountRed}>-{fmt(Math.abs(item.amount))}</Text>
+                          </View>
+                        </View>
+
+                        {/* Action Button */}
+                        <TouchableOpacity
+                          onPress={() => {
+                            setDebtModalType(null);
+                            setSelectedDebt({
+                              otherMemberId: item.counterparty?.id || item.otherMemberId || "",
+                              otherMemberName: creditorName,
+                              bankBin: item.counterparty?.bankBin || item.bankBin || "970436",
+                              bankAccountNo: item.counterparty?.bankAccountNo || item.bankAccountNo || "1012345678",
+                              bankAccountName: item.counterparty?.name || creditorName,
+                              amount: Math.abs(item.amount),
+                            });
+                          }}
+                          style={styles.payActionBtn}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.payActionBtnText}>💳 Thanh toán ngay (VietQR 📲)</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })
+                )
+              )}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* AI Remind Debt Bottom Sheet */}
+      {remindDebtData && (
+        <RemindDebtBottomSheet
+          visible={!!remindDebtData}
+          groupId={remindDebtData.groupId}
+          debtorId={remindDebtData.from?.id}
+          debtorName={remindDebtData.from?.name || "Người nợ"}
+          amount={remindDebtData.amount}
+          onClose={() => setRemindDebtData(null)}
+          onSuccess={() => {
+            showToast(`Đã gửi thông báo nhắc nợ tới ${remindDebtData.from?.name || "thành viên"}! 🔔`, "success");
+            loadGroupData();
+          }}
+        />
+      )}
 
       {/* VietQR Settlement Modal */}
       <BottomSheet
-        visible={!!selectedDebt}
+        visible={!!selectedDebt && !sandboxVisible}
         onClose={() => setSelectedDebt(null)}
-        title={selectedDebt?.amount && selectedDebt.amount > 0 ? "Tạo mã VietQR nhận tiền" : "Quét mã VietQR chuyển khoản"}
+        title={`Thanh toán cho ${selectedDebt?.otherMemberName || "thành viên"}`}
       >
         {selectedDebt && (
           <View style={styles.qrModalContent}>
@@ -216,17 +534,66 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               accountNo={selectedDebt.bankAccountNo || "1012345678"}
               accountName={selectedDebt.bankAccountName || selectedDebt.otherMemberName}
               amount={Math.abs(selectedDebt.amount)}
-              description={`ShareMoney quyet toan no ${selectedDebt.otherMemberName}`}
+              description={`ShareMoney chuyen khoan cho ${selectedDebt.otherMemberName}`}
             />
+
+            {/* Sandbox Simulation & Notify Payment Buttons */}
+            <View style={styles.settleActionBtnContainer}>
+              <TouchableOpacity
+                onPress={() => setSandboxVisible(true)}
+                style={styles.sandboxSimulateBtn}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.sandboxSimulateBtnText}>
+                  🧪 Giả lập thanh toán Sandbox (Mô phỏng)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleNotifyPaymentDirectly}
+                style={styles.notifyPaymentDirectBtn}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.notifyPaymentDirectBtnText}>
+                  💵 Báo đã thanh toán tiền mặt (Chờ duyệt)
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </BottomSheet>
+
+      {/* Payment Sandbox Simulation Modal */}
+      <PaymentSandboxModal
+        visible={sandboxVisible}
+        debtInfo={
+          selectedDebt
+            ? {
+                amount: Math.abs(selectedDebt.amount),
+                toName: selectedDebt.otherMemberName,
+                toBankBin: selectedDebt.bankBin,
+                toAccountNo: selectedDebt.bankAccountNo,
+                toUserId: selectedDebt.otherMemberId,
+                groupName: selectedDebt.groupName,
+              }
+            : null
+        }
+        onClose={() => setSandboxVisible(false)}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
 
       {/* Create Group Modal */}
       <CreateGroupBottomSheet
         visible={createModalVisible}
         onClose={() => setCreateModalVisible(false)}
         onGroupCreated={loadGroupData}
+      />
+
+      <Toast
+        visible={toastVisible}
+        message={toastMsg}
+        type={toastType}
+        onDismiss={() => setToastVisible(false)}
       />
     </View>
   );
@@ -331,13 +698,23 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     padding: 12,
-    height: 90,
+    height: 96,
     justifyContent: "space-between",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
+  },
+  bentoCardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  bentoArrowHint: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "rgba(0, 0, 0, 0.4)",
   },
   bentoCardOwed: {
     backgroundColor: "#C3F4E1",
@@ -359,7 +736,7 @@ const styles = StyleSheet.create({
   bentoCardSub: {
     fontSize: 10,
     color: "rgba(0, 0, 0, 0.5)",
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
   /* Section Title */
@@ -463,24 +840,288 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  settlementSection: {
-    marginTop: 8,
+  /* ─── PROJECT STANDARD CENTERED POPUP MODAL STYLES ─── */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
+  modalCard: {
+    width: "100%",
+    maxHeight: "90%",
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: "#0f172a",
+    padding: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  modalHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+    paddingHorizontal: 2,
+  },
+  titleBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#0f172a",
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#0f172a",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+  },
+  closeBtnText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#0f172a",
+    marginTop: -1,
+  },
+
+  /* Hero Summary Card */
+  heroCardOwed: {
+    backgroundColor: "#10b981",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  heroCardOwing: {
+    backgroundColor: "#f43f5e",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  heroSubTitle: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "rgba(255, 255, 255, 0.85)",
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  heroAmountOwed: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: colors.white,
+  },
+  heroAmountOwing: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: colors.white,
+  },
+  heroIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  scrollArea: {
+    paddingBottom: 8,
+  },
+
+  /* Debt Card Item (Project Layout) */
+  debtProjectCard: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 12,
+    marginBottom: 10,
+  },
+  debtProjectTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  debtAvatarBoxGreen: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#d1fae5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  debtAvatarTextGreen: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#059669",
+  },
+  debtAvatarBoxRed: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#fee2e2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  debtAvatarTextRed: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#b91c1c",
+  },
+  debtMemberName: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0f172a",
+    marginBottom: 2,
+  },
+  groupPill: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(0, 0, 0, 0.04)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  groupPillText: {
+    fontSize: 10,
+    color: colors.slate600,
+    fontWeight: "600",
+  },
+  amountCol: {
+    alignItems: "flex-end",
+  },
+  debtTagLabelGreen: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#059669",
+  },
+  debtAmountGreen: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#059669",
+  },
+  debtTagLabelRed: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#dc2626",
+  },
+  debtAmountRed: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#dc2626",
+  },
+
+  /* Action Buttons */
+  remindActionBtn: {
+    backgroundColor: "#fef3c7",
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  remindActionBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#b45309",
+  },
+  payActionBtn: {
+    backgroundColor: "#f43f5e",
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payActionBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.white,
+  },
+
+  /* Empty State */
+  emptyDebtBox: {
+    alignItems: "center",
+    paddingVertical: 32,
+  },
+  emptyDebtEmoji: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  emptyDebtTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.slate800,
+    marginBottom: 4,
+  },
+  emptyDebtSub: {
+    fontSize: 12,
+    color: colors.slate400,
+    textAlign: "center",
   },
   qrModalContent: {
     alignItems: "center",
     paddingTop: 8,
+    paddingBottom: 16,
   },
-  modalForm: {
-    paddingTop: 8,
-  },
-  modalBtnRow: {
-    flexDirection: "row",
-    gap: 12,
+  settleActionBtnContainer: {
+    width: "100%",
     marginTop: 16,
-    marginBottom: 20,
+    gap: 10,
   },
-  flexBtn: {
-    flex: 1,
+  sandboxSimulateBtn: {
+    backgroundColor: "#6366f1",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#6366f1",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  sandboxSimulateBtnText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.white,
+  },
+  notifyPaymentDirectBtn: {
+    backgroundColor: "#10b981",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notifyPaymentDirectBtnText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.white,
   },
 });
-

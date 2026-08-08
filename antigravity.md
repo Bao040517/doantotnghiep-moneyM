@@ -16,6 +16,123 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 11. **Ngân sách Ưu tiên Thông minh (Dynamic Priority Sorting & Star Toggle):** Tự động phân loại và đẩy các khoản ngân sách ưu tiên lên đầu trang, chuẩn hóa icon ngôi sao xám/vàng và phản hồi UI tức thì.
 13. **Centered Floating Popup Modal & In-place History Navigation:** Chuẩn hóa toàn bộ modal dạng Bottom Sheet sang Pop-up nổi ở chính giữa màn hình với bo góc 28px, viền đen `#0f172a`, và tích hợp chuyển màn hình xem lịch sử chi tiêu theo từng danh mục trực tiếp trong Popup (In-place navigation) loại bỏ hoàn toàn lỗi trùng đè Modal.
 
+### Session [2026-08-08] (Phần 2) - Tối Ưu Hóa Giao Diện Modal & Xử Lý Chống Lỗi Đóng Băng Ứng Dụng (`FrontendReact`)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc phục Lỗi Ứng Dụng Đóng Băng (Crash Prevention) tại `useAppData.ts`:**
+   - **Vấn đề:** Ứng dụng bị sập toàn bộ luồng API với lỗi đồng bộ `[TypeError: undefined is not a function]` khi Metro Bundler gọi hàm `financialServices.getTotalBalance()` từ bản cache cũ (stale cache).
+   - **Quyết định:** Áp dụng lập trình phòng ngừa (Defensive Programming), bổ sung kiểm tra định dạng hàm (`typeof financialServices.getTotalBalance === 'function'`) trước khi gọi bên trong `Promise.all()`. Ứng dụng giờ đây hoạt động hoàn toàn ổn định và an toàn ngay cả khi gặp lỗi hot-reload.
+
+2. **Sửa Lỗi Khớp Lệch Dữ Liệu Ngân Sách (UUID Case Sensitivity) tại `BudgetTransactionsBottomSheet.tsx`:**
+   - **Vấn đề:** Bảng lịch sử các lần chi tiêu cho ngân sách bị trống trơn dù tổng số tiền hiển thị vẫn đúng (Ví dụ: "Quần áo T7/2026").
+   - **Quyết định:** Chuẩn hóa thuật toán so khớp mã ID danh mục, ép kiểu về chuỗi thường `.toLowerCase()` khi so sánh `txCatId === bCatId` nhằm giải quyết dứt điểm rủi ro chênh lệch in hoa/in thường giữa Backend Java (chuỗi UUID) và Frontend JavaScript.
+
+3. **Tái Cấu Trúc Toàn Diện Pop-up Thông Báo (`NotificationsBottomSheet.tsx`):**
+   - **Vấn đề:** Bảng thông báo (🔔) đang sử dụng cơ chế kéo trượt tùy chỉnh (Custom Slide-up Modal) với chiều cao cố định 80%, gây lãng phí không gian trắng khổng lồ khi không có thông báo.
+   - **Quyết định:** 
+     - Gỡ bỏ hoàn toàn kiến trúc màn hình trắng cuộn đáy cũ. 
+     - Tái sử dụng linh kiện cốt lõi `<BottomSheet>` để đồng bộ 100% giao diện sang dạng **Pop-up nổi căn giữa màn hình (Centered Modal)**. 
+     - Tự động co giãn kích thước động (Dynamic Height) vừa khít với nội dung thông báo.
+     - Mở rộng thuộc tính `headerRight` cho `BottomSheet.tsx`, cho phép tích hợp gọn gàng nút "Đánh dấu đã đọc hết" ngay trên thanh tiêu đề.
+
+### Session [2026-08-08] - Khắc Phục Lỗi Hiển Thị Lịch Sử Giao Dịch Ngân Sách (`FrontendReact`)
+
+**✅ Đã hoàn thành (Detailed Procedure & Decisions):**
+
+1. **Khảo sát Lỗi Dữ Liệu Lịch Sử Ngân Sách (Data Discrepancy Analysis):**
+   - **Vấn đề:** Giao diện `BudgetTransactionsBottomSheet.tsx` hiển thị đúng tổng chi phí, nhưng danh sách lịch sử các lần chi lại trống rỗng mặc dù rõ ràng có giao dịch cho danh mục đó (Ví dụ: "Quần áo T7/2026").
+   - **Quyết định (Investigation):** So sánh `TransactionResponse.java` (Backend) và kiểu `Transaction` tại Frontend. Phát hiện Backend trả về đối tượng `category` lồng nhau (`category: { id: ..., name: ... }`), nhưng Frontend lại cố đọc dữ liệu phẳng (`transaction.categoryId`, `transaction.categoryName`).
+
+2. **Cập Nhật Logic Lọc Giao Dịch Ngân Sách Trực Quan (`BudgetTransactionsBottomSheet.tsx`):**
+   - **Quyết định (Filter Logic Update):** Không thay đổi API hay Type một cách tùy tiện gây đứt gãy ứng dụng. Thay vào đó, áp dụng cơ chế đọc song song an toàn `tx.categoryId || tx.category?.id`.
+   - Sửa thuật toán `matchesId` và `matchesName` để luôn ưu tiên đọc chính xác ID và Tên danh mục từ object lồng nhau. Nhờ vậy, danh sách lịch sử các lần tiêu tiền cho ngân sách đã hiển thị đầy đủ ngay lập tức.
+
+3. **Chống Phân Mảnh Lỗi Ở Màn Hình Lịch Sử Tổng Hợp (`HistoryScreen.tsx`):**
+   - **Vấn đề:** Màn hình `HistoryScreen` hiển thị mặc định chữ "Giao dịch" nếu thiếu `categoryName`.
+   - **Quyết định (UI Rendering Optimization):** Bổ sung đọc dữ liệu `t.category?.name` trong hàm lọc `matchVietnamese` và bổ sung hiển thị fallback linh hoạt `(item as any).category?.iconName || ...` và `(item as any).category?.name` để đảm bảo giao diện History không bao giờ thiếu icon hoặc tên danh mục, kể cả khi DTO trả về dạng lồng.
+
+4. **Sửa Lỗi Chỉnh Sửa Giao Dịch (`EditTransactionModal.tsx`):**
+   - **Quyết định (State Prefill):** Khi bấm vào 1 giao dịch để sửa, form bị lỗi không pre-fill được danh mục cũ (do `transaction.categoryId` là undefined). Cập nhật hàm `setSelectedCategoryId` để tự động gán `(transaction as any).category?.id`, đảm bảo trải nghiệm chỉnh sửa thông suốt 100%.
+
+### Session [2026-08-07] - Nâng Cấp Form Hóa Đơn Nhóm, Danh Sách Nhắc Nợ & Tích Hợp AI Soạn Văn Nhắc Khéo (`FrontendReact`)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc phục Lỗi Chuyển Tháng & Tối ưu Tab Gợi Ý Chi Tiêu (`AdvisorScreen.tsx`):**
+   - Bổ sung hàm `changeMonth` xử lý lùi/tiến tháng an toàn, loại bỏ triệt để lỗi `ReferenceError: Property 'changeMonth' doesn't exist`.
+   - Di chuyển thanh chuyển tháng từ Header toàn cục vào hiển thị chuyên biệt bên trong tab **"💡 Gợi ý chi tiêu"**, giúp giao diện tab Thói quen và Cảnh báo luôn thoáng đãng.
+
+2. **Đồng bộ DTO & Hoàn thiện Form Thêm Hóa Đơn Nhóm (`GroupDetailScreen.tsx` & `GroupDetailBottomSheet.tsx`):**
+   - **Đồng bộ Payload API**: Chuyển đổi các tham số `payerId` / `splitMemberIds` sang đúng định dạng Backend DTO `paidBy` & `splitUserIds`, giải quyết lỗi "paidBy không được để trống".
+   - **Người trả tiền (`Ai là người trả tiền?`)**: Hiển thị avatar tròn, họ tên, hỗ trợ chọn bất kỳ thành viên nào (mặc định là user hiện tại).
+   - **Người chia tiền (`Chia cho những ai?`)**: Hỗ trợ 2 chế độ: `Tất cả` (chia đều) và `Tùy chọn` (danh sách checklist từng thành viên kèm dấu tích xanh).
+   - **Dropdown Selector**: Chuyển đổi cả hai mục Danh mục chi tiêu và Người trả tiền từ hàng pill nằm ngang sang menu Dropdown hiện đại, không bị cắt ngắn chữ `...`.
+   - **Loại bỏ nút "Hủy" & Cố định (Sticky) nút "Lưu hóa đơn"**: Tối ưu UX loại bỏ nút Hủy do đã có nút đóng `✕`, ghim cố định nút **"Lưu hóa đơn"** màu tím full-width ở đáy modal giúp thao tác 1 chạm tiện lợi khi cuộn form.
+
+3. **Thiết Kế Lại Toàn Diện Giao Diện Tab "Ai Nợ Ai" (Debt & Settlement Summary):**
+   - **Bố cục 1 hàng ngang tinh gọn (1-line Compact Item)**: Avatar $\rightarrow$ Tên thành viên + Số tiền $\rightarrow$ Nút hành động, loại bỏ bố cục 2 hàng cồng kềnh.
+   - **Loại bỏ nút QR thừa ở mục "Người khác nợ bạn"**: Giữ nút **`🔔 Nhắc nợ`** (hoặc **`✓ Xác nhận`** khi đối phương đã chuyển) ở mục Người khác nợ bạn; chỉ hiển thị nút **`Trả nợ 📲` (VietQR)** ở mục Bạn nợ người khác.
+   - **Thêm huy hiệu tổng tiền nợ**: Badge `Tổng: +800.000đ` (xanh bạc hà) và `Tổng: -200.000đ` (đỏ pastel) ở tiêu đề mỗi nhóm.
+
+4. **Tích Hợp Trợ Lý AI (Gemini) Soạn Văn Nhắc Nợ Khéo Léo (`RemindDebtBottomSheet.tsx`):**
+   - Khi bấm **`🔔 Nhắc nợ`**, modal trợ lý AI mở ra với 4 phong cách sáng tạo: 😂 *Gen Z, Hài hước*, ☕ *Lịch sự, Nhẹ nhàng*, 😡 *Đòi gấp, Nghiêm túc*, 🌸 *Thơ ca, Lãng mạn*.
+   - Tự động điền câu mẫu phù hợp ngay khi mở modal hoặc khi chuyển đổi phong cách nhắc nợ.
+   - Nút **"Soạn câu nhắc khéo với AI ✨"** kết nối API `/api/ai/generate-message` được tinh chỉnh thoáng đãng, không còn bị khuyết/cắt chữ.
+   - Loại bỏ danh sách mẫu thừa thãi, tối giản hóa ô nhập tin nhắn đa dòng và cố định nút **"Gửi thông báo nhắc nợ ngay 🚀"** ở đáy modal.
+
+5. **Chuẩn Hóa Modal Chi Tiết Nợ Theo Quy Chuẩn Centered Floating Popup Của Dự Án (`GroupsScreen.tsx`):**
+   - Chuyển đổi popup nợ tổng hợp sang chuẩn **Centered Floating Modal** (bo góc 28px, viền đen `#0f172a`, `elevation: 12`, nút đóng tròn `✕`, hiệu ứng `fade`).
+   - Thẻ hiển thị thông thoáng: Avatar $\rightarrow$ Tên $\rightarrow$ Huy hiệu nhóm $\rightarrow$ Số tiền to rõ $\rightarrow$ Nút hành động rộng rãi không bị đè/chèn chữ.
+
+6. **Tích Hợp Cổng Thanh Toán Giả Lập Sandbox & Báo Đã Thanh Toán Tiền Mặt (`PaymentSandboxModal.tsx` & `GroupsScreen.tsx`):**
+   - Bổ sung nút **`🧪 Giả lập thanh toán Sandbox (Mô phỏng)`** ngay dưới mã VietQR, cho phép người dùng mở cổng ngân hàng Sandbox, nhập OTP `123456`, mô phỏng trích tiền và tự động cập nhật sổ nợ.
+   - Bổ sung nút **`💵 Báo đã thanh toán tiền mặt (Chờ duyệt)`** kết nối API `/api/groups/{groupId}/debts/notify-payment` để gửi thông báo tức thì cho chủ nợ xác nhận.
+
+7. **Tối Giản Hóa Giao Diện Màn Hình Chính (`DashboardScreen.tsx`):**
+   - Xóa bỏ hoàn toàn thẻ trắng "Tổng tất cả các ví" nằm đè ở giữa, giúp Hero banner màu tối chuyển tiếp mượt mà, thông thoáng trực tiếp xuống phần **Trạng thái ngân sách / Cảnh báo hạn mức** và **Biểu đồ tài chính**.
+
+8. **Tạo Tác Vụ Nhanh Khi Bấm Nút (+) Giữa Màn Hình (`QuickActionBottomSheet.tsx` & `BottomTabNavigator.tsx`):**
+   - Khi bấm nút nổi `+` ở thanh điều hướng dưới cùng, hiển thị modal chọn nhanh 3 tác vụ trực quan:
+     1. 💸 **Tạo chi tiêu**: Mở modal chuyên biệt cho việc thêm giao dịch chi tiêu vào lịch sử, trừ tiền ví thanh toán, kèm quét hóa đơn AI (đã lược bỏ tab chọn Thu nhập).
+     2. 👥 **Tạo nhóm mới**: Mở modal tạo nhóm chi tiêu mới để chia sẻ chi phí với bạn bè.
+     3. 💳 **Nạp tiền vào ví**: Mở modal chuyên biệt cho việc nạp tiền / ghi nhận thu nhập vào ví, cộng tiền trực tiếp vào số dư khả dụng (đã lược bỏ tab chọn Chi tiêu).
+   - Chuyển đổi toàn bộ phần chọn **Danh mục chi tiêu/thu nhập** và **Ví thanh toán** từ dạng hàng ngang cuộn bị cắt chữ sang **Dropdown Picker / Danh sách dọc (Vertical List Dropdown)** thực thụ với ô chọn hiển thị mục hiện tại (`[ 📂 Tên danh mục   ▼ ]`), khi bấm vào sẽ mở rộng danh sách cuộn dọc có icon to rõ và tích xanh `✓`.
+   - **Đồng bộ hóa 100% hệ thống Danh mục chi tiêu nhóm (`GroupDetailScreen.tsx` & `GroupDetailBottomSheet.tsx`)** với danh mục Ngân sách & Cá nhân (*Ăn uống 🍽️, Chi tiêu hàng ngày 🧴, Quần áo 👕, Mỹ phẩm 💄, Phí giao lưu 🥂, Y tế 💊, Giáo dục 📚, Tiền điện 💡, Đi lại 🚆, Phí liên lạc 📱, Tiền nhà 🏠, Mục tiêu tiết kiệm 🎯, Mua sắm 🛍️, Giải trí 🎮, Lưu trú 🏨, Di chuyển 🚗, Khác 📦*), không còn sự chênh lệch hay phân mảnh giữa các tab.
+   - **Nâng Cấp Toàn Bộ Biểu Tượng Thanh Điều Hướng Dưới Cùng (`BottomTabNavigator.tsx`)**:
+     - Thay thế toàn bộ emoji hệ điều hành cũ bằng bộ vector icon **`lucide-react-native`** hiện đại, sắc nét:
+       - 🏠 **Tổng quan** $\rightarrow$ `<Home size={22} />`
+       - 📊 **Thống kê** $\rightarrow$ `<BarChart3 size={22} />`
+       - ⚡ **Nút trung tâm (+)** $\rightarrow$ `<Plus size={30} strokeWidth={3} />`
+       - 💡 **Tư vấn AI** $\rightarrow$ `<Sparkles size={22} />`
+       - 👤 **Cá nhân** $\rightarrow$ `<User size={22} />`
+     - Tự động chuyển đổi màu xanh ngọc `#10B981` (active) và xám tinh tế `#94A3B8` (inactive) với hiệu ứng phóng to mượt mà.
+   - **Xem Chi Tiết Lịch Sử Các Lần Đã Chi Tiêu Khi Chạm Vào Thẻ Ngân Sách (`BudgetScreen.tsx` & `BudgetTransactionsBottomSheet.tsx`)**:
+     - Khi bấm vào bất kỳ thẻ ngân sách nào (VD: *Tiền nhà, Tiền điện, Ăn uống...*), hệ thống mở Bottom Sheet thuần xem lịch sử đối soát chi tiêu:
+       - **Hero card**: Hiển thị hạn mức, tổng đã chi trong tháng qua các lần, số tiền còn lại hoặc số tiền đã vượt hạn mức cùng thanh tiến trình trực quan.
+       - **Lịch sử các lần đã tiêu (Spending Timeline Audit Log)**: Liệt kê chi tiết từng lần trích tiền vào ngân sách này theo thứ tự thời gian mới nhất (Đánh số *Lần 1, Lần 2...*, Mã hóa đơn `#HD-...`, ngày giờ cụ thể, nội dung ghi chú, ví thanh toán và số tiền đã trừ).
+       - Không thêm nút tạo chi tiêu thủ công bên trong bảng lịch sử ngân sách, bởi vì các giao dịch được phát sinh qua chi tiêu hàng ngày / chi tiêu nhóm và tự động phân loại, gán trực tiếp vào ngân sách tương ứng.
+   - **Nâng Cấp Bộ Dữ Liệu Mẫu Seed V7 (`generate_seed_v7.js` & `seed_v7.sql`)**:
+     - **Bỏ chữ "Ngân sách " lặp lại**: Đặt tên ngân sách tự nhiên, gọn gàng (*Tiền nhà T8/2026, Tiền điện T8/2026, Ăn uống T8/2026, Phí liên lạc T8/2026*).
+     - **Lắp đầy 100% dữ liệu mọi Entity**: `budgets` (due day, payee bank), `external_loans` (phone, interest, dates), `savings_goals`, `groups`, `expenses`, `payments`, `transactions`.
+     - **Đa dạng hóa hệ thống thông báo (`notifications`)**: Cảnh báo vượt hạn mức đỏ `BUDGET_OVER`, cảnh báo sắp chạm vàng `BUDGET_WARNING`, phát hiện bất thường `Z_SCORE_ANOMALY`, nhắc nợ AI `DEBT_REMINDER`, báo thanh toán tiền mặt `DEBT_PAYMENT_NOTIFIED`, xác nhận thanh toán nợ `DEBT_SETTLED` và thông báo lương `SALARY_RECEIVED`.
+
+### Session [2026-08-07] - Sửa lỗi TypeScript & Tối ưu Hoá Logic Mobile App (`FrontendReact`)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc phục Lỗi Cú pháp StyleSheet (absoluteFill):**
+   - Sửa lỗi sử dụng sai cú pháp `...StyleSheet.absoluteFillObject` trong cấu trúc khai báo Object (lỗi TS2551) tại các modal cập nhật số điện thoại, VietQR, và quản lý ví. Đổi sang dùng thuộc tính chuẩn giúp loại bỏ nguy cơ Red Screen (Crash) khi mở Modal.
+
+2. **Chuẩn hoá Kiểu Dữ liệu Nhóm (Group Members & Expenses):**
+   - Rà soát và sửa hàng loạt lỗi truy xuất sai thuộc tính trong `GroupDetailScreen.tsx` (sửa `member.user.id` và `item.payerId` cho khớp hoàn toàn với API Backend).
+
+3. **Cập nhật Logic Ngân sách (Budgets):**
+   - Khắc phục lỗi gọi các thuộc tính không có thật (`isMandatory`, `payeeAccountName`) trên đối tượng `BudgetSummary` tại `BudgetScreen` và `DashboardScreen`. Đảm bảo Type Safety 100% cho ứng dụng.
+
+4. **Đồng bộ Bảng màu Hệ thống (Colors):**
+   - Thay thế toàn bộ các biến màu bị gọi sai tên (như `emerald800`, `rose700`, `emerald950`) thành các biến màu có sẵn trong Design Token `colors.ts` (ví dụ: `emerald100`, `rose100`) tại tất cả các màn hình chính.
+
 ### Session [2026-08-07] - Tích hợp Thông báo Realtime (WebSocket) & Đồng bộ Toàn diện API Mobile (React Native)
 
 **✅ Đã hoàn thành (Compact Procedure):**

@@ -16,6 +16,62 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 11. **Ngân sách Ưu tiên Thông minh (Dynamic Priority Sorting & Star Toggle):** Tự động phân loại và đẩy các khoản ngân sách ưu tiên lên đầu trang, chuẩn hóa icon ngôi sao xám/vàng và phản hồi UI tức thì.
 13. **Centered Floating Popup Modal & In-place History Navigation:** Chuẩn hóa toàn bộ modal dạng Bottom Sheet sang Pop-up nổi ở chính giữa màn hình với bo góc 28px, viền đen `#0f172a`, và tích hợp chuyển màn hình xem lịch sử chi tiêu theo từng danh mục trực tiếp trong Popup (In-place navigation) loại bỏ hoàn toàn lỗi trùng đè Modal.
 
+### Session [2026-08-10] - Xử Lý Chống Lỗi Giao Dịch Ảo & Khắc Phục Màn Hình Trắng VNPay Sandbox
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc Phục Lỗi Tạo Giao Dịch Ảo Phía Frontend (Fake Transaction Prevention):**
+   - **Vấn đề:** Ứng dụng "tin tưởng mù quáng" vào việc người dùng đóng Modal VNPay, tự động gọi API tạo giao dịch thành công dù giao dịch bên VNPay đã bị hủy hoặc thất bại.
+   - **Thực thi:** Ngừng việc Frontend tự động tạo giao dịch. Nâng cấp Backend (`VNPayController`) để đón Webhook trả về từ VNPay, bổ sung truyền `walletId`, `categoryId`, `budgetId` qua `vnp_OrderInfo`. Khi thanh toán thực sự thành công, Backend sẽ tự động gọi `TransactionService` ghi nhận giao dịch, đảm bảo 100% tính toàn vẹn dữ liệu.
+
+2. **Khắc Phục Lỗi Màn Hình Trắng VNPay Sandbox (WAF / Special Characters Rules):**
+   - **Vấn đề:** Tham số `vnp_OrderInfo` chứa các chuỗi UUID có dấu gạch ngang (`-`) và gạch nối (`_`). Tường lửa (WAF) của VNPay Sandbox nghiêm cấm ký tự đặc biệt, khiến trang thanh toán lỗi render Javascript và hiển thị màn hình trắng bóc.
+   - **Thực thi:** Chuyển đổi toàn bộ UUID thành chuỗi Hex liền mạch (xóa sạch dấu `-`) và thay thế dấu gạch dưới (`_`) bằng dấu khoảng trắng (space) hoàn toàn hợp lệ. Tại `vnpayReturn`, Backend tự động phân giải lại chuỗi Hex thành UUID chuẩn xác thông qua Regex capture group.
+
+3. **Cơ Chế Báo Lỗi Thanh Toán Thất Bại Tức Thì (`BudgetScreen.tsx`):**
+   - **Thực thi:** Cải tiến hàm `handleSandboxPaymentSuccess`. Khi người dùng tắt modal VNPay, ứng dụng sẽ fetch dữ liệu Ngân sách mới nhất và đối chiếu số tiền đã chi (`spentAmount`). Nếu số tiền không thay đổi (tức giao dịch bị hủy/thất bại bên VNPay), lập tức bật Pop-up `Alert` cảnh báo: **"Thanh toán thất bại - Giao dịch đã bị huỷ hoặc xảy ra lỗi trên cổng thanh toán VNPay"**.
+
+### Session [2026-08-09] (Phần 3) - Cập Nhật Kiến Trúc Đồ Án Tốt Nghiệp & Chuẩn Hóa Sơ Đồ UML
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Chuẩn Hóa Kiến Trúc Hệ Thống (Hình 3.1 & 3.4):**
+   - **Vấn đề:** Bản thảo Đồ án tốt nghiệp mô tả sai lệch so với dự án thực tế (dư thừa dự án Web Admin và cụm Redis Broker chưa triển khai).
+   - **Thực thi:** Lọc bỏ hoàn toàn nền tảng Web Vercel và hạ tầng Redis khỏi tài liệu phân tích để đảm bảo tính trung thực tuyệt đối trước hội đồng bảo vệ. Cập nhật mã sơ đồ Triển khai (Deployment Diagram) bằng Mermaid chỉ giữ lại 3 khối cốt lõi: Mobile App, Spring Boot Container và PostgreSQL Database.
+
+2. **Chế Bản Sơ Đồ Thành Phần & Tuần Tự (Hình 3.2 & 3.3):**
+   - **Vấn đề:** Các công cụ AI sinh ảnh (DALL-E) không thể vẽ sơ đồ tuần tự chuẩn xác và thẳng hàng.
+   - **Thực thi:** Lập trình hệ thống mã Mermaid chất lượng cao chuẩn UML để kết xuất Sơ đồ Thành phần (Component Diagram) và Sơ đồ Tuần tự (STOMP WebSocket Sequence Diagram). Loại bỏ lưới hộp kích hoạt (activate boxes) và biên dịch nhãn dán sang Tiếng Anh để xuất ra biểu đồ tối giản, tinh tế như mong muốn của người dùng.
+
+### Session [2026-08-09] - Sửa Lỗi Logic API Hệ Thống & Khắc Phục Lỗ Hổng Bảo Mật Toàn Diện (`sharemoney` & `FrontendReact`)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc Phục Lỗ Hổng IDOR (Insecure Direct Object Reference) Mức Độ Nghiêm Trọng:**
+   - **Vấn đề:** Các controller `FinancialAdvisorController` và `FinancialHealthController` nhận `userId` từ URL (`@PathVariable`), cho phép bất kỳ user nào đã đăng nhập cũng có thể xem trộm dữ liệu tài chính của người khác bằng cách thay đổi ID.
+   - **Thực thi:** Xóa bỏ tham số `userId` trên URL, chuyển sang lấy ID an toàn từ token của chính user đang gọi API thông qua `SecurityUtils.getCurrentUserId()`.
+
+2. **Khắc Phục Lỗi Crash API Do Tham Số Bảo Mật Sai (`ExternalLoanController`):**
+   - **Vấn đề:** Controller nhận tham số `@AuthenticationPrincipal User user`, nhưng principal thực tế của Spring Security cấu hình là `CustomUserDetails`, dẫn đến `user` luôn là `null` và gây `NullPointerException`.
+   - **Thực thi:** Thay thế toàn bộ `@AuthenticationPrincipal` bằng `SecurityUtils.getCurrentUserId()`, đồng bộ hóa chuẩn bảo mật với các controller khác.
+
+3. **Hoàn Thiện Luồng Thanh Toán VNPay (`VNPayController`):**
+   - **Vấn đề:** API `createPaymentUrl` truyền sai số lượng tham số gây lỗi biên dịch. API dùng method GET kém an toàn và thiếu xử lý logic khi VNPay gọi webhook trả về.
+   - **Thực thi:** Chuyển API tạo thanh toán sang `POST /api/vnpay/create-payment`. Bổ sung truyền `debtorId`, tự động thiết lập Redirect (Deep link: `sharemoney://vnpay-result?status=...`) để trả kết quả về Mobile App thay vì điều hướng vô định.
+
+4. **Đồng Bộ Hóa Kiến Trúc Dữ Liệu Các Khoản Vay & Ví (`loan.ts` & `wallet.ts`):**
+   - **Vấn đề:** Các kiểu dữ liệu trên Frontend (`ExternalLoan`, `Wallet`) bị lệch pha trầm trọng so với DTO của Backend (tên trường sai, dư thừa các trường ảo như `isLiability` hoặc `borrowerOrLenderName`).
+   - **Thực thi:** Tái cấu trúc kiểu dữ liệu Frontend để khớp 100% với Backend (`counterpartyName`, `principalAmount`). Xóa bỏ logic lọc `!isLiability` dư thừa tại các file `AddTransactionModal.tsx` và `BudgetScreen.tsx`.
+
+5. **Tối Ưu Hóa & Tách Kiểu Dữ Liệu Phức Hợp Nhóm (`group.ts` & `groupService.ts`):**
+   - **Vấn đề:** Type `Group` dùng chung cho cả danh sách và chi tiết nhóm, dẫn đến báo lỗi undefined khi gọi API danh sách (vì mảng `members` không tồn tại).
+   - **Thực thi:** Phân tách rõ ràng thành `GroupListItem` (chỉ có `memberCount`) và `GroupDetail` (chứa mảng `GroupMember[]`), tương ứng chuẩn xác với `GroupResponse` và `GroupDetailResponse` từ Backend.
+
+6. **Dọn Dẹp Các Đoạn Code Rác & Thiết Lập Chuẩn REST (Code Smells & REST Conventions):**
+   - **Cấu hình Security:** Đảo thứ tự `RateLimitingFilter` chạy trước `JwtAuthenticationFilter` để chặn spam từ chối dịch vụ (DDoS) hiệu quả hơn.
+   - **Tối ưu Transaction:** Xóa bỏ `@Transactional` đặt sai chỗ cấp class tại `UserController` (gây lãng phí connection pool). Xóa cờ `readOnly` sai logic trong `DebtService.remindDebt()`.
+   - **Chuẩn HTTP:** Sửa HTTP status của API xóa ngân sách tiết kiệm (`DELETE /api/savings-goals`) về đúng chuẩn `204 No Content`.
+   - **Bổ sung Type/API thiếu:** Thêm trường `bankAccountName` vào `UpdateQrRequest.java` và tích hợp hàm AI `generateMessage` bị thiếu trong `aiService.ts`.
 ### Session [2026-08-08] (Phần 2) - Tối Ưu Hóa Giao Diện Modal & Xử Lý Chống Lỗi Đóng Băng Ứng Dụng (`FrontendReact`)
 
 **✅ Đã hoàn thành (Compact Procedure):**

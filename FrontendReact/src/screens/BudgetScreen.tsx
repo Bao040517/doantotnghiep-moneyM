@@ -31,23 +31,71 @@ import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
 import { BudgetTransactionsBottomSheet } from "../components/modals/BudgetTransactionsBottomSheet";
 
 const CATEGORY_ICONS: Record<string, string> = {
-  "Ăn uống": "🍽️",
-  "Chi tiêu hàng ngày": "🧴",
-  "Quần áo": "👕",
-  "Phí giao lưu": "🥂",
-  "Mỹ phẩm": "💄",
-  "Tiền nhà": "🏠",
-  "Tiền điện": "💡",
-  "Đi lại": "🚆",
-  "Phí liên lạc": "📱",
+  "Ăn uống": "🍲",
+  "Mua sắm": "🛍️",
+  "Di chuyển": "🚕",
+  "Nhà cửa": "🏠",
+  "Giải trí": "🍿",
   "Y tế": "💊",
   "Giáo dục": "📚",
-  "Mục tiêu tiết kiệm": "🎯",
-  "Trả nợ nhóm": "💸",
+  "Đầu tư": "📈",
   "Lương": "💰",
   "Thưởng": "🎁",
-  "Thu nhập khác": "📥",
+  "Tiền lãi": "🏦",
+  "Đòi nợ": "💸",
+  "Trả nợ": "💳",
+  "Chuyển khoản": "🔄",
+  "Khác": "📂"
 };
+
+// The absolute core text input that NEVER re-renders to prevent ANY React Native interference with IME
+const SearchInputCore = React.memo(
+  React.forwardRef<TextInput, { onText: (val: string) => void }>((props, ref) => {
+    return (
+      <TextInput
+        ref={ref}
+        placeholder="Tìm kiếm ngân sách theo tên, danh mục..."
+        placeholderTextColor={colors.slate400}
+        onChangeText={props.onText}
+        style={styles.searchInput}
+      />
+    );
+  }),
+  () => true // Never re-render, period.
+);
+
+// Memoized SearchBar
+const MemoizedSearchBar = React.memo(({ onSearch }: { onSearch: (val: string) => void }) => {
+  const [hasText, setHasText] = useState(false);
+  const inputRef = React.useRef<TextInput>(null);
+
+  const handleText = React.useCallback((text: string) => {
+    setHasText(text.length > 0);
+    onSearch(text);
+  }, [onSearch]);
+
+  const handleClear = React.useCallback(() => {
+    setHasText(false);
+    onSearch("");
+    inputRef.current?.clear();
+  }, [onSearch]);
+
+  return (
+    <View style={styles.searchBarContainer}>
+      <View style={styles.searchIconBox}>
+        <Text style={{ fontSize: 16 }}>🔍</Text>
+      </View>
+      
+      <SearchInputCore ref={inputRef} onText={handleText} />
+      
+      {hasText && (
+        <TouchableOpacity onPress={handleClear} style={styles.searchClearBtn}>
+          <Text style={{ fontSize: 13, color: colors.slate500, fontWeight: "800" }}>✕</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+});
 
 export const BudgetScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -62,7 +110,10 @@ export const BudgetScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [focusedBudgetId, setFocusedBudgetId] = useState<string | null>(null);
 
+  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   const scrollViewRef = React.useRef<ScrollView>(null);
+  const budgetNameInputRef = React.useRef<TextInput>(null);
   const itemPositions = React.useRef<{ [key: string]: number }>({});
 
   // Toast state
@@ -89,6 +140,8 @@ export const BudgetScreen: React.FC = () => {
     groupName?: string;
     budgetId?: string;
     categoryId?: string;
+    walletId?: string;
+    prevSpentAmount?: number;
   } | null>(null);
 
   // Budget Transactions Breakdown Sheet state
@@ -98,6 +151,13 @@ export const BudgetScreen: React.FC = () => {
   // Create Budget Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [budgetName, setBudgetName] = useState("");
+  useEffect(() => {
+    if (!modalVisible) {
+      setBudgetName("");
+      setLimitAmount("");
+      budgetNameInputRef.current?.clear();
+    }
+  }, [modalVisible]);
   const [limitAmount, setLimitAmount] = useState("");
   const [isMandatory, setIsMandatory] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -149,7 +209,7 @@ export const BudgetScreen: React.FC = () => {
 
     if (user?.id) {
       api
-        .get(`/advisor/insights/${user.id}`)
+        .get(`/advisor/insights`)
         .then((res) => {
           if (res.data?.budgetPlan) {
             setAdvisorSuggestions(res.data.budgetPlan);
@@ -239,46 +299,53 @@ export const BudgetScreen: React.FC = () => {
     }
   };
 
-  const handleQuickPay = (b: BudgetSummary) => {
+  const handleQuickPay = async (b: BudgetSummary) => {
     const remaining = Math.max(0, b.limitAmount - b.spentAmount);
     if (remaining <= 0) return;
 
-    setSandboxDebtInfo({
-      amount: remaining,
-      toName: b.payeeAccountName || b.name || b.categoryName,
-      toBankBin: b.payeeBankBin || "970422",
-      toAccountNo: b.payeeBankAccount || "10908888999",
-      groupName: b.name || b.categoryName,
-      budgetId: b.budgetId,
-      categoryId: b.categoryId,
-    });
-    setSandboxVisible(true);
-  };
-
-  const handleSandboxPaymentSuccess = async (amount: number) => {
-    if (!sandboxDebtInfo) return;
-
     try {
       const walletRes = await financialServices.getWallets();
-      const availableWallets = (walletRes || []).filter((w) => !w.isLiability);
-      const targetWallet = availableWallets.length > 0 ? availableWallets[0] : (walletRes || [])[0];
+      const targetWallet = walletRes && walletRes.length > 0 ? walletRes[0] : null;
 
       if (!targetWallet) {
         showToast("Vui lòng tạo ví tiền trước khi thanh toán", "error");
         return;
       }
 
-      await api.post(`/transactions/${targetWallet.id}`, {
-        amount: amount,
-        categoryId: sandboxDebtInfo.categoryId,
-        note: sandboxDebtInfo.groupName,
-        linkedBudgetId: sandboxDebtInfo.budgetId,
+      setSandboxDebtInfo({
+        amount: remaining,
+        toName: b.payeeAccountName || b.name || b.categoryName,
+        toBankBin: b.payeeBankBin || "970422",
+        toAccountNo: b.payeeBankAccount || "10908888999",
+        groupName: b.name || b.categoryName,
+        budgetId: b.budgetId,
+        categoryId: b.categoryId,
+        walletId: targetWallet.id,
+        prevSpentAmount: b.spentAmount,
       });
-
-      showToast(`Đã chuyển tiền Sandbox thành công cho ${sandboxDebtInfo.groupName}! 🎉`, "success");
-      fetchBudgets();
+      setSandboxVisible(true);
     } catch (err) {
-      showToast("Lỗi khi ghi nhận giao dịch thanh toán", "error");
+      showToast("Lỗi khi tải thông tin ví", "error");
+    }
+  };
+
+  const handleSandboxPaymentSuccess = async (amount: number) => {
+    if (!sandboxDebtInfo) return;
+
+    try {
+      const newData = await financialServices.getBudgetSummary(year, month);
+      setBudgets(newData || []);
+      
+      const updatedBudget = newData?.find(b => b.budgetId === sandboxDebtInfo.budgetId || b.categoryId === sandboxDebtInfo.categoryId);
+      const prevSpent = sandboxDebtInfo.prevSpentAmount || 0;
+
+      if (updatedBudget && updatedBudget.spentAmount > prevSpent) {
+        showToast(`Đã chuyển tiền thành công cho ${sandboxDebtInfo.groupName}! 🎉`, "success");
+      } else {
+        Alert.alert("Thanh toán thất bại", "Giao dịch đã bị huỷ hoặc xảy ra lỗi trên cổng thanh toán VNPay.");
+      }
+    } catch (err) {
+      showToast("Lỗi khi đồng bộ dữ liệu sau thanh toán", "error");
     }
   };
 
@@ -392,24 +459,15 @@ export const BudgetScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* ─── SEARCH INPUT FIELD ─── */}
-        <View style={styles.searchBarContainer}>
-          <View style={styles.searchIconBox}>
-            <Text style={{ fontSize: 16 }}>🔍</Text>
-          </View>
-          <TextInput
-            placeholder="Tìm kiếm ngân sách theo tên, danh mục..."
-            placeholderTextColor={colors.slate400}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchInput}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.searchClearBtn}>
-              <Text style={{ fontSize: 13, color: colors.slate500, fontWeight: "800" }}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* ─── ISOLATED MEMOIZED SEARCH INPUT FIELD ─── */}
+        <MemoizedSearchBar 
+          onSearch={React.useCallback((text: string) => {
+            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+            searchTimeoutRef.current = setTimeout(() => {
+              setSearchQuery(text);
+            }, 300);
+          }, [])}
+        />
 
         {/* ─── BUDGET LIST ─── */}
         {loading ? (
@@ -762,9 +820,9 @@ export const BudgetScreen: React.FC = () => {
                 <Text style={{ fontSize: 16 }}>✏️</Text>
               </View>
               <TextInput
+                ref={budgetNameInputRef}
                 placeholder="VD: Ngân sách Ăn uống T7"
                 placeholderTextColor={colors.slate400}
-                value={budgetName}
                 onFocus={() => setCategoryDropdownOpen(false)}
                 onChangeText={setBudgetName}
                 style={styles.fieldCardTextInput}

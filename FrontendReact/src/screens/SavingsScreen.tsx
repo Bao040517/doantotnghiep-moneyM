@@ -14,12 +14,7 @@ import { SavingsPriority } from "../types";
 
 export const SavingsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { totalWalletBalance, budgets, isLoading: appLoading, refresh: refreshApp } = useAppData();
-
-  const unpaidBudgetsTotal = budgets.reduce(
-    (sum, b) => sum + Math.max(0, b.limitAmount - b.spentAmount),
-    0
-  );
+  const { totalWalletBalance, budgets, isLoading: appLoading, refresh: refreshApp, safeToSpend: apiSafeToSpend } = useAppData();
 
   const {
     goals,
@@ -29,7 +24,7 @@ export const SavingsScreen: React.FC = () => {
     autoAllocate,
     isAllocating,
     refreshGoals,
-  } = useSavings(totalWalletBalance, unpaidBudgetsTotal, 0);
+  } = useSavings(totalWalletBalance, apiSafeToSpend);
 
   // Create Goal Modal state
   const [createVisible, setCreateVisible] = useState(false);

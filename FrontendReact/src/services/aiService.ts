@@ -1,7 +1,22 @@
 import { api } from "./api";
-import { ScanReceiptResponse } from "../types"; // I might need to add this type
+
+export interface AiMessageRequest {
+  debtorName: string;
+  creditorName: string;
+  amount: number;
+  mood?: string;
+}
+
+export interface AiMessageResponse {
+  message: string;
+}
 
 export const aiService = {
+  generateMessage: async (request: AiMessageRequest): Promise<AiMessageResponse> => {
+    const response = await api.post<AiMessageResponse>("/ai/generate-message", request);
+    return response.data;
+  },
+
   scanReceipt: async (imageUri: string, mimeType: string, fileName: string) => {
     const formData = new FormData();
     formData.append("image", {
@@ -18,3 +33,4 @@ export const aiService = {
     return response.data;
   },
 };
+

@@ -8,7 +8,7 @@ import {
   DeviceEventEmitter,
 } from "react-native";
 import { colors } from "../../constants/colors";
-import { notificationService, Notification } from "../../services/notificationService";
+import { notificationService, AppNotification } from "../../services/notificationService";
 import { BottomSheet } from "../ui/BottomSheet";
 
 interface NotificationsBottomSheetProps {
@@ -22,13 +22,13 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
   onClose,
   onReadAction
 }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchNotifs = async () => {
     setLoading(true);
     try {
-      const data = await notificationService.getNotifications();
+      const data = await notificationService.getUserNotifications();
       setNotifications(data);
     } catch (e) {
       console.error(e);
@@ -78,13 +78,25 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
     }
   };
 
-  const getIcon = (type: string) => {
+  const getIcon = (type?: string) => {
     switch (type) {
       case "DEBT_REMINDER": return "🔔";
       case "PAYMENT_NOTIFY": return "💸";
       case "PAYMENT_APPROVED": return "✅";
       case "SYSTEM": return "📢";
+      case "WARNING": return "⚠️";
       default: return "📩";
+    }
+  };
+
+  const getTitle = (type?: string) => {
+    switch (type) {
+      case "DEBT_REMINDER": return "Nhắc nợ";
+      case "PAYMENT_NOTIFY": return "Thông báo thanh toán";
+      case "PAYMENT_APPROVED": return "Thanh toán được phê duyệt";
+      case "SYSTEM": return "Hệ thống";
+      case "WARNING": return "Cảnh báo";
+      default: return "Thông báo mới";
     }
   };
 
@@ -131,9 +143,9 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
                 <Text style={{ fontSize: 20 }}>{getIcon(item.type)}</Text>
               </View>
               <View style={styles.itemContent}>
-                <Text style={[styles.itemTitle, !item.isRead && styles.itemTitleUnread]}>{item.title}</Text>
+                <Text style={[styles.itemTitle, !item.isRead && styles.itemTitleUnread]}>{getTitle(item.type)}</Text>
                 <Text style={styles.itemMessage}>{item.message}</Text>
-                <Text style={styles.itemTime}>{new Date(item.createdDate).toLocaleString("vi-VN")}</Text>
+                <Text style={styles.itemTime}>{item.createdAt ? new Date(item.createdAt).toLocaleString("vi-VN") : ""}</Text>
               </View>
               {!item.isRead && <View style={styles.unreadDot} />}
             </TouchableOpacity>

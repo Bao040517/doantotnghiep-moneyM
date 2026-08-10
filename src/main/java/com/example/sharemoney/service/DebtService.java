@@ -190,7 +190,7 @@ public class DebtService {
     // ─────────────────────────────────────────────────────────────
     // Gửi nhắc nợ tự động (Tích hợp QR, STOMP, và Email)
     // ─────────────────────────────────────────────────────────────
-    @Transactional(readOnly = true)
+    @Transactional
     public void remindDebt(UUID groupId, RemindDebtRequest request, UUID creditorId) {
         User creditor =
                 userRepository

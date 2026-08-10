@@ -65,7 +65,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   // Sync walletId when wallets prop changes
   useEffect(() => {
     if (wallets.length > 0 && !selectedWalletId) {
-      const nonLiabilityWallet = wallets.find((w) => !w.isLiability);
+      const nonLiabilityWallet = wallets.find((w) => w.id); // Just get first wallet
       setSelectedWalletId(nonLiabilityWallet?.id || wallets[0].id);
     }
   }, [wallets]);
@@ -199,7 +199,6 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
               <View style={styles.dropdownListBox}>
                 <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 180 }} showsVerticalScrollIndicator={true}>
                   {wallets
-                    .filter((w) => !w.isLiability)
                     .map((w) => {
                       const isSelected = selectedWalletId === w.id;
                       return (

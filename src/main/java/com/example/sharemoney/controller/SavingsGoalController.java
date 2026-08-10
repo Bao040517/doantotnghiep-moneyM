@@ -62,6 +62,12 @@ public class SavingsGoalController {
     @DeleteMapping("/{goalId}")
     public ResponseEntity<Void> deleteSavingsGoal(@PathVariable UUID goalId) {
         savingsGoalService.deleteSavingsGoal(SecurityUtils.getCurrentUserId(), goalId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/auto-allocate")
+    public ResponseEntity<com.example.sharemoney.dto.response.AutoAllocateResponse> autoAllocateSavings() {
+        return ResponseEntity.ok(
+                savingsGoalService.autoAllocateSavingsGoals(SecurityUtils.getCurrentUserId()));
     }
 }

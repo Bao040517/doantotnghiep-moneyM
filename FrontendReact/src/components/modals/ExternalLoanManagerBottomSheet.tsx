@@ -54,10 +54,11 @@ export const ExternalLoanManagerBottomSheet: React.FC<ExternalLoanManagerBottomS
     setLoading(true);
     try {
       await loanService.createLoan({
-        borrowerOrLenderName: name.trim(),
-        amount: rawNumber,
+        counterpartyName: name.trim(),
+        principalAmount: rawNumber,
+        interestRate: 0,
         type,
-        note: note.trim(),
+        description: note.trim(),
       });
       setName("");
       setAmount("");
@@ -111,14 +112,14 @@ export const ExternalLoanManagerBottomSheet: React.FC<ExternalLoanManagerBottomS
               renderItem={({ item }) => (
                 <View style={styles.loanItem}>
                   <View style={styles.loanDetails}>
-                    <Text style={styles.personName}>{item.borrowerOrLenderName}</Text>
+                    <Text style={styles.personName}>{item.counterpartyName}</Text>
                     <Text style={styles.loanType}>
                       {item.type === "BORROW" ? "🔴 Bạn nợ người này" : "🟢 Người này nợ bạn"}
                     </Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={[styles.loanAmount, { color: item.type === "BORROW" ? colors.rose600 : colors.emerald600 }]}>
-                      {(item.amount ?? 0).toLocaleString("vi-VN")} ₫
+                      {(item.principalAmount ?? 0).toLocaleString("vi-VN")} ₫
                     </Text>
                     <Button 
                       title="Xóa" 

@@ -6,9 +6,9 @@ export interface UserSummary {
   avatarUrl?: string;
   bankBin?: string;
   bankAccountNo?: string;
-  bankAccountName?: string;
   bankQrUrl?: string;
 }
+
 
 export interface AuthResponse {
   token: string;

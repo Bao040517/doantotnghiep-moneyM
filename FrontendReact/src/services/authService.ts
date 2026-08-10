@@ -22,7 +22,7 @@ export const authService = {
     return response.data;
   },
 
-  updateVietQRLink: async (data: { bankBin?: string; bankAccountNo?: string; bankAccountName?: string }): Promise<UserSummary> => {
+  updateVietQRLink: async (data: { bankQrUrl?: string; bankBin?: string; bankAccountNo?: string; bankAccountName?: string }): Promise<UserSummary> => {
     const response = await api.put<UserSummary>("/users/me/qr", data);
     return response.data;
   },

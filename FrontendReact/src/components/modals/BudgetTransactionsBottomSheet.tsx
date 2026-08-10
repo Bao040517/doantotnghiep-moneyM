@@ -260,15 +260,7 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
           </View>
         )}
 
-        {/* ─── ACTION BUTTONS ─── */}
-        <View style={styles.actionRow}>
-          <Button
-            title="Đóng"
-            variant="secondary"
-            onPress={onClose}
-            style={styles.closeBtn}
-          />
-        </View>
+
       </ScrollView>
     </BottomSheet>
   );
@@ -542,16 +534,5 @@ const styles = StyleSheet.create({
     color: "#059669",
   },
 
-  /* Action Buttons */
-  actionRow: {
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  addBtn: {
-    width: "100%",
-  },
-  closeBtn: {
-    width: "100%",
-  },
+
 });

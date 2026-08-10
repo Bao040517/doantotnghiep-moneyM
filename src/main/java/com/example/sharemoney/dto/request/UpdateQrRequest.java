@@ -13,4 +13,6 @@ public class UpdateQrRequest {
 
     private String bankBin;
     private String bankAccountNo;
+    private String bankAccountName;
 }
+

@@ -33,11 +33,16 @@ export const financialServices = {
   getCategories: () => api.get<Category[]>("/categories").then((res) => res.data),
 
   // Budgets API
-  getBudgets: () => api.get<Budget[]>("/budgets").then((res) => res.data),
   getBudgetSummary: (year: number, month: number) =>
     api.get<BudgetSummary[]>(`/budgets/summary?year=${year}&month=${month}`).then((res) => res.data),
-  getSafeToSpend: () => api.get<{ safeBalanceTotal: number }>("/budgets/safe-to-spend").then((res) => res.data),
-  createBudget: (payload: BudgetPayload) => api.post<Budget>("/budgets", payload).then((res) => res.data),
+  getSafeToSpend: (year?: number, month?: number) => {
+    const params = new URLSearchParams();
+    if (year) params.append("year", String(year));
+    if (month) params.append("month", String(month));
+    const query = params.toString();
+    return api.get<{ safeBalanceTotal: number }>(`/budgets/safe-to-spend${query ? `?${query}` : ""}`).then((res) => res.data);
+  },
+  createBudget: (payload: BudgetPayload) => api.post<BudgetSummary>("/budgets", payload).then((res) => res.data),
   toggleMandatoryBudget: (id: string) => api.patch(`/budgets/${id}/mandatory`).then((res) => res.data),
   deleteBudget: (id: string) => api.delete(`/budgets/${id}`).then((res) => res.data),
 

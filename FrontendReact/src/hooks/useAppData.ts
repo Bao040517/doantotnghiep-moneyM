@@ -68,7 +68,7 @@ export function useAppData() {
 
   const refresh = () => setRefreshTrigger((prev) => prev + 1);
 
-  const totalLiabilities = wallets.reduce((sum, w) => sum + (w.isLiability ? w.balance : 0), 0);
+  const totalLiabilities = 0;
 
   const unpaidBudgetsAmount = budgets.reduce(
     (sum, b) => sum + Math.max(0, (b.limitAmount || 0) - (b.spentAmount || 0)),

@@ -176,7 +176,7 @@ export const WalletManagerBottomSheet: React.FC<WalletManagerBottomSheetProps> =
                 renderItem={({ item }) => (
                   <View style={styles.walletCard}>
                     <View style={styles.walletIconBg}>
-                      <Text style={{ fontSize: 20 }}>{item.isLiability ? "💳" : "💰"}</Text>
+                      <Text style={{ fontSize: 20 }}>💰</Text>
                     </View>
                     <View style={styles.walletDetails}>
                       <Text style={styles.walletName}>{item.name}</Text>
@@ -187,7 +187,7 @@ export const WalletManagerBottomSheet: React.FC<WalletManagerBottomSheetProps> =
                     <Text
                       style={[
                         styles.walletBalance,
-                        { color: item.isLiability ? colors.rose600 : colors.emerald600 },
+                        { color: colors.emerald600 },
                       ]}
                     >
                       {(item.balance ?? 0).toLocaleString("vi-VN")} ₫

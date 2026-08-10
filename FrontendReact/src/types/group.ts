@@ -1,20 +1,41 @@
 export interface GroupMember {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  role: "ADMIN" | "MEMBER";
-  bankBin?: string;
-  bankAccountNo?: string;
-  bankAccountName?: string;
+  id: string;
+  user: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    bankBin?: string;
+    bankAccountNo?: string;
+    bankQrUrl?: string;
+  };
+  role: string;
+  joinedAt?: string;
 }
 
-export interface Group {
+/** Response from GET /api/groups (list) */
+export interface GroupListItem {
   id: string;
   name: string;
   description?: string;
-  members: GroupMember[];
-  totalExpenses?: number;
+  owner?: { id: string; name: string; email?: string };
+  memberCount: number;
+  createdAt?: string;
 }
+
+/** Response from GET /api/groups/:id (detail) */
+export interface GroupDetail {
+  id: string;
+  name: string;
+  description?: string;
+  owner?: { id: string; name: string; email?: string };
+  members: GroupMember[];
+  createdAt?: string;
+}
+
+/** Union type for backward compatibility */
+export type Group = GroupListItem | GroupDetail;
+
 
 export interface GroupExpenseSplit {
   memberId: string;

@@ -139,7 +139,7 @@ export const AdvisorScreen: React.FC = () => {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const res = await api.get(`/advisor/insights/${user.id}`, {
+      const res = await api.get(`/advisor/insights`, {
         params: { year: selectedYear, month: selectedMonth },
       });
       setData(res.data);

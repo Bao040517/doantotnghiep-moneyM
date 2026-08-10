@@ -3,7 +3,6 @@ export interface Wallet {
   name: string;
   balance: number;
   currency: string;
-  isLiability: boolean;
   bankBin?: string;
   bankAccountNo?: string;
   bankAccountName?: string;
@@ -15,5 +14,5 @@ export interface WalletPayload {
   bankBin?: string;
   bankAccountNo?: string;
   bankAccountName?: string;
-  isLiability?: boolean;
 }
+

@@ -1,9 +1,9 @@
 import { api } from "./api";
-import { Group, GroupExpense, GroupDebtSummary } from "../types";
+import { GroupListItem, GroupDetail, GroupExpense, GroupDebtSummary } from "../types";
 
 export const groupService = {
-  getGroups: () => api.get<Group[]>("/groups").then((res) => res.data),
-  getGroupDetail: (groupId: string) => api.get<Group>(`/groups/${groupId}`).then((res) => res.data),
+  getGroups: () => api.get<GroupListItem[]>("/groups").then((res) => res.data),
+  getGroupDetail: (groupId: string) => api.get<GroupDetail>(`/groups/${groupId}`).then((res) => res.data),
   createGroup: (payload: { name: string; description?: string }) =>
     api.post<Group>("/groups", payload).then((res) => res.data),
   getGroupExpenses: (groupId: string, page = 0, size = 50) =>

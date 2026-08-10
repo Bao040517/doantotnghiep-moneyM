@@ -639,6 +639,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                 toAccountNo: qrSettleDebt.to?.bankAccountNo || "10928888999",
                 toUserId: qrSettleDebt.to?.id,
                 groupName: group?.name,
+                groupId: groupId,
               }
             : null
         }

@@ -29,6 +29,7 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [uncategorizedCount, setUncategorizedCount] = useState(0);
   const [search, setSearch] = useState("");
+  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCompModal, setShowCompModal] = useState(false);
   const [showTotalExpenseModal, setShowTotalExpenseModal] = useState(false);
@@ -121,8 +122,13 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
               <Input
                 icon={<Search size={18} color="#64748b" />}
                 placeholder="Tìm kiếm giao dịch"
-                value={search}
-                onChangeText={setSearch}
+                defaultValue={search}
+                onChangeText={(text) => {
+                  if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                  searchTimeoutRef.current = setTimeout(() => {
+                    setSearch(text);
+                  }, 300);
+                }}
                 containerStyle={{ marginBottom: 0 }}
               />
             </View>

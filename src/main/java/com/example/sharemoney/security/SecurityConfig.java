@@ -31,8 +31,7 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final RateLimitingFilter rateLimitingFilter;
 
-    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:3001}")
-    private String allowedOrigins;
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -59,8 +58,8 @@ public class SecurityConfig {
                                                 .STATELESS) // Không lưu session (REST API)
                         )
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitingFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

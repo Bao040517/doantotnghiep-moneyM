@@ -2,21 +2,23 @@ export type LoanType = "LEND" | "BORROW"; // LEND = Cho vay (cần thu), BORROW 
 
 export interface ExternalLoan {
   id: string;
-  borrowerOrLenderName: string;
-  amount: number;
-  paidAmount: number;
-  remainingAmount: number;
   type: LoanType;
+  counterpartyName: string;
+  principalAmount: number;
+  interestRate: number;
+  startDate?: string;
   dueDate?: string;
-  note?: string;
-  status: "ACTIVE" | "PAID" | "OVERDUE";
-  createdDate?: string;
+  description?: string;
+  settled: boolean;
 }
 
 export interface CreateExternalLoanPayload {
-  borrowerOrLenderName: string;
-  amount: number;
   type: LoanType;
+  counterpartyName: string;
+  principalAmount: number;
+  interestRate: number;
+  startDate?: string;
   dueDate?: string;
-  note?: string;
+  description?: string;
 }
+

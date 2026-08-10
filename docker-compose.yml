@@ -31,20 +31,6 @@ services:
       - db
     restart: always
 
-  frontend:
-    build:
-      context: ./Frontend
-      dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
-    container_name: sharemoney_frontend
-    environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-    restart: always
 
 volumes:
   postgres_data:

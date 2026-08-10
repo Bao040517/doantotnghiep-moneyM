@@ -455,6 +455,7 @@ public class TransactionService {
             if (expense == null) expense = BigDecimal.ZERO;
             BigDecimal debtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, from, to);
             if (debtPayment == null) debtPayment = BigDecimal.ZERO;
+            expense = expense.add(debtPayment);
             BigDecimal net = income.subtract(expense);
 
             String label = "T" + targetYM.getMonthValue() + "/" + targetYM.getYear();
@@ -514,6 +515,9 @@ public class TransactionService {
 
         BigDecimal selExpense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, selFrom, selTo);
         if (selExpense == null) selExpense = BigDecimal.ZERO;
+        BigDecimal selDebtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, selFrom, selTo);
+        if (selDebtPayment == null) selDebtPayment = BigDecimal.ZERO;
+        selExpense = selExpense.add(selDebtPayment);
 
         // Top category selected month
         List<CategoryBreakdownResponse> breakdown =

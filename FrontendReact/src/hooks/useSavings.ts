@@ -2,14 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { financialServices } from "../services/financialServices";
 import { SavingsGoal, AutoAllocateResponse } from "../types";
 
-export function useSavings(walletBalance: number, unpaidBudgetsTotal: number, totalOwing: number) {
+export function useSavings(walletBalance: number, safeToSpend: number) {
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [isAllocating, setIsAllocating] = useState(false);
   const [lastAllocationResult, setLastAllocationResult] = useState<AutoAllocateResponse | null>(null);
 
-  // Safety Reserve Floor Calculation: Unpaid Monthly Budgets + Net Group Owing
-  const requiredReserve = unpaidBudgetsTotal + totalOwing;
-  const safeToSpend = Math.max(0, walletBalance - requiredReserve);
+  // Safety Reserve Floor Calculation: Derived from backend safeToSpend
+  const requiredReserve = walletBalance - safeToSpend;
   const isSafetyFloorReached = safeToSpend <= 0;
 
   const fetchGoals = useCallback(async () => {

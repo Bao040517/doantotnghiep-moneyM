@@ -113,9 +113,17 @@ public class WalletService {
 
     @Transactional(readOnly = true)
     public TotalBalanceResponse getTotalBalance(UUID userId) {
-        List<Wallet> wallets = walletRepository.findByUser_IdAndIsLiability(userId, false);
-        BigDecimal total =
-                wallets.stream().map(Wallet::getBalance).reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<Wallet> allWallets = walletRepository.findByUser_Id(userId);
+        BigDecimal total = BigDecimal.ZERO;
+        
+        for (Wallet w : allWallets) {
+            if (w.isLiability()) {
+                total = total.subtract(w.getBalance());
+            } else {
+                total = total.add(w.getBalance());
+            }
+        }
+        
         return new TotalBalanceResponse(total);
     }
 

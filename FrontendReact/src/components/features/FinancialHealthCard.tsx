@@ -23,7 +23,7 @@ export const FinancialHealthCard: React.FC = () => {
       try {
         const profile = await api.get("/users/me").then((r) => r.data).catch(() => null);
         if (profile?.id) {
-          const res = await api.get(`/financial-health/${profile.id}`);
+          const res = await api.get(`/financial-health`);
           setHealth(res.data);
         } else {
           // Fallback mock if no profile id

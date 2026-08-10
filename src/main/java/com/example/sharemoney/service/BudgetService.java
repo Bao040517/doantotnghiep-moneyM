@@ -169,7 +169,7 @@ public class BudgetService {
                 .map(
                         b -> {
                             BigDecimal spent;
-                            if (b.getType() == com.example.sharemoney.entity.BudgetType.FLEXIBLE) {
+                            if (b.getType() == null || b.getType() == com.example.sharemoney.entity.BudgetType.FLEXIBLE) {
                                 // FLEXIBLE: chỉ đếm giao dịch không link tới BILL budget
                                 spent =
                                         transactionRepository.sumExpenseByCategoryAndMonth(
@@ -257,7 +257,7 @@ public class BudgetService {
                 .percentage(percentage)
                 .status(status)
                 .availableAmount(available)
-                .type(budget.getType().name())
+                .type(budget.getType() != null ? budget.getType().name() : "FLEXIBLE")
                 .isRecurring(budget.isRecurring())
                 .dueDayOfMonth(budget.getDueDayOfMonth())
                 .isMandatory(budget.getIsMandatory() != null ? budget.getIsMandatory() : false)
@@ -284,7 +284,7 @@ public class BudgetService {
         BigDecimal totalBills = BigDecimal.ZERO;
         BigDecimal totalBillSpent = BigDecimal.ZERO;
         for (Budget b : budgets) {
-            if ("BILL".equals(b.getType().name())) {
+            if (b.getType() != null && "BILL".equals(b.getType().name())) {
                 BigDecimal spent =
                         transactionRepository.sumAllExpenseByCategoryAndMonth(
                                 userId, b.getCategory().getId(), year, month);

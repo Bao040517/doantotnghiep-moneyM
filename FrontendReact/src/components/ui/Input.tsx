@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { View, TextInput, Text, StyleSheet, TextInputProps, ViewStyle } from "react-native";
 import { colors } from "../../constants/colors";
-import { convertTelexToVietnamese } from "../../utils/vietnamese";
+
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -36,13 +36,9 @@ export const Input: React.FC<InputProps> = ({
   }, [value]);
 
   const handleChangeText = (text: string) => {
-    const processedText = convertTelexToVietnamese(text);
-    lastValRef.current = processedText;
-    if (inputRef.current && processedText !== text) {
-      inputRef.current.setNativeProps({ text: processedText });
-    }
+    lastValRef.current = text;
     if (onChangeText) {
-      onChangeText(processedText);
+      onChangeText(text);
     }
   };
 

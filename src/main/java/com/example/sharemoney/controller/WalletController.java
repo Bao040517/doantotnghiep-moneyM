@@ -28,6 +28,7 @@ public class WalletController {
     }
 
     /** Để tương thích ngược, /me sẽ trả về danh sách ví hoặc ví đầu tiên */
+    @Deprecated
     @GetMapping("/me")
     public ResponseEntity<java.util.List<WalletResponse>> getMyWallet() {
         UUID userId = SecurityUtils.getCurrentUserId();

@@ -7,12 +7,13 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  Linking,
 } from "react-native";
 import { BottomSheet } from "../ui/BottomSheet";
 import { Button } from "../ui/Button";
-import { Input } from "../ui/Input";
 import { colors } from "../../constants/colors";
 import { VIETQR_BANKS } from "../../constants/banks";
+import { vnpayService } from "../../services/vnpayService";
 
 interface PaymentSandboxModalProps {
   visible: boolean;
@@ -23,6 +24,10 @@ interface PaymentSandboxModalProps {
     toAccountNo?: string;
     toUserId?: string;
     groupName?: string;
+    groupId?: string;
+    walletId?: string;
+    categoryId?: string;
+    budgetId?: string;
   } | null;
   onClose: () => void;
   onPaymentSuccess: (amount: number, toUserId?: string) => Promise<void>;
@@ -34,15 +39,14 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
   onClose,
   onPaymentSuccess,
 }) => {
-  const [step, setStep] = useState<"review" | "processing" | "success">("review");
-  const [otp, setOtp] = useState("123456");
-  const [processStatus, setProcessStatus] = useState("Đang kết nối Ngân Hàng Sandbox...");
+  const [step, setStep] = useState<"review" | "vnpay_redirect">("review");
   const [txnCode] = useState(() => "SBX" + Math.floor(10000000 + Math.random() * 90000000));
+  const [vnpayLoading, setVnpayLoading] = useState(false);
 
   React.useEffect(() => {
     if (visible) {
       setStep("review");
-      setOtp("123456");
+      setVnpayLoading(false);
     }
   }, [visible]);
 
@@ -54,35 +58,42 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
   const accountName = (debtInfo.toName || "Người nhận").toUpperCase();
   const amountFormatted = debtInfo.amount.toLocaleString("vi-VN") + " ₫";
 
-  const handleStartPayment = async () => {
-    setStep("processing");
-    setProcessStatus("1/3 Đang mở cổng kết nối Ngân Hàng Sandbox...");
+  // === THANH TOÁN QUA VNPAY SANDBOX THẬT ===
+  const handleVNPayPayment = async () => {
+    setVnpayLoading(true);
+    try {
+      const type = (debtInfo.groupId && debtInfo.toUserId) ? "DEBT" : "BUDGET";
+      const result = await vnpayService.createPayment(
+        debtInfo.amount,
+        debtInfo.groupId,
+        debtInfo.toUserId,
+        type,
+        debtInfo.walletId,
+        debtInfo.categoryId,
+        debtInfo.budgetId
+      );
 
-    setTimeout(() => {
-      setProcessStatus("2/3 Đang xác thực OTP & Trích tiền từ Tài khoản...");
-    }, 1200);
-
-    setTimeout(async () => {
-      setProcessStatus("3/3 Đã chuyển tiền thành công! Đang lưu sổ nợ...");
-      try {
-        await onPaymentSuccess(debtInfo.amount, debtInfo.toUserId);
-      } catch (e) {
-        console.error("Payment sync error:", e);
+      if (result.paymentUrl) {
+        setStep("vnpay_redirect");
+        // Mở trình duyệt bên ngoài để người dùng thao tác thanh toán trên VNPay
+        await Linking.openURL(result.paymentUrl);
       }
-      setStep("success");
-    }, 2400);
+    } catch (e: any) {
+      console.error("[VNPay] Error creating payment URL:", e);
+      setVnpayLoading(false);
+    }
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Cổng Thanh Toán Sandbox 🏦">
+    <BottomSheet visible={visible} onClose={onClose} title="Cổng Thanh Toán VNPay 🏦">
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Sandbox Badge Banner */}
+        {/* VNPay Badge Banner */}
         <View style={styles.sandboxBanner}>
-          <Text style={styles.sandboxBannerIcon}>🧪</Text>
+          <Text style={styles.sandboxBannerIcon}>🚀</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.sandboxBannerTitle}>CHẾ ĐỘ MÔ PHỎNG (PAYMENT SANDBOX)</Text>
+            <Text style={styles.sandboxBannerTitle}>THANH TOÁN TRỰC TUYẾN VNPAY</Text>
             <Text style={styles.sandboxBannerSub}>
-              Giao dịch thử nghiệm chuyển tiền trực tiếp giữa Ngân Hàng và User
+              Kết nối trực tiếp đến cổng thanh toán VNPay an toàn và tiện lợi
             </Text>
           </View>
         </View>
@@ -116,7 +127,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Nội dung chuyển:</Text>
                 <Text style={styles.infoValue}>
-                  Trấn nợ nhóm {debtInfo.groupName || "ShareMoney"}
+                  Trả nợ nhóm {debtInfo.groupName || "ShareMoney"}
                 </Text>
               </View>
             </View>
@@ -127,73 +138,55 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
               <Text style={styles.amountBoxValue}>{amountFormatted}</Text>
             </View>
 
-            {/* OTP Input Simulation */}
-            <View style={{ marginTop: 12 }}>
-              <Input
-                label="Mã OTP xác thực Sandbox (Default: 123456) *"
-                value={otp}
-                onChangeText={setOtp}
-                keyboardType="numeric"
-                maxLength={6}
-              />
+            {/* === NÚT THANH TOÁN QUA VNPAY === */}
+            <View style={{ marginTop: 10 }}>
+              <TouchableOpacity
+                style={styles.vnpayButton}
+                onPress={handleVNPayPayment}
+                disabled={vnpayLoading}
+                activeOpacity={0.8}
+              >
+                {vnpayLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.vnpayButtonText}>Thanh Toán Bằng VNPay</Text>
+                    <Text style={styles.vnpayButtonSub}>Thẻ ATM, Visa, MasterCard, VNPAY-QR</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
 
-            {/* Primary Submit Button */}
-            <View style={{ marginTop: 16, marginBottom: 20 }}>
-              <Button
-                title="Xác Nhận & Chuyển Tiền 🚀"
-                variant="primary"
-                onPress={handleStartPayment}
-                style={{ paddingVertical: 16 }}
-                textStyle={{ fontSize: 16, fontWeight: "900" }}
-              />
-            </View>
+            <View style={{ marginBottom: 20 }} />
           </View>
         )}
 
-        {step === "processing" && (
+        {step === "vnpay_redirect" && (
           <View style={styles.processingBox}>
-            <ActivityIndicator size="large" color={colors.indigo600} style={{ marginBottom: 16 }} />
-            <Text style={styles.processingTitle}>Đang Thực Hiện Giao Dịch</Text>
-            <Text style={styles.processingStatus}>{processStatus}</Text>
-            <Text style={styles.processingSub}>Vui lòng không đóng màn hình trong giây lát...</Text>
-          </View>
-        )}
-
-        {step === "success" && (
-          <View style={styles.successBox}>
-            <View style={styles.successIconCircle}>
-              <Text style={{ fontSize: 40 }}>🎉</Text>
+            <Text style={{ fontSize: 48, marginBottom: 16 }}>🌐</Text>
+            <Text style={styles.processingTitle}>Đã mở cổng VNPay</Text>
+            <Text style={styles.processingStatus}>
+              Trình duyệt đã mở cổng thanh toán VNPay.{"\n"}
+              Hãy hoàn tất thao tác thanh toán trên trình duyệt.
+            </Text>
+            <Text style={styles.processingSub}>
+              Sau khi thanh toán xong, hệ thống sẽ tự động gạch nợ.
+            </Text>
+            <View style={{ marginTop: 20 }}>
+              <Button
+                title="Tải lại sổ nợ & Đóng"
+                variant="primary"
+                onPress={async () => {
+                  // Chỉ gọi fetch lại, không tạo pending notifyPayment nữa
+                  // vì Backend đã xử lý gạch nợ tự động qua Webhook
+                  try {
+                    await onPaymentSuccess(debtInfo.amount, undefined); // Truyền undefined để bỏ qua notify
+                  } catch (e) {}
+                  onClose();
+                }}
+                style={{ paddingVertical: 14, paddingHorizontal: 24 }}
+              />
             </View>
-            <Text style={styles.successTitle}>Chuyển Tiền Thành Công!</Text>
-            <Text style={styles.successAmount}>{amountFormatted}</Text>
-            <Text style={styles.successRecipient}>Đã chuyển cho {accountName}</Text>
-
-            <View style={styles.receiptCard}>
-              <View style={styles.receiptRow}>
-                <Text style={styles.receiptLabel}>Mã GD Ngân Hàng:</Text>
-                <Text style={styles.receiptValue}>{txnCode}</Text>
-              </View>
-              <View style={styles.receiptRow}>
-                <Text style={styles.receiptLabel}>Thời gian:</Text>
-                <Text style={styles.receiptValue}>
-                  {new Date().toLocaleTimeString("vi-VN")} - {new Date().toLocaleDateString("vi-VN")}
-                </Text>
-              </View>
-              <View style={styles.receiptRow}>
-                <Text style={styles.receiptLabel}>Trạng thái sổ nợ:</Text>
-                <Text style={[styles.receiptValue, { color: colors.emerald600, fontWeight: "800" }]}>
-                  ✓ Đã ghi nhận chuyển tiền
-                </Text>
-              </View>
-            </View>
-
-            <Button
-              title="Hoàn Tất & Đóng 🎯"
-              variant="primary"
-              onPress={onClose}
-              style={{ marginTop: 20, width: "100%", paddingVertical: 14 }}
-            />
           </View>
         )}
       </ScrollView>
@@ -208,9 +201,9 @@ const styles = StyleSheet.create({
   sandboxBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "#BFDBFE",
+    borderColor: "#FECACA",
     borderRadius: 14,
     padding: 10,
     marginBottom: 16,
@@ -222,11 +215,11 @@ const styles = StyleSheet.create({
   sandboxBannerTitle: {
     fontSize: 11,
     fontWeight: "900",
-    color: "#1E40AF",
+    color: "#B91C1C",
   },
   sandboxBannerSub: {
     fontSize: 10,
-    color: "#3B82F6",
+    color: "#DC2626",
     marginTop: 1,
   },
   contentBox: {
@@ -323,6 +316,24 @@ const styles = StyleSheet.create({
     color: colors.indigo700,
     marginTop: 2,
   },
+  vnpayButton: {
+    backgroundColor: "#CF0A2C",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  vnpayButtonText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#fff",
+  },
+  vnpayButtonSub: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.75)",
+    marginTop: 2,
+  },
   processingBox: {
     alignItems: "center",
     paddingVertical: 36,
@@ -343,57 +354,6 @@ const styles = StyleSheet.create({
   processingSub: {
     fontSize: 12,
     color: colors.slate400,
-  },
-  successBox: {
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingBottom: 24,
-  },
-  successIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.emerald50,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  successTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: colors.slate900,
-  },
-  successAmount: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: colors.emerald600,
-    marginVertical: 4,
-  },
-  successRecipient: {
-    fontSize: 13,
-    color: colors.slate500,
-    marginBottom: 16,
-  },
-  receiptCard: {
-    width: "100%",
-    backgroundColor: colors.slate50,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.slate200,
-    gap: 8,
-  },
-  receiptRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  receiptLabel: {
-    fontSize: 12,
-    color: colors.slate500,
-  },
-  receiptValue: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.slate800,
+    textAlign: "center",
   },
 });

@@ -2,9 +2,6 @@ import { api } from "./api";
 
 export interface VNPayCreateResponse {
   paymentUrl: string;
-  groupId: string;
-  debtorId: string;
-  creditorId: string;
 }
 
 export const vnpayService = {

@@ -1,5 +1,5 @@
 import { api } from "./api";
-import { GroupListItem, GroupDetail, GroupExpense, GroupDebtSummary } from "../types";
+import { GroupListItem, GroupDetail, GroupExpense, GroupDebtSummary, Group } from "../types";
 
 export const groupService = {
   getGroups: () => api.get<GroupListItem[]>("/groups").then((res) => res.data),

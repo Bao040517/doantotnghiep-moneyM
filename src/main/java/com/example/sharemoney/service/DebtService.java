@@ -288,7 +288,8 @@ public class DebtService {
     public void approveSettle(
             UUID groupId,
             UUID creditorId,
-            com.example.sharemoney.dto.request.ApproveSettleRequest request) {
+            com.example.sharemoney.dto.request.ApproveSettleRequest request,
+            String vnpTxnRef) {
         User creditor =
                 userRepository
                         .findById(creditorId)
@@ -309,12 +310,17 @@ public class DebtService {
                         .findById(groupId)
                         .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
 
+        String title = "Thanh toán nợ cho " + creditor.getName();
+        if (vnpTxnRef != null && !vnpTxnRef.isEmpty()) {
+            title += " (VNPay TxnRef: " + vnpTxnRef + ")";
+        }
+
         // Tạo 1 Expense đặc biệt để đối trừ nợ (Category = "SETTLEMENT")
         com.example.sharemoney.entity.Expense settlement =
                 com.example.sharemoney.entity.Expense.builder()
                         .group(group)
                         .payer(debtor)
-                        .title("Thanh toán nợ cho " + creditor.getName())
+                        .title(title)
                         .amount(request.getAmount())
                         .category("SETTLEMENT") // Danh mục đặc biệt
                         .build();

@@ -18,9 +18,23 @@ export interface BudgetSummary {
   categoryIcon?: string;
   limitAmount: number;
   spentAmount: number;
-  remainingAmount: number;
-  percentageSpent: number;
+  remainingAmount?: number;
+  percentageSpent?: number;
+  availableAmount?: number;
+  percentage?: number;
+  status?: "OK" | "WARNING" | "OVER";
   groupType?: "NEEDS" | "WANTS" | "SAVINGS";
+  type?: string;
+  isRecurring?: boolean;
+  dueDayOfMonth?: number;
+  isMandatory?: boolean;
+  /** @deprecated Use isMandatory instead */
+  mandatory?: boolean;
+  payeeBankBin?: string;
+  payeeBankAccount?: string;
+  payeeAccountName?: string;
+  /** Fallback ID field for backward compatibility */
+  id?: string;
 }
 
 export interface BudgetPayload {
@@ -28,5 +42,12 @@ export interface BudgetPayload {
   limitAmount: number;
   month: number;
   year: number;
-  type?: "NEEDS" | "WANTS" | "SAVINGS";
+  name?: string;
+  type?: string;
+  isMandatory?: boolean;
+  isRecurring?: boolean;
+  dueDayOfMonth?: number;
+  payeeBankBin?: string;
+  payeeBankAccount?: string;
+  payeeAccountName?: string;
 }

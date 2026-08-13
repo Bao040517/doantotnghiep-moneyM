@@ -62,7 +62,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
   const handleVNPayPayment = async () => {
     setVnpayLoading(true);
     try {
-      const type = (debtInfo.groupId && debtInfo.toUserId) ? "DEBT" : "BUDGET";
+      const type = (debtInfo.budgetId || debtInfo.categoryId) ? "BUDGET" : "DEBT";
       const result = await vnpayService.createPayment(
         debtInfo.amount,
         debtInfo.groupId,

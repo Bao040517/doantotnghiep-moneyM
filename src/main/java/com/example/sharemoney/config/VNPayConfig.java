@@ -40,7 +40,11 @@ public class VNPayConfig {
             if ((fieldValue != null) && (fieldValue.length() > 0)) {
                 sb.append(fieldName);
                 sb.append("=");
-                sb.append(fieldValue);
+                try {
+                    sb.append(java.net.URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                } catch (java.io.UnsupportedEncodingException e) {
+                    sb.append(fieldValue);
+                }
             }
             if (itr.hasNext()) {
                 sb.append("&");

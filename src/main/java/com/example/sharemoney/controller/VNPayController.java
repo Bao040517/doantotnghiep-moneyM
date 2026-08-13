@@ -6,6 +6,8 @@ import com.example.sharemoney.security.SecurityUtils;
 import com.example.sharemoney.service.DebtService;
 import com.example.sharemoney.service.TransactionService;
 import com.example.sharemoney.service.VNPayService;
+import com.example.sharemoney.repository.ExpenseRepository;
+import com.example.sharemoney.repository.TransactionRepository;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URLDecoder;
@@ -36,6 +38,8 @@ public class VNPayController {
     private final VNPayConfig vnPayConfig;
     private final DebtService debtService;
     private final TransactionService transactionService;
+    private final TransactionRepository transactionRepository;
+    private final ExpenseRepository expenseRepository;
 
     @Value("${vnpay.frontendUrl:http://localhost:19006}")
     private String frontendUrl;
@@ -61,21 +65,31 @@ public class VNPayController {
         if (ipAddress == null || ipAddress.isEmpty()) {
             ipAddress = request.getRemoteAddr();
         }
+        
+        // VNPay Sandbox fails with IPv6 localhost or any local/private IPs (e.g. 192.168.x.x)
+        if (ipAddress.equals("0:0:0:0:0:0:0:1") || ipAddress.equals("127.0.0.1") 
+            || ipAddress.startsWith("10.") || ipAddress.startsWith("192.168.") || ipAddress.startsWith("172.")) {
+            ipAddress = "113.160.225.97"; // Use a valid dummy IPv4 for sandbox
+        }
 
         String orderInfo;
         if ("BUDGET".equalsIgnoreCase(type)) {
+            if (walletId == null || categoryId == null) {
+                log.warn("[VNPay] BUDGET payment missing walletId or categoryId");
+                return ResponseEntity.badRequest().build();
+            }
             String bIdStr = (budgetId != null) ? budgetId.toString().replace("-", "") : "null";
-            orderInfo = "BUDGET " + debtorId.toString().replace("-", "") + " " 
-                        + walletId.toString().replace("-", "") + " " 
-                        + categoryId.toString().replace("-", "") + " " 
-                        + bIdStr + " " + amount;
+            orderInfo = "BUDGET_" + debtorId.toString().replace("-", "") + "_" 
+                        + walletId.toString().replace("-", "") + "_" 
+                        + categoryId.toString().replace("-", "") + "_" 
+                        + bIdStr + "_" + amount;
         } else {
             if (groupId == null || creditorId == null) {
                 return ResponseEntity.badRequest().build();
             }
-            orderInfo = groupId.toString().replace("-", "") + " " 
-                        + debtorId.toString().replace("-", "") + " " 
-                        + creditorId.toString().replace("-", "") + " " + amount;
+            orderInfo = groupId.toString().replace("-", "") + "_" 
+                        + debtorId.toString().replace("-", "") + "_" 
+                        + creditorId.toString().replace("-", "") + "_" + amount;
         }
 
         UUID paymentId = UUID.randomUUID();
@@ -115,74 +129,10 @@ public class VNPayController {
 
         if (signValue.equals(vnp_SecureHash)) {
             if ("00".equals(request.getParameter("vnp_ResponseCode"))) {
-                log.info("[VNPay] Payment successful. TxnRef={}", request.getParameter("vnp_TxnRef"));
-
-                try {
-                    String orderInfo = request.getParameter("vnp_OrderInfo");
-                    if (orderInfo != null) {
-                        orderInfo = URLDecoder.decode(orderInfo, StandardCharsets.UTF_8);
-                        
-                        if (orderInfo.startsWith("BUDGET ")) {
-                            log.info("[VNPay] Budget/Personal Bill payment successful: {}", orderInfo);
-                            String[] parts = orderInfo.split(" ");
-                            if (parts.length >= 6) {
-                                UUID userId = UUID.fromString(
-                                    parts[1].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5")
-                                );
-                                UUID walletId = UUID.fromString(
-                                    parts[2].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5")
-                                );
-                                UUID categoryId = UUID.fromString(
-                                    parts[3].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5")
-                                );
-                                UUID budgetId = "null".equals(parts[4]) ? null : UUID.fromString(
-                                    parts[4].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5")
-                                );
-                                BigDecimal amt = new BigDecimal(parts[5]);
-                                
-                                com.example.sharemoney.dto.request.CreateTransactionRequest req = new com.example.sharemoney.dto.request.CreateTransactionRequest();
-                                req.setAmount(amt);
-                                req.setCategoryId(categoryId);
-                                req.setLinkedBudgetId(budgetId);
-                                req.setNote("Thanh toán hoá đơn VNPay");
-                                
-                                transactionService.createTransaction(userId, walletId, req);
-                                log.info("Auto-created transaction for budget payment.");
-                            }
-                        } else {
-                            String[] parts = orderInfo.split(" ");
-                            if (parts.length >= 4) {
-                                UUID groupId = UUID.fromString(
-                                    parts[0].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5")
-                                );
-                                UUID debtorId = UUID.fromString(
-                                    parts[1].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5")
-                                );
-                                UUID creditorId = UUID.fromString(
-                                    parts[2].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5")
-                                );
-                                BigDecimal debtAmount = new BigDecimal(parts[3]);
-
-                                log.info("[VNPay] Auto-settling debt: group={}, debtor={}, creditor={}, amount={}",
-                                        groupId, debtorId, creditorId, debtAmount);
-
-                                ApproveSettleRequest settleReq = new ApproveSettleRequest();
-                                settleReq.setDebtorId(debtorId);
-                                settleReq.setAmount(debtAmount);
-                                debtService.approveSettle(groupId, creditorId, settleReq);
-
-                                log.info("[VNPay] Debt settled successfully via VNPay Sandbox.");
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    log.error("[VNPay] Error parsing orderInfo after payment: {}", e.getMessage(), e);
-                }
-
-                String successContent = "<div class='success-icon'>✓</div><h1>Thanh toán thành công!</h1><p>Giao dịch của bạn đã được ghi nhận thành công.<br/>Vui lòng đóng trình duyệt này và quay lại ứng dụng ShareMoney.</p>";
+                String successContent = "<div class='success-icon'>✓</div><h1>Thanh toán thành công!</h1><p>Giao dịch của bạn đang được xử lý.<br/>Vui lòng đóng trình duyệt này và quay lại ứng dụng ShareMoney.</p>";
                 return ResponseEntity.ok(String.format(htmlTemplate, successContent));
             } else {
-                log.warn("[VNPay] Payment failed. ResponseCode={}", request.getParameter("vnp_ResponseCode"));
+                log.warn("[VNPay] Payment failed on return. ResponseCode={}", request.getParameter("vnp_ResponseCode"));
                 String errorContent = "<div class='error-icon'>✗</div><h1>Thanh toán thất bại</h1><p>Giao dịch đã bị hủy hoặc xảy ra lỗi.<br/>Vui lòng đóng trình duyệt và thử lại trong ứng dụng.</p>";
                 return ResponseEntity.ok(String.format(htmlTemplate, errorContent));
             }
@@ -190,6 +140,98 @@ public class VNPayController {
             log.warn("[VNPay] Invalid signature on return. Possible tampering detected!");
             String tamperedContent = "<div class='error-icon'>⚠</div><h1>Giao dịch không hợp lệ</h1><p>Phát hiện dấu hiệu giả mạo chữ ký (Sai Checksum).</p>";
             return ResponseEntity.ok(String.format(htmlTemplate, tamperedContent));
+        }
+    }
+
+    /**
+     * GET /api/vnpay/vnpay-ipn
+     * VNPay Sandbox sẽ gọi IPN Webhook về server qua URL này để cập nhật trạng thái.
+     */
+    @GetMapping("/vnpay-ipn")
+    public ResponseEntity<String> vnpayIpn(HttpServletRequest request) {
+        Map<String, String> fields = new HashMap<>();
+        for (Enumeration<String> params = request.getParameterNames(); params.hasMoreElements();) {
+            String fieldName = params.nextElement();
+            String fieldValue = request.getParameter(fieldName);
+            if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                fields.put(fieldName, fieldValue);
+            }
+        }
+
+        String vnp_SecureHash = request.getParameter("vnp_SecureHash");
+        if (fields.containsKey("vnp_SecureHashType")) {
+            fields.remove("vnp_SecureHashType");
+        }
+        if (fields.containsKey("vnp_SecureHash")) {
+            fields.remove("vnp_SecureHash");
+        }
+
+        String signValue = vnPayConfig.hashAllFields(fields);
+        if (!signValue.equals(vnp_SecureHash)) {
+            log.warn("[VNPay IPN] Invalid signature.");
+            return ResponseEntity.ok("{\"RspCode\":\"97\",\"Message\":\"Invalid signature\"}");
+        }
+
+        String vnp_TxnRef = request.getParameter("vnp_TxnRef");
+        String vnp_ResponseCode = request.getParameter("vnp_ResponseCode");
+
+        try {
+            String orderInfo = request.getParameter("vnp_OrderInfo");
+            if (orderInfo != null) {
+                orderInfo = URLDecoder.decode(orderInfo, StandardCharsets.UTF_8);
+                
+                if (orderInfo.startsWith("BUDGET_")) {
+                    if (transactionRepository.existsByNoteContaining(vnp_TxnRef)) {
+                        log.info("[VNPay IPN] BUDGET transaction already processed. TxnRef={}", vnp_TxnRef);
+                        return ResponseEntity.ok("{\"RspCode\":\"02\",\"Message\":\"Order already confirmed\"}");
+                    }
+                    
+                    if ("00".equals(vnp_ResponseCode)) {
+                        String[] parts = orderInfo.split("_");
+                        if (parts.length >= 6) {
+                            UUID userId = UUID.fromString(parts[1].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5"));
+                            UUID walletId = UUID.fromString(parts[2].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5"));
+                            UUID categoryId = UUID.fromString(parts[3].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5"));
+                            UUID budgetId = "null".equals(parts[4]) ? null : UUID.fromString(parts[4].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5"));
+                            BigDecimal amt = new BigDecimal(parts[5]);
+                            
+                            com.example.sharemoney.dto.request.CreateTransactionRequest req = new com.example.sharemoney.dto.request.CreateTransactionRequest();
+                            req.setAmount(amt);
+                            req.setCategoryId(categoryId);
+                            req.setLinkedBudgetId(budgetId);
+                            req.setNote("Thanh toán hoá đơn VNPay (TxnRef: " + vnp_TxnRef + ")");
+                            
+                            transactionService.createTransaction(userId, walletId, req);
+                            log.info("[VNPay IPN] Auto-created transaction for budget payment. TxnRef={}", vnp_TxnRef);
+                        }
+                    }
+                } else {
+                    if (expenseRepository.existsByTitleContaining(vnp_TxnRef)) {
+                        log.info("[VNPay IPN] DEBT settlement already processed. TxnRef={}", vnp_TxnRef);
+                        return ResponseEntity.ok("{\"RspCode\":\"02\",\"Message\":\"Order already confirmed\"}");
+                    }
+                    
+                    if ("00".equals(vnp_ResponseCode)) {
+                        String[] parts = orderInfo.split("_");
+                        if (parts.length >= 4) {
+                            UUID groupId = UUID.fromString(parts[0].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5"));
+                            UUID debtorId = UUID.fromString(parts[1].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5"));
+                            UUID creditorId = UUID.fromString(parts[2].replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5"));
+                            BigDecimal debtAmount = new BigDecimal(parts[3]);
+
+                            ApproveSettleRequest settleReq = new ApproveSettleRequest();
+                            settleReq.setDebtorId(debtorId);
+                            settleReq.setAmount(debtAmount);
+                            debtService.approveSettle(groupId, creditorId, settleReq, vnp_TxnRef);
+                            log.info("[VNPay IPN] Debt settled successfully. TxnRef={}", vnp_TxnRef);
+                        }
+                    }
+                }
+            }
+            return ResponseEntity.ok("{\"RspCode\":\"00\",\"Message\":\"Confirm Success\"}");
+        } catch (Exception e) {
+            log.error("[VNPay IPN] Error processing IPN: {}", e.getMessage(), e);
+            return ResponseEntity.ok("{\"RspCode\":\"99\",\"Message\":\"Unknown error\"}");
         }
     }
 }

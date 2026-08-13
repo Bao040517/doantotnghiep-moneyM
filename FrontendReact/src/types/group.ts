@@ -46,13 +46,22 @@ export interface GroupExpenseSplit {
 
 export interface GroupExpense {
   id: string;
-  groupId: string;
+  groupId?: string;
   title: string;
   amount: number;
-  payerId: string;
-  payerName: string;
-  createdDate: string;
-  splits: GroupExpenseSplit[];
+  category?: string;
+  payer?: { id: string; name: string; email?: string; phone?: string };
+  splitCount?: number;
+  createdAt?: string;
+  currentUserSplitAmount?: number;
+  /** @deprecated Use payer.id instead */
+  payerId?: string;
+  /** @deprecated Use payer.name instead */
+  payerName?: string;
+  /** @deprecated Use createdAt instead */
+  createdDate?: string;
+  /** @deprecated Use splitCount instead; splits only available from detail endpoint */
+  splits?: GroupExpenseSplit[];
 }
 
 export interface GroupDebtDetail {

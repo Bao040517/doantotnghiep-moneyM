@@ -45,14 +45,12 @@ public class GeminiService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("x-goog-api-key", apiKey);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        String urlWithKey = apiUrl + "?key=" + apiKey;
-
         try {
-            ResponseEntity<Map> response =
-                    restTemplate.postForEntity(urlWithKey, entity, Map.class);
+            ResponseEntity<Map> response = callGeminiApiWithRetry(entity);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 String generatedText = extractTextFromGeminiResponse(response.getBody());
@@ -61,7 +59,7 @@ public class GeminiService {
                 throw new AppException(ErrorCode.INTERNAL_ERROR);
             }
         } catch (Exception e) {
-            // Log error here in a real app
+            log.error("Lỗi khi gọi Gemini API generate-message: {}", e.getMessage(), e);
             throw new AppException(ErrorCode.INTERNAL_ERROR);
         }
     }
@@ -92,12 +90,11 @@ public class GeminiService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-goog-api-key", apiKey);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            String urlWithKey = apiUrl + "?key=" + apiKey;
 
-            ResponseEntity<Map> response =
-                    restTemplate.postForEntity(urlWithKey, entity, Map.class);
+            ResponseEntity<Map> response = callGeminiApiWithRetry(entity);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 String generatedText = extractTextFromGeminiResponse(response.getBody());
@@ -112,6 +109,48 @@ public class GeminiService {
             }
         } catch (Exception e) {
             log.error("Lỗi khi quét hóa đơn qua Gemini API", e);
+            throw new AppException(ErrorCode.INTERNAL_ERROR);
+        }
+    }
+
+    public ScanReceiptResponse extractReceiptFromHtml(String htmlText) {
+        if (apiKey == null || apiKey.contains("YOUR_GEMINI_API_KEY_HERE")) {
+            throw new AppException(ErrorCode.INTERNAL_ERROR);
+        }
+
+        try {
+            String prompt = "Analyze the following text extracted from an e-invoice webpage. "
+                    + "Extract the final total amount paid (as a number), a brief description/name of the store or supplier, and the list of purchased items. "
+                    + "Each item should have 'description' (string), 'quantity' (number), 'unitPrice' (number), and 'totalPrice' (number). "
+                    + "Return exactly a JSON object in this format: "
+                    + "{\"amount\": 150000, \"note\": \"Supermarket Groceries\", \"items\": [{\"description\": \"Item 1\", \"quantity\": 1, \"unitPrice\": 50000, \"totalPrice\": 50000}]}. "
+                    + "Do not include any other text, markdown, or code blocks.\n\n"
+                    + "Text content:\n" + htmlText;
+
+            Map<String, Object> requestBody =
+                    Map.of("contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-goog-api-key", apiKey);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            ResponseEntity<Map> response = callGeminiApiWithRetry(entity);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                String generatedText = extractTextFromGeminiResponse(response.getBody());
+                generatedText =
+                        generatedText.replaceAll("```json", "").replaceAll("```", "").trim();
+
+                com.fasterxml.jackson.databind.ObjectMapper mapper =
+                        new com.fasterxml.jackson.databind.ObjectMapper();
+                return mapper.readValue(generatedText, ScanReceiptResponse.class);
+            } else {
+                throw new AppException(ErrorCode.INTERNAL_ERROR);
+            }
+        } catch (Exception e) {
+            log.error("Lỗi khi trích xuất hóa đơn từ HTML qua Gemini API", e);
             throw new AppException(ErrorCode.INTERNAL_ERROR);
         }
     }
@@ -146,5 +185,29 @@ public class GeminiService {
         } catch (Exception e) {
             return "Lỗi khi đọc phản hồi từ AI.";
         }
+    }
+
+    private ResponseEntity<Map> callGeminiApiWithRetry(HttpEntity<Map<String, Object>> entity) {
+        int maxRetries = 3;
+        long waitTime = 1000;
+
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                return restTemplate.postForEntity(apiUrl, entity, Map.class);
+            } catch (Exception e) {
+                log.warn("Lỗi khi gọi Gemini API (lần thử {}/{}): {}", i + 1, maxRetries, e.getMessage());
+                if (i == maxRetries - 1) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(waitTime);
+                    waitTime *= 2;
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new AppException(ErrorCode.INTERNAL_ERROR);
+                }
+            }
+        }
+        throw new AppException(ErrorCode.INTERNAL_ERROR);
     }
 }

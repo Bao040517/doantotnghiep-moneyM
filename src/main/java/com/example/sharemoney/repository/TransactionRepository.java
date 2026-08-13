@@ -191,4 +191,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
             @Param("excludeTxId") UUID excludeTxId);
+
+    boolean existsByNoteContaining(String note);
 }

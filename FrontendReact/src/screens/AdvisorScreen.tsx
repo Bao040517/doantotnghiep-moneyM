@@ -177,8 +177,8 @@ export const AdvisorScreen: React.FC = () => {
         year: selectedYear,
         name: `Ngân sách ${item.categoryName}`,
         type: "FLEXIBLE",
-        mandatory: false,
-      } as any);
+        isMandatory: false,
+      });
 
       showToast(`Đã thiết lập ngân sách T${selectedMonth}/${selectedYear} cho ${item.categoryName} (${fmt(item.suggestedAmount)})! 🎉`, "success");
       fetchAdvisorData();

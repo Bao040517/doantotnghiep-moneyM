@@ -482,6 +482,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           onPress={() => {
                             setDebtModalType(null);
                             setSelectedDebt({
+                              groupId: item.groupId || groups[0]?.id || "",
                               otherMemberId: item.counterparty?.id || item.otherMemberId || "",
                               otherMemberName: creditorName,
                               bankBin: item.counterparty?.bankBin || item.bankBin || "970436",
@@ -575,6 +576,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 toAccountNo: selectedDebt.bankAccountNo,
                 toUserId: selectedDebt.otherMemberId,
                 groupName: selectedDebt.groupName,
+                groupId: selectedDebt.groupId,
               }
             : null
         }

@@ -22,3 +22,14 @@ export interface CreateExternalLoanPayload {
   description?: string;
 }
 
+export interface UpdateExternalLoanPayload {
+  type?: LoanType;
+  counterpartyName?: string;
+  principalAmount?: number;
+  interestRate?: number;
+  startDate?: string;
+  dueDate?: string;
+  description?: string;
+  isSettled?: boolean;
+}
+

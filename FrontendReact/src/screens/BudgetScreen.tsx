@@ -368,10 +368,10 @@ export const BudgetScreen: React.FC = () => {
         limitAmount: rawNumber,
         year,
         month,
-        mandatory: isMandatory,
+        isMandatory: isMandatory,
         type: type,
         isRecurring: isRecurring,
-      } as any);
+      });
 
       showToast("Đã tạo ngân sách chi tiêu mới! 🎉", "success");
       setBudgetName("");

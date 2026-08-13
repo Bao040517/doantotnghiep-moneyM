@@ -676,6 +676,7 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
                 toAccountNo: qrSettleDebt.to?.bankAccountNo || "10928888999",
                 toUserId: qrSettleDebt.to?.id,
                 groupName: group?.name,
+                groupId: groupId,
               }
             : null
         }

@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
 
     Page<Expense> findByGroup_IdOrderByCreatedAtDesc(UUID groupId, Pageable pageable);
+
+    boolean existsByTitleContaining(String title);
 }

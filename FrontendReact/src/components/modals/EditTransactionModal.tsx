@@ -45,6 +45,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (visible && transaction) {
@@ -123,6 +124,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   };
 
   const filteredCategories = categories.filter((c) => c.type === (transaction?.type || "EXPENSE"));
+  const selectedCategory = filteredCategories.find(c => c.id === selectedCategoryId);
 
   return (
     <BottomSheet visible={visible} onClose={onClose} title="Sửa Giao Dịch ✏️">

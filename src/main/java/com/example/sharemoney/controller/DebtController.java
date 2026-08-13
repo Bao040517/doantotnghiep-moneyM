@@ -67,7 +67,7 @@ public class DebtController {
             @PathVariable UUID groupId,
             @Valid @RequestBody com.example.sharemoney.dto.request.ApproveSettleRequest request) {
         UUID creditorId = SecurityUtils.getCurrentUserId();
-        debtService.approveSettle(groupId, creditorId, request);
+        debtService.approveSettle(groupId, creditorId, request, null);
         return ResponseEntity.ok().build();
     }
 

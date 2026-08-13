@@ -4,6 +4,7 @@ import com.example.sharemoney.dto.request.AiMessageRequest;
 import com.example.sharemoney.dto.response.AiMessageResponse;
 import com.example.sharemoney.dto.response.ScanReceiptResponse;
 import com.example.sharemoney.service.GeminiService;
+import com.example.sharemoney.service.QrReceiptService;
 import com.example.sharemoney.service.ReceiptScanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class AiController {
 
     private final GeminiService geminiService;
     private final ReceiptScanService receiptScanService;
+    private final QrReceiptService qrReceiptService;
 
     /**
      * POST /api/ai/generate-message Gọi Google Gemini API để tạo tin nhắn đòi nợ theo phong cách
@@ -44,5 +46,14 @@ public class AiController {
     public ResponseEntity<ScanReceiptResponse> scanReceipt(
             @RequestParam("image") MultipartFile image) {
         return ResponseEntity.ok(receiptScanService.scanReceipt(image));
+    }
+
+    /**
+     * POST /api/ai/scan-qr-receipt Trích xuất hóa đơn từ URL của mã QR.
+     */
+    @PostMapping("/scan-qr-receipt")
+    public ResponseEntity<ScanReceiptResponse> scanQrReceipt(
+            @Valid @RequestBody com.example.sharemoney.dto.request.ScanQrReceiptRequest request) {
+        return ResponseEntity.ok(qrReceiptService.scanReceiptFromUrl(request.getUrl()));
     }
 }

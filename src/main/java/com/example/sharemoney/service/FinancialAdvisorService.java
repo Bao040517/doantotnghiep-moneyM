@@ -55,13 +55,13 @@ public class FinancialAdvisorService {
             Set.of("Quần áo", "Mỹ phẩm", "Phí giao lưu");
 
     /** Entry point: Trả về toàn bộ kết quả phân tích cho một người dùng (mặc định tháng hiện tại). */
-    @Transactional(readOnly = true)
+    @Transactional
     public FinancialAdviceResponse analyze(UUID userId) {
         return analyze(userId, null, null);
     }
 
     /** Overload analyze: Trả về kết quả phân tích theo năm và tháng chỉ định. */
-    @Transactional(readOnly = true)
+    @Transactional
     public FinancialAdviceResponse analyze(UUID userId, Integer year, Integer month) {
         LocalDate today = LocalDate.now();
         int targetYear = (year != null && year > 0) ? year : today.getYear();

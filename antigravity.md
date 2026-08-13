@@ -16,6 +16,68 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 11. **Ngân sách Ưu tiên Thông minh (Dynamic Priority Sorting & Star Toggle):** Tự động phân loại và đẩy các khoản ngân sách ưu tiên lên đầu trang, chuẩn hóa icon ngôi sao xám/vàng và phản hồi UI tức thì.
 13. **Centered Floating Popup Modal & In-place History Navigation:** Chuẩn hóa toàn bộ modal dạng Bottom Sheet sang Pop-up nổi ở chính giữa màn hình với bo góc 28px, viền đen `#0f172a`, và tích hợp chuyển màn hình xem lịch sử chi tiêu theo từng danh mục trực tiếp trong Popup (In-place navigation) loại bỏ hoàn toàn lỗi trùng đè Modal.
 
+### Session [2026-08-11] - Khắc Phục Lỗi Crash Backend Khi Thanh Toán VNPay Sandbox (Thiếu Dữ Liệu `groupId`)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc Phục Lỗi Sập Server (NPE) Bằng Cơ Chế Phòng Thủ Tại `VNPayController`:**
+   - **Vấn đề:** Giao dịch thanh toán nợ (`DEBT`) bị nhận diện nhầm thành ngân sách (`BUDGET`) do thiếu tham số `groupId` từ phía React Native gửi lên. Backend khi xử lý `BUDGET` cố gắng truy xuất `walletId` (vốn dĩ bằng `null` vì đây thực chất là giao dịch trả nợ) dẫn đến sập server (`500 Internal Server Error` do `java.util.UUID.toString()`).
+   - **Thực thi:** Bổ sung cơ chế chặn bắt lỗi an toàn cho giao dịch `BUDGET` tại `VNPayController`. Nếu frontend truyền thiếu `walletId` hoặc `categoryId`, Backend sẽ trả về `400 Bad Request` thay vì văng Exception.
+
+2. **Sửa Lỗi Phân Loại Giao Dịch Sai Lệch Tại `PaymentSandboxModal.tsx`:**
+   - **Vấn đề:** Logic nhận diện loại giao dịch quá mong manh `type = (debtInfo.groupId && debtInfo.toUserId) ? "DEBT" : "BUDGET"`. Khi màn hình trước truyền thiếu `groupId`, giao dịch lập tức bị gán nhãn sai thành `BUDGET`.
+   - **Thực thi:** Đổi sang cơ chế định danh chính xác tuyệt đối: `type = (debtInfo.budgetId || debtInfo.categoryId) ? "BUDGET" : "DEBT"`. Bất kỳ khoản chi nào mang mã ngân sách/danh mục chắc chắn là `BUDGET`, còn lại là `DEBT`.
+
+3. **Bổ Sung Dữ Liệu Bị Thiếu Ở Hàng Loạt Màn Hình Thanh Toán:**
+   - **Thực thi:** Bổ sung tham số `groupId` đang bị bỏ sót vào cấu trúc `selectedDebt` trong `GroupsScreen.tsx` và prop `debtInfo` của `<PaymentSandboxModal>` bên trong `GroupDetailBottomSheet.tsx`. Đảm bảo luồng tạo mã VNPay từ mọi luồng (Danh sách nhóm, Chi tiết nhóm, Chạm Bottom Sheet) đều không bao giờ bị thiếu ID.
+
+
+### Session [2026-08-11] - Tái Cấu Trúc Chức Năng Quét Hóa Đơn Bằng Mã QR Điện Tử (AI & Web Scraping)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Nâng Cấp Cơ Chế Lấy Hóa Đơn Từ Ảnh Sang Mã QR URL (`QrReceiptService`):**
+   - **Vấn đề:** Cơ chế nhận diện chữ trên ảnh chụp hóa đơn (Image OCR bằng Mindee) tốn nhiều thời gian xử lý, dễ nhận diện sai nếu ảnh mờ, và thiếu tính ổn định khi hóa đơn bị nhăn nheo.
+   - **Thực thi:** Chuyển đổi hoàn toàn kiến trúc sang quét mã QR ở chân hóa đơn siêu thị (VD: Tops Market, Go!, Winmart). Ứng dụng Frontend chỉ cần gửi chuỗi URL thu được. Backend bổ sung thư viện `Jsoup` (tại `pom.xml`) để fetch trực tiếp văn bản HTML gốc của hóa đơn điện tử siêu thị đó.
+
+2. **Cập Nhật API Endpoint Dành Riêng Cho Quét Mã QR (`AiController`):**
+   - **Thực thi:** Bổ sung DTO `ScanQrReceiptRequest` chứa trường `url`. Mở rộng `AiController` với endpoint mới `POST /api/ai/scan-qr-receipt` (thay thế cho việc gửi ảnh MultipartFile), giúp quy trình truyền tải dữ liệu nhẹ hơn đáng kể.
+
+3. **Mô Hình Hóa Phân Tích Dữ Liệu Thông Minh Bằng Gemini (Universal AI Parser):**
+   - **Vấn đề:** Nếu sử dụng phương pháp bóc tách HTML truyền thống (Hardcode Jsoup), ứng dụng sẽ phải viết từng đoạn code xử lý riêng lẻ cho mỗi chuỗi siêu thị. Khi siêu thị thay đổi giao diện, code sẽ lập tức gãy đổ.
+   - **Thực thi:** Xây dựng phương thức `extractReceiptFromHtml` bên trong `GeminiService`. Backend sau khi lấy được mã HTML/Text từ URL hóa đơn sẽ gửi toàn bộ vào Gemini API với Prompt phân tích chi tiết. Gemini hoạt động như một cỗ máy vạn năng (Universal Parser), tự động nhận diện và trả về JSON chuẩn xác (`amount`, `note`, danh sách `items`) mà không cần phụ thuộc vào cấu trúc thẻ web của bất kỳ siêu thị nào.
+### Session [2026-08-10] (Phần 2) - Rà Soát Toàn Diện Lỗi API Frontend-Backend & Khắc Phục Đồng Bộ Dữ Liệu
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Rà Soát Tính Nhất Quán Toàn Bộ API Frontend Với Backend (Full API Audit):**
+   - **Phạm vi:** Đối chiếu toàn bộ 11 service files (api, auth, financial, group, loan, ai, notification, vietQr, vnpay, socket, storage), ~45 API endpoints frontend với 17 backend controllers.
+   - **Phát hiện:** 14 lỗi được phân loại theo mức nghiêm trọng (4 Critical, 5 Medium, 5 Low), bao gồm lỗi type mismatch, missing imports, sai key name, ghost fields, và thiếu trường quan trọng.
+
+2. **Khắc Phục Lỗi Tạo Ngân Sách Ưu Tiên Bị Bỏ Qua (BUG 5 — Critical User Impact):**
+   - **Vấn đề:** Khi tạo budget mới, frontend gửi key `mandatory` nhưng backend Spring Boot dùng `@JsonProperty("isMandatory")`, khiến flag ưu tiên **LUÔN bị Jackson ignore** → budget luôn được tạo với `isMandatory = false` bất kể user chọn gì.
+   - **Thực thi:** Sửa key `mandatory` → `isMandatory` tại `BudgetScreen.tsx` (dòng 371) và `AdvisorScreen.tsx` (dòng 180). Đồng thời xóa bỏ cast `as any` nhờ type `BudgetPayload` đã được mở rộng đầy đủ trường.
+
+3. **Cập Nhật Type `GroupExpense` Khớp 100% Với Backend `ExpenseResponse` (BUG 3):**
+   - **Vấn đề:** Frontend type `GroupExpense` khai báo `payerId`, `payerName`, `createdDate`, `splits[]` nhưng backend `ExpenseResponse` trả về `payer` (object lồng), `splitCount` (int), `createdAt`, `category`. Code đã tự workaround bằng `exp.payer?.name` nhưng type definition hoàn toàn sai.
+   - **Thực thi:** Tái cấu trúc interface `GroupExpense` trong `group.ts` cho khớp chính xác: thêm `payer`, `category`, `splitCount`, `createdAt`, `currentUserSplitAmount`. Giữ các trường cũ với `@deprecated` tag để backward compatible.
+
+4. **Bổ Sung Type `UpdateExternalLoanPayload` Với Trường `isSettled` (BUG 2):**
+   - **Vấn đề:** `loanService.updateLoan` dùng `Partial<CreateExternalLoanPayload>` nhưng backend `UpdateExternalLoanRequest` có trường `isSettled` (Boolean) mà type này thiếu → frontend không bao giờ có thể đánh dấu khoản vay đã thanh toán.
+   - **Thực thi:** Tạo interface `UpdateExternalLoanPayload` riêng trong `loan.ts`, cập nhật `loanService.ts` sử dụng type mới.
+
+5. **Mở Rộng Type `BudgetPayload` & `BudgetSummary` Đầy Đủ Trường Backend (BUG 5+6):**
+   - **Vấn đề:** `BudgetPayload` thiếu `name`, `isMandatory`, `isRecurring`, `dueDayOfMonth`, payee bank fields. `BudgetSummary` thiếu `isMandatory`, `status`, `type`, `availableAmount`, payee fields → code phải dùng `(b as any).mandatory` pattern khắp nơi.
+   - **Thực thi:** Mở rộng cả hai interface trong `budget.ts` cho khớp 100% với `SetBudgetRequest` và `BudgetSummaryResponse` backend.
+
+6. **Sửa Import Thiếu `Group` Trong `groupService.ts` (BUG 1):**
+   - **Vấn đề:** `createGroup` dùng generic type `<Group>` nhưng `Group` không được import → TypeScript compile error.
+   - **Thực thi:** Thêm `Group` vào dòng import từ `"../types"`.
+
+7. **Xóa Ghost Fields Trong `VNPayCreateResponse` (BUG 13):**
+   - **Vấn đề:** Interface khai báo `groupId`, `debtorId`, `creditorId` nhưng backend chỉ trả về `{ paymentUrl: string }` → các trường luôn `undefined`.
+   - **Thực thi:** Xóa 3 phantom fields, chỉ giữ lại `paymentUrl`.
+
 ### Session [2026-08-10] - Xử Lý Chống Lỗi Giao Dịch Ảo & Khắc Phục Màn Hình Trắng VNPay Sandbox
 
 **✅ Đã hoàn thành (Compact Procedure):**

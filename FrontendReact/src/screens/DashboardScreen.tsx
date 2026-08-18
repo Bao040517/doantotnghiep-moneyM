@@ -21,6 +21,7 @@ import { colors } from "../constants/colors";
 import { useAppData } from "../hooks/useAppData";
 import { financialServices } from "../services/financialServices";
 import { WalletPayload, TransactionPayload } from "../types";
+import { CategoryIcon } from "../components/ui/CategoryIcon";
 
 interface DashboardScreenProps {
   onNavigate?: (tab: string, targetId?: string) => void;
@@ -37,6 +38,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     unpaidBudgetsAmount,
     totalBudgetLimit,
     totalBudgetSpent,
+    totalActualExpense,
     safeToSpend,
     isLoading,
     refresh,
@@ -137,17 +139,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
           {/* 4 Metric Grid (2x2) */}
           <View style={styles.grid4}>
-            <TouchableOpacity style={styles.metricCard} onPress={() => setWalletSheetVisible(true)}>
+            <TouchableOpacity style={styles.metricCard} onPress={() => onNavigate?.("history")}>
               <View style={styles.metricLabelRow}>
-                <Text style={{ fontSize: 13 }}>💳</Text>
-                <Text style={styles.metricTitle}>TỔNG TIỀN CÁC VÍ</Text>
+                <Text style={styles.metricTitle}>TỔNG ĐÃ CHI (TẤT CẢ)</Text>
               </View>
-              <Text style={styles.metricVal}>{showBalance ? fmt(totalWalletBalance) : "••••••"}</Text>
+              <Text style={styles.metricVal}>{showBalance ? fmt(totalActualExpense) : "••••••"}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.metricCard} onPress={() => onNavigate?.("savings")}>
               <View style={styles.metricLabelRow}>
-                <Text style={{ fontSize: 13 }}>🟢</Text>
                 <Text style={styles.metricTitle}>TỔNG TIỀN TIẾT KIỆM</Text>
               </View>
               <Text style={styles.metricVal}>{showBalance ? fmt(totalSavings) : "••••••"}</Text>
@@ -155,7 +155,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
             <TouchableOpacity style={styles.metricCard} onPress={() => onNavigate?.("groups")}>
               <View style={styles.metricLabelRow}>
-                <Text style={{ fontSize: 13 }}>⬆️</Text>
                 <Text style={styles.metricTitle}>NỢ CẦN THU</Text>
               </View>
               <Text style={styles.metricVal}>{showBalance ? fmt(debtSummary.totalOwed) : "••••••"}</Text>
@@ -163,7 +162,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
             <TouchableOpacity style={styles.metricCard} onPress={() => onNavigate?.("groups")}>
               <View style={styles.metricLabelRow}>
-                <Text style={{ fontSize: 13 }}>⬇️</Text>
                 <Text style={styles.metricTitle}>NỢ PHẢI TRẢ</Text>
               </View>
               <Text style={styles.metricVal}>{showBalance ? fmt(debtSummary.totalOwing) : "••••••"}</Text>
@@ -208,7 +206,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                   >
                     <View style={styles.pillTopRow}>
                       <View style={styles.pillLabelRow}>
-                        <Text style={{ fontSize: 13 }}>{b.categoryIcon || "📊"}</Text>
+                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={18} />
                         <Text style={styles.overPillTitle} numberOfLines={1}>
                           {catName}
                         </Text>
@@ -239,7 +237,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                   >
                     <View style={styles.pillTopRow}>
                       <View style={styles.pillLabelRow}>
-                        <Text style={{ fontSize: 13 }}>{b.categoryIcon || "📊"}</Text>
+                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={18} />
                         <Text style={styles.approachingPillTitle} numberOfLines={1}>
                           {catName}
                         </Text>
@@ -293,20 +291,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
         {/* ─── QUICK ACTIONS GRID (6 Circular Action Buttons) ─── */}
         <View style={styles.quickActionGrid}>
-          <TouchableOpacity style={styles.quickActionItem} onPress={() => { setDefaultTxType("INCOME"); setAddTxVisible(true); }}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: colors.emerald50 }]}>
-              <Text style={{ fontSize: 20 }}>💳</Text>
-            </View>
-            <Text style={styles.quickActionText}>Nạp vào ví</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickActionItem} onPress={() => setTransferVisible(true)}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: colors.indigo50 }]}>
-              <Text style={{ fontSize: 20 }}>⇄</Text>
-            </View>
-            <Text style={styles.quickActionText}>Chuyển khoản</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("budget")}>
             <View style={[styles.quickActionIconCircle, { backgroundColor: colors.amber50 }]}>
               <Text style={{ fontSize: 20 }}>🪙</Text>
@@ -919,6 +903,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: colors.emerald600,
+  },
+  totalAllExpenseBadge: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: "flex-end",
+  },
+  totalAllExpenseBadgeTitle: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#991B1B",
+    letterSpacing: 0.4,
+  },
+  totalAllExpenseBadgeVal: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#DC2626",
+    marginTop: 2,
   },
   progressBarTrack: {
     height: 12,

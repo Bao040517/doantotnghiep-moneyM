@@ -13,7 +13,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AutoAllocateResponse {
     private BigDecimal totalAllocated;
+    private BigDecimal allocatedTotal;
     private BigDecimal safeToSpendRemaining;
+    private BigDecimal remainingSafeBalance;
     private BigDecimal requiredReserve;
     private List<AllocatedGoalDetail> allocatedGoals;
     private String message;
@@ -31,3 +33,4 @@ public class AutoAllocateResponse {
         private boolean isCompleted;
     }
 }
+

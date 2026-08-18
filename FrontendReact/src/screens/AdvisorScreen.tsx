@@ -135,9 +135,49 @@ export const AdvisorScreen: React.FC = () => {
     };
   };
 
-  const fetchAdvisorData = async () => {
+  const getCategoryIcon = (icon?: string, name?: string) => {
+    const iconMap: Record<string, string> = {
+      shirt: "👕",
+      users: "👥",
+      utensils: "🍽️",
+      coffee: "☕",
+      home: "🏠",
+      zap: "💡",
+      car: "🚗",
+      phone: "📱",
+      "heart-pulse": "💊",
+      "book-open": "📚",
+      target: "🎯",
+      gift: "🎁",
+      wallet: "💳",
+      "shopping-bag": "🛍️",
+    };
+    const nameMap: Record<string, string> = {
+      "Quần áo": "👕",
+      "Phí giao lưu": "🥂",
+      "Ăn uống": "🍽️",
+      "Tiền nhà": "🏠",
+      "Tiền điện": "💡",
+      "Đi lại": "🚆",
+      "Phí liên lạc": "📱",
+      "Y tế": "💊",
+      "Giáo dục": "📚",
+      "Mỹ phẩm": "💄",
+      "Chi tiêu hàng ngày": "🧴",
+      "Mục tiêu tiết kiệm": "🎯",
+      "Trả nợ nhóm": "💸",
+      "Tiền lương": "💰",
+      Lương: "💰",
+    };
+    if (name && nameMap[name]) return nameMap[name];
+    if (icon && iconMap[icon.toLowerCase()]) return iconMap[icon.toLowerCase()];
+    if (icon && icon.length <= 4 && !/^[a-zA-Z0-9_-]+$/.test(icon)) return icon;
+    return "📋";
+  };
+
+  const fetchAdvisorData = async (silent = false) => {
     if (!user?.id) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const res = await api.get(`/advisor/insights`, {
         params: { year: selectedYear, month: selectedMonth },
@@ -146,7 +186,7 @@ export const AdvisorScreen: React.FC = () => {
     } catch (err) {
       console.log("Error fetching advisor data:", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -170,18 +210,62 @@ export const AdvisorScreen: React.FC = () => {
         return;
       }
 
-      await financialServices.createBudget({
-        categoryId: catId,
-        limitAmount: item.suggestedAmount,
-        month: selectedMonth,
-        year: selectedYear,
-        name: `Ngân sách ${item.categoryName}`,
-        type: "FLEXIBLE",
-        isMandatory: false,
+      // Kiểm tra xem đã có ngân sách cho danh mục này trong tháng/năm này chưa
+      let existingBudgetId = item.budgetId;
+      if (!existingBudgetId) {
+        try {
+          const existingBudgets = await financialServices.getBudgetSummary(selectedYear, selectedMonth);
+          const foundB = existingBudgets.find((b: any) => b.categoryId === catId);
+          if (foundB) {
+            existingBudgetId = foundB.budgetId || foundB.id;
+          }
+        } catch {}
+      }
+
+      if (existingBudgetId) {
+        // ĐÃ TỒN TẠI → CẬP NHẬT (UPDATE) — Tránh lỗi duplicate key constraint
+        await financialServices.updateBudget(existingBudgetId, {
+          categoryId: catId,
+          limitAmount: item.suggestedAmount,
+          month: selectedMonth,
+          year: selectedYear,
+          name: `Ngân sách ${item.categoryName}`,
+          type: "FLEXIBLE",
+          isMandatory: false,
+          isRecurring: false,
+          id: existingBudgetId,
+        });
+      } else {
+        // CHƯA CÓ → TẠO MỚI (CREATE)
+        await financialServices.createBudget({
+          categoryId: catId,
+          limitAmount: item.suggestedAmount,
+          month: selectedMonth,
+          year: selectedYear,
+          name: `Ngân sách ${item.categoryName}`,
+          type: "FLEXIBLE",
+          isMandatory: false,
+        });
+      }
+
+      // CẬP NHẬT TRỰC TIẾP TRÊN STATE (Optimistic update):
+      // Giữ nguyên 100% vị trí cuộn màn hình và thứ tự card, chuyển nút sang màu XÁM "✓ Đã thiết lập chuẩn" ngay tại chỗ!
+      setData((prev) => {
+        if (!prev || !prev.budgetPlan) return prev;
+        return {
+          ...prev,
+          budgetPlan: prev.budgetPlan.map((p) =>
+            p.categoryName === item.categoryName
+              ? { ...p, currentBudget: item.suggestedAmount }
+              : p
+          ),
+        };
       });
 
-      showToast(`Đã thiết lập ngân sách T${selectedMonth}/${selectedYear} cho ${item.categoryName} (${fmt(item.suggestedAmount)})! 🎉`, "success");
-      fetchAdvisorData();
+      showToast(`Đã cập nhật ngân sách ${item.categoryName} (${fmt(item.suggestedAmount)})! 🎉`, "success");
+      
+      // Đồng bộ ngầm trong nền mà KHÔNG kích hoạt spinner toàn màn hình
+      fetchAdvisorData(true);
     } catch (err: any) {
       showToast(err.response?.data?.message || "Không thể thiết lập ngân sách", "error");
     } finally {
@@ -387,7 +471,9 @@ export const AdvisorScreen: React.FC = () => {
                     {/* Top Row: Icon & Category Name */}
                     <View style={styles.planHeader}>
                       <View style={styles.planIconBox}>
-                        <Text style={{ fontSize: 24 }}>{item.categoryIcon || "📋"}</Text>
+                        <Text style={{ fontSize: 24 }}>
+                          {getCategoryIcon(item.categoryIcon, item.categoryName)}
+                        </Text>
                       </View>
 
                       <View style={{ flex: 1, marginLeft: 12 }}>
@@ -412,10 +498,10 @@ export const AdvisorScreen: React.FC = () => {
                         <Text
                           style={[
                             styles.metricColumnValue,
-                            !item.lastMonthBudget && { color: colors.slate400, fontSize: 13 },
+                            !(item as any).lastMonthBudget && { color: colors.slate400, fontSize: 13 },
                           ]}
                         >
-                          {item.lastMonthBudget ? fmt(item.lastMonthBudget) : "Chưa đặt"}
+                          {(item as any).lastMonthBudget ? fmt((item as any).lastMonthBudget) : "Chưa đặt"}
                         </Text>
                       </View>
 
@@ -456,7 +542,9 @@ export const AdvisorScreen: React.FC = () => {
                         {isApplying ? (
                           <ActivityIndicator size="small" color={colors.white} />
                         ) : hasCurrentBudget && isMatch ? (
-                          <Text style={styles.applyBudgetBtnText}>✓ Đã thiết lập chuẩn</Text>
+                          <Text style={[styles.applyBudgetBtnText, styles.applyBudgetBtnTextDisabled]}>
+                            ✓ Đã thiết lập chuẩn
+                          </Text>
                         ) : hasCurrentBudget ? (
                           <Text style={styles.applyBudgetBtnText}>
                             ✏️ Cập nhật hạn mức ({fmt(item.suggestedAmount)})
@@ -955,14 +1043,19 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   applyBudgetBtnDisabled: {
-    backgroundColor: "#cbd5e1",
+    backgroundColor: "#e2e8f0",
     shadowOpacity: 0,
     elevation: 0,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
   },
   applyBudgetBtnText: {
     fontSize: 15,
     fontWeight: "900",
     color: colors.white,
+  },
+  applyBudgetBtnTextDisabled: {
+    color: "#64748b",
   },
   fullBudgetLinkCard: {
     flexDirection: "row",

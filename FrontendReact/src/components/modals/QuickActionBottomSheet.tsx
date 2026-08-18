@@ -9,10 +9,12 @@ import {
 } from "react-native";
 import { colors } from "../../constants/colors";
 
+export type QuickActionType = "expense" | "group" | "income" | "scan_receipt";
+
 interface QuickActionBottomSheetProps {
   visible: boolean;
   onClose: () => void;
-  onSelectAction: (action: "expense" | "group" | "income") => void;
+  onSelectAction: (action: QuickActionType) => void;
 }
 
 export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
@@ -48,9 +50,33 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
             Chọn hành động bạn muốn thực hiện ngay bây giờ:
           </Text>
 
-          {/* 3 Quick Action Cards */}
+          {/* Quick Action Cards */}
           <View style={styles.actionList}>
-            {/* 1. Tạo Chi Tiêu */}
+            {/* 1. Quét Hoá Đơn / QR Bill (AI) - Nổi Bật Nhất */}
+            <TouchableOpacity
+              style={[styles.actionCard, styles.scanCard]}
+              onPress={() => {
+                onClose();
+                onSelectAction("scan_receipt");
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.iconBox, { backgroundColor: "#ede9fe" }]}>
+                <Text style={{ fontSize: 26 }}>📸</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.cardTitleRow}>
+                  <Text style={[styles.cardTitle, { color: "#6366f1" }]}>Quét hoá đơn / QR Bill</Text>
+                  <View style={[styles.badge, { backgroundColor: "#e0e7ff" }]}>
+                    <Text style={[styles.badgeText, { color: "#4338ca" }]}>✨ AI Thông Minh</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardSub}>Chụp ảnh bill hoặc dán link QR hoá đơn điện tử để tự động nhập</Text>
+              </View>
+              <Text style={styles.arrowIcon}>›</Text>
+            </TouchableOpacity>
+
+            {/* 2. Tạo Chi Tiêu Thủ Công */}
             <TouchableOpacity
               style={[styles.actionCard, styles.expenseCard]}
               onPress={() => {
@@ -74,7 +100,7 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>
 
-            {/* 2. Tạo Nhóm */}
+            {/* 3. Tạo Nhóm */}
             <TouchableOpacity
               style={[styles.actionCard, styles.groupCard]}
               onPress={() => {
@@ -98,7 +124,7 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>
 
-            {/* 3. Nạp Tiền */}
+            {/* 4. Nạp Tiền */}
             <TouchableOpacity
               style={[styles.actionCard, styles.incomeCard]}
               onPress={() => {
@@ -107,14 +133,14 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.iconBox, { backgroundColor: "#e0e7ff" }]}>
+              <View style={[styles.iconBox, { backgroundColor: "#fef3c7" }]}>
                 <Text style={{ fontSize: 26 }}>💳</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardTitle, { color: "#4f46e5" }]}>Nạp tiền vào ví</Text>
-                  <View style={[styles.badge, { backgroundColor: "#c7d2fe" }]}>
-                    <Text style={[styles.badgeText, { color: "#3730a3" }]}>Thu nhập</Text>
+                  <Text style={[styles.cardTitle, { color: "#d97706" }]}>Nạp tiền vào ví</Text>
+                  <View style={[styles.badge, { backgroundColor: "#fde68a" }]}>
+                    <Text style={[styles.badgeText, { color: "#92400e" }]}>Thu nhập</Text>
                   </View>
                 </View>
                 <Text style={styles.cardSub}>Thêm tiền trực tiếp vào số dư khả dụng (Lương, nạp ví)</Text>
@@ -189,15 +215,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   actionList: {
-    gap: 12,
+    gap: 10,
   },
   actionCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    padding: 13,
     borderRadius: 20,
     borderWidth: 1.5,
-    gap: 14,
+    gap: 12,
+  },
+  scanCard: {
+    backgroundColor: "#f5f3ff",
+    borderColor: "#c4b5fd",
   },
   expenseCard: {
     backgroundColor: "#fff1f2",
@@ -208,13 +238,13 @@ const styles = StyleSheet.create({
     borderColor: "#a7f3d0",
   },
   incomeCard: {
-    backgroundColor: "#eef2ff",
-    borderColor: "#c7d2fe",
+    backgroundColor: "#fffbeb",
+    borderColor: "#fde68a",
   },
   iconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -222,10 +252,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 3,
+    marginBottom: 2,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
   },
   badge: {
@@ -238,13 +268,13 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   cardSub: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: colors.slate600,
-    lineHeight: 16,
+    lineHeight: 15,
     fontWeight: "500",
   },
   arrowIcon: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "300",
     color: colors.slate400,
   },

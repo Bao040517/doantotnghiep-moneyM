@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import Svg, { Circle, G } from "react-native-svg";
 import { colors } from "../../constants/colors";
 import { GroupExpense } from "../../types";
 
@@ -44,6 +45,26 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ expenses }) => {
 
   const fmt = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "đ";
 
+  const chartSize = 150;
+  const strokeWidth = 20;
+  const radius = (chartSize - strokeWidth) / 2;
+  const center = chartSize / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  let accumulated = 0;
+  const slices = categoryList.map((item, idx) => {
+    const pct = totalAmount > 0 ? item.amount / totalAmount : 0;
+    const strokeDasharray = `${pct * circumference} ${circumference}`;
+    const strokeDashoffset = -(accumulated * circumference);
+    accumulated += pct;
+    return {
+      key: item.category || `${idx}`,
+      color: item.color,
+      strokeDasharray,
+      strokeDashoffset,
+    };
+  });
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -58,13 +79,39 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ expenses }) => {
 
       {/* Donut Chart Visual */}
       <View style={styles.chartArea}>
-        <View style={[styles.donutOuter, { borderColor: categoryList[0]?.color || "#10b981" }]}>
-          <View style={styles.donutInner}>
+        <View style={{ width: chartSize, height: chartSize, position: "relative", alignItems: "center", justifyContent: "center" }}>
+          <Svg width={chartSize} height={chartSize}>
+            {totalAmount <= 0 ? (
+              <Circle
+                cx={center}
+                cy={center}
+                r={radius}
+                stroke="#E2E8F0"
+                strokeWidth={strokeWidth}
+                fill="none"
+              />
+            ) : (
+              <G rotation="-90" origin={`${center}, ${center}`}>
+                {slices.map((slice) => (
+                  <Circle
+                    key={slice.key}
+                    cx={center}
+                    cy={center}
+                    r={radius}
+                    stroke={slice.color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={slice.strokeDasharray}
+                    strokeDashoffset={slice.strokeDashoffset}
+                    fill="none"
+                    strokeLinecap="butt"
+                  />
+                ))}
+              </G>
+            )}
+          </Svg>
+          <View style={styles.donutInnerAbsolute}>
             <Text style={styles.donutSub}>Tổng chi tiêu</Text>
             <Text style={styles.donutMainText}>{fmt(totalAmount)}</Text>
-          </View>
-          <View style={[styles.pctBadge, { backgroundColor: categoryList[0]?.color || "#10b981" }]}>
-            <Text style={styles.pctBadgeText}>{Math.round(categoryList[0]?.pct || 100)}%</Text>
           </View>
         </View>
       </View>
@@ -138,17 +185,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginVertical: 12,
   },
-  donutOuter: {
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    borderWidth: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    backgroundColor: colors.white,
-  },
-  donutInner: {
+  donutInnerAbsolute: {
+    position: "absolute",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -162,18 +200,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.slate900,
     marginTop: 2,
-  },
-  pctBadge: {
-    position: "absolute",
-    bottom: -8,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  pctBadgeText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: colors.white,
   },
   breakdownList: {
     marginTop: 12,

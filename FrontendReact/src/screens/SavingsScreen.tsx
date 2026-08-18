@@ -46,12 +46,25 @@ export const SavingsScreen: React.FC = () => {
   const handleAutoAllocate = async () => {
     try {
       const res = await autoAllocate();
-      Alert.alert(
-        "⚡ Tự Động Phân Bổ Thành Công!",
-        `Đã phân bổ tổng cộng ${(res?.allocatedTotal ?? 0).toLocaleString("vi-VN")} ₫ vào các mục tiêu tiết kiệm mà vẫn giữ nguyên Điểm Dừng An Toàn!`
-      );
+      const allocated = res?.totalAllocated ?? res?.allocatedTotal ?? 0;
+      if (allocated > 0) {
+        Alert.alert(
+          "⚡ Tự Động Phân Bổ Thành Công!",
+          `Đã phân bổ tổng cộng ${allocated.toLocaleString("vi-VN")} ₫ vào các mục tiêu tiết kiệm mà vẫn giữ nguyên Điểm Dừng An Toàn!`
+        );
+        refreshApp();
+      } else {
+        Alert.alert(
+          "Thông Báo Phân Bổ",
+          res?.message || "Không có mục tiêu tiết kiệm nào cần nạp thêm tiền hoặc tất cả mục tiêu đã đạt hạn mức 100%!"
+        );
+      }
     } catch (e: any) {
-      if (e.message === "SAFETY_RESERVE_VIOLATION") {
+      if (
+        e.message === "SAFETY_RESERVE_VIOLATION" ||
+        e.response?.data?.message?.includes("SAFETY_RESERVE_VIOLATION") ||
+        e.response?.data?.errorCode === "SAFETY_RESERVE_VIOLATION"
+      ) {
         Alert.alert(
           "🛡️ Vi Phạm Điểm Dừng An Toàn!",
           "Số dư hiện tại của bạn không đủ để bảo đảm các khoản ngân sách cần chi trả. Thuật toán đã tự động chặn phân bổ để bảo vệ dòng tiền!"

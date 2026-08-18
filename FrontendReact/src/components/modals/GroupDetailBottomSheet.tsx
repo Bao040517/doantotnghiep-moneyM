@@ -14,11 +14,13 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { VietQRCard } from "../features/VietQRCard";
 import { PaymentSandboxModal } from "./PaymentSandboxModal";
+import { PayeeSelectorModal } from "./PayeeSelectorModal";
 import { RemindDebtBottomSheet } from "./RemindDebtBottomSheet";
 import { colors } from "../../constants/colors";
 import { groupService } from "../../services/groupService";
 import { useAuth } from "../../hooks/useAuth";
-import { Group, GroupExpense } from "../../types";
+import { Group, GroupExpense, Payee } from "../../types";
+import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface GroupDetailBottomSheetProps {
   visible: boolean;
@@ -80,9 +82,47 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
   // VietQR settlement state
   const [qrSettleDebt, setQrSettleDebt] = useState<any | null>(null);
   const [sandboxVisible, setSandboxVisible] = useState(false);
+  const [payeeSelectorVisible, setPayeeSelectorVisible] = useState(false);
+  const [pendingSettleDebt, setPendingSettleDebt] = useState<any | null>(null);
   
   // Remind Debt state
   const [remindDebtData, setRemindDebtData] = useState<any | null>(null);
+
+  const handleStartDebtPayment = (debtItem: any) => {
+    const creditorAccNo = debtItem.to?.bankAccountNo;
+    if (creditorAccNo) {
+      // Đã có STK ngân hàng -> Bypass selector, mở thẳng QR sandbox
+      setQrSettleDebt({
+        amount: debtItem.amount,
+        toName: debtItem.to?.name || "Người nhận",
+        toBankBin: debtItem.to?.bankBin || "970422",
+        toAccountNo: creditorAccNo,
+        toUserId: debtItem.to?.id,
+        groupName: group?.name,
+        groupId: groupId,
+      });
+      setSandboxVisible(true);
+    } else {
+      // Chưa có STK -> Mở PayeeSelectorModal để chọn từ danh bạ/bạn bè hoặc nhập mới
+      setPendingSettleDebt(debtItem);
+      setPayeeSelectorVisible(true);
+    }
+  };
+
+  const handleSelectPayeeForDebt = (payee: Payee) => {
+    if (!pendingSettleDebt) return;
+    setQrSettleDebt({
+      amount: pendingSettleDebt.amount,
+      toName: payee.accountName || payee.name || pendingSettleDebt.to?.name || "Người nhận",
+      toBankBin: payee.bankBin || "970422",
+      toAccountNo: payee.bankAccount,
+      toUserId: pendingSettleDebt.to?.id,
+      groupName: group?.name,
+      groupId: groupId,
+    });
+    setPayeeSelectorVisible(false);
+    setSandboxVisible(true);
+  };
 
   const fetchGroupDetails = async () => {
     if (!groupId) return;
@@ -213,9 +253,9 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.dropdownSelectedContent}>
-              <Text style={styles.dropdownSelectedIcon}>
-                {CATEGORY_EMOJI[category] || "📦"}
-              </Text>
+              <View style={{ marginRight: 8 }}>
+                <CategoryIcon name={category || "Khác"} size={22} />
+              </View>
               <Text style={styles.dropdownSelectedText}>
                 {category}
               </Text>
@@ -242,7 +282,7 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
                     >
                       <View style={styles.dropdownItemLeft}>
                         <View style={[styles.dropdownItemIconBox, isSelected && styles.dropdownItemIconBoxActive]}>
-                          <Text style={{ fontSize: 16 }}>{CATEGORY_EMOJI[catName]}</Text>
+                          <CategoryIcon name={catName} size={20} />
                         </View>
                         <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>
                           {catName}
@@ -483,7 +523,7 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
                 expenses.map((exp) => (
                   <View key={exp.id} style={styles.expenseCard}>
                     <View style={styles.expenseIconBg}>
-                      <Text style={{ fontSize: 20 }}>{CATEGORY_EMOJI[exp.category] || "📦"}</Text>
+                      <CategoryIcon name={exp.category || "Khác"} size={26} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.expenseTitle}>{exp.title}</Text>
@@ -598,7 +638,7 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
                         {/* Action Pill Buttons */}
                         <View style={styles.debtCardActions}>
                           <TouchableOpacity
-                            onPress={() => setQrSettleDebt(t)}
+                            onPress={() => handleStartDebtPayment(t)}
                             style={styles.payNowCompactBtn}
                             activeOpacity={0.8}
                           >
@@ -635,34 +675,19 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
               ))}
             </View>
           )}
-
-          {/* ─── VIETQR SETTLEMENT MODAL ─── */}
-          {qrSettleDebt && (
-            <View style={styles.qrWrapper}>
-              <Text style={{ fontSize: 16, fontWeight: "800", color: colors.slate900, marginBottom: 12, textAlign: "center" }}>
-                Thanh Toán Trả Nợ
-              </Text>
-              <VietQRCard
-                bankBin={qrSettleDebt.to?.bankBin || "970436"}
-                accountNo={qrSettleDebt.to?.bankAccountNo || "10928888999"}
-                accountName={qrSettleDebt.to?.name}
-                amount={qrSettleDebt.amount}
-                description={`Quyet toan no ${group.name}`}
-                receiverId={qrSettleDebt.to?.id}
-              />
-              <View style={{ marginTop: 12 }}>
-                <Button
-                  title="Thanh toán ngay 💳"
-                  variant="primary"
-                  onPress={() => {
-                    setSandboxVisible(true);
-                  }}
-                />
-              </View>
-            </View>
-          )}
         </ScrollView>
       )}
+
+      {/* ─── PAYEE SELECTOR MODAL (CHO THÀNH VIÊN CHƯA CÓ STK) ─── */}
+      <PayeeSelectorModal
+        visible={payeeSelectorVisible}
+        onClose={() => {
+          setPayeeSelectorVisible(false);
+          setPendingSettleDebt(null);
+        }}
+        onSelectPayee={handleSelectPayeeForDebt}
+        defaultAmount={pendingSettleDebt?.amount}
+      />
 
       {/* ─── BANKING SANDBOX GATEWAY MODAL ─── */}
       <PaymentSandboxModal
@@ -671,18 +696,19 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
           qrSettleDebt
             ? {
                 amount: qrSettleDebt.amount,
-                toName: qrSettleDebt.to?.name || "Người nhận",
-                toBankBin: qrSettleDebt.to?.bankBin || "970436",
-                toAccountNo: qrSettleDebt.to?.bankAccountNo || "10928888999",
-                toUserId: qrSettleDebt.to?.id,
-                groupName: group?.name,
-                groupId: groupId,
+                toName: qrSettleDebt.toName || qrSettleDebt.to?.name || "Người nhận",
+                toBankBin: qrSettleDebt.toBankBin || qrSettleDebt.to?.bankBin || "970422",
+                toAccountNo: qrSettleDebt.toAccountNo || qrSettleDebt.to?.bankAccountNo || "10908888999",
+                toUserId: qrSettleDebt.toUserId || qrSettleDebt.to?.id,
+                groupName: qrSettleDebt.groupName || group?.name,
+                groupId: qrSettleDebt.groupId || groupId,
               }
             : null
         }
         onClose={() => {
           setSandboxVisible(false);
           setQrSettleDebt(null);
+          setPendingSettleDebt(null);
         }}
         onPaymentSuccess={async (amt, toUserId) => {
           if (toUserId && groupId) {
@@ -1120,7 +1146,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.slate200,
   },
   modalBodyWrapper: {
-    maxHeight: 520,
+    maxHeight: 580,
   },
   formScrollArea: {
     flexShrink: 1,
@@ -1332,7 +1358,6 @@ const styles = StyleSheet.create({
   splitCustomList: {
     gap: 8,
     marginBottom: 16,
-    maxHeight: 180,
   },
   memberCheckRow: {
     flexDirection: "row",
@@ -1385,5 +1410,10 @@ const styles = StyleSheet.create({
   },
   flexBtn: {
     flex: 1,
+  },
+  debtCardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 });

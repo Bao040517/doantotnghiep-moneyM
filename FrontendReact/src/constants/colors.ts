@@ -10,22 +10,30 @@ export const colors = {
   // Emerald (Income & Positive Cash Flow)
   emerald50: "#ECFDF5",
   emerald100: "#D1FAE5",
+  emerald200: "#A7F3D0",
   emerald500: "#10B981",
   emerald600: "#059669",
   emerald700: "#047857",
+  emerald800: "#065F46",
+  emerald900: "#064E3B",
 
   // Rose (Expense & Liability)
   rose50: "#FFF1F2",
   rose100: "#FFE4E6",
+  rose200: "#FECDD3",
   rose500: "#F43F5E",
   rose600: "#E11D48",
+  rose700: "#BE123C",
 
   // Amber (Safety Reserve & Warnings)
   amber50: "#FFFBEB",
   amber100: "#FEF3C7",
+  amber200: "#FDE68A",
   amber500: "#F59E0B",
   amber600: "#D97706",
   amber700: "#B45309",
+  amber800: "#92400E",
+  amber900: "#78350F",
 
   // Slate Neutral Grayscale
   slate50: "#F8FAFC",

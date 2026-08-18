@@ -5,10 +5,8 @@ import { StatusBar } from "expo-status-bar";
 import { AppNavigator } from "./src/navigation/AppNavigator";
 import { AlertProvider } from "./src/context/AlertContext";
 
-LogBox.ignoreLogs([
-  "Cannot connect to Expo CLI",
-  "Running \"main\" with",
-]);
+// Ẩn toàn bộ popup cảnh báo hệ thống (LogBox / YellowBox) trên giao diện người dùng
+LogBox.ignoreAllLogs(true);
 
 export default function App() {
   return (

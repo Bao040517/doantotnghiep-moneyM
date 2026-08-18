@@ -33,6 +33,9 @@ export interface BudgetSummary {
   payeeBankBin?: string;
   payeeBankAccount?: string;
   payeeAccountName?: string;
+  payeeId?: string;
+  /** Thời điểm tạo budget — dùng để lọc giao dịch không hồi tố */
+  createdAt?: string;
   /** Fallback ID field for backward compatibility */
   id?: string;
 }
@@ -50,4 +53,6 @@ export interface BudgetPayload {
   payeeBankBin?: string;
   payeeBankAccount?: string;
   payeeAccountName?: string;
+  payeeId?: string;
+  id?: string;
 }

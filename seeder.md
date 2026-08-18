@@ -72,29 +72,37 @@ Bộ dữ liệu **Seed V3 (`seed_v3.sql`)** tuân thủ nghiêm ngặt quy tắ
 
 ---
 
-## 5. Đặc tả Bộ dữ liệu mẫu V7 (Seed V7 Data Specs)
+## 6. Đặc tả Bộ dữ liệu mẫu V8 (Seed V8 Data Specs)
 
-Bộ dữ liệu **Seed V7 (`seed_v7.sql` & `generate_seed_v7.js`)** nâng cấp toàn diện và hoàn thiện 100% dữ liệu cho mọi Entity:
-*   **Loại bỏ chữ "Ngân sách " lặp lại:** Tên ngân sách được đặt tự nhiên, sạch sẽ (VD: `Tiền nhà T8/2026`, `Tiền điện T8/2026`, `Ăn uống T8/2026`, `Phí liên lạc T8/2026`).
-*   **Đầy đủ các trường Entity:**
-    *   `budgets`: Đầy đủ `due_day_of_month`, `payee_bank_bin`, `payee_bank_account`, `payee_account_name`.
-    *   `external_loans`: Đầy đủ `counterparty_phone`, `interest_rate`, `start_date`, `due_date`.
-    *   `savings_goals`: Đầy đủ mục tiêu và tiến độ tiết kiệm chuẩn xác.
-*   **Hệ thống thông báo Realtime đa dạng (`notifications`):**
-    *   `BUDGET_WARNING`: Cảnh báo sắp chạm 85% hạn mức ngân sách.
-    *   `BUDGET_OVER`: Cảnh báo vượt 122% hạn mức Tiền nhà.
-    *   `Z_SCORE_ANOMALY`: Cảnh báo phát hiện chi tiêu tăng đột biến bất thường.
-    *   `DEBT_REMINDER`: Nhắc nợ nhóm từ AI / bạn bè.
-    *   `DEBT_PAYMENT_NOTIFIED`: Báo đã thanh toán tiền mặt chờ duyệt.
-    *   `DEBT_SETTLED`: Xác nhận thu hồi nợ thành công qua VietQR.
-    *   `EXPENSE_CREATED`: Thông báo hóa đơn nhóm mới.
-    *   `SAVINGS_MILESTONE`: Chúc mừng cột mốc tiết kiệm.
-    *   `SALARY_RECEIVED`: Thông báo cộng lương hàng tháng.
+Bộ dữ liệu **Seed V8 (`seed_v8.sql` & `generate_seed_v8.js`)** là phiên bản hoàn thiện kiến trúc thanh toán trực tuyến VNPay và đối soát kiểm toán.
 
 ---
 
-## 6. Tóm tắt các Script đang sử dụng
+## 9. Đặc tả Bộ dữ liệu mẫu V11 (Seed V11 Data Specs)
+
+Bộ dữ liệu **Seed V11 (`seed_v11.sql` & `generate_seed_v11.js`)** là phiên bản hoàn thiện quy mô tài chính chuẩn hóa:
+*   **Hạn mức Ngân sách tối đa 2.000.000 VNĐ:**
+    *   Toàn bộ 416 bản ghi ngân sách trải dài 24 tháng đều tuân thủ `limit_amount <= 2,000,000 VNĐ`.
+    *   *Ăn uống:* 2.000.000 đ | *Tiền nhà:* 1.200.000 - 1.800.000 đ | *Chi tiêu hàng ngày:* 1.500.000 đ | *Phí giao lưu:* 1.500.000 đ | *Quần áo:* 1.000.000 đ | *Đi lại:* 800.000 đ | *Tiền điện:* 750.000 đ | *Phí liên lạc:* 200.000 đ.
+*   **Số dư tài khoản & Ví tối đa không quá 25.000.000 VNĐ:**
+    *   Lương và chi tiêu hàng tháng được điều chỉnh tỷ lệ thực tế (Lương 7.5tr - 18tr/tháng).
+    *   Số dư ví chính: 4.8tr - 15.5tr VNĐ | Ví tiết kiệm: 1tr - 5tr VNĐ | Thẻ tín dụng âm nhẹ -> **Tổng tài sản ròng mỗi user luôn <= 25.000.000 VNĐ** (0 vi phạm).
+*   **Đồng bộ 100% Entity Java Spring Boot:**
+    *   Khớp 100% tất cả 18 bảng, đầy đủ 9 cột của `payees`, liên kết `payee_id` vào `budgets`, khóa ngoại `UUID`, `tags`, `savings_goals`, `external_loans`, `payment_orders`.
+*   **Duy trì ca test Dashboard & Cảnh báo sinh động (Tháng 08/2026):**
+    *   1 ngân sách vượt hạn mức nhẹ (Ăn uống 2.15tr / 2tr -> 107.5%).
+    *   1 ngân sách tiệm cận hạn mức (Phí giao lưu 1.28tr / 1.5tr -> 85.3%).
+    *   Các đơn hàng trực tuyến PayOS & VNPay (Pending, Success, Cancelled).
+
+---
+
+## 10. Tóm tắt các Script đang sử dụng
 *   `check_entities.js`: Tool nội bộ dùng để quét file `.java` và validate cấu trúc cột `NOT NULL`.
-*   `generate_seed_v7.js`: Kịch bản thế hệ mới nhất V7, loop dữ liệu, sinh mảng thực thể hoàn chỉnh và xuất ra `seed_v7.sql`.
-*   `seed_v7.sql`: File SQL thành phẩm V7 hoàn thiện 1.5MB sẵn sàng thực thi trên pgAdmin / DataGrip.
+*   `generate_seed_v11.js`: Kịch bản thế hệ mới nhất V11, áp dụng giới hạn ngân sách <= 2tr, số dư tài khoản <= 25tr, sinh đầy đủ thực thể và xuất ra `seed_v11.sql`.
+*   `seed_v11.sql`: File SQL thành phẩm V11 hoàn thiện sẵn sàng thực thi trên pgAdmin / DataGrip / DBeaver.
+*   `seed_v10.sql` / `generate_seed_v10.js`: Bản lưu trữ thế hệ V10.
+*   `seed_v9.sql` / `generate_seed_v9.js`: Bản lưu trữ thế hệ V9.
+*   `seed_v8.sql` / `generate_seed_v8.js`: Bản lưu trữ thế hệ V8.
+
+
 

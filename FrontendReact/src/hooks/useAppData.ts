@@ -77,6 +77,8 @@ export function useAppData() {
 
   const totalBudgetLimit = budgets.reduce((sum, b) => sum + (b.limitAmount || 0), 0);
   const totalBudgetSpent = budgets.reduce((sum, b) => sum + Math.min(b.spentAmount || 0, b.limitAmount || 0), 0);
+  const totalActualExpense = monthlySummary?.currentMonth?.totalExpense ?? 0;
+  const totalActualIncome = monthlySummary?.currentMonth?.totalIncome ?? 0;
 
   return {
     wallets,
@@ -91,6 +93,8 @@ export function useAppData() {
     unpaidBudgetsAmount,
     totalBudgetLimit,
     totalBudgetSpent,
+    totalActualExpense,
+    totalActualIncome,
     safeToSpend,
     isLoading,
     refresh,

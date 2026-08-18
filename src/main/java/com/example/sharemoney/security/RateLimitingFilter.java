@@ -70,16 +70,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /** Lấy IP thật của client (xử lý proxy/load balancer). */
+    /**
+     * Lấy IP thật của client.
+     * Không tin tưởng X-Forwarded-For/X-Real-IP vì có thể bị spoof.
+     * Nếu deploy sau reverse proxy, cần cấu hình trusted proxy riêng.
+     */
     private String getClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
         return request.getRemoteAddr();
     }
 

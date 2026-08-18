@@ -37,17 +37,36 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.cors(org.springframework.security.config.Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write("{\"code\":401,\"message\":\"Chưa xác thực hoặc phiên đăng nhập đã hết hạn.\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write("{\"code\":403,\"message\":\"Không có quyền truy cập.\"}");
+                        })
+                )
                 .authorizeHttpRequests(
                         auth ->
                                 auth.requestMatchers("/api/auth/**")
                                         .permitAll() // Cho phép truy cập không cần token
+                                        .requestMatchers("/api/vnpay/portal/**", "/api/vnpay/vnpay-ipn", "/api/vnpay/vnpay-return")
+                                        .permitAll() // Cho phép Cổng thanh toán Web và Webhook VNPay (không bao gồm simulate-success)
+                                        .requestMatchers("/api/payos/webhook")
+                                        .permitAll() // Chỉ cho phép Webhook PayOS (create-payment-link yêu cầu JWT)
                                         .requestMatchers("/ws/**")
                                         .permitAll() // Cho phép WebSocket kết nối
                                         .requestMatchers(
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",
-                                                "/swagger-ui.html")
-                                        .permitAll() // Cho phép Swagger UI
+                                                "/swagger-ui.html",
+                                                "/error")
+                                        .permitAll() // Cho phép Swagger UI & Error page
                                         .anyRequest()
                                         .authenticated() // Các API còn lại yêu cầu token
                         )

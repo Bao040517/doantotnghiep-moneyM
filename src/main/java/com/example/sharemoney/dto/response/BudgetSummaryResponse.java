@@ -33,4 +33,10 @@ public class BudgetSummaryResponse {
     private String payeeBankBin;
     private String payeeBankAccount;
     private String payeeAccountName;
+
+    /** ID người thụ hưởng đã liên kết. Nếu != null → frontend bypass PayeeSelector */
+    private UUID payeeId;
+
+    /** Thời điểm tạo budget — frontend dùng để lọc giao dịch không hồi tố */
+    private java.time.LocalDateTime createdAt;
 }

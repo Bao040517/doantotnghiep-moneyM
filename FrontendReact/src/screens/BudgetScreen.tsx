@@ -29,23 +29,60 @@ import { BudgetSummary } from "../types";
 import { api } from "../services/api";
 import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
 import { BudgetTransactionsBottomSheet } from "../components/modals/BudgetTransactionsBottomSheet";
+import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
+import { Payee } from "../types/payee";
+import { payeeService } from "../services/payeeService";
+import { CategoryIcon } from "../components/ui/CategoryIcon";
 
 const CATEGORY_ICONS: Record<string, string> = {
-  "Ăn uống": "🍲",
-  "Mua sắm": "🛍️",
-  "Di chuyển": "🚕",
-  "Nhà cửa": "🏠",
-  "Giải trí": "🍿",
+  // Slug / English icon keys from DB
+  "shirt": "👕",
+  "utensils": "🍽️",
+  "shopping-bag": "🛍️",
+  "sparkles": "💄",
+  "users": "🥂",
+  "heart-pulse": "💊",
+  "graduation-cap": "📚",
+  "zap": "💡",
+  "car": "🚗",
+  "phone": "📱",
+  "home": "🏠",
+  "wallet": "💰",
+  "gift": "🎁",
+  "trending-up": "📈",
+  "coins": "🪙",
+  // Vietnamese names
+  "Ăn uống": "🍽️",
+  "Chi tiêu hàng ngày": "🧴",
+  "Quần áo": "👕",
+  "Mỹ phẩm": "💄",
+  "Phí giao lưu": "🥂",
   "Y tế": "💊",
   "Giáo dục": "📚",
+  "Tiền điện": "💡",
+  "Đi lại": "🚗",
+  "Di chuyển": "🚗",
+  "Phí liên lạc": "📱",
+  "Tiền nhà": "🏠",
+  "Nhà cửa": "🏠",
+  "Mua sắm": "🛍️",
+  "Giải trí": "🍿",
   "Đầu tư": "📈",
   "Lương": "💰",
+  "Tiền lương": "💰",
   "Thưởng": "🎁",
   "Tiền lãi": "🏦",
   "Đòi nợ": "💸",
   "Trả nợ": "💳",
   "Chuyển khoản": "🔄",
-  "Khác": "📂"
+  "Khác": "📂",
+};
+
+const getCategoryEmoji = (icon?: string, name?: string): string => {
+  if (icon && CATEGORY_ICONS[icon]) return CATEGORY_ICONS[icon];
+  if (name && CATEGORY_ICONS[name]) return CATEGORY_ICONS[name];
+  if (icon && icon.length <= 4 && !/^[a-zA-Z0-9_-]+$/.test(icon)) return icon;
+  return "💵";
 };
 
 // The absolute core text input that NEVER re-renders to prevent ANY React Native interference with IME
@@ -110,7 +147,7 @@ export const BudgetScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [focusedBudgetId, setFocusedBudgetId] = useState<string | null>(null);
 
-  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollViewRef = React.useRef<ScrollView>(null);
   const budgetNameInputRef = React.useRef<TextInput>(null);
@@ -144,6 +181,14 @@ export const BudgetScreen: React.FC = () => {
     prevSpentAmount?: number;
   } | null>(null);
 
+  // Payee Selector Modal state (thay thế PayeeSetupModal cũ)
+  const [payeeSelectorVisible, setPayeeSelectorVisible] = useState(false);
+  const [pendingPayBudget, setPendingPayBudget] = useState<{
+    budget: BudgetSummary;
+    walletId: string;
+    remaining: number;
+  } | null>(null);
+
   // Budget Transactions Breakdown Sheet state
   const [selectedBudgetForDetail, setSelectedBudgetForDetail] = useState<BudgetSummary | null>(null);
   const [budgetTxSheetVisible, setBudgetTxSheetVisible] = useState(false);
@@ -151,10 +196,19 @@ export const BudgetScreen: React.FC = () => {
   // Create Budget Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [budgetName, setBudgetName] = useState("");
+  const [payeeBankBin, setPayeeBankBin] = useState("");
+  const [payeeBankAccount, setPayeeBankAccount] = useState("");
+  const [payeeAccountName, setPayeeAccountName] = useState("");
+  const [showPayeeSetup, setShowPayeeSetup] = useState(false);
+
   useEffect(() => {
     if (!modalVisible) {
       setBudgetName("");
       setLimitAmount("");
+      setPayeeBankBin("");
+      setPayeeBankAccount("");
+      setPayeeAccountName("");
+      setShowPayeeSetup(false);
       budgetNameInputRef.current?.clear();
     }
   }, [modalVisible]);
@@ -230,9 +284,10 @@ export const BudgetScreen: React.FC = () => {
       );
 
       if (match) {
-        setFocusedBudgetId(match.budgetId);
+        const mKey = match.budgetId || match.categoryId;
+        setFocusedBudgetId(mKey || null);
         setTimeout(() => {
-          const yPos = itemPositions.current[match.budgetId] ?? itemPositions.current[match.categoryId];
+          const yPos = mKey ? itemPositions.current[mKey] : undefined;
           if (yPos !== undefined && scrollViewRef.current) {
             scrollViewRef.current.scrollTo({ y: Math.max(0, yPos - 60), animated: true });
           }
@@ -306,46 +361,124 @@ export const BudgetScreen: React.FC = () => {
     try {
       const walletRes = await financialServices.getWallets();
       const targetWallet = walletRes && walletRes.length > 0 ? walletRes[0] : null;
-
       if (!targetWallet) {
         showToast("Vui lòng tạo ví tiền trước khi thanh toán", "error");
         return;
       }
 
-      setSandboxDebtInfo({
-        amount: remaining,
-        toName: b.payeeAccountName || b.name || b.categoryName,
-        toBankBin: b.payeeBankBin || "970422",
-        toAccountNo: b.payeeBankAccount || "10908888999",
-        groupName: b.name || b.categoryName,
-        budgetId: b.budgetId,
-        categoryId: b.categoryId,
-        walletId: targetWallet.id,
-        prevSpentAmount: b.spentAmount,
-      });
-      setSandboxVisible(true);
+      // Cách 2 (Khuyên dùng): Luôn mở màn hình xác nhận người nhận trước khi quét QR
+      // Người nhận gần nhất được ghim nổi bật ở đầu trang ➔ Bấm 1 chạm là chuyển đúng người, không bao giờ nhầm!
+      setPendingPayBudget({ budget: b, walletId: targetWallet.id, remaining });
+      setPayeeSelectorVisible(true);
     } catch (err) {
       showToast("Lỗi khi tải thông tin ví", "error");
     }
   };
 
+  /**
+   * Callback khi người dùng đã chọn hoặc tạo người nhận từ PayeeSelectorModal.
+   * Tự động lưu payeeId vào budget (nếu người dùng chọn lưu mặc định) và mở PaymentSandboxModal.
+   */
+  const handlePayeeSelected = async (payee: Payee, saveAsDefault?: boolean) => {
+    if (!pendingPayBudget) return;
+    const { budget: b, walletId, remaining } = pendingPayBudget;
+
+    // Nếu người dùng chọn lưu mặc định hoặc payee đã có id → liên kết vào budget cho các tháng sau
+    if (saveAsDefault || payee.id) {
+      const bId = b.budgetId || (b as any).id;
+      if (bId) {
+        try {
+          await financialServices.updateBudget(bId, {
+            categoryId: b.categoryId,
+            limitAmount: b.limitAmount,
+            name: b.name || b.categoryName,
+            year,
+            month,
+            type: b.type || "BILL",
+            isMandatory: b.isMandatory ?? true,
+            isRecurring: b.isRecurring ?? false,
+            payeeId: payee.id,        // ← Liên kết payeeId
+            payeeBankBin: payee.bankBin,
+            payeeBankAccount: payee.bankAccount,
+            payeeAccountName: payee.accountName || payee.name,
+            id: bId,
+          });
+          fetchBudgets(); // Refresh để cập nhật người nhận mới
+        } catch {
+          // Không block thanh toán nếu update thất bại
+        }
+      }
+    }
+
+    // Mở modal thanh toán ngay với thông tin người vừa chọn
+    setSandboxDebtInfo({
+      amount: remaining,
+      toName: payee.accountName || payee.name,
+      toBankBin: payee.bankBin || "970422",
+      toAccountNo: payee.bankAccount,
+      groupName: b.name || b.categoryName,
+      budgetId: b.budgetId,
+      categoryId: b.categoryId,
+      walletId,
+      prevSpentAmount: b.spentAmount,
+    });
+    setSandboxVisible(true);
+  };
+
+  /**
+   * Xử lý thanh toán ngoài (tiền mặt / chuyển khoản ngoài app cho người lạ / không có trong danh bạ)
+   */
+  const handleOfflineSettle = async (payeeName: string, note?: string) => {
+    if (!pendingPayBudget) return;
+    const { budget: b, walletId, remaining } = pendingPayBudget;
+
+    try {
+      if (walletId && b.categoryId) {
+        await financialServices.createTransaction(walletId, {
+          amount: remaining,
+          type: "EXPENSE",
+          categoryId: b.categoryId,
+          linkedBudgetId: b.budgetId,
+          note: note?.trim() || `Đã thanh toán cho ${payeeName.trim() || b.name || b.categoryName}`,
+        });
+      }
+
+      const newData = await financialServices.getBudgetSummary(year, month);
+      setBudgets(newData || []);
+      showToast(`Đã ghi nhận chi tiêu ${remaining.toLocaleString("vi-VN")} ₫ cho ${payeeName.trim()}! 🎉`, "success");
+      setPendingPayBudget(null);
+      setPayeeSelectorVisible(false);
+    } catch (err: any) {
+      showToast("Không thể ghi nhận giao dịch", "error");
+    }
+  };
+
+
   const handleSandboxPaymentSuccess = async (amount: number) => {
     if (!sandboxDebtInfo) return;
 
     try {
+      if (sandboxDebtInfo.walletId && sandboxDebtInfo.categoryId) {
+        // Tự động tạo giao dịch chi tiêu ghi nhận vào ví & ngân sách
+        await financialServices.createTransaction(sandboxDebtInfo.walletId, {
+          amount: amount,
+          type: "EXPENSE",
+          categoryId: sandboxDebtInfo.categoryId,
+          linkedBudgetId: sandboxDebtInfo.budgetId,
+          note: `Thanh toán VietQR cho ${sandboxDebtInfo.toName || sandboxDebtInfo.groupName || "ngân sách"}`,
+        });
+      }
+
       const newData = await financialServices.getBudgetSummary(year, month);
       setBudgets(newData || []);
-      
-      const updatedBudget = newData?.find(b => b.budgetId === sandboxDebtInfo.budgetId || b.categoryId === sandboxDebtInfo.categoryId);
-      const prevSpent = sandboxDebtInfo.prevSpentAmount || 0;
-
-      if (updatedBudget && updatedBudget.spentAmount > prevSpent) {
-        showToast(`Đã chuyển tiền thành công cho ${sandboxDebtInfo.groupName}! 🎉`, "success");
-      } else {
-        Alert.alert("Thanh toán thất bại", "Giao dịch đã bị huỷ hoặc xảy ra lỗi trên cổng thanh toán VNPay.");
-      }
-    } catch (err) {
-      showToast("Lỗi khi đồng bộ dữ liệu sau thanh toán", "error");
+      showToast(`Đã thanh toán ${(amount || 0).toLocaleString("vi-VN")} ₫ thành công! 🎉`, "success");
+    } catch (err: any) {
+      console.error("[Budget] Payment success sync error:", err);
+      try {
+        const newData = await financialServices.getBudgetSummary(year, month);
+        setBudgets(newData || []);
+      } catch (e) {}
+      showToast(`Đã thanh toán ${(amount || 0).toLocaleString("vi-VN")} ₫! 🎉`, "success");
     }
   };
 
@@ -371,11 +504,18 @@ export const BudgetScreen: React.FC = () => {
         isMandatory: isMandatory,
         type: type,
         isRecurring: isRecurring,
+        payeeBankBin: payeeBankBin || undefined,
+        payeeBankAccount: payeeBankAccount.trim() || undefined,
+        payeeAccountName: payeeAccountName.trim() || undefined,
       });
 
       showToast("Đã tạo ngân sách chi tiêu mới! 🎉", "success");
       setBudgetName("");
       setLimitAmount("");
+      setPayeeBankBin("");
+      setPayeeBankAccount("");
+      setPayeeAccountName("");
+      setShowPayeeSetup(false);
       setIsMandatory(false);
       setIsRecurring(false);
       setType("FLEXIBLE");
@@ -497,21 +637,25 @@ export const BudgetScreen: React.FC = () => {
           </View>
         ) : (
           filteredBudgets.map((b) => {
+            const isMandatoryFlag = b.isMandatory || (b as any).mandatory;
+            const isFixedType = (b as any).type === "FIXED" || (b as any).type === "BILL" || isMandatoryFlag;
             const isPaid = b.spentAmount >= b.limitAmount;
             const remaining = Math.max(0, b.limitAmount - b.spentAmount);
             const pct = b.limitAmount > 0 ? Math.min(100, Math.round((b.spentAmount / b.limitAmount) * 100)) : 0;
-            const isMandatoryFlag = b.isMandatory || (b as any).mandatory;
             const isFocused = focusedBudgetId === b.budgetId;
 
-            let badgeText = "Đã đủ tiền trả";
+            let badgeText = `Còn ${fmt(remaining)}đ`;
             let badgeStyle = styles.badgeGreen;
 
             if (b.spentAmount > b.limitAmount) {
-              badgeText = `Vượt ${fmt(b.spentAmount - b.limitAmount)}đ`;
+              badgeText = `Vượt ${fmt(b.spentAmount - b.limitAmount)}đ ⚠️`;
               badgeStyle = styles.badgeRed;
             } else if (isPaid) {
-              badgeText = "Đã thanh toán";
+              badgeText = isFixedType ? "Đã thanh toán ✓" : "Hết hạn mức";
               badgeStyle = styles.badgeGreen;
+            } else if (isFixedType) {
+              badgeText = `Cần trả ${fmt(remaining)}đ`;
+              badgeStyle = styles.badgeAmber;
             } else if (pct >= 80) {
               badgeText = `Còn ${fmt(remaining)}đ`;
               badgeStyle = styles.badgeAmber;
@@ -527,7 +671,7 @@ export const BudgetScreen: React.FC = () => {
                 }}
                 onLayout={(e) => {
                   const y = e.nativeEvent.layout.y;
-                  itemPositions.current[b.budgetId] = y;
+                  if (b.budgetId) itemPositions.current[b.budgetId] = y;
                   if (b.categoryId) itemPositions.current[b.categoryId] = y;
                 }}
                 style={[
@@ -540,7 +684,7 @@ export const BudgetScreen: React.FC = () => {
                 {/* Top Row: Icon, Title, Actions */}
                 <View style={styles.cardTopRow}>
                   <View style={styles.catIconBg}>
-                    <Text style={{ fontSize: 24 }}>{b.categoryIcon || "💵"}</Text>
+                    <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={28} />
                   </View>
 
                   <View style={styles.cardTitleBox}>
@@ -609,7 +753,8 @@ export const BudgetScreen: React.FC = () => {
                       <Text style={styles.statusBadgeText}>{badgeText}</Text>
                     </View>
 
-                    {!isPaid && (
+                    {/* Nút Trả Ngay CHỈ HIỂN THỊ cho Khoản chi Cố định / Bắt buộc (isFixedType) và khi chưa trả hết (!isPaid) */}
+                    {isFixedType && !isPaid && (
                       <TouchableOpacity
                         onPress={() => handleQuickPay(b)}
                         style={styles.payBtn}
@@ -705,9 +850,9 @@ export const BudgetScreen: React.FC = () => {
                   const selectedCat = categories.find((c) => c.id === selectedCategoryId);
                   return (
                     <>
-                      <Text style={styles.dropdownSelectedIcon}>
-                        {selectedCat ? CATEGORY_ICONS[selectedCat.name] || "📊" : "📋"}
-                      </Text>
+                      <View style={{ marginRight: 8 }}>
+                        <CategoryIcon name={selectedCat ? selectedCat.name : "Khác"} size={22} />
+                      </View>
                       <Text style={[
                         styles.dropdownSelectedText,
                         !selectedCat && { color: colors.slate400, fontWeight: "500" }
@@ -753,7 +898,7 @@ export const BudgetScreen: React.FC = () => {
                           >
                             <View style={styles.dropdownItemLeft}>
                               <View style={[styles.dropdownItemIconBox, isSelected && styles.dropdownItemIconBoxActive]}>
-                                <Text style={{ fontSize: 16 }}>{CATEGORY_ICONS[cat.name] || "📊"}</Text>
+                                <CategoryIcon name={cat.name} size={20} />
                               </View>
                               <Text style={[
                                 styles.dropdownItemText,
@@ -850,6 +995,7 @@ export const BudgetScreen: React.FC = () => {
                 style={[styles.typeSegmentItem, type === "BILL" && styles.typeSegmentItemActive]}
                 onPress={() => {
                   setType("BILL");
+                  setShowPayeeSetup(true);
                   setCategoryDropdownOpen(false);
                 }}
                 activeOpacity={0.8}
@@ -860,6 +1006,81 @@ export const BudgetScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Field 4.1: Payee Bank Account Info (Tùy chọn thiết lập thanh toán nhanh) */}
+          {(type === "BILL" || showPayeeSetup) && (
+            <View style={styles.payeeSetupBox}>
+              <View style={styles.payeeSetupHeader}>
+                <Text style={styles.payeeSetupTitle}>💳 THÔNG TIN THỤ HƯỞNG (VIETQR)</Text>
+                <Text style={styles.payeeSetupBadge}>Tự động</Text>
+              </View>
+              <Text style={styles.payeeSetupSub}>
+                💡 Nhập STK để kích hoạt nút Trả ngay VietQR 1 chạm mỗi tháng (Tiền trọ, điện, net...).
+              </Text>
+
+              {/* Ngân hàng */}
+              <Text style={styles.payeeFieldLabel}>Ngân hàng thụ hưởng</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                <View style={{ flexDirection: "row", gap: 6, paddingVertical: 2 }}>
+                  {[
+                    { name: "MBBank", bin: "970422" },
+                    { name: "VCB", bin: "970436" },
+                    { name: "Techcombank", bin: "970407" },
+                    { name: "BIDV", bin: "970418" },
+                    { name: "VietinBank", bin: "970415" },
+                    { name: "TPBank", bin: "970423" },
+                    { name: "VPBank", bin: "970432" },
+                    { name: "ACB", bin: "970416" },
+                    { name: "MSB", bin: "970426" },
+                  ].map((b) => (
+                    <TouchableOpacity
+                      key={b.bin}
+                      style={[
+                        styles.payeeBankChip,
+                        payeeBankBin === b.bin && styles.payeeBankChipSelected,
+                      ]}
+                      onPress={() => setPayeeBankBin(b.bin)}
+                      activeOpacity={0.75}
+                    >
+                      <Text
+                        style={[
+                          styles.payeeBankChipText,
+                          payeeBankBin === b.bin && styles.payeeBankChipTextSelected,
+                        ]}
+                      >
+                        {b.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+
+              {/* Số tài khoản */}
+              <Text style={styles.payeeFieldLabel}>Số tài khoản</Text>
+              <View style={styles.payeeInputWrap}>
+                <TextInput
+                  placeholder="VD: 0987654321"
+                  placeholderTextColor={colors.slate400}
+                  keyboardType="numeric"
+                  value={payeeBankAccount}
+                  onChangeText={setPayeeBankAccount}
+                  style={styles.payeeInput}
+                />
+              </View>
+
+              {/* Tên chủ tài khoản */}
+              <Text style={styles.payeeFieldLabel}>Tên người nhận / Chủ tài khoản</Text>
+              <View style={styles.payeeInputWrap}>
+                <TextInput
+                  placeholder="VD: Cô Lan chủ nhà, EVN HCMC..."
+                  placeholderTextColor={colors.slate400}
+                  value={payeeAccountName}
+                  onChangeText={setPayeeAccountName}
+                  style={styles.payeeInput}
+                />
+              </View>
+            </View>
+          )}
 
           {/* Field 5: Advanced Options (Toggles) */}
           <View style={styles.togglesCard}>
@@ -1027,6 +1248,32 @@ export const BudgetScreen: React.FC = () => {
         );
       })()}
 
+      {/* ─── PAYEE SELECTOR MODAL: Chọn người thụ hưởng (Đã lưu / Bạn bè / Thêm mới) ─── */}
+      <PayeeSelectorModal
+        visible={payeeSelectorVisible}
+        onClose={() => {
+          setPayeeSelectorVisible(false);
+          // Chỉ xóa pendingPayBudget nếu sandbox chưa mở
+          // (nếu đang mở sandbox thì giữ lại để nút đổi người nhận hoạt động)
+          if (!sandboxVisible) setPendingPayBudget(null);
+        }}
+        onSelectPayee={handlePayeeSelected}
+        preselectedPayeeId={(pendingPayBudget?.budget as any)?.payeeId}
+        defaultAmount={pendingPayBudget?.remaining}
+        onOfflineSettle={handleOfflineSettle}
+        recentPayee={
+          pendingPayBudget?.budget.payeeBankAccount
+            ? {
+                bankBin: pendingPayBudget.budget.payeeBankBin,
+                bankAccount: pendingPayBudget.budget.payeeBankAccount,
+                accountName: pendingPayBudget.budget.payeeAccountName,
+                name: pendingPayBudget.budget.name || pendingPayBudget.budget.categoryName,
+              }
+            : undefined
+        }
+      />
+
+
       {/* ─── COMMERCIAL PAYMENT SANDBOX MODAL ─── */}
       <PaymentSandboxModal
         visible={sandboxVisible}
@@ -1034,8 +1281,19 @@ export const BudgetScreen: React.FC = () => {
         onClose={() => {
           setSandboxVisible(false);
           setSandboxDebtInfo(null);
+          setPendingPayBudget(null); // Clear khi đóng hoàn toàn
         }}
         onPaymentSuccess={handleSandboxPaymentSuccess}
+        onChangePayee={
+          // Chỉ có thể đổi người nhận nếu khoản này gắn với 1 budget đang pending
+          pendingPayBudget
+            ? () => {
+                setSandboxVisible(false);
+                setSandboxDebtInfo(null);
+                setPayeeSelectorVisible(true);
+              }
+            : undefined
+        }
       />
 
       {/* ─── BUDGET TRANSACTIONS INVOICE BREAKDOWN BOTTOM SHEET ─── */}
@@ -1153,13 +1411,13 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 13,
     fontWeight: "700",
-    color: colors.emerald800,
+    color: colors.emerald700,
     marginBottom: 4,
   },
   summaryValue: {
     fontSize: 28,
     fontWeight: "900",
-    color: colors.emerald950,
+    color: colors.slate900,
   },
   summaryCurrency: {
     fontSize: 16,
@@ -2000,5 +2258,87 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#e2e8f0",
     marginVertical: 8,
+  },
+  dropdownItemIconBoxActive: {
+    backgroundColor: colors.emerald100,
+  },
+  // Payee Setup in Create Budget BottomSheet
+  payeeSetupBox: {
+    backgroundColor: "#F0FDF4",
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "#86EFAC",
+    padding: 14,
+    marginBottom: 16,
+  },
+  payeeSetupHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  payeeSetupTitle: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#166534",
+    letterSpacing: 0.5,
+  },
+  payeeSetupBadge: {
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#15803D",
+  },
+  payeeSetupSub: {
+    fontSize: 12,
+    color: "#15803D",
+    lineHeight: 17,
+    marginBottom: 12,
+  },
+  payeeFieldLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#374151",
+    marginBottom: 4,
+    marginTop: 6,
+    textTransform: "uppercase",
+  },
+  payeeBankChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#D1D5DB",
+  },
+  payeeBankChipSelected: {
+    backgroundColor: "#DCFCE7",
+    borderColor: "#16A34A",
+  },
+  payeeBankChipText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#4B5563",
+  },
+  payeeBankChipTextSelected: {
+    color: "#15803D",
+    fontWeight: "900",
+  },
+  payeeInputWrap: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#D1D5DB",
+    marginBottom: 4,
+  },
+  payeeInput: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#111827",
   },
 });

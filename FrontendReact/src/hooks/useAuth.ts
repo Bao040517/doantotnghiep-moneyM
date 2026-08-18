@@ -19,6 +19,7 @@ export function useAuth() {
           setUser(profile);
         } catch (e) {
           await safeStorage.removeItem("token");
+          await safeStorage.removeItem("refreshToken");
           setToken(null);
           setUser(null);
         }
@@ -39,24 +40,40 @@ export function useAuth() {
 
   const login = async (payload: LoginPayload) => {
     const res = await authService.login(payload);
-    await safeStorage.setItem("token", res.token);
-    setToken(res.token);
+    const activeToken = res.token || res.accessToken || "";
+    await safeStorage.setItem("token", activeToken);
+    if (res.refreshToken) {
+      await safeStorage.setItem("refreshToken", res.refreshToken);
+    }
+    setToken(activeToken);
     setUser(res.user);
     return res;
   };
 
   const register = async (payload: RegisterPayload) => {
     const res = await authService.register(payload);
-    await safeStorage.setItem("token", res.token);
-    setToken(res.token);
+    const activeToken = res.token || res.accessToken || "";
+    await safeStorage.setItem("token", activeToken);
+    if (res.refreshToken) {
+      await safeStorage.setItem("refreshToken", res.refreshToken);
+    }
+    setToken(activeToken);
     setUser(res.user);
     return res;
   };
 
   const logout = async () => {
-    await safeStorage.removeItem("token");
-    setToken(null);
-    setUser(null);
+    try {
+      const storedRefreshToken = await safeStorage.getItem("refreshToken");
+      await authService.logout(storedRefreshToken || undefined);
+    } catch (e) {
+      console.warn("Logout remote call failed", e);
+    } finally {
+      await safeStorage.removeItem("token");
+      await safeStorage.removeItem("refreshToken");
+      setToken(null);
+      setUser(null);
+    }
   };
 
   return { user, token, isAuthenticated: !!token, isLoading, login, register, logout, refreshProfile: checkAuth };

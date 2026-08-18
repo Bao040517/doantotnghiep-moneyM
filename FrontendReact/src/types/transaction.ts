@@ -11,16 +11,22 @@ export interface Transaction {
   type: TransactionType;
   note?: string;
   transactionDate: string;
+  linkedExpenseId?: string;
   createdAt?: string;
 }
 
 export interface TransactionPayload {
-  walletId: string;
+  walletId?: string;
   categoryId: string;
   amount: number;
   type: TransactionType;
   note?: string;
-  transactionDate: string;
+  transactionDate?: string;
+  linkedBudgetId?: string;
+  linkedExpenseId?: string;
+  payeeName?: string;
+  isSplit?: boolean;
+  excludeFromBudget?: boolean;
 }
 
 export interface MonthlySummary {

@@ -21,6 +21,7 @@ import { useNavigation } from "@react-navigation/native";
 import { financialServices } from "../services/financialServices";
 import { groupService } from "../services/groupService";
 import { CategoryBreakdown, MonthlySummary, BudgetSummary, Transaction } from "../types";
+import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { X } from "lucide-react-native";
 
 const CHART_COLORS = [
@@ -429,11 +430,65 @@ export const ReportScreen: React.FC = () => {
           ) : (
             <>
               <View style={styles.donutRow}>
-                <View style={styles.donutCircle}>
-                  <View style={styles.donutInnerCircle}>
-                    <Text style={{ fontSize: 24 }}>{activeTab === "expense" ? "💸" : "💵"}</Text>
-                  </View>
-                </View>
+                {(() => {
+                  const size = 114;
+                  const strokeWidth = 18;
+                  const radius = (size - strokeWidth) / 2;
+                  const center = size / 2;
+                  const circumference = 2 * Math.PI * radius;
+                  const total = activeBreakdown.reduce((acc, item) => acc + (item.totalAmount || 0), 0);
+
+                  let accumulated = 0;
+                  const slices = activeBreakdown.map((item, idx) => {
+                    const pct = total > 0 ? item.totalAmount / total : 0;
+                    const strokeDasharray = `${pct * circumference} ${circumference}`;
+                    const strokeDashoffset = -(accumulated * circumference);
+                    accumulated += pct;
+                    return {
+                      key: item.categoryId || `${idx}`,
+                      color: CHART_COLORS[idx % CHART_COLORS.length],
+                      strokeDasharray,
+                      strokeDashoffset,
+                    };
+                  });
+
+                  return (
+                    <View style={[styles.donutContainer, { width: size, height: size }]}>
+                      <Svg width={size} height={size}>
+                        {total <= 0 ? (
+                          <Circle
+                            cx={center}
+                            cy={center}
+                            r={radius}
+                            stroke="#E2E8F0"
+                            strokeWidth={strokeWidth}
+                            fill="none"
+                          />
+                        ) : (
+                          <G rotation="-90" origin={`${center}, ${center}`}>
+                            {slices.map((slice) => (
+                              <Circle
+                                key={slice.key}
+                                cx={center}
+                                cy={center}
+                                r={radius}
+                                stroke={slice.color}
+                                strokeWidth={strokeWidth}
+                                strokeDasharray={slice.strokeDasharray}
+                                strokeDashoffset={slice.strokeDashoffset}
+                                fill="none"
+                                strokeLinecap="butt"
+                              />
+                            ))}
+                          </G>
+                        )}
+                      </Svg>
+                      <View style={styles.donutCenterContent}>
+                        <Text style={{ fontSize: 24 }}>{activeTab === "expense" ? "💸" : "💵"}</Text>
+                      </View>
+                    </View>
+                  );
+                })()}
 
                 <View style={styles.donutLegendCol}>
                   {activeBreakdown.slice(0, 4).map((item, idx) => (
@@ -468,9 +523,7 @@ export const ReportScreen: React.FC = () => {
 
                     return (
                       <View key={item.categoryId} style={styles.catItemRow}>
-                        <View style={[styles.catIconBg, { backgroundColor: color + "22" }]}>
-                          <Text style={{ fontSize: 16 }}>{item.categoryIcon || "💰"}</Text>
-                        </View>
+                        <CategoryIcon name={item.categoryName || item.categoryIcon} size={28} />
                         <View style={{ flex: 1 }}>
                           <View style={styles.catNameRow}>
                             <Text style={styles.catNameText}>{item.categoryName}</Text>
@@ -537,7 +590,7 @@ export const ReportScreen: React.FC = () => {
                   <View key={b.budgetId}>
                     <View style={styles.budgetRowHeader}>
                       <View style={styles.budgetRowLeft}>
-                        <Text style={{ fontSize: 16 }}>🧾</Text>
+                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={22} />
                         <Text style={styles.budgetCategoryName}>{b.categoryName}</Text>
                       </View>
                       <Text style={styles.budgetAmountText}>
@@ -769,7 +822,7 @@ export const ReportScreen: React.FC = () => {
                     if (!catMap.has(key)) {
                       const spent = Number(b.spentAmount || 0);
                       catMap.set(key, {
-                        categoryId: b.categoryId || b.budgetId,
+                        categoryId: b.categoryId || b.budgetId || "unknown",
                         categoryName: b.categoryName,
                         categoryIcon: b.categoryIcon || "🧾",
                         totalAmount: spent,
@@ -1144,19 +1197,13 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 16,
   },
-  donutCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: colors.rose500,
+  donutContainer: {
+    position: "relative",
     alignItems: "center",
     justifyContent: "center",
   },
-  donutInnerCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: colors.white,
+  donutCenterContent: {
+    position: "absolute",
     alignItems: "center",
     justifyContent: "center",
   },

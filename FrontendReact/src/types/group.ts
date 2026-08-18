@@ -19,7 +19,8 @@ export interface GroupListItem {
   name: string;
   description?: string;
   owner?: { id: string; name: string; email?: string };
-  memberCount: number;
+  memberCount?: number;
+  members?: GroupMember[];
   createdAt?: string;
 }
 
@@ -30,11 +31,12 @@ export interface GroupDetail {
   description?: string;
   owner?: { id: string; name: string; email?: string };
   members: GroupMember[];
+  memberCount?: number;
   createdAt?: string;
 }
 
 /** Union type for backward compatibility */
-export type Group = GroupListItem | GroupDetail;
+export type Group = GroupListItem & Partial<GroupDetail>;
 
 
 export interface GroupExpenseSplit {

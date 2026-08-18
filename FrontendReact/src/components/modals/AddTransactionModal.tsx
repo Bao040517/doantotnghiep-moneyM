@@ -7,6 +7,7 @@ import { TransactionPayload, Wallet } from "../../types";
 import { financialServices, Category } from "../../services/financialServices";
 import { colors } from "../../constants/colors";
 import { ScanReceiptModal } from "./ScanReceiptModal";
+import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface AddTransactionModalProps {
   visible: boolean;
@@ -14,6 +15,8 @@ interface AddTransactionModalProps {
   wallets: Wallet[];
   onAddTransaction: (walletId: string, payload: Omit<TransactionPayload, "walletId">) => Promise<void>;
   defaultType?: "EXPENSE" | "INCOME";
+  initialAmount?: string;
+  initialNote?: string;
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -45,13 +48,22 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   wallets,
   onAddTransaction,
   defaultType = "EXPENSE",
+  initialAmount = "",
+  initialNote = "",
 }) => {
   const [type, setType] = useState<"EXPENSE" | "INCOME">(defaultType);
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(initialAmount);
   const [selectedWalletId, setSelectedWalletId] = useState("");
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(initialNote);
   const [loading, setLoading] = useState(false);
   const [scanModalVisible, setScanModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      if (initialAmount) setAmount(initialAmount);
+      if (initialNote) setNote(initialNote);
+    }
+  }, [visible, initialAmount, initialNote]);
 
   // Dropdown states
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -152,12 +164,15 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       <ScanReceiptModal 
         visible={scanModalVisible} 
         onClose={() => setScanModalVisible(false)} 
-        onScanSuccess={(data: any) => {
-          if (data && data.totalAmount) {
-            setAmount(data.totalAmount.toLocaleString("vi-VN"));
+        onScanSuccess={(data) => {
+          const rawAmount = data.amount ?? (data as any).totalAmount;
+          if (rawAmount !== undefined && rawAmount !== null) {
+            setAmount(Number(rawAmount).toLocaleString("vi-VN"));
           }
-          if (data && data.merchantName) {
-            setNote(`Hoá đơn ${data.merchantName}`);
+          const rawNote = data.note ?? (data as any).merchantName;
+          if (rawNote) {
+            const formattedNote = rawNote.startsWith("Hoá đơn") ? rawNote : `Hoá đơn ${rawNote}`;
+            setNote(formattedNote);
           }
         }} 
       />
@@ -169,8 +184,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
               <Text style={{ fontSize: 18 }}>📸</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.scanTitle}>Quét hoá đơn bằng AI</Text>
-              <Text style={styles.scanSub}>Tự động điền số tiền từ ảnh</Text>
+              <Text style={styles.scanTitle}>Quét hoá đơn / QR Bill bằng AI</Text>
+              <Text style={styles.scanSub}>Tự động điền số tiền từ ảnh hoặc link QR</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -255,9 +270,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                 activeOpacity={0.8}
               >
                 <View style={styles.dropdownBtnLeft}>
-                  <Text style={{ fontSize: 20 }}>
-                    {selectedCategory ? (CATEGORY_ICONS[selectedCategory.name] || "📊") : "📂"}
-                  </Text>
+                  <View style={{ marginRight: 8 }}>
+                    <CategoryIcon name={selectedCategory ? selectedCategory.name : "Khác"} size={22} />
+                  </View>
                   <Text style={styles.dropdownSelectedText}>
                     {selectedCategory ? selectedCategory.name : "Chọn danh mục..."}
                   </Text>
@@ -281,7 +296,9 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                           }}
                         >
                           <View style={styles.catRowLeft}>
-                            <Text style={{ fontSize: 20 }}>{CATEGORY_ICONS[cat.name] || "📊"}</Text>
+                            <View style={{ marginRight: 10 }}>
+                              <CategoryIcon name={cat.name} size={20} />
+                            </View>
                             <Text style={[styles.catNameText, isSelected && styles.catNameTextActive]}>
                               {cat.name}
                             </Text>

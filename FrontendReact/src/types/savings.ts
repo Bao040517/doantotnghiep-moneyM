@@ -22,8 +22,22 @@ export interface SavingsGoalPayload {
   monthlyContribution: number;
 }
 
-export interface AutoAllocateResponse {
-  allocatedTotal: number;
-  remainingSafeBalance: number;
-  allocatedGoals: Array<{ goalName: string; amount: number }>;
+export interface AllocatedGoalDetail {
+  goalId: string;
+  goalName: string;
+  allocatedAmount: number;
+  newCurrentAmount: number;
+  targetAmount: number;
+  isCompleted: boolean;
 }
+
+export interface AutoAllocateResponse {
+  totalAllocated: number;
+  allocatedTotal?: number;
+  safeToSpendRemaining: number;
+  remainingSafeBalance?: number;
+  requiredReserve: number;
+  allocatedGoals: AllocatedGoalDetail[];
+  message?: string;
+}
+

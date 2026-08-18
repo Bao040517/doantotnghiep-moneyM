@@ -46,6 +46,7 @@ public enum ErrorCode {
     BUDGET_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy ngân sách."),
     LOAN_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy khoản vay."),
     SAVINGS_GOAL_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy mục tiêu tiết kiệm."),
+    PAYEE_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người thụ hưởng."),
     ASSET_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy tài sản."),
     ASSET_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Bạn không có quyền thao tác trên tài sản này."),
 
@@ -60,7 +61,9 @@ public enum ErrorCode {
 
     // --- Auth ---
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Bạn cần đăng nhập để thực hiện thao tác này."),
-    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không đúng.");
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không đúng."),
+    REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "Mã làm mới (Refresh Token) không hợp lệ hoặc đã bị thu hồi.");
 
     private final HttpStatus status;
     private final String message;

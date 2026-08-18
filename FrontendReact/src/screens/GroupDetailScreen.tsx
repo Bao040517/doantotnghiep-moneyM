@@ -20,11 +20,14 @@ import { AddMemberBottomSheet } from "../components/modals/AddMemberBottomSheet"
 import { ExpenseDetailBottomSheet } from "../components/modals/ExpenseDetailBottomSheet";
 import { RemindDebtBottomSheet } from "../components/modals/RemindDebtBottomSheet";
 import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
+import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
+import { ScanReceiptModal } from "../components/modals/ScanReceiptModal";
 import { Toast } from "../components/ui/Toast";
 import { colors } from "../constants/colors";
 import { groupService } from "../services/groupService";
 import { useAuth } from "../hooks/useAuth";
-import { Group, GroupExpense } from "../types";
+import { Group, GroupExpense, Payee } from "../types";
+import { CategoryIcon } from "../components/ui/CategoryIcon";
 
 interface GroupDetailScreenProps {
   groupId: string;
@@ -96,13 +99,52 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   const [splitMode, setSplitMode] = useState<"all" | "custom">("all");
   const [selectedSplitUserIds, setSelectedSplitUserIds] = useState<string[]>([]);
   const [savingExpense, setSavingExpense] = useState(false);
+  const [scanModalVisible, setScanModalVisible] = useState(false);
 
   // VietQR settlement state
   const [qrSettleDebt, setQrSettleDebt] = useState<any | null>(null);
   const [sandboxVisible, setSandboxVisible] = useState(false);
+  const [payeeSelectorVisible, setPayeeSelectorVisible] = useState(false);
+  const [pendingSettleDebt, setPendingSettleDebt] = useState<any | null>(null);
   const [remindDebtData, setRemindDebtData] = useState<any | null>(null);
   const [pendingDebtors, setPendingDebtors] = useState<string[]>([]);
   const [pendingSent, setPendingSent] = useState<string[]>([]);
+
+  const handleStartDebtPayment = (debtItem: any) => {
+    const creditorAccNo = debtItem.to?.bankAccountNo;
+    if (creditorAccNo) {
+      // Đã có STK ngân hàng -> Bypass selector, mở thẳng QR sandbox
+      setQrSettleDebt({
+        amount: debtItem.amount,
+        toName: debtItem.to?.name || "Người nhận",
+        toBankBin: debtItem.to?.bankBin || "970422",
+        toAccountNo: creditorAccNo,
+        toUserId: debtItem.to?.id,
+        groupName: group?.name,
+        groupId: groupId,
+      });
+      setSandboxVisible(true);
+    } else {
+      // Chưa có STK -> Mở PayeeSelectorModal để chọn từ danh bạ/bạn bè hoặc nhập mới
+      setPendingSettleDebt(debtItem);
+      setPayeeSelectorVisible(true);
+    }
+  };
+
+  const handleSelectPayeeForDebt = (payee: Payee) => {
+    if (!pendingSettleDebt) return;
+    setQrSettleDebt({
+      amount: pendingSettleDebt.amount,
+      toName: payee.accountName || payee.name || pendingSettleDebt.to?.name || "Người nhận",
+      toBankBin: payee.bankBin || "970422",
+      toAccountNo: payee.bankAccount,
+      toUserId: pendingSettleDebt.to?.id,
+      groupName: group?.name,
+      groupId: groupId,
+    });
+    setPayeeSelectorVisible(false);
+    setSandboxVisible(true);
+  };
 
   const fetchGroupDetails = async () => {
     if (!groupId) return;
@@ -376,7 +418,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                   activeOpacity={0.7}
                 >
                   <View style={styles.expenseIconBg}>
-                    <Text style={{ fontSize: 22 }}>{CATEGORY_EMOJI[exp.category] || "📦"}</Text>
+                    <CategoryIcon name={exp.category || "Khác"} size={26} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.expenseTitle}>{exp.title}</Text>
@@ -507,7 +549,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                         </View>
                       ) : (
                         <TouchableOpacity
-                          onPress={() => setQrSettleDebt(t)}
+                          onPress={() => handleStartDebtPayment(t)}
                           style={styles.payNowCompactBtn}
                           activeOpacity={0.8}
                         >
@@ -552,7 +594,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
               .map((exp) => (
                 <View key={exp.id} style={styles.expenseCard}>
                   <View style={styles.expenseIconBg}>
-                    <Text style={{ fontSize: 20 }}>{CATEGORY_EMOJI[exp.category] || "📦"}</Text>
+                    <CategoryIcon name={exp.category || "Khác"} size={26} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.expenseTitle}>{exp.title}</Text>
@@ -627,6 +669,17 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         )}
       </BottomSheet>
 
+      {/* ─── PAYEE SELECTOR MODAL (CHO THÀNH VIÊN CHƯA CÓ STK) ─── */}
+      <PayeeSelectorModal
+        visible={payeeSelectorVisible}
+        onClose={() => {
+          setPayeeSelectorVisible(false);
+          setPendingSettleDebt(null);
+        }}
+        onSelectPayee={handleSelectPayeeForDebt}
+        defaultAmount={pendingSettleDebt?.amount}
+      />
+
       {/* ─── BANKING SANDBOX GATEWAY MODAL ─── */}
       <PaymentSandboxModal
         visible={sandboxVisible}
@@ -634,23 +687,22 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
           qrSettleDebt
             ? {
                 amount: qrSettleDebt.amount,
-                toName: qrSettleDebt.to?.name || "Người nhận",
-                toBankBin: qrSettleDebt.to?.bankBin || "970436",
-                toAccountNo: qrSettleDebt.to?.bankAccountNo || "10928888999",
-                toUserId: qrSettleDebt.to?.id,
-                groupName: group?.name,
-                groupId: groupId,
+                toName: qrSettleDebt.toName || qrSettleDebt.to?.name || "Người nhận",
+                toBankBin: qrSettleDebt.toBankBin || qrSettleDebt.to?.bankBin || "970422",
+                toAccountNo: qrSettleDebt.toAccountNo || qrSettleDebt.to?.bankAccountNo || "10908888999",
+                toUserId: qrSettleDebt.toUserId || qrSettleDebt.to?.id,
+                groupName: qrSettleDebt.groupName || group?.name,
+                groupId: qrSettleDebt.groupId || groupId,
               }
             : null
         }
         onClose={() => {
           setSandboxVisible(false);
           setQrSettleDebt(null);
+          setPendingSettleDebt(null);
         }}
         onPaymentSuccess={async (amt, toUserId) => {
-          if (toUserId) {
-            await handleNotifyPayment(toUserId, amt, qrSettleDebt?.to?.name || "Chủ nợ");
-          }
+          // Webhook backend đã tự xử lý approveSettle, chỉ cần refresh data
           fetchGroupDetails();
         }}
       />
@@ -661,6 +713,22 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         onClose={() => setIsAddingExpense(false)}
         title="Thêm Hóa Đơn Chi Tiêu Mới"
       >
+        <ScanReceiptModal
+          visible={scanModalVisible}
+          onClose={() => setScanModalVisible(false)}
+          onScanSuccess={(data) => {
+            const rawAmount = data.amount ?? (data as any).totalAmount;
+            if (rawAmount !== undefined && rawAmount !== null) {
+              setAmount(Number(rawAmount).toLocaleString("vi-VN"));
+            }
+            const rawNote = data.note ?? (data as any).merchantName;
+            if (rawNote) {
+              const formattedTitle = rawNote.startsWith("Hoá đơn") ? rawNote : `Hoá đơn ${rawNote}`;
+              setTitle(formattedTitle);
+            }
+            showToast("✅ Đã nhận diện hoá đơn thành công", "success");
+          }}
+        />
         <View style={styles.modalBodyWrapper}>
           <ScrollView
             style={styles.formScrollArea}
@@ -669,6 +737,21 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled={true}
           >
+            {/* AI / QR Scan Button for Group Expense */}
+            <TouchableOpacity
+              style={styles.scanBtn}
+              onPress={() => setScanModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.scanIconBg}>
+                <Text style={{ fontSize: 18 }}>📸</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.scanTitle}>Quét hoá đơn / QR Bill bằng AI</Text>
+                <Text style={styles.scanSub}>Tự động điền tên & số tiền từ ảnh hoặc link QR</Text>
+              </View>
+            </TouchableOpacity>
+
             <Input label="Tên khoản chi (*)" placeholder="VD: Tiền Ăn Tối, Xe Ô Tô Du Lịch" value={title} onChangeText={setTitle} />
             <Input label="Số tiền (VND) (*)" placeholder="VD: 500.000" keyboardType="numeric" value={amount} onChangeText={handleAmountChange} />
 
@@ -683,9 +766,9 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
             activeOpacity={0.8}
           >
             <View style={styles.dropdownSelectedContent}>
-              <Text style={styles.dropdownSelectedIcon}>
-                {CATEGORY_EMOJI[category] || "📦"}
-              </Text>
+              <View style={{ marginRight: 8 }}>
+                <CategoryIcon name={category || "Khác"} size={22} />
+              </View>
               <Text style={styles.dropdownSelectedText}>
                 {category}
               </Text>
@@ -712,7 +795,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                     >
                       <View style={styles.dropdownItemLeft}>
                         <View style={[styles.dropdownItemIconBox, isSelected && styles.dropdownItemIconBoxActive]}>
-                          <Text style={{ fontSize: 16 }}>{CATEGORY_EMOJI[catName]}</Text>
+                          <CategoryIcon name={catName} size={20} />
                         </View>
                         <Text style={[styles.dropdownItemText, isSelected && styles.dropdownItemTextActive]}>
                           {catName}
@@ -1453,7 +1536,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.slate200,
   },
   modalBodyWrapper: {
-    maxHeight: 520,
+    maxHeight: 580,
   },
   formScrollArea: {
     flexShrink: 1,
@@ -1662,7 +1745,6 @@ const styles = StyleSheet.create({
   splitCustomList: {
     gap: 8,
     marginBottom: 16,
-    maxHeight: 180,
   },
   memberCheckRow: {
     flexDirection: "row",
@@ -1742,5 +1824,34 @@ const styles = StyleSheet.create({
   historyFilterTextActive: {
     color: colors.slate900,
     fontWeight: "800",
+  },
+  scanBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.indigo50,
+    borderWidth: 1.5,
+    borderColor: colors.indigo100,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 16,
+    gap: 12,
+  },
+  scanIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scanTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.indigo900,
+  },
+  scanSub: {
+    fontSize: 11,
+    color: colors.indigo600,
+    marginTop: 1,
   },
 });

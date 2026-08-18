@@ -6,12 +6,15 @@ export interface UserSummary {
   avatarUrl?: string;
   bankBin?: string;
   bankAccountNo?: string;
+  bankAccountName?: string;
   bankQrUrl?: string;
 }
 
-
 export interface AuthResponse {
-  token: string;
+  token: string; // Keep for backward compatibility
+  accessToken?: string;
+  refreshToken?: string;
+  tokenType?: string;
   user: UserSummary;
 }
 

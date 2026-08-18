@@ -5,3 +5,4 @@ export * from "./savings";
 export * from "./transaction";
 export * from "./group";
 export * from "./loan";
+export * from "./payee";

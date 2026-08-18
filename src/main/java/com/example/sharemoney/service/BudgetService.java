@@ -35,6 +35,7 @@ public class BudgetService {
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
     private final SavingsGoalRepository savingsGoalRepository;
+    private final com.example.sharemoney.repository.PayeeRepository payeeRepository;
 
     // ─────────────────────────────────────────────────────────────
     // Tạo hoặc cập nhật ngân sách (upsert)
@@ -87,21 +88,27 @@ public class BudgetService {
         budget.setPayeeBankBin(req.getPayeeBankBin());
         budget.setPayeeBankAccount(req.getPayeeBankAccount());
         budget.setPayeeAccountName(req.getPayeeAccountName());
+
+        // Nếu request gửi kèm payeeId → tự động điền thông tin người nhận từ bảng payees
+        if (req.getPayeeId() != null) {
+            payeeRepository.findById(req.getPayeeId()).ifPresent(payee -> {
+                budget.setPayeeId(payee.getId());
+                budget.setPayeeBankBin(payee.getBankBin());
+                budget.setPayeeBankAccount(payee.getBankAccount());
+                budget.setPayeeAccountName(payee.getAccountName() != null
+                        ? payee.getAccountName() : payee.getName());
+            });
+        } else {
+            budget.setPayeeId(null);
+        }
+
         budgetRepository.save(budget);
 
-        // Tính số đã chi thực tế để trả về response
-        BigDecimal spent;
-        if (budget.getType() == com.example.sharemoney.entity.BudgetType.FLEXIBLE) {
-            // FLEXIBLE: chỉ đếm giao dịch không link tới BILL budget
-            spent =
-                    transactionRepository.sumExpenseByCategoryAndMonth(
-                            userId, budget.getCategory().getId(), year, month);
-        } else {
-            // BILL: đếm TẤT CẢ giao dịch cùng category (bao gồm cả unlinked)
-            spent =
-                    transactionRepository.sumAllExpenseByCategoryAndMonth(
-                            userId, budget.getCategory().getId(), year, month);
-        }
+        // Tính số đã chi thực tế:
+        // - Nếu budget mới tạo trong tháng này → chỉ đếm từ createdAt trở đi (không hồi tố)
+        // - Nếu budget được update (id != null) → đếm toàn tháng
+        java.time.LocalDateTime since = getSinceDateTime(budget, year, month);
+        BigDecimal spent = calculateSpent(userId, budget, year, month, since);
         if (spent == null) spent = BigDecimal.ZERO;
 
         return toSummaryResponse(budget, spent);
@@ -168,18 +175,8 @@ public class BudgetService {
         return currentBudgets.stream()
                 .map(
                         b -> {
-                            BigDecimal spent;
-                            if (b.getType() == null || b.getType() == com.example.sharemoney.entity.BudgetType.FLEXIBLE) {
-                                // FLEXIBLE: chỉ đếm giao dịch không link tới BILL budget
-                                spent =
-                                        transactionRepository.sumExpenseByCategoryAndMonth(
-                                                userId, b.getCategory().getId(), y, m);
-                            } else {
-                                // BILL: đếm TẤT CẢ giao dịch cùng category (bao gồm cả unlinked)
-                                spent =
-                                        transactionRepository.sumAllExpenseByCategoryAndMonth(
-                                                userId, b.getCategory().getId(), y, m);
-                            }
+                            java.time.LocalDateTime since = getSinceDateTime(b, y, m);
+                            BigDecimal spent = calculateSpent(userId, b, y, m, since);
                             if (spent == null) spent = BigDecimal.ZERO;
                             return toSummaryResponse(b, spent);
                         })
@@ -225,9 +222,50 @@ public class BudgetService {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // Helper: xác định mốc thời gian bắt đầu tính chi tiêu
+    // ─────────────────────────────────────────────────────────────
+    /**
+     * Nếu budget được TẠO MỚI trong đúng tháng/năm đang xét → trả về createdAt
+     * (chỉ đếm giao dịch từ lúc tạo trở đi, không hồi tố).
+     * Nếu budget được rollover từ tháng trước hoặc là update → trả về null
+     * (đếm toàn bộ tháng như bình thường).
+     */
+    private java.time.LocalDateTime getSinceDateTime(Budget budget, int year, int month) {
+        if (budget.getCreatedAt() == null) return null;
+        if (budget.getCreatedAt().getYear() == year
+                && budget.getCreatedAt().getMonthValue() == month) {
+            return budget.getCreatedAt();
+        }
+        return null;
+    }
+
+    /**
+     * Tính tổng chi tiêu thực tế của budget, có hoặc không có filter createdAt.
+     */
+    private BigDecimal calculateSpent(
+            UUID userId, Budget budget, int year, int month,
+            java.time.LocalDateTime since) {
+        UUID catId = budget.getCategory().getId();
+        boolean isBill = budget.getType() == com.example.sharemoney.entity.BudgetType.BILL;
+
+        if (since != null) {
+            // Budget mới tạo trong tháng → chỉ đếm từ createdAt trở đi
+            return isBill
+                    ? transactionRepository.sumAllExpenseByCategoryAndMonthSince(userId, catId, year, month, since)
+                    : transactionRepository.sumExpenseByCategoryAndMonthSince(userId, catId, year, month, since);
+        } else {
+            // Budget rollover / toàn tháng
+            return isBill
+                    ? transactionRepository.sumAllExpenseByCategoryAndMonth(userId, catId, year, month)
+                    : transactionRepository.sumExpenseByCategoryAndMonth(userId, catId, year, month);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // Helper: tính % và status
     // ─────────────────────────────────────────────────────────────
     private BudgetSummaryResponse toSummaryResponse(Budget budget, BigDecimal spent) {
+
         if (spent == null) spent = BigDecimal.ZERO;
 
         BigDecimal totalLimit = budget.getLimitAmount();
@@ -264,6 +302,8 @@ public class BudgetService {
                 .payeeBankBin(budget.getPayeeBankBin())
                 .payeeBankAccount(budget.getPayeeBankAccount())
                 .payeeAccountName(budget.getPayeeAccountName())
+                .payeeId(budget.getPayeeId())
+                .createdAt(budget.getCreatedAt())
                 .build();
     }
 

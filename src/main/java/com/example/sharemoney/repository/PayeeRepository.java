@@ -9,7 +9,13 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PayeeRepository extends JpaRepository<Payee, UUID> {
-    List<Payee> findByUser_Id(UUID userId);
 
+    /** Lấy toàn bộ danh bạ đã lưu, sắp xếp mới nhất trước */
+    List<Payee> findByUser_IdOrderByCreatedAtDesc(UUID userId);
+
+    /** Kiểm tra tồn tại theo STK (để upsert — tránh duplicate) */
+    Optional<Payee> findByUser_IdAndBankAccount(UUID userId, String bankAccount);
+
+    /** Tìm theo tên gợi nhớ (backward compat) */
     Optional<Payee> findByUser_IdAndName(UUID userId, String name);
 }

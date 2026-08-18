@@ -14,7 +14,290 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 9. **Smart Modal UX (5 Modal Thông minh):** Phân nhóm chi tiêu 50/30/20, gom giao dịch theo ngày, chỉ số sức khỏe thu nhập, thanh tiến trình thu hồi nợ, gợi ý cấn trừ nợ ròng & nút Trả nợ trực tiếp.
 10. **Thẻ Cảnh báo Hạn mức Tối giản & Thông minh:** Khử trùng lặp danh mục, tự động gắn Emoji danh mục và tối giản hóa thẻ cảnh báo vượt hạn mức giúp người dùng dễ dàng theo dõi trong 1 giây.
 11. **Ngân sách Ưu tiên Thông minh (Dynamic Priority Sorting & Star Toggle):** Tự động phân loại và đẩy các khoản ngân sách ưu tiên lên đầu trang, chuẩn hóa icon ngôi sao xám/vàng và phản hồi UI tức thì.
-13. **Centered Floating Popup Modal & In-place History Navigation:** Chuẩn hóa toàn bộ modal dạng Bottom Sheet sang Pop-up nổi ở chính giữa màn hình với bo góc 28px, viền đen `#0f172a`, và tích hợp chuyển màn hình xem lịch sử chi tiêu theo từng danh mục trực tiếp trong Popup (In-place navigation) loại bỏ hoàn toàn lỗi trùng đè Modal.
+12. **Centered Floating Popup Modal & In-place History Navigation:** Chuẩn hóa toàn bộ modal dạng Bottom Sheet sang Pop-up nổi ở chính giữa màn hình với bo góc 28px, viền đen `#0f172a`, và tích hợp chuyển màn hình xem lịch sử chi tiêu theo từng danh mục trực tiếp trong Popup (In-place navigation) loại bỏ hoàn toàn lỗi trùng đè Modal.
+13. **Tích Hợp Thanh Toán VNPay Sandbox An Toàn (In-App Browser & Polling Bridge):** Chuẩn hóa toàn diện luồng thanh toán VNPay bằng WebBrowser Session, Custom Scheme Deep Link, HTML Bridge tự động điều hướng và Polling đối soát trạng thái đơn hàng bảo mật theo quyền sở hữu (JWT).
+14. **Giải Pháp Thanh Toán VietQR Napas247 Trực Tiếp Trên Mobile App:** Tích hợp sinh mã QR Napas247 trực tiếp trong app, hỗ trợ các tiện ích 1 chạm (Sao chép STK, Số tiền, Nội dung, Lưu/Chia sẻ ảnh QR, Mở app ngân hàng và Ghi nhận chi tiêu tức thì) loại bỏ rủi ro gián đoạn từ cổng web thứ 3.
+15. **Tích Hợp Cổng Thanh Toán Bên Thứ 3 PayOS (Open Banking VietQR & Webhook Đối Soát):** Tích hợp giải pháp thanh toán Open Banking chính thức từ PayOS với chữ ký số HMAC SHA256, API tạo liên kết thanh toán, Webhook tự động gạch nợ/ghi nhận ngân sách tức thì khi nhận tiền vào tài khoản ngân hàng và trải nghiệm Hosted Checkout chuyên nghiệp.
+16. **Hệ Thống Dữ Liệu Mẫu Đa Cổng Chuẩn Hóa Seed V9:** Bộ dữ liệu 24 tháng liên tục (2025 - 2026) cho 5 User personas với hơn 4.200 dòng lệnh SQL, bao phủ đơn hàng đa trạng thái (PayOS, VNPay), cảnh báo ngân sách tự động và bảo đảm 100% toàn vẹn ràng buộc thực thể Spring Boot.
+17. **Luồng Thanh Toán 1 Chạm Mở Thẳng App Ngân Hàng (App-to-App Deep Linking):** Tinh gọn tuyệt đối toàn bộ trải nghiệm thanh toán & trả nợ; loại bỏ hoàn toàn các bước phân nhánh rườm rà; chạm 1 phát là mở thẳng App Ngân Hàng của người dùng (MBBank, Vietcombank, Techcombank, BIDV, VPBank, TPBank, MoMo...) với STK, số tiền và nội dung đã điền sẵn 100%, tự động gạch nợ ngay khi quay lại app.
+18. **Không Hồi Tố Chi Tiêu Khi Tạo Ngân Sách Mới (Creation-Date Aware Budgeting):** Thuật toán tính toán chi tiêu ngân sách thông minh phân biệt giữa ngân sách tạo mới giữa tháng (chỉ đếm giao dịch phát sinh từ thời điểm tạo `createdAt` trở đi) và ngân sách tự động gia hạn theo chu kỳ (đếm toàn tháng), loại bỏ triệt để lỗi vừa tạo ngân sách đã bị báo vượt hạn mức do gom cả chi tiêu cũ.
+19. **Danh Bạ Thụ Hưởng Thông Minh & Thanh Toán Nhanh VietQR (Smart Payee Management & Cold Start Solution):** Hệ thống quản lý người nhận thông minh giữ vững định vị PFM (không biến thành app ngân hàng). Giải quyết triệt để bài toán Cold Start: tự động gom bạn bè có STK từ các nhóm chi tiêu, tự động lưu người nhận mới vào DB khi thanh toán, hỗ trợ tìm kiếm realtime, chip chọn nhanh 12 ngân hàng, và cơ chế liên kết `payeeId` vào ngân sách để các lần sau bypass selector vào thẳng QR 1-chạm.
+20. **Đồng Bộ Hoàn Thiện Lọc Lịch Sử Ngân Sách Không Hồi Tố & Thống Kê Tổng Chi Toàn Diện:** Chuẩn hóa luồng lọc giao dịch chi tiết theo `budget.createdAt`, hiển thị đầy đủ danh sách thành viên chia tiền nhóm (gỡ bỏ lỗi tràn `maxHeight`), và tích hợp thẻ chỉ số "Tổng đã chi (Tất cả)" tối giản trên Dashboard giúp phân tách rõ giữa chi theo kế hoạch ngân sách và chi tiêu thực tế toàn bộ.
+21. **Bộ Dữ Liệu Mẫu Thế Hệ Mới Seed V11 & Ràng Buộc Tài Chính Chuẩn:** Khống chế ngân sách $\le$ 2.000.000 VNĐ, số dư ví $\le$ 15.500.000 VNĐ (tổng tài sản $\le$ 25tr VNĐ), tích hợp bảng `refresh_tokens`, 18 bảng DB hoàn chỉnh và kiểm thử 100% toàn vẹn ràng buộc.
+22. **Hệ Thống Xác Thực Kép Dual Token (Access Token & Refresh Token Rotation):** Triển khai mô hình Access Token ngắn hạn (15 phút) kết hợp Refresh Token (7 ngày) lưu trữ trong cơ sở dữ liệu, xoay vòng token bảo mật (Rotation) và cơ chế Auto-Refresh Queue âm thầm trên Axios Interceptor (Seamless UX).
+23. **Biểu Đồ Tròn SVG Đa Phân Đoạn & Bộ Icon Lineal Color Đồ Họa:** Nâng cấp biểu đồ phân tích chi tiêu Donut Chart đa phân đoạn bằng SVG (`react-native-svg`), tính toán góc/cung chuẩn xác theo từng danh mục và đồng bộ bộ icon vector SVG đồ họa cao cấp trên toàn bộ màn hình.
+24. **Quét Mã QR Hoá Đơn Mua Sắm Bằng Camera Trực Tiếp (Live Camera QR & AI Universal Parser):** Mở trực tiếp khung ngắm camera quét mã QR trên bill thanh toán (WinMart, Circle K, Co.opmart, E-Invoice), tự động kết nối Backend Jsoup + Gemini AI bóc tách món hàng, số tiền và ngày giờ siêu tốc.
+
+### Session [2026-08-18] (Phần 2) - Khắc Phục Luồng Soạn Câu Nhắc Nợ AI (Gemini Fallback Engine) & Xử Lý Lỗi 403 Token Expiration
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc Phục Lỗi Bị Chặn 403 Khi Token Hết Hạn (`SecurityConfig.java` & `api.ts`):**
+   - **Vấn đề:** Khi Access Token 15 phút hết hạn, Spring Security không có cấu hình `AuthenticationEntryPoint` riêng nên mặc định trả về `403 Forbidden` thay vì `401 Unauthorized`. Phía Frontend Axios Response Interceptor chỉ bắt mã 401 để kích hoạt Refresh Token âm thầm (Silent Refresh), dẫn đến việc cả 8 request tải dữ liệu ban đầu bị từ chối với lỗi `AxiosError: Request failed with status code 403`.
+   - **Thực thi:**
+     - `SecurityConfig.java`: Bổ sung `http.exceptionHandling()` với `authenticationEntryPoint` trả về đúng chuẩn JSON HTTP `401 Unauthorized` khi chưa xác thực/token hết hạn, và `accessDeniedHandler` trả về `403 Forbidden`.
+     - `api.ts`: Mở rộng điều kiện kích hoạt Auto-Refresh Token Queue cho cả mã 401 và 403 nhằm phục hồi phiên đăng nhập tức thì, retry thành công 100% các request nghẽn.
+
+2. **Tái Cấu Trúc & Tối Ưu Dịch Vụ AI Soạn Câu Nhắc Nợ (`GeminiService.java` & `application.properties`):**
+   - **Vấn đề:** Khi `GEMINI_API_KEY` trống hoặc cấu hình sai model, hệ thống văng Exception 500 `INTERNAL_ERROR` sau 3 lần retry kéo dài hơn 3 giây làm treo ứng dụng.
+   - **Thực thi:**
+     - `application.properties`: Cập nhật endpoint chính thức sang `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`.
+     - `GeminiService.java`: 
+       - Kiểm tra tính hợp lệ của `apiKey` (xử lý an toàn null, blank, placeholder).
+       - Tự động đính kèm `apiKey` qua cả query param `?key=` lẫn header `x-goog-api-key`.
+       - Xây dựng **Động cơ Heuristic Fallback Thông Minh (`generateFallbackMessage`)**: Tự động sinh ngẫu nhiên 4-5 câu nhắc tiếng Việt tự nhiên, dí dỏm hoặc lịch sự cho từng Mood (`FUNNY`, `POLITE`, `AGGRESSIVE`, `POETIC`). Nếu Gemini gặp sự cố mạng/hết quota/thiếu key, hệ thống lập tức chuyển sang câu Heuristic mượt mà trong < 1ms mà không bao giờ văng lỗi 500.
+       - Tích hợp bộ bóc tách Heuristic an toàn cho `extractReceiptFromHtml`.
+
+3. **Nâng Cấp Giao Diện & Trải Nghiệm Soạn Tin Nhắc Nợ (`RemindDebtBottomSheet.tsx`):**
+   - Chuẩn hóa việc truyền dữ liệu (`debtorName`, `amount`, `mood`) đảm bảo `amount >= 1` luôn hợp lệ với validation backend.
+   - Cập nhật mẫu câu sinh động cho 4 phong cách nhắc nợ, hiển thị trơn tru trên cả Web và Mobile.
+
+4. **Kiểm Thử Toàn Diện (Unit & Integration Tests):**
+   - Viết mới test suite `GeminiServiceTest.java` bao phủ 4 kịch bản phong cách ngôn ngữ qua Heuristic Engine.
+   - Chạy `.\mvnw.cmd test` đạt kết quả 55/55 tests pass 100% (`BUILD SUCCESS`).
+   - Kiểm tra `npx tsc --noEmit` đạt 100% sạch lỗi kiểu dữ liệu.
+
+5. **Khắc Phục Lỗi Hiển Thị "Phân Bổ 0 đ" Dù Dư Tiền Khả Dụng (`SavingsGoalService.java`, `types/savings.ts`, `SavingsScreen.tsx`):**
+   - **Vấn đề:** 
+     1. Lệch trường dữ liệu DTO: Backend trả về `totalAllocated` nhưng Frontend `AutoAllocateResponse` lại truy xuất `allocatedTotal` (bị `undefined`), khiến Alert luôn in ra `0 ₫`.
+     2. Lấy ví cứng `wallets.get(0)`: Nếu ví đầu tiên có số dư 0đ thì vòng lặp phân bổ bị dừng ngay lập tức dù tổng số dư ở các ví khác vẫn còn nhiều.
+   - **Thực thi:**
+     - `AutoAllocateResponse.java`: Bổ sung đồng thời cả 2 trường `totalAllocated` và `allocatedTotal` (kèm `safeToSpendRemaining` & `remainingSafeBalance`) đảm bảo tương thích 100% JSON.
+     - `SavingsGoalService.java`: Tự động tìm ví khả dụng có số dư lớn nhất (`availableWallets`) để trích tiền phân bổ cho từng mục tiêu tiết kiệm, đồng bộ hóa `saveAll(availableWallets)`.
+     - `types/savings.ts` & `SavingsScreen.tsx`: Chuẩn hóa interface, hiển thị chính xác số tiền đã phân bổ thực tế, tự động gọi `refreshApp()` làm mới thẻ Dư an toàn & Số dư ví ngay khi hoàn tất.
+
+### Session [2026-08-18] (Phần 1) - Triển Khai Xác Thực Dual Token (Access/Refresh Token Rotation), Chuẩn Hóa Seed V11, Nâng Cấp Biểu Đồ SVG Donut & Khung Camera Quét QR Hoá Đơn
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Xây Dựng Toàn Diện Bộ Dữ Liệu Mẫu Thế Hệ Mới Seed V11 (`generate_seed_v11.js`, `seed_v11.sql`, `seeder.md`):**
+   - **Ràng buộc tài chính:** Toàn bộ 416 ngân sách $\le$ 2.000.000 VNĐ (0 vi phạm), ví $\le$ 15.500.000 VNĐ (tổng tài sản mọi user $\le$ 25.000.000 VNĐ, 0 vi phạm).
+   - **Schema & DDL:** Bổ sung DDL bảng `refresh_tokens`, đầy đủ 18 bảng DB, 9 cột `payees`, liên kết `payee_id` vào `budgets`.
+   - **Khắc phục lỗi SQL:** Sửa triệt để lỗi target columns mismatch trên câu lệnh INSERT cho `external_loans` và `savings_goals` (bổ sung trường `updated_at`), kiểm thử xác nhận 100% 813 dòng dữ liệu chạy trơn tru.
+
+2. **Triển Khai Mô Hình Dual Token Bảo Mật Tuyệt Đối (Access Token & Refresh Token Rotation):**
+   - **Backend (Spring Boot):**
+     - Cấu hình `jwt.expiration=900000` (15 phút) và `jwt.refresh-token.expiration=604800000` (7 ngày).
+     - Bổ sung `ErrorCode.REFRESH_TOKEN_EXPIRED`, `INVALID_REFRESH_TOKEN`.
+     - Entity JPA `RefreshToken` (bảng `refresh_tokens`) với `RefreshTokenRepository`, `RefreshTokenService` quản lý Token Rotation và thu hồi Token khi Logout.
+     - DTO `RefreshTokenRequest`, mở rộng `AuthResponse` với `accessToken`, `refreshToken`, `tokenType`.
+     - `AuthController`: Bổ sung 2 endpoint `POST /api/auth/refresh` và `POST /api/auth/logout`.
+   - **Frontend (React Native Expo):**
+     - Nâng cấp `types/auth.ts`, `authService.ts`, `useAuth.ts`.
+     - Nâng cấp **Axios Response Interceptor** trong `api.ts` với **Auto-Refresh Queue**: tự động bắt lỗi 401, gọi âm thầm `/auth/refresh`, lưu token mới vào `safeStorage` và tự động retry các request bị nghẽn (Seamless UX).
+
+3. **Tái Cấu Trúc Toàn Diện Biểu Đồ Tròn Đa Phân Đoạn (SVG Multi-Segment Donut Chart):**
+   - Khắc phục lỗi biểu đồ Donut chỉ hiển thị 1 màu đỏ đơn sắc tĩnh tại `ReportScreen.tsx` và `ExpenseChart.tsx`.
+   - Tích hợp `react-native-svg` (`Circle`, `G`, `strokeDasharray`, `strokeDashoffset`), tính toán góc và cung chính xác cho từng danh mục chi tiêu khớp 100% với màu sắc ghi chú (Legend).
+
+4. **Sửa Lỗi Render Icon Danh Mục SVG Thay Cho Chuỗi Text Raw:**
+   - Thay thế việc render trực tiếp mã chuỗi kỹ thuật (`utensils`, `home`, `shirt`, `heart-pulse`...) trong `<Text>` bằng component đồ họa vector `CategoryIcon.tsx`.
+   - Mở rộng hàm `normalizeCategoryName` map đầy đủ các định danh icon tiếng Anh sang bộ icon vector Lineal Color sắc nét.
+
+5. **Tích Hợp Khung Camera Quét Trực Tiếp Mã QR Hoá Đơn Mua Sắm (Live Camera QR Scanner):**
+   - Tinh gọn giao diện `ScanReceiptModal.tsx` thành đúng 2 tab: **Quét mã QR (Camera trực tiếp)** & **Ảnh từ điện thoại (Thư viện/Chụp ảnh)**.
+   - Cài đặt và tích hợp `expo-camera` (`CameraView`) mở ngay khung ngắm live camera khi bấm nút `(+)`, tự động quét mã QR trên bill thanh toán (WinMart, Circle K, Co.opmart, E-Invoice) và gọi `QrReceiptService.java` bóc tách toàn bộ món hàng, số tiền, ngày giờ.
+
+6. **Tối Ưu Giao Diện, Nâng Cao Độ Tương Phản & Ẩn Cảnh Báo Hệ Thống (LogBox / Clean UI):**
+   - Nâng cấp `Button.tsx`: Sửa lỗi nút "Hủy" bị mờ trắng trên nền xám thành tone Đỏ Ruby nổi bật (`variant="cancel"`), nâng cấp nút "Quét & Bóc tách" với màu Indigo Vibrant (`#4F46E5`) và drop shadow.
+   - Cấu hình `LogBox.ignoreAllLogs(true)` tại `App.tsx` để ẩn sạch popup vàng/đen của Expo trên điện thoại, đồng thời cập nhật `mediaTypes: ["images"]` tương thích chuẩn Expo SDK mới nhất.
+   - Chuyển toàn bộ các thông báo lỗi kỹ thuật sang thông báo thân thiện: *"Tính năng đang được hoàn thiện & phát triển"*.
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc Phục Lỗi Hiển Thị Giao Dịch Cũ Trong Lịch Sử Ngân Sách Vừa Tạo (`BudgetTransactionsBottomSheet.tsx`):**
+   - **Vấn đề:** Khi tạo mới ngân sách giữa tháng (ví dụ: ngày 17/08), backend tính đúng `spentAmount = 0 ₫` (nhờ điều kiện `t.transactionDate >= :budgetCreatedAt`). Tuy nhiên, Popup xem chi tiết `BudgetTransactionsBottomSheet` lại tự gọi API lấy toàn bộ giao dịch trong tháng và match lỏng lẻo theo tên/ghi chú, dẫn đến việc hiển thị các hóa đơn cũ phát sinh trước ngày tạo ngân sách (như giao dịch ngày 09/08).
+   - **Thực thi:**
+     - `BudgetSummaryResponse.java`: Bổ sung trường `createdAt` vào DTO trả về.
+     - `BudgetService.java`: Gán `budget.getCreatedAt()` vào builder trong `toSummaryResponse()`.
+     - `types/budget.ts`: Bổ sung `createdAt?: string` vào interface `BudgetSummary`.
+     - `BudgetTransactionsBottomSheet.tsx`: Nâng cấp bộ lọc — chỉ match chính xác theo `categoryId`, và nếu ngân sách tạo trong tháng đang xét thì bắt buộc lọc bỏ các giao dịch có `transactionDate < budget.createdAt`.
+
+2. **Khắc Phục Lỗi Bị Ẩn / Cắt Mất Thành Viên Khi Chia Tiền Nhóm (`GroupDetailScreen.tsx` & `GroupDetailBottomSheet.tsx`):**
+   - **Vấn đề:** Khi tạo hóa đơn chia tiền nhóm 5 người, bấm chọn chế độ "Tùy chọn" thì chỉ nhìn thấy 3 người đầu tiên do khung `splitCustomList` bị gán cứng `maxHeight: 180px` và thiếu thanh cuộn riêng, khiến 2 người còn lại bị che khuất dưới nút "Lưu hóa đơn".
+   - **Thực thi:** Gỡ bỏ hoàn toàn `maxHeight: 180px` tại `splitCustomList`, nâng `maxHeight` của Modal lên `580px` giúp danh sách thành viên hiển thị đầy đủ và cuộn mượt mà theo ScrollView chính.
+
+3. **Làm Rõ Cơ Chế Cấn Trừ Nợ Chéo Tự Động (Greedy Debt Simplification):**
+   - Phân tích và hệ thống hóa luồng hoạt động của thuật toán Greedy rút gọn nợ (`DebtService.greedySettle`): Làm rõ lý do vì sao một thành viên nợ người tạo hóa đơn trong từng khoản chi riêng lẻ, nhưng trên tổng quan nhóm lại được hệ thống gom lại để chuyển khoản thẳng cho chủ nợ lớn nhất của cả nhóm (giảm tối đa số lần chuyển khoản lắt nhắt).
+
+4. **Bổ Sung & Tối Giản Chỉ Số "Tổng Đã Chi (Tất Cả)" Trên Dashboard:**
+   - **Bối cảnh:** Thẻ *Ngân sách Tháng này* chỉ tính chi tiêu của các danh mục có thiết lập ngân sách. Người dùng cần theo dõi tổng chi tiêu thực tế của toàn bộ các khoản chi trong tháng (kể cả ngoài ngân sách).
+   - **Thực thi:**
+     - `useAppData.ts`: Export `totalActualExpense` và `totalActualIncome` từ `monthlySummary.currentMonth`.
+     - `DashboardScreen.tsx`: Thay thế ô chỉ số trùng lặp trong Hero Card 4-Grid thành **`TỔNG ĐÃ CHI (TẤT CẢ)`** với thiết kế tối giản, sạch sẽ, bỏ icon và đồng bộ màu chữ trắng.
+     - Gỡ bỏ 2 nút thao tác nhanh thừa ("Nạp vào ví", "Chuyển khoản") để giao diện Dashboard gọn gàng, tập trung.
+
+5. **Vận Hành & Khắc Phục Xung Đột Cổng Backend:**
+   - Tự động giải phóng tiến trình chiếm dụng port 8080 và tái khởi động Spring Boot backend (`SharemoneyApplication`) hoạt động ổn định trên port 8080.
+
+6. **Chuẩn Hóa Bộ Icon Danh Mục Vector SVG Toàn Diện (Hilmy Abiyyu A. - Lineal Color):**
+   - **Xây dựng `CategoryIcon.tsx`:** Thiết kế bộ vector SVG phong cách *Lineal Color* (viền xanh đen `#0f172a` dày 2px + màu pastel đổ bóng sống động) cho tất cả danh mục: *Ăn uống, Chi tiêu hàng ngày, Quần áo, Mỹ phẩm, Tiền nhà, Tiền điện, Đi lại, Phí liên lạc, Y tế, Giáo dục, Mục tiêu tiết kiệm, Trả nợ nhóm, Mua sắm, Giải trí, Lưu trú, Khác*.
+   - **Đồng bộ hóa 100% toàn app:** Thay thế hoàn toàn các emoji / chuỗi text rời rạc trên tất cả màn hình & modal: `BudgetScreen`, `DashboardScreen`, `GroupDetailScreen`, `GroupDetailBottomSheet`, `BudgetTransactionsBottomSheet`, `AddTransactionModal`, `EditTransactionModal`, `HistoryScreen`.
+   - Biên dịch TypeScript thành công tuyệt đối (0 error).
+
+### Session [2026-08-16] - Triển Khai Hệ Thống Danh Bạ Thụ Hưởng Thông Minh (Smart Payee Management), Sửa Lỗi Ngân Sách Không Hồi Tố & Hoàn Thiện Luồng VietQR
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Hệ Thống Danh Bạ Thụ Hưởng Thông Minh & Giải Quyết Bài Toán Cold Start (Smart Payee Management):**
+   - **Bối cảnh & Triết lý:** ShareMoney là Trợ lý PFM, không phải App Ngân hàng. App đóng vai trò điều phối, ghi nhớ danh bạ, sinh VietQR chuẩn xác và ghi sổ tự động.
+   - **Cơ chế 3 Nguồn Dữ Liệu Tự Động (Zero-Effort Payee Aggregation):**
+     - *Nguồn 1 (Bạn bè nhóm):* Tự động lấy các thành viên trong các nhóm chi tiêu có sẵn STK ngân hàng.
+     - *Nguồn 2 (Danh bạ đã lưu):* Danh sách người nhận trong bảng `payees` của database (sắp xếp mới nhất).
+     - *Nguồn 3 (Nhập 1 lần & Lưu tự động):* Khi chuyển cho người mới, nhập STK + chọn ngân hàng 1 lần $\rightarrow$ app tự động lưu vào DB và liên kết với ngân sách. Lần sau bấm "Trả ngay" sẽ bypass selector vào thẳng QR.
+   - **Backend (Spring Boot + PostgreSQL):**
+     - `Payee.java`: Mở rộng entity với `bankBin`, `bankName`, `bankAccount`, `accountName`, `phone`, `createdAt` + unique constraint `(user_id, bank_account)`.
+     - `PayeeRepository.java`: Bổ sung `findByUser_IdOrderByCreatedAtDesc` và `findByUser_IdAndBankAccount`.
+     - `SavePayeeRequest.java` & `PayeeResponse.java`: DTOs với trường `source` phân biệt dữ liệu ("saved" vs "group_member").
+     - `PayeeService.java`: 4 phương thức `getPayees`, `getSuggestions` (gộp Saved + Group Members, dedup theo STK), `saveOrUpdate` (upsert), `delete`.
+     - `PayeeController.java`: Cung cấp 4 endpoints chuẩn REST (`GET /api/payees`, `GET /api/payees/suggestions`, `POST /api/payees`, `DELETE /api/payees/{id}`).
+     - `Budget.java` & `BudgetService.java`: Thêm trường `payeeId` (soft FK). Khi set budget có `payeeId`, hệ thống tự động điền STK, tên ngân hàng và chủ TK từ bảng `payees`.
+   - **Frontend (React Native Expo):**
+     - `src/types/payee.ts`: Định nghĩa interface `Payee` và `SavePayeePayload`, cập nhật `BudgetSummary`/`BudgetPayload` có `payeeId`.
+     - `src/services/payeeService.ts`: Service wrapper gọi 4 Payee API endpoints.
+     - `PayeeSelectorModal.tsx`: Modal chọn người nhận gồm thanh tìm kiếm realtime, section Đã lưu/gần đây, section Bạn bè trong nhóm, form thêm mới in-place với chip 12 ngân hàng nhanh, checkbox `[✓] Lưu vào danh bạ` và empty state thân thiện.
+     - `BudgetScreen.tsx`: Thay thế toàn bộ logic cũ bằng quy trình 3 nhánh: (1) Đã có `payeeId` $\rightarrow$ bypass vào thẳng QR; (2) Đã có `payeeBankAccount` cũ $\rightarrow$ bypass vào thẳng QR; (3) Chưa có $\rightarrow$ mở `PayeeSelectorModal` $\rightarrow$ chọn xong tự động update `payeeId` vào Budget và mở QR thanh toán.
+
+2. **Khắc Phục Lỗi Vừa Tạo Ngân Sách Đã Bị Vượt Hạn Mức (Creation-Date Filtered JPQL):**
+   - **Vấn đề:** Khi tạo mới ngân sách giữa tháng (VD: "Quần áo" 60.000đ), backend gom cả giao dịch cũ từ đầu tháng (343.532đ), dẫn đến vừa tạo đã bị đỏ và báo vượt hạn mức.
+   - **Thực thi:**
+     - `TransactionRepository.java`: Bổ sung 4 phương thức query JPQL (`sumUnsplitExpenseByCategoryAndMonthSince`, `sumSplitExpenseByCategoryAndMonthSince`, `sumAllUnsplitExpenseByCategoryAndMonthSince`, `sumAllSplitExpenseByCategoryAndMonthSince`) tích hợp điều kiện `t.transactionDate >= :budgetCreatedAt`.
+     - `BudgetService.java`: Hàm `getSinceDateTime(Budget, year, month)` và `calculateSpent()` đảm bảo ngân sách tạo mới giữa tháng chỉ đếm giao dịch phát sinh từ thời điểm tạo trở đi.
+
+3. **Hoàn Thiện & Ổn Định Luồng Demo Thanh Toán PayOS (`PaymentSandboxModal.tsx`):**
+   - Render tức thì mã QR tĩnh và thông tin chuyển khoản (không độ trễ UI), song song kích hoạt ngầm API PayOS để lấy `checkoutUrl` thật và khởi động polling 2 giây/lần.
+   - Sử dụng `expo-web-browser` (Chrome Custom Tabs) để mở link PayOS trực tiếp, loại bỏ triệt để lỗi màn hình trắng trên Android Emulator.
+
+4. **Kiểm Tra & Vận Hành Hệ Thống:**
+   - `.\mvnw.cmd compile` $\rightarrow$ `BUILD SUCCESS` (0 lỗi).
+   - Backend Spring Boot khởi động daemon ổn định trên port 8080, Hibernate `ddl-auto=update` tự động bổ sung các cột mới vào PostgreSQL (`payees` & `budgets`).
+
+
+### Session [2026-08-15] - Tái Cấu Trúc Toàn Diện Luồng Thanh Toán "1 Chạm Mở Ngân Hàng Chuyển Tiền Luôn" (App-to-App Deep Linking)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Giải Quyết Triệt Để Pain Point Của Người Dùng ("Thoát Ra Là Quên Chuyển Tiền"):**
+   - Loại bỏ toàn bộ các bước trung gian gây phân tâm (bấm chọn cổng thanh toán, sinh web bên thứ 3 phức tạp, tải trang trắng).
+   - Thiết kế lại `PaymentSandboxModal.tsx` thành màn hình **1-Chạm Mở Ngân Hàng Duy Nhất**:
+     - **Hero Card:** Số tiền to rõ (`250.000 ₫`), Tên người nhận (ví dụ: `Lê Thị C`), STK, Tên ngân hàng, Nội dung chuyển khoản.
+     - **Khối Tâm Điểm Mở App Ngân Hàng:** Lưới 12 ngân hàng/ví điện tử phổ biến (MBBank, Vietcombank, Techcombank, BIDV, VietinBank, TPBank, VPBank, ACB, MSB, Timo, Cake, MoMo).
+     - **Cơ chế 1 Chạm:** Chạm vào biểu tượng ngân hàng → App tự động kích hoạt Deep Link (`vcb://`, `mbmobile://`, Napas247 Universal Link `https://dl.vietqr.io/pay?...`) để mở thẳng App Ngân Hàng trên điện thoại với thông tin đã điền sẵn 100%.
+     - **Xác nhận siêu tốc:** Nút **`[ ✓ TÔI ĐÃ CHUYỂN KHOẢN (GẠCH NỢ NGAY) ]`** to rõ, bấm 1 chạm là hoàn tất gạch nợ / cập nhật ngân sách tức thì.
+
+2. **Đồng Bộ Hóa Toàn Diện Các Màn Hình Trả Nợ & Ngân Sách:**
+   - `GroupDetailBottomSheet.tsx`: Trong tab "Ai nợ ai", bấm `[ Trả nợ 📲 ]` mở thẳng Modal 1 Chạm, loại bỏ mã QR tĩnh trung gian.
+   - `GroupsScreen.tsx`: Bấm `[ ⚡ Chuyển tiền ngay (1 Chạm 📲) ]` mở thẳng Modal 1 Chạm, loại bỏ Bottom Sheet thừa.
+   - `BudgetScreen.tsx`: Bấm `[ ✓ Trả ngay ]` mở thẳng Modal 1 Chạm.
+
+3. **Tích Hợp Chạy Ngầm Đối Soát Webhook PayOS:**
+   - Modal vẫn âm thầm kích hoạt đơn PayOS và lắng nghe Webhook thời gian thực. Nếu người dùng chuyển khoản thật, hệ thống tự động nhận diện và chuyển sang Biên lai thành công 🎉.
+
+4. **Kiểm Thử & Hoàn Thiện:**
+   - Kiểm tra TypeScript (`npx tsc --noEmit`) đạt 100% không lỗi.
+   - Kiểm tra Spring Boot Maven backend `BUILD SUCCESS`.
+
+5. **Chuẩn Hóa Logic Nút "✓ Trả ngay" Theo Phân Loại Ngân Sách (Fixed vs Flexible):**
+   - **Khoản chi Cố định / Bắt buộc (Tiền nhà, Tiền điện, Học phí...):** Có nút `[ ✓ Trả ngay ]` để thanh toán 1 lần cho hóa đơn tháng khi chưa trả đủ.
+   - **Khoản chi Linh hoạt / Hàng ngày (Quần áo, Ăn uống, Mua sắm...):** Ẩn hoàn toàn nút `[ ✓ Trả ngay ]`, hiển thị thanh tiến độ và hạn mức chi tiêu thực tế (`Còn lại X đ` hoặc `Vượt X đ ⚠️`).
+   - Sửa lỗi hiển thị chuỗi text icon `shirt`, `utensils` sang Emoji đồ họa chuẩn `👕`, `🍽️`, `🏠`... tương ứng với cơ sở dữ liệu.
+
+### Session [2026-08-15] - Tích Hợp Toàn Diện Cổng Thanh Toán Bên Thứ 3 PayOS (Open Banking), Chuẩn Hóa Bộ Dữ Liệu Mẫu Seed V9 & Tinh Gọn Hệ Thống
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Xây Dựng Cổng Thanh Toán PayOS (Open Banking SDK & Chữ Ký HMAC SHA256):**
+   - **Backend Spring Boot:**
+     - `PayOSConfig.java`: Quản lý cấu hình `clientId`, `apiKey`, `checksumKey`, URL redirect.
+     - `PayOSService.java`: 
+       - Gọi API `https://api-merchant.payos.vn/v2/payment-requests` sinh link thanh toán.
+       - Tự động sắp xếp trường theo thứ tự alphabet và ký số bảo mật chuẩn **HMAC SHA256**.
+       - Hàm `verifyWebhookSignature` đối soát chữ ký số từ Webhook của PayOS gửi về.
+     - `PayOSController.java`:
+       - `POST /api/payos/create-payment-link`: Khởi tạo đơn hàng, sinh `checkoutUrl`, `qrCode`, `accountNumber`, `bin`, `orderCode`.
+       - `GET /api/payos/order/{orderCode}`: API cho Client tra cứu trạng thái đơn hàng PayOS.
+       - `POST /api/payos/webhook`: Webhook IPN thời gian thực, tự động gạch nợ nhóm (`DEBT`) hoặc tạo giao dịch chi tiêu ngân sách (`BUDGET`) ngay khi tiền vào tài khoản.
+     - `SecurityConfig.java`: Cấu hình mở quyền truy cập `permitAll` cho các endpoint `/api/payos/**` và `/api/order/**`.
+
+2. **Nâng Cấp Giao Diện & Dịch Vụ Phía Frontend Mobile App (`FrontendReact`):**
+   - **Tích hợp SDK VietQR & PayOS Service:**
+     - `vietQrService.ts`: Tích hợp official VietQR SDK (`vietqr`) sinh quick link và tra cứu ngân hàng Napas247.
+     - `paymentLinkService.ts`: Triển khai chuẩn xác các hàm `createPaymentLink`, `getOrder`, `getBanksList`.
+   - **Nâng cấp `PaymentSandboxModal.tsx`:**
+     - Tích hợp tùy chọn **⚡ Cổng PayOS (Open Banking VietQR)** lên đầu danh sách phương thức.
+     - Màn hình PayOS gồm:
+       - Nút **`[ 🚀 MỞ CỔNG THANH TOÁN PAYOS (BÊN THỨ 3) ]`**: Mở trực tiếp trang Hosted Checkout của PayOS.
+       - Mã **VietQR Napas247 động** sinh trực tiếp kèm các nút sao chép 1-chạm (STK, Tên TK, Số tiền, Nội dung).
+       - **Thanh mở nhanh App ngân hàng** trên thiết bị (Vietcombank, MB, Techcombank, VPBank, ACB, BIDV...).
+       - Cơ chế **Polling / Webhook Listener tự động**: Khi chuyển khoản thành công, modal tự động chuyển sang **Biên lai thanh toán thành công 🎉** mà không cần thao tác thêm.
+
+3. **Nâng Cấp Bộ Dữ Liệu Mẫu Thế Hệ Mới Seed V9 (`seed_v9.sql` & `generate_seed_v9.js`):**
+   - **Quy mô:** Hơn 4.200 dòng lệnh SQL (~1.2MB), phủ kín 24 tháng dữ liệu liên tục (2025 - 2026) cho 5 User Personas.
+   - **Đồng bộ 100% Entity & Ràng buộc Schema:**
+     - Cập nhật đúng tên cột `password_hash` của bảng `users` (mật khẩu chuẩn `123456`).
+     - Khớp Enum `SavingsGoalStatus.IN_PROGRESS` và `BudgetType.BILL` / `FLEXIBLE`.
+     - Chuẩn hóa cấu trúc `GroupMember.role` ('owner' / 'member').
+     - Sinh các đơn hàng `payment_orders` đa trạng thái (`SUCCESS`, `PENDING`, `CANCELLED`) cho cả PayOS và VNPay Gateway.
+   - Cập nhật tài liệu kỹ thuật [seeder.md](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/seeder.md) với Mục 7: **Đặc tả Bộ dữ liệu mẫu V9**.
+
+4. **Dọn Dẹp Mã Nguồn & Tinh Gọn Hệ Thống:**
+   - Gỡ bỏ hoàn toàn luồng, nút bấm và mã nguồn liên quan đến Google Pay để tập trung vào 2 cổng thanh toán cốt lõi là PayOS và VNPay.
+   - Di chuyển an toàn thư mục `payos-demo-react-native` ra khỏi `src/main/java` về thư mục gốc dự án, đảm bảo Spring Boot biên dịch `BUILD SUCCESS` 100%.
+   - Kiểm tra toàn diện TypeScript và Maven: Không còn bất kỳ lỗi compile nào trên cả Backend và Frontend.
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Nâng Cấp Component `VietQRCard.tsx` (Napas247 Interactive Card):**
+   - **Thực thi:** Thiết kế lại toàn diện thẻ VietQR với giao diện chuẩn ngân hàng (Logo đối tác, số tài khoản, tên chủ tài khoản, huy hiệu số tiền).
+   - Tích hợp bộ công cụ thanh toán 1 chạm:
+     - 📋 **Sao chép STK, Số tiền, Nội dung chuyển khoản** kèm icon tích xanh phản hồi và Toast ngắn gọn.
+     - 💾 **Lưu / Chia sẻ ảnh mã QR** thông qua native `Share` API của hệ điều hành.
+     - 📱 **Mở App Ngân hàng (Deep Link)** điều hướng nhanh sang ứng dụng ngân hàng.
+
+2. **Chuẩn Hóa Modal Thanh Toán `PaymentSandboxModal.tsx`:**
+   - **Vấn đề:** Phụ thuộc vào cổng web VNPay Sandbox dễ gặp lỗi hạn mức tài khoản test (code 70) hoặc màn hình trắng do tường lửa chặn ký tự.
+   - **Thực thi:** Chuyển đổi VietQR Napas247 thành phương thức thanh toán **mặc định và ưu tiên số 1** hiển thị trực tiếp bên trong Mobile App (không cần mở trình duyệt ngoài). Giữ nút mở cổng VNPay ở dạng tuỳ chọn phụ cho thẻ quốc tế.
+   - Bổ sung nút bấm nổi bật **"✓ Đã Chuyển Khoản (Ghi Nhận Ngay)"** giúp hoàn tất quy trình thanh toán trong 1 chạm.
+
+3. **Tự Động Ghi Nhận Chi Tiêu & Đồng Bộ Ngân Sách (`BudgetScreen.tsx`):**
+   - **Thực thi:** Cập nhật hàm `handleSandboxPaymentSuccess`. Khi người dùng xác nhận đã quét mã VietQR thanh toán ngân sách, ứng dụng tự động gọi `financialServices.createTransaction` tạo giao dịch chi tiêu thực tế, trừ số dư ví thanh toán và tăng số tiền đã chi trên ngân sách tương ứng ngay lập tức.
+
+4. **Kiểm Thử Toàn Diện TypeScript:**
+   - Chạy `npx tsc --noEmit` đạt kết quả 100% sạch lỗi kiểu dữ liệu.
+
+### Session [2026-08-14] - Chuẩn Hóa Toàn Diện Kiến Trúc Thanh Toán VNPay Sandbox & Khắc Phục Toàn Bộ Lỗi Luồng Mobile
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc Phục Lỗi Sai Checksum & Chữ Ký Bảo Mật VNPay (`VNPayService.java` & `VNPayConfig.java`):**
+   - **Vấn đề:** Khi bấm thanh toán, VNPay báo lỗi đơn hàng không hợp lệ / sai chữ ký bảo mật do chuỗi băm HMAC SHA512 bị mã hóa ký tự URL không theo chuẩn của VNPay 2.1.0.
+   - **Thực thi:** Chuẩn hóa toàn bộ thuật toán băm SHA-512 và tạo query URL theo đặc tả VNPay 2.1.0: Sử dụng `StandardCharsets.US_ASCII` cho `URLEncoder.encode` trên cả tham số và query data. Đồng bộ hóa logic kiểm tra chữ ký ở cả Webhook IPN và Return URL.
+
+2. **Khắc Phục Lỗi Crash Frontend Khi Tạo Đơn (`vnpayService.ts` & `PaymentSandboxModal.tsx`):**
+   - **Vấn đề:** Khi bấm nút thanh toán, ứng dụng React Native bị crash đỏ màn hình với lỗi `TypeError: Cannot read property 'txnRef' of undefined` tại `PaymentSandboxModal.tsx:111:20`.
+   - **Nguyên nhân:** Hàm `createPayment` trong `vnpayService.ts` chỉ ghép chuỗi URL mà quên lệnh `return api.post(...)`, khiến hàm trả về `undefined`.
+   - **Thực thi:** Bổ sung `return api.post<VNPayCreateResponse>(url).then(res => res.data)` trong `vnpayService.ts` và áp dụng Optional Chaining an toàn (`resultData?.txnRef`, `resultData?.paymentUrl`) trong `PaymentSandboxModal.tsx`.
+
+3. **Chuẩn Hóa Mô Hình Đơn Thanh Toán (`payment_orders`) & Idempotency:**
+   - **Vấn đề:** Trước đây việc tạo giao dịch dựa vào phản hồi client hoặc callback thiếu đối soát số tiền, dễ gây lỗi đơn hàng, giao dịch ảo và sai lệch số liệu.
+   - **Thực thi:** Tạo bảng `payment_orders` (`id`, `txn_ref`, `user_id`, `type`, `amount`, `wallet_id`, `category_id`, `budget_id`, `group_id`, `creditor_id`, `status`, `vnp_transaction_no`, `vnp_order_info`, `created_at`, `expired_at`, `paid_at`). API `POST /api/vnpay/create-payment` luôn lưu đơn hàng trạng thái `PENDING` vào DB trước khi tạo URL. Mã `vnp_TxnRef` sinh bằng tiền tố `SM` + timestamp + hex duy nhất và kiểm tra chống trùng lặp. Chuỗi `vnp_OrderInfo` được tối giản văn bản an toàn để không bị WAF VNPay chặn.
+
+4. **Kiến Trúc Thanh Toán Mobile Bằng In-App Browser Session & Deep Linking (`expo-web-browser`):**
+   - **Vấn đề:** Không thể nhúng trang thanh toán VNPay trực tiếp vào UI React Native hoặc dùng `Linking.openURL` gây mất kiểm soát phiên thanh toán.
+   - **Thực thi:** Khai báo Custom Scheme `"scheme": "sharemoney"` trong `app.json`. Chuyển đổi `PaymentSandboxModal.tsx` sang sử dụng `WebBrowser.openAuthSessionAsync` mở Chrome Custom Tabs (Android) và `ASWebAuthenticationSession` (iOS) để đảm bảo phiên thanh toán an toàn, tự động bắt chuyển hướng quay lại app qua `sharemoney://vnpay-result`.
+
+5. **Xây Dựng Backend HTML Bridge, API Polling & Quản Lý Vòng Đời Timer:**
+   - **Vấn đề:** VNPay Return URL phải là URL HTTPS public của server merchant chứ không thể trỏ thẳng vào deep link scheme mobile. Đồng thời IPN Webhook có thể có độ trễ so với thao tác đóng trình duyệt của người dùng. Timer polling nếu không dọn dẹp sẽ gây rò rỉ và spam log database.
+   - **Thực thi:**
+     - Endpoint `vnpayReturn` đóng vai trò **HTML Bridge**: Nhận callback từ VNPay, kiểm tra checksum và trả về trang HTML chứa Javascript tự động kích hoạt deep link `sharemoney://vnpay-result?txnRef=...` (kèm nút bấm mở lại app dự phòng).
+     - Xây dựng API `GET /api/vnpay/orders/{txnRef}` với cơ chế bảo mật JWT Ownership (`order.getUserId() == currentUserId`).
+     - Quản lý bộ đếm Polling trong `PaymentSandboxModal.tsx` bằng `useRef` và hàm `clearPolling()`, tự động ngắt timer khi đóng modal, chuyển trạng thái hoặc kết thúc 30s, giải quyết triệt để lỗi spam query `select ... from payment_orders` trong log.
+
+6. **Cải Tiến Database & Bộ Dữ Liệu Mẫu Seed V8 (`seed_v8.sql`, `generate_seed_v8.js`, `seeder.md`):**
+   - **Thực thi:** Nâng cấp bộ sinh dữ liệu Seed V8 bổ sung 290 đơn hàng `payment_orders` (268 BUDGET và 22 DEBT) với `txn_ref` duy nhất, chuẩn hóa DDL cho các bảng `transactions`, `notifications` và `payment_orders` đảm bảo tính toàn vẹn khóa ngoại.
+
+7. **Kiểm Thử Toàn Diện (Unit Tests):**
+   - Cập nhật test suite `VNPayControllerTest.java` bao phủ các trường hợp redirect HTML Bridge, IPN xác thực chữ ký và API `getOrderStatus`. Chạy `mvnw test` đạt kết quả 51/51 tests pass 100% (BUILD SUCCESS).
 
 ### Session [2026-08-11] - Khắc Phục Lỗi Crash Backend Khi Thanh Toán VNPay Sandbox (Thiếu Dữ Liệu `groupId`)
 

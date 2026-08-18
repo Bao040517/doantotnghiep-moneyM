@@ -12,6 +12,7 @@ import { Button } from "../ui/Button";
 import { colors } from "../../constants/colors";
 import { BudgetSummary, Transaction } from "../../types";
 import { financialServices } from "../../services/financialServices";
+import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface BudgetTransactionsBottomSheetProps {
   visible: boolean;
@@ -19,6 +20,7 @@ interface BudgetTransactionsBottomSheetProps {
   budget: BudgetSummary | null;
   year: number;
   month: number;
+  onAddNewExpense?: () => void;
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -59,29 +61,29 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
       financialServices
         .getMonthlyTransactions(year, month)
         .then((allTxs) => {
-          // Robust filtering for transactions belonging to this budget category
+          // Mốc thời gian: nếu budget tạo trong tháng đang xét → chỉ lấy giao dịch SAU createdAt
+          const budgetCreatedAt = budget.createdAt ? new Date(budget.createdAt).getTime() : 0;
+          const isSameMonth = budget.createdAt
+            ? new Date(budget.createdAt).getFullYear() === year
+              && (new Date(budget.createdAt).getMonth() + 1) === month
+            : false;
+
           const filtered = (allTxs || []).filter((tx: any) => {
+            // Chỉ lấy EXPENSE
+            if (tx.type !== "EXPENSE") return false;
+
+            // Filter theo category ID (ưu tiên chính xác)
             const txCatId = String(tx.categoryId || tx.category?.id || "").toLowerCase();
-            const txCatName = String(tx.categoryName || tx.category?.name || "").toLowerCase();
             const bCatId = String(budget.categoryId || "").toLowerCase();
-            const bCatName = String(budget.categoryName || "").toLowerCase();
-            const bName = String(budget.name || "").toLowerCase();
+            if (!bCatId || txCatId !== bCatId) return false;
 
-            const matchesId = bCatId && txCatId && txCatId === bCatId;
-            const matchesName = txCatName && (
-              (bName && txCatName.includes(bName)) ||
-              (bCatName && txCatName.includes(bCatName)) ||
-              (bName && bName.includes(txCatName))
-            );
-            
-            // Also match if note contains category name or budget title
-            const noteStr = String(tx.note || "").toLowerCase();
-            const matchesNote = noteStr && (
-              (bName && noteStr.includes(bName)) ||
-              (bCatName && noteStr.includes(bCatName))
-            );
+            // Nếu budget mới tạo trong tháng này → chỉ lấy giao dịch SAU createdAt (không hồi tố)
+            if (isSameMonth && budgetCreatedAt > 0) {
+              const txTime = new Date(tx.transactionDate || tx.createdAt || 0).getTime();
+              if (txTime < budgetCreatedAt) return false;
+            }
 
-            return (matchesId || matchesName || matchesNote) && tx.type === "EXPENSE";
+            return true;
           });
 
           // Sort by transactionDate newest first
@@ -142,7 +144,7 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
         <View style={[styles.heroCard, isOver && styles.heroCardOver]}>
           <View style={styles.heroTopRow}>
             <View style={styles.heroIconBox}>
-              <Text style={{ fontSize: 26 }}>{icon}</Text>
+              <CategoryIcon name={budget.categoryName || budget.name || catName} size={30} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.heroTitle} numberOfLines={1}>

@@ -19,6 +19,7 @@ import { colors } from "../constants/colors";
 import { financialServices } from "../services/financialServices";
 import { Transaction, MonthlySummary } from "../types";
 import { matchVietnamese } from "../utils/vietnamese";
+import { CategoryIcon } from "../components/ui/CategoryIcon";
 
 export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const now = new Date();
@@ -29,7 +30,7 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [uncategorizedCount, setUncategorizedCount] = useState(0);
   const [search, setSearch] = useState("");
-  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCompModal, setShowCompModal] = useState(false);
   const [showTotalExpenseModal, setShowTotalExpenseModal] = useState(false);
@@ -239,9 +240,10 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
                       { backgroundColor: item.type === "INCOME" ? "#E0F2FE" : "#FEF3C7" },
                     ]}
                   >
-                    <Text style={{ fontSize: 18 }}>
-                      {item.categoryIcon || (item as any).category?.iconName || (item.type === "INCOME" ? "💵" : "🛍️")}
-                    </Text>
+                    <CategoryIcon
+                      name={item.categoryName || (item as any).category?.name || item.categoryIcon || (item.type === "INCOME" ? "Tiền lương" : "Khác")}
+                      size={24}
+                    />
                   </View>
 
                   {/* Transaction Info */}

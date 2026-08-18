@@ -6,6 +6,7 @@ import { Button } from "../ui/Button";
 import { Transaction } from "../../types";
 import { financialServices, Category } from "../../services/financialServices";
 import { colors } from "../../constants/colors";
+import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface EditTransactionModalProps {
   visible: boolean;
@@ -151,9 +152,9 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                 activeOpacity={0.8}
               >
                 <View style={styles.dropdownBtnLeft}>
-                  <Text style={{ fontSize: 20 }}>
-                    {selectedCategory ? (CATEGORY_ICONS[selectedCategory.name] || "📊") : "📂"}
-                  </Text>
+                  <View style={{ marginRight: 8 }}>
+                    <CategoryIcon name={selectedCategory ? selectedCategory.name : "Khác"} size={22} />
+                  </View>
                   <Text style={styles.dropdownSelectedText}>
                     {selectedCategory ? selectedCategory.name : "Chọn danh mục..."}
                   </Text>
@@ -176,7 +177,9 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                           }}
                         >
                           <View style={styles.catRowLeft}>
-                            <Text style={{ fontSize: 20 }}>{CATEGORY_ICONS[cat.name] || "📊"}</Text>
+                            <View style={{ marginRight: 10 }}>
+                              <CategoryIcon name={cat.name} size={20} />
+                            </View>
                             <Text style={[styles.catNameText, isSelected && styles.catNameTextActive]}>
                               {cat.name}
                             </Text>

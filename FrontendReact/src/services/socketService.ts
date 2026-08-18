@@ -7,11 +7,12 @@ const SockJS = require("sockjs-client");
 const { TextEncoder, TextDecoder } = require("text-encoding");
 
 // Polyfill text-encoding for React Native
-if (typeof global.TextEncoder === "undefined") {
-  global.TextEncoder = TextEncoder;
+const g: any = typeof globalThis !== "undefined" ? globalThis : (typeof window !== "undefined" ? window : {});
+if (typeof g.TextEncoder === "undefined") {
+  g.TextEncoder = TextEncoder;
 }
-if (typeof global.TextDecoder === "undefined") {
-  global.TextDecoder = TextDecoder;
+if (typeof g.TextDecoder === "undefined") {
+  g.TextDecoder = TextDecoder;
 }
 
 export type SubscriptionCallback = (message: any) => void;

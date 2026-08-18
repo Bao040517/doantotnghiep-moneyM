@@ -251,7 +251,11 @@ public class TransactionService {
 
         // Rollback số dư cũ trước khi áp giá trị mới
         if (tx.getType() == TransactionType.INCOME) {
-            wallet.setBalance(wallet.getBalance().subtract(tx.getAmount()));
+            BigDecimal rolledBack = wallet.getBalance().subtract(tx.getAmount());
+            if (rolledBack.compareTo(BigDecimal.ZERO) < 0) {
+                throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
+            }
+            wallet.setBalance(rolledBack);
         } else if (tx.getType() == TransactionType.EXPENSE) {
             wallet.setBalance(wallet.getBalance().add(tx.getAmount()));
         }
@@ -414,9 +418,13 @@ public class TransactionService {
 
         Wallet wallet = tx.getWallet();
 
-        // Rollback số dư ví
+        // Rollback số dư ví (kiểm tra không cho âm khi rollback INCOME)
         if (tx.getType() == TransactionType.INCOME) {
-            wallet.setBalance(wallet.getBalance().subtract(tx.getAmount()));
+            BigDecimal newBalance = wallet.getBalance().subtract(tx.getAmount());
+            if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+                throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
+            }
+            wallet.setBalance(newBalance);
         } else if (tx.getType() == TransactionType.EXPENSE) {
             wallet.setBalance(wallet.getBalance().add(tx.getAmount()));
         }

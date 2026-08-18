@@ -43,8 +43,11 @@ export const financialServices = {
     return api.get<{ safeBalanceTotal: number }>(`/budgets/safe-to-spend${query ? `?${query}` : ""}`).then((res) => res.data);
   },
   createBudget: (payload: BudgetPayload) => api.post<BudgetSummary>("/budgets", payload).then((res) => res.data),
+  updateBudget: (id: string, payload: BudgetPayload & { id?: string }) =>
+    api.post<BudgetSummary>("/budgets", { ...payload, id }).then((res) => res.data),
   toggleMandatoryBudget: (id: string) => api.patch(`/budgets/${id}/mandatory`).then((res) => res.data),
   deleteBudget: (id: string) => api.delete(`/budgets/${id}`).then((res) => res.data),
+
 
   // Savings Goals API
   getSavingsGoals: () => api.get<SavingsGoal[]>("/savings-goals").then((res) => res.data),

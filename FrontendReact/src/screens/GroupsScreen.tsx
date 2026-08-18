@@ -21,11 +21,12 @@ import { GroupDetailScreen } from "./GroupDetailScreen";
 import { CreateGroupBottomSheet } from "../components/modals/CreateGroupBottomSheet";
 import { RemindDebtBottomSheet } from "../components/modals/RemindDebtBottomSheet";
 import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
+import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
 import { Toast } from "../components/ui/Toast";
 import { colors } from "../constants/colors";
 import { groupService } from "../services/groupService";
 import { useAuth } from "../hooks/useAuth";
-import { Group, GroupDebtDetail, GroupDebtSummary } from "../types";
+import { Group, GroupDebtDetail, GroupDebtSummary, Payee } from "../types";
 
 const GROUP_IMAGES = [
   "https://images.unsplash.com/photo-1539635273304-0e8723e0f016?auto=format&fit=crop&w=400&q=80",
@@ -49,6 +50,59 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [debtModalType, setDebtModalType] = useState<"owed" | "owing" | null>(null);
   const [remindDebtData, setRemindDebtData] = useState<any | null>(null);
   const [sandboxVisible, setSandboxVisible] = useState(false);
+  const [payeeSelectorVisible, setPayeeSelectorVisible] = useState(false);
+  const [pendingDebtForSelector, setPendingDebtForSelector] = useState<{
+    groupId: string;
+    otherMemberId: string;
+    otherMemberName: string;
+    amount: number;
+    groupName: string;
+  } | null>(null);
+
+  const handleStartGroupDebtPayment = (item: any, creditorName: string, gName: string) => {
+    const accNo = item.counterparty?.bankAccountNo || item.bankAccountNo;
+    setDebtModalType(null);
+    if (accNo) {
+      // Có STK -> Bypass selector, mở thẳng QR sandbox
+      setSelectedDebt({
+        groupId: item.groupId || groups[0]?.id || "",
+        otherMemberId: item.counterparty?.id || item.otherMemberId || "",
+        otherMemberName: creditorName,
+        bankBin: item.counterparty?.bankBin || item.bankBin || "970422",
+        bankAccountNo: accNo,
+        bankAccountName: item.counterparty?.name || creditorName,
+        amount: Math.abs(item.amount),
+        groupName: gName,
+      });
+      setSandboxVisible(true);
+    } else {
+      // Chưa có STK -> Mở PayeeSelectorModal để chọn / nhập tài khoản
+      setPendingDebtForSelector({
+        groupId: item.groupId || groups[0]?.id || "",
+        otherMemberId: item.counterparty?.id || item.otherMemberId || "",
+        otherMemberName: creditorName,
+        amount: Math.abs(item.amount),
+        groupName: gName,
+      });
+      setPayeeSelectorVisible(true);
+    }
+  };
+
+  const handleSelectPayeeForGroupDebt = (payee: Payee) => {
+    if (!pendingDebtForSelector) return;
+    setSelectedDebt({
+      groupId: pendingDebtForSelector.groupId,
+      otherMemberId: pendingDebtForSelector.otherMemberId,
+      otherMemberName: payee.accountName || payee.name || pendingDebtForSelector.otherMemberName,
+      bankBin: payee.bankBin || "970422",
+      bankAccountNo: payee.bankAccount,
+      bankAccountName: payee.accountName || payee.name,
+      amount: pendingDebtForSelector.amount,
+      groupName: pendingDebtForSelector.groupName,
+    });
+    setPayeeSelectorVisible(false);
+    setSandboxVisible(true);
+  };
 
   // Toast state
   const [toastVisible, setToastVisible] = useState(false);
@@ -479,22 +533,11 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
                         {/* Action Button */}
                         <TouchableOpacity
-                          onPress={() => {
-                            setDebtModalType(null);
-                            setSelectedDebt({
-                              groupId: item.groupId || groups[0]?.id || "",
-                              otherMemberId: item.counterparty?.id || item.otherMemberId || "",
-                              otherMemberName: creditorName,
-                              bankBin: item.counterparty?.bankBin || item.bankBin || "970436",
-                              bankAccountNo: item.counterparty?.bankAccountNo || item.bankAccountNo || "1012345678",
-                              bankAccountName: item.counterparty?.name || creditorName,
-                              amount: Math.abs(item.amount),
-                            });
-                          }}
+                          onPress={() => handleStartGroupDebtPayment(item, creditorName, gName)}
                           style={styles.payActionBtn}
                           activeOpacity={0.8}
                         >
-                          <Text style={styles.payActionBtnText}>💳 Thanh toán ngay (VietQR 📲)</Text>
+                          <Text style={styles.payActionBtnText}>⚡ Chuyển tiền ngay (1 Chạm 📲)</Text>
                         </TouchableOpacity>
                       </View>
                     );
@@ -522,47 +565,16 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         />
       )}
 
-      {/* VietQR Settlement Modal */}
-      <BottomSheet
-        visible={!!selectedDebt && !sandboxVisible}
-        onClose={() => setSelectedDebt(null)}
-        title={`Thanh toán cho ${selectedDebt?.otherMemberName || "thành viên"}`}
-      >
-        {selectedDebt && (
-          <View style={styles.qrModalContent}>
-            <VietQRCard
-              bankBin={selectedDebt.bankBin || "970436"}
-              accountNo={selectedDebt.bankAccountNo || "1012345678"}
-              accountName={selectedDebt.bankAccountName || selectedDebt.otherMemberName}
-              amount={Math.abs(selectedDebt.amount)}
-              description={`ShareMoney chuyen khoan cho ${selectedDebt.otherMemberName}`}
-            />
-
-            {/* Sandbox Simulation & Notify Payment Buttons */}
-            <View style={styles.settleActionBtnContainer}>
-              <TouchableOpacity
-                onPress={() => setSandboxVisible(true)}
-                style={styles.sandboxSimulateBtn}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.sandboxSimulateBtnText}>
-                  🧪 Giả lập thanh toán Sandbox (Mô phỏng)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleNotifyPaymentDirectly}
-                style={styles.notifyPaymentDirectBtn}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.notifyPaymentDirectBtnText}>
-                  💵 Báo đã thanh toán tiền mặt (Chờ duyệt)
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </BottomSheet>
+      {/* Payee Selector Modal for Friends without Bank Account */}
+      <PayeeSelectorModal
+        visible={payeeSelectorVisible}
+        onClose={() => {
+          setPayeeSelectorVisible(false);
+          setPendingDebtForSelector(null);
+        }}
+        onSelectPayee={handleSelectPayeeForGroupDebt}
+        defaultAmount={pendingDebtForSelector?.amount}
+      />
 
       {/* Payment Sandbox Simulation Modal */}
       <PaymentSandboxModal
@@ -572,15 +584,18 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             ? {
                 amount: Math.abs(selectedDebt.amount),
                 toName: selectedDebt.otherMemberName,
-                toBankBin: selectedDebt.bankBin,
-                toAccountNo: selectedDebt.bankAccountNo,
+                toBankBin: selectedDebt.bankBin || "970422",
+                toAccountNo: selectedDebt.bankAccountNo || "10908888999",
                 toUserId: selectedDebt.otherMemberId,
                 groupName: selectedDebt.groupName,
                 groupId: selectedDebt.groupId,
               }
             : null
         }
-        onClose={() => setSandboxVisible(false)}
+        onClose={() => {
+          setSandboxVisible(false);
+          setPendingDebtForSelector(null);
+        }}
         onPaymentSuccess={handlePaymentSuccess}
       />
 

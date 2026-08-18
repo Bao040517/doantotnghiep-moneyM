@@ -71,6 +71,13 @@ public class Budget {
     @Column(name = "payee_account_name")
     private String payeeAccountName;
 
+    /**
+     * FK mềm tới bảng payees.id (nullable).
+     * Nếu được gán, frontend biết bypass PayeeSelector và vào thẳng QR.
+     */
+    @Column(name = "payee_id")
+    private UUID payeeId;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

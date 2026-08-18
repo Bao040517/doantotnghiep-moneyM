@@ -57,9 +57,11 @@ public class UserController {
                         .findById(userId)
                         .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (userRepository.findByPhone(request.getPhone()).isPresent()) {
-            throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS);
-        }
+        userRepository.findByPhone(request.getPhone()).ifPresent(existingUser -> {
+            if (!existingUser.getId().equals(userId)) {
+                throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS);
+            }
+        });
 
         user.setPhone(request.getPhone());
         userRepository.save(user);

@@ -41,17 +41,18 @@ export const RemindDebtBottomSheet: React.FC<RemindDebtBottomSheetProps> = ({
   const formattedAmount = new Intl.NumberFormat("vi-VN").format(amount) + " ₫";
 
   const getMoodSample = (selectedMood: string) => {
+    const targetName = debtorName || "bạn hiền";
     switch (selectedMood) {
       case "FUNNY":
-        return `Ê ${debtorName}, mầy còn nợ tao ${formattedAmount} tiền nhóm đó nha! Trả lẹ đi mậy! 😂`;
+        return `Ê ${targetName}, ví tao đang thở oxy nè! Còn ${formattedAmount} tiền nhóm hôm bữa, bắn qua cứu bạn hiền với! 🚑💨`;
       case "POLITE":
-        return `Chào ${debtorName}, phiền bạn kiểm tra và chuyển giùm mình ${formattedAmount} tiền quỹ nhóm khi thuận tiện nhé. Cảm ơn bạn rất nhiều! ☕`;
+        return `Chào ${targetName}, bạn kiểm tra giúp mình khoản chi tiêu nhóm ${formattedAmount} và chuyển khoản giùm mình khi thuận tiện nhé. Cảm ơn bạn rất nhiều! ☕`;
       case "AGGRESSIVE":
-        return `Đòi nợ gấp! ${debtorName} chuyển ngay ${formattedAmount} cho tôi đi, trốn nợ hơi lâu rồi đấy nhé! 😡`;
+        return `Thông báo khẩn! ${targetName} chuyển ngay ${formattedAmount} tiền nhóm giúp mình để chốt sổ tài chính nhé! ⚠️⚡`;
       case "POETIC":
-        return `Nắng chiều ngả bóng hoàng hôn, tiền nợ ${formattedAmount} xin đừng lãng quên hỡi ${debtorName} 🌸`;
+        return `Nắng chiều ngả bóng hoàng hôn, tiền nợ ${formattedAmount} xin đừng lãng quên hỡi ${targetName} 🌸📜`;
       default:
-        return `Ê ${debtorName}, mầy còn nợ tao ${formattedAmount} đó nha! Trả lẹ đi mậy!`;
+        return `Ê ${targetName}, còn ${formattedAmount} tiền nhóm đó nha! Chuyển giúp mình nha! ✨`;
     }
   };
 
@@ -70,16 +71,18 @@ export const RemindDebtBottomSheet: React.FC<RemindDebtBottomSheetProps> = ({
     try {
       setIsGenerating(true);
       const res = await api.post("/ai/generate-message", {
-        debtorName,
-        amount,
+        debtorName: debtorName || "bạn hiền",
+        amount: Math.max(1, amount || 0),
         mood,
       });
       const generated = res.data?.message || res.data;
       if (generated && typeof generated === "string") {
-        setMessage(generated);
+        setMessage(generated.trim());
+      } else {
+        setMessage(getMoodSample(mood));
       }
     } catch (err: any) {
-      console.error(err);
+      console.warn("[RemindDebt] Error generating AI message:", err);
       setMessage(getMoodSample(mood));
     } finally {
       setIsGenerating(false);

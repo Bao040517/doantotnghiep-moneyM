@@ -251,17 +251,19 @@ public class SavingsGoalService {
         // 4. Lấy các mục tiêu tiết kiệm chưa hoàn thành
         List<SavingsGoal> activeGoals = savingsGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId)
                 .stream()
-                .filter(g -> g.getStatus() == SavingsGoalStatus.IN_PROGRESS)
-                .filter(g -> g.getCurrentAmount().compareTo(g.getTargetAmount()) < 0)
+                .filter(g -> g.getStatus() == null || g.getStatus() != SavingsGoalStatus.COMPLETED)
+                .filter(g -> g.getCurrentAmount() != null && g.getTargetAmount() != null && g.getCurrentAmount().compareTo(g.getTargetAmount()) < 0)
                 .collect(Collectors.toList());
 
         if (activeGoals.isEmpty()) {
             return AutoAllocateResponse.builder()
                     .totalAllocated(BigDecimal.ZERO)
+                    .allocatedTotal(BigDecimal.ZERO)
                     .safeToSpendRemaining(idleMoney)
+                    .remainingSafeBalance(idleMoney)
                     .requiredReserve(requiredReserve)
                     .allocatedGoals(Collections.emptyList())
-                    .message("Không có mục tiêu tiết kiệm nào đang hoạt động.")
+                    .message("Không có mục tiêu tiết kiệm nào đang hoạt động hoặc các mục tiêu đã hoàn thành 100%.")
                     .build();
         }
 
@@ -271,70 +273,130 @@ public class SavingsGoalService {
             totalRemaining = totalRemaining.add(g.getTargetAmount().subtract(g.getCurrentAmount()));
         }
 
-        // 6. Phân bổ theo tỷ lệ, tổng không vượt quá idleMoney
+        if (totalRemaining.compareTo(BigDecimal.ZERO) <= 0) {
+            return AutoAllocateResponse.builder()
+                    .totalAllocated(BigDecimal.ZERO)
+                    .allocatedTotal(BigDecimal.ZERO)
+                    .safeToSpendRemaining(idleMoney)
+                    .remainingSafeBalance(idleMoney)
+                    .requiredReserve(requiredReserve)
+                    .allocatedGoals(Collections.emptyList())
+                    .message("Tất cả mục tiêu tiết kiệm đã đạt 100% hạn mức.")
+                    .build();
+        }
+
+        // 6. Lấy danh sách ví khả dụng (không phải nợ) có số dư > 0
+        List<Wallet> userWallets = walletRepository.findByUser_IdAndIsLiability(userId, false);
+        if (userWallets == null || userWallets.isEmpty()) {
+            userWallets = walletRepository.findByUser_Id(userId);
+        }
+        List<Wallet> availableWallets = userWallets == null ? Collections.emptyList() : userWallets
+                .stream()
+                .filter(w -> !w.isLiability() && w.getBalance() != null && w.getBalance().compareTo(BigDecimal.ZERO) > 0)
+                .sorted((w1, w2) -> w2.getBalance().compareTo(w1.getBalance()))
+                .collect(Collectors.toList());
+
+        if (availableWallets.isEmpty()) {
+            return AutoAllocateResponse.builder()
+                    .totalAllocated(BigDecimal.ZERO)
+                    .allocatedTotal(BigDecimal.ZERO)
+                    .safeToSpendRemaining(idleMoney)
+                    .remainingSafeBalance(idleMoney)
+                    .requiredReserve(requiredReserve)
+                    .allocatedGoals(Collections.emptyList())
+                    .message("Không tìm thấy ví khả dụng nào có số dư để thực hiện trích tiền.")
+                    .build();
+        }
+
+        BigDecimal totalAvailableWalletBalance = availableWallets.stream()
+                .map(Wallet::getBalance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal allocatableMoney = idleMoney.min(totalAvailableWalletBalance);
+        if (allocatableMoney.compareTo(BigDecimal.ZERO) <= 0) {
+            return AutoAllocateResponse.builder()
+                    .totalAllocated(BigDecimal.ZERO)
+                    .allocatedTotal(BigDecimal.ZERO)
+                    .safeToSpendRemaining(idleMoney)
+                    .remainingSafeBalance(idleMoney)
+                    .requiredReserve(requiredReserve)
+                    .allocatedGoals(Collections.emptyList())
+                    .message("Số dư ví khả dụng hiện tại không đủ để trích nạp thêm.")
+                    .build();
+        }
+
         BigDecimal totalAllocated = BigDecimal.ZERO;
         List<AutoAllocateResponse.AllocatedGoalDetail> details = new java.util.ArrayList<>();
 
-        // Lấy ví đầu tiên có đủ tiền
-        Wallet wallet = getWalletForSavings(userId, null, null);
         Category savingsCategory = categoryService.getOrCreateCategory(
                 userId, "Mục tiêu tiết kiệm", TransactionType.EXPENSE, "🎯");
 
         for (SavingsGoal g : activeGoals) {
             BigDecimal goalRemaining = g.getTargetAmount().subtract(g.getCurrentAmount());
-            // Tỷ lệ phân bổ = goalRemaining / totalRemaining * idleMoney
-            BigDecimal allocation = goalRemaining.multiply(idleMoney)
+            if (goalRemaining.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            // Tỷ lệ phân bổ = goalRemaining / totalRemaining * allocatableMoney
+            BigDecimal targetAllocation = goalRemaining.multiply(allocatableMoney)
                     .divide(totalRemaining, 0, java.math.RoundingMode.FLOOR);
-            // Không phân bổ quá phần còn thiếu
-            if (allocation.compareTo(goalRemaining) > 0) {
-                allocation = goalRemaining;
+
+            if (targetAllocation.compareTo(goalRemaining) > 0) {
+                targetAllocation = goalRemaining;
             }
-            if (allocation.compareTo(BigDecimal.ZERO) <= 0) continue;
-
-            // Kiểm tra ví còn đủ
-            if (wallet.getBalance().compareTo(allocation) < 0) {
-                allocation = wallet.getBalance();
+            if (targetAllocation.compareTo(BigDecimal.ZERO) <= 0 && allocatableMoney.compareTo(BigDecimal.ZERO) > 0) {
+                targetAllocation = allocatableMoney.min(goalRemaining).min(new BigDecimal("50000"));
             }
-            if (allocation.compareTo(BigDecimal.ZERO) <= 0) break;
+            if (targetAllocation.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-            // Trừ ví
-            wallet.setBalance(wallet.getBalance().subtract(allocation));
-            // Cộng goal
-            g.setCurrentAmount(g.getCurrentAmount().add(allocation));
-            boolean completed = g.getCurrentAmount().compareTo(g.getTargetAmount()) >= 0;
-            if (completed) {
-                g.setStatus(SavingsGoalStatus.COMPLETED);
+            // Trích lũy tiến từ các ví khả dụng
+            BigDecimal remainingToFund = targetAllocation;
+            for (Wallet w : availableWallets) {
+                if (remainingToFund.compareTo(BigDecimal.ZERO) <= 0) break;
+                if (w.getBalance().compareTo(BigDecimal.ZERO) <= 0) continue;
+
+                BigDecimal fundFromWallet = w.getBalance().min(remainingToFund);
+                w.setBalance(w.getBalance().subtract(fundFromWallet));
+                remainingToFund = remainingToFund.subtract(fundFromWallet);
+
+                Transaction tx = Transaction.builder()
+                        .wallet(w)
+                        .amount(fundFromWallet)
+                        .type(TransactionType.EXPENSE)
+                        .category(savingsCategory)
+                        .note("Tự động phân bổ vào mục tiêu: " + g.getName())
+                        .excludeFromBudget(true)
+                        .build();
+                transactionRepository.save(tx);
             }
-            savingsGoalRepository.save(g);
 
-            // Tạo transaction
-            Transaction tx = Transaction.builder()
-                    .wallet(wallet)
-                    .amount(allocation)
-                    .type(TransactionType.EXPENSE)
-                    .category(savingsCategory)
-                    .note("Tự động phân bổ vào mục tiêu: " + g.getName())
-                    .excludeFromBudget(true)
-                    .build();
-            transactionRepository.save(tx);
+            BigDecimal actualFunded = targetAllocation.subtract(remainingToFund);
+            if (actualFunded.compareTo(BigDecimal.ZERO) > 0) {
+                g.setCurrentAmount(g.getCurrentAmount().add(actualFunded));
+                boolean completed = g.getCurrentAmount().compareTo(g.getTargetAmount()) >= 0;
+                if (completed) {
+                    g.setStatus(SavingsGoalStatus.COMPLETED);
+                }
+                savingsGoalRepository.save(g);
+                totalAllocated = totalAllocated.add(actualFunded);
 
-            totalAllocated = totalAllocated.add(allocation);
-
-            details.add(AutoAllocateResponse.AllocatedGoalDetail.builder()
-                    .goalId(g.getId().toString())
-                    .goalName(g.getName())
-                    .allocatedAmount(allocation)
-                    .newCurrentAmount(g.getCurrentAmount())
-                    .targetAmount(g.getTargetAmount())
-                    .isCompleted(completed)
-                    .build());
+                details.add(AutoAllocateResponse.AllocatedGoalDetail.builder()
+                        .goalId(g.getId().toString())
+                        .goalName(g.getName())
+                        .allocatedAmount(actualFunded)
+                        .newCurrentAmount(g.getCurrentAmount())
+                        .targetAmount(g.getTargetAmount())
+                        .isCompleted(completed)
+                        .build());
+            }
         }
 
-        walletRepository.save(wallet);
+        walletRepository.saveAll(availableWallets);
 
+        BigDecimal remainingSafe = idleMoney.subtract(totalAllocated);
         return AutoAllocateResponse.builder()
                 .totalAllocated(totalAllocated)
-                .safeToSpendRemaining(idleMoney.subtract(totalAllocated))
+                .allocatedTotal(totalAllocated)
+                .safeToSpendRemaining(remainingSafe)
+                .remainingSafeBalance(remainingSafe)
                 .requiredReserve(requiredReserve)
                 .allocatedGoals(details)
                 .message(String.format("Đã tự động phân bổ %,.0fđ vào %d mục tiêu tiết kiệm.",

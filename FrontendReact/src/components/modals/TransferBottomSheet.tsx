@@ -174,6 +174,7 @@ export const TransferBottomSheet: React.FC<TransferBottomSheetProps> = ({
 
       const txRes = await financialServices.createTransaction(walletId, {
         amount: rawAmount,
+        type: "EXPENSE",
         categoryId: categoryId,
         note: finalNote,
         transactionDate: new Date().toISOString(),
@@ -181,13 +182,12 @@ export const TransferBottomSheet: React.FC<TransferBottomSheetProps> = ({
         linkedBudgetId: finalLinkedBudgetId,
       });
 
-      if (groupId && groupId !== "none" && txRes.id) {
+      if (groupId && groupId !== "none" && txRes?.id) {
         await groupService.createGroupExpense(groupId, {
-          payerId: user?.id,
+          paidBy: user?.id,
           title: finalNote || "Chuyển khoản",
           amount: rawAmount,
           category: categories.find((c) => c.id === categoryId)?.name || "Khác",
-          // linkedTransactionId is not in createGroupExpense payload? We might need to add it later if API supports it
         });
       }
 
@@ -233,8 +233,8 @@ export const TransferBottomSheet: React.FC<TransferBottomSheetProps> = ({
                     setStep(1);
                   }}
                 >
-                  <View style={[styles.bankLogo, { backgroundColor: bank.color || colors.slate100 }]}>
-                    <Text style={[styles.bankShortName, { color: bank.text || "#fff" }]}>
+                  <View style={[styles.bankLogo, { backgroundColor: (bank as any).color || colors.slate100 }]}>
+                    <Text style={[styles.bankShortName, { color: (bank as any).text || "#fff" }]}>
                       {bank.shortName}
                     </Text>
                   </View>

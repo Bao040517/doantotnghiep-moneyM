@@ -9,8 +9,9 @@ import { AdvisorScreen } from "../screens/AdvisorScreen";
 import { BudgetScreen } from "../screens/BudgetScreen";
 import { SavingsScreen } from "../screens/SavingsScreen";
 import { AddTransactionModal } from "../components/modals/AddTransactionModal";
-import { QuickActionBottomSheet } from "../components/modals/QuickActionBottomSheet";
+import { QuickActionBottomSheet, QuickActionType } from "../components/modals/QuickActionBottomSheet";
 import { CreateGroupBottomSheet } from "../components/modals/CreateGroupBottomSheet";
+import { ScanReceiptModal } from "../components/modals/ScanReceiptModal";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { colors } from "../constants/colors";
 import { UserSummary } from "../types";
@@ -46,19 +47,42 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({ user, on
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [transactionType, setTransactionType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
   const [createGroupVisible, setCreateGroupVisible] = useState(false);
+  const [scanReceiptVisible, setScanReceiptVisible] = useState(false);
+  const [scannedInitialAmount, setScannedInitialAmount] = useState("");
+  const [scannedInitialNote, setScannedInitialNote] = useState("");
 
   const { wallets, refresh } = useAppData();
 
-  const handleSelectAction = (action: "expense" | "group" | "income") => {
-    if (action === "expense") {
+  const handleSelectAction = (action: QuickActionType) => {
+    if (action === "scan_receipt") {
+      setScanReceiptVisible(true);
+    } else if (action === "expense") {
+      setScannedInitialAmount("");
+      setScannedInitialNote("");
       setTransactionType("EXPENSE");
       setAddModalVisible(true);
     } else if (action === "income") {
+      setScannedInitialAmount("");
+      setScannedInitialNote("");
       setTransactionType("INCOME");
       setAddModalVisible(true);
     } else if (action === "group") {
       setCreateGroupVisible(true);
     }
+  };
+
+  const handleScanReceiptSuccess = (data: any) => {
+    const rawAmount = data.amount ?? data.totalAmount;
+    if (rawAmount !== undefined && rawAmount !== null) {
+      setScannedInitialAmount(Number(rawAmount).toLocaleString("vi-VN"));
+    }
+    const rawNote = data.note ?? data.merchantName;
+    if (rawNote) {
+      const formattedNote = rawNote.startsWith("Hoá đơn") ? rawNote : `Hoá đơn ${rawNote}`;
+      setScannedInitialNote(formattedNote);
+    }
+    setTransactionType("EXPENSE");
+    setAddModalVisible(true);
   };
 
   return (
@@ -233,12 +257,25 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({ user, on
       <AddTransactionModal
         visible={addModalVisible}
         defaultType={transactionType}
-        onClose={() => setAddModalVisible(false)}
+        initialAmount={scannedInitialAmount}
+        initialNote={scannedInitialNote}
+        onClose={() => {
+          setAddModalVisible(false);
+          setScannedInitialAmount("");
+          setScannedInitialNote("");
+        }}
         wallets={wallets}
         onAddTransaction={async (walletId, payload) => {
           await financialServices.createTransaction(walletId, payload);
           refresh();
         }}
+      />
+
+      {/* Floating AI Scan Receipt Modal */}
+      <ScanReceiptModal
+        visible={scanReceiptVisible}
+        onClose={() => setScanReceiptVisible(false)}
+        onScanSuccess={handleScanReceiptSuccess}
       />
 
       {/* Floating Create Group Modal */}

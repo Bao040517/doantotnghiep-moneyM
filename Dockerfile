@@ -17,5 +17,5 @@ RUN apk add --no-cache tzdata && \
     echo "Asia/Ho_Chi_Minh" > /etc/timezone
 
 COPY --from=build /app/target/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+EXPOSE 8080 10000
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-Xss512k", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

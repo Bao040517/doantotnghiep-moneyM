@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  Image,
 } from "react-native";
 import { Card } from "../components/ui/Card";
 import { WalletManagerBottomSheet } from "../components/modals/WalletManagerBottomSheet";
@@ -19,6 +20,7 @@ import { NotificationsBottomSheet } from "../components/modals/NotificationsBott
 import { FinancialHealthCard } from "../components/features/FinancialHealthCard";
 import { colors } from "../constants/colors";
 import { useAppData } from "../hooks/useAppData";
+import { useAuth } from "../hooks/useAuth";
 import { financialServices } from "../services/financialServices";
 import { WalletPayload, TransactionPayload } from "../types";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
@@ -28,6 +30,7 @@ interface DashboardScreenProps {
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
+  const { user } = useAuth();
   const {
     wallets,
     budgets,
@@ -97,12 +100,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           {/* Top User Bar */}
           <View style={styles.topBar}>
             <View style={styles.userInfoRow}>
-              <View style={styles.handBadge}>
-                <Text style={{ fontSize: 18 }}>👋</Text>
-              </View>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.userAvatarTop} />
+              ) : (
+                <View style={styles.handBadge}>
+                  <Text style={{ fontSize: 18 }}>👋</Text>
+                </View>
+              )}
               <View>
                 <Text style={styles.headerSubtitle}>Tổng quan Tài chính</Text>
-                <Text style={styles.headerTitle}>Chào bạn,</Text>
+                <Text style={styles.headerTitle}>{user?.name ? `Chào ${user.name},` : "Chào bạn,"}</Text>
               </View>
             </View>
 
@@ -289,34 +296,34 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           </View>
         )}
 
-        {/* ─── QUICK ACTIONS GRID (6 Circular Action Buttons) ─── */}
+        {/* ─── QUICK ACTIONS GRID (4 Action Buttons Balanced in 1 Row) ─── */}
         <View style={styles.quickActionGrid}>
-          <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("budget")}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: colors.amber50 }]}>
-              <Text style={{ fontSize: 20 }}>🪙</Text>
+          <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("budget")} activeOpacity={0.7}>
+            <View style={[styles.quickActionIconCircle, { backgroundColor: "#FEF3C7" }]}>
+              <Text style={{ fontSize: 22 }}>🪙</Text>
             </View>
-            <Text style={styles.quickActionText}>Ngân sách</Text>
+            <Text style={styles.quickActionText} numberOfLines={1}>Ngân sách</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("groups")}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: "#FFF7ED" }]}>
-              <Text style={{ fontSize: 20 }}>👥</Text>
+          <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("groups")} activeOpacity={0.7}>
+            <View style={[styles.quickActionIconCircle, { backgroundColor: "#E0F2FE" }]}>
+              <Text style={{ fontSize: 22 }}>👥</Text>
             </View>
-            <Text style={styles.quickActionText}>Nhóm</Text>
+            <Text style={styles.quickActionText} numberOfLines={1}>Nhóm</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("savings")}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: "#F3E8FF" }]}>
-              <Text style={{ fontSize: 20 }}>🌱</Text>
+          <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("savings")} activeOpacity={0.7}>
+            <View style={[styles.quickActionIconCircle, { backgroundColor: "#DCFCE7" }]}>
+              <Text style={{ fontSize: 22 }}>🌱</Text>
             </View>
-            <Text style={styles.quickActionText}>Tiết kiệm</Text>
+            <Text style={styles.quickActionText} numberOfLines={1}>Tiết kiệm</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("history")}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: colors.slate100 }]}>
-              <Text style={{ fontSize: 20 }}>🕒</Text>
+          <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("history")} activeOpacity={0.7}>
+            <View style={[styles.quickActionIconCircle, { backgroundColor: "#EDE9FE" }]}>
+              <Text style={{ fontSize: 22 }}>🕒</Text>
             </View>
-            <Text style={styles.quickActionText}>Lịch sử</Text>
+            <Text style={styles.quickActionText} numberOfLines={1}>Lịch sử</Text>
           </TouchableOpacity>
         </View>
 
@@ -459,6 +466,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+  },
+  userAvatarTop: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 255, 255, 0.4)",
   },
   handBadge: {
     width: 40,
@@ -625,24 +639,27 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  /* Quick Actions Grid */
+  /* Quick Actions Row */
   quickActionGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 20,
     justifyContent: "space-between",
+    paddingHorizontal: 16,
     marginBottom: 24,
+    gap: 8,
   },
   quickActionItem: {
-    width: "30%",
+    flex: 1,
     backgroundColor: colors.white,
     paddingVertical: 14,
-    borderRadius: 22,
+    paddingHorizontal: 2,
+    borderRadius: 20,
     alignItems: "center",
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -652,12 +669,13 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   quickActionText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "800",
     color: colors.slate800,
+    textAlign: "center",
   },
 
   /* Section Header */

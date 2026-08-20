@@ -4,8 +4,10 @@ import { GroupListItem, GroupDetail, GroupExpense, GroupDebtSummary, Group } fro
 export const groupService = {
   getGroups: () => api.get<GroupListItem[]>("/groups").then((res) => res.data),
   getGroupDetail: (groupId: string) => api.get<GroupDetail>(`/groups/${groupId}`).then((res) => res.data),
-  createGroup: (payload: { name: string; description?: string }) =>
+  createGroup: (payload: { name: string; description?: string; avatarUrl?: string; memberIds?: string[] }) =>
     api.post<Group>("/groups", payload).then((res) => res.data),
+  updateGroupAvatar: (groupId: string, avatarUrl: string) =>
+    api.put<GroupDetail>(`/groups/${groupId}/avatar`, { avatarUrl }).then((res) => res.data),
   getGroupExpenses: (groupId: string, page = 0, size = 50) =>
     api.get<{ content: GroupExpense[] }>(`/groups/${groupId}/expenses?page=${page}&size=${size}`).then((res) => res.data),
   exportExpenses: (groupId: string) =>

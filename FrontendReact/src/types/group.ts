@@ -5,6 +5,7 @@ export interface GroupMember {
     name: string;
     email?: string;
     phone?: string;
+    avatarUrl?: string;
     bankBin?: string;
     bankAccountNo?: string;
     bankQrUrl?: string;
@@ -18,7 +19,8 @@ export interface GroupListItem {
   id: string;
   name: string;
   description?: string;
-  owner?: { id: string; name: string; email?: string };
+  avatarUrl?: string;
+  owner?: { id: string; name: string; email?: string; avatarUrl?: string };
   memberCount?: number;
   members?: GroupMember[];
   createdAt?: string;
@@ -29,7 +31,8 @@ export interface GroupDetail {
   id: string;
   name: string;
   description?: string;
-  owner?: { id: string; name: string; email?: string };
+  avatarUrl?: string;
+  owner?: { id: string; name: string; email?: string; avatarUrl?: string };
   members: GroupMember[];
   memberCount?: number;
   createdAt?: string;

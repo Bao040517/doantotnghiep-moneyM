@@ -70,7 +70,15 @@ public class BudgetService {
             budget.setMonth(month);
             budget.setYear(year);
         } else {
-            budget = Budget.builder().user(user).category(category).month(month).year(year).build();
+            // Kiểm tra xem đã có ngân sách cho category + month + year chưa (tránh vi phạm Unique Constraint)
+            List<Budget> existingList =
+                    budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
+                            userId, category.getId(), month, year);
+            if (existingList != null && !existingList.isEmpty()) {
+                budget = existingList.get(0);
+            } else {
+                budget = Budget.builder().user(user).category(category).month(month).year(year).build();
+            }
         }
 
         budget.setLimitAmount(req.getLimitAmount());

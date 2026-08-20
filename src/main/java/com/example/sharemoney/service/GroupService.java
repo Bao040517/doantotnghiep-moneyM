@@ -43,6 +43,7 @@ public class GroupService {
                 Group.builder()
                         .name(req.getName())
                         .description(req.getDescription())
+                        .avatarUrl(req.getAvatarUrl())
                         .owner(owner)
                         .build();
         groupRepository.save(group);
@@ -142,10 +143,32 @@ public class GroupService {
                 .id(group.getId())
                 .name(group.getName())
                 .description(group.getDescription())
+                .avatarUrl(group.getAvatarUrl())
                 .owner(toUserSummary(group.getOwner()))
                 .members(members)
                 .createdAt(group.getCreatedAt())
                 .build();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Cập nhật ảnh đại diện nhóm
+    // ─────────────────────────────────────────────────────────────
+    @Transactional
+    public GroupDetailResponse updateGroupAvatar(UUID groupId, String avatarUrl) {
+        Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+        UUID currentUserId = SecurityUtils.getCurrentUserId();
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, currentUserId)) {
+            throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        group.setAvatarUrl(avatarUrl);
+        groupRepository.save(group);
+
+        return getGroupDetail(groupId, currentUserId);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -186,6 +209,7 @@ public class GroupService {
                 .id(group.getId())
                 .name(group.getName())
                 .description(group.getDescription())
+                .avatarUrl(group.getAvatarUrl())
                 .owner(toUserSummary(group.getOwner()))
                 .memberCount(memberCount)
                 .createdAt(group.getCreatedAt())

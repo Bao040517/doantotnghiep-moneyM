@@ -11,10 +11,13 @@ import {
   Platform,
   Clipboard,
   TextInput,
+  Share,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import QRCode from "react-native-qrcode-svg";
-import { CheckCircle2, Wallet, Copy, Check, Zap } from "lucide-react-native";
+import { CheckCircle2, Wallet, Copy, Check, Zap, Download } from "lucide-react-native";
 import { BottomSheet } from "../ui/BottomSheet";
 import { colors } from "../../constants/colors";
 import { VIETQR_BANKS } from "../../constants/banks";
@@ -72,6 +75,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
   } | null>(null);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
 
+  const qrSvgRef = useRef<any>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearPolling = () => {
@@ -182,6 +186,54 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
     setCopiedField(label);
     showToast(`✅ Đã sao chép ${label}!`, 2000);
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const handleDownloadOrShareQr = () => {
+    if (qrSvgRef.current) {
+      try {
+        qrSvgRef.current.toDataURL(async (dataURL: string) => {
+          if (Platform.OS === "web") {
+            try {
+              const link = document.createElement("a");
+              link.href = `data:image/png;base64,${dataURL}`;
+              link.download = `VietQR_PayOS_${payosData?.orderCode || Date.now()}.png`;
+              link.click();
+              showToast("✅ Đã tải xuống ảnh mã QR!", 2500);
+            } catch (e) {
+              showToast("Không thể tải ảnh trên trình duyệt", 2500);
+            }
+          } else {
+            try {
+              const filename = `VietQR_PayOS_${payosData?.orderCode || Date.now()}.png`;
+              const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+              
+              // Ghi file ảnh PNG từ chuỗi base64 vào thư mục cache
+              await FileSystem.writeAsStringAsync(fileUri, dataURL, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+
+              // Mở khay chia sẻ / lưu file ảnh PNG gốc (có sẵn nút Lưu ảnh / Save Image vào Thư viện)
+              if (await Sharing.isAvailableAsync()) {
+                await Sharing.shareAsync(fileUri, {
+                  mimeType: "image/png",
+                  dialogTitle: "Lưu hoặc chia sẻ mã QR thanh toán",
+                  UTI: "public.png",
+                });
+              } else {
+                showToast("✅ Đã tạo ảnh mã QR!");
+              }
+            } catch (err) {
+              console.error("Save QR error:", err);
+              showToast("Không thể lưu ảnh mã QR");
+            }
+          }
+        });
+      } catch (err) {
+        showToast("Không thể tạo ảnh mã QR");
+      }
+    } else {
+      showToast("Đang khởi tạo mã QR, vui lòng thử lại sau giây lát");
+    }
   };
 
   const handleOpenPayOS = async () => {
@@ -360,6 +412,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
             {/* QR box */}
             <View style={styles.payosQrBox}>
               <QRCode
+                getRef={(ref) => (qrSvgRef.current = ref)}
                 value={payosData.qrCode}
                 size={210}
                 color="#0F172A"
@@ -378,47 +431,15 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
               <Text style={styles.payosQrAccName}>{displayAccName}</Text>
             </View>
 
-            {/* Copy actions */}
-            <View style={styles.payosQrActions}>
-              <TouchableOpacity
-                style={styles.payosQrActionBtn}
-                onPress={() => handleCopy(displayAccNo, "Số tài khoản")}
-                activeOpacity={0.7}
-              >
-                {copiedField === "Số tài khoản"
-                  ? <Check size={13} color="#10B981" />
-                  : <Copy size={13} color="#6366F1" />}
-                <Text style={styles.payosQrActionText}>
-                  {copiedField === "Số tài khoản" ? "Đã chép STK" : "Chep STK"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.payosQrActionBtn}
-                onPress={() => handleCopy(displayDesc, "Nội dung")}
-                activeOpacity={0.7}
-              >
-                {copiedField === "Nội dung"
-                  ? <Check size={13} color="#10B981" />
-                  : <Copy size={13} color="#6366F1" />}
-                <Text style={styles.payosQrActionText}>
-                  {copiedField === "Nội dung" ? "Đã chép" : "Chép Nội dung"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.payosQrActionBtn}
-                onPress={() => handleCopy(payosData.qrCode, "Mã QR")}
-                activeOpacity={0.7}
-              >
-                {copiedField === "Mã QR"
-                  ? <Check size={13} color="#10B981" />
-                  : <Copy size={13} color="#6366F1" />}
-                <Text style={styles.payosQrActionText}>
-                  {copiedField === "Mã QR" ? "Đã chép" : "Chép mã QR"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {/* Nút Tải xuống / Lưu mã QR */}
+            <TouchableOpacity
+              style={styles.downloadQrBtn}
+              onPress={handleDownloadOrShareQr}
+              activeOpacity={0.8}
+            >
+              <Download size={16} color="#4F46E5" strokeWidth={2.5} />
+              <Text style={styles.downloadQrBtnText}>Tải xuống / Lưu ảnh mã QR</Text>
+            </TouchableOpacity>
 
             {/* PayOS footnote */}
             <Text style={styles.payosQrFooter}>
@@ -436,25 +457,6 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
             onCopySuccess={(msg) => showToast(msg)}
           />
         )}
-
-        {/* ── 3. NÚT MỞ TRANG PAYOS ── */}
-        {payosData?.checkoutUrl ? (
-          <TouchableOpacity
-            style={styles.payosBtn}
-            onPress={handleOpenPayOS}
-            disabled={loadingCheckout}
-            activeOpacity={0.85}
-          >
-            {loadingCheckout ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.payosBtnText}>🌐 Mở Trang Thanh Toán PayOS</Text>
-                <Text style={styles.payosBtnSub}>Chrome tích hợp — không màn trắng ✓</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        ) : null}
 
         {/* ── 4. XÁC NHẬN ĐÃ CHUYỂN ── */}
         <TouchableOpacity
@@ -927,28 +929,25 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#64748B",
   },
-  payosQrActions: {
-    flexDirection: "row",
-    gap: 8,
-    width: "100%",
-    marginBottom: 10,
-  },
-  payosQrActionBtn: {
-    flex: 1,
+  downloadQrBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    paddingVertical: 9,
-    borderRadius: 12,
+    gap: 8,
     backgroundColor: "#EEF2FF",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#C7D2FE",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    width: "100%",
+    marginBottom: 12,
   },
-  payosQrActionText: {
-    fontSize: 11,
+  downloadQrBtnText: {
+    fontSize: 13.5,
     fontWeight: "800",
     color: "#4F46E5",
+    letterSpacing: 0.2,
   },
   payosQrFooter: {
     fontSize: 11,

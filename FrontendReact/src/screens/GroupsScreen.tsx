@@ -383,7 +383,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               onPress={() => setSelectedGroupId(g.id)}
             >
               <Image
-                source={{ uri: GROUP_IMAGES[idx % GROUP_IMAGES.length] }}
+                source={{ uri: g.avatarUrl || GROUP_IMAGES[idx % GROUP_IMAGES.length] }}
                 style={styles.groupImage}
                 resizeMode="cover"
               />
@@ -584,8 +584,8 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             ? {
                 amount: Math.abs(selectedDebt.amount),
                 toName: selectedDebt.otherMemberName,
-                toBankBin: selectedDebt.bankBin || "970422",
-                toAccountNo: selectedDebt.bankAccountNo || "10908888999",
+                toBankBin: selectedDebt.bankBin || "",
+                toAccountNo: selectedDebt.bankAccountNo || "",
                 toUserId: selectedDebt.otherMemberId,
                 groupName: selectedDebt.groupName,
                 groupId: selectedDebt.groupId,

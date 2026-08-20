@@ -69,6 +69,21 @@ public class UserController {
         return ResponseEntity.ok(toUserSummary(user));
     }
 
+    @PutMapping("/me/avatar")
+    public ResponseEntity<UserSummaryResponse> updateMyAvatar(
+            @Valid @RequestBody com.example.sharemoney.dto.request.UpdateAvatarRequest request) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        user.setAvatarUrl(request.getAvatarUrl());
+        userRepository.save(user);
+
+        return ResponseEntity.ok(toUserSummary(user));
+    }
+
     @PutMapping("/me/qr")
     public ResponseEntity<UserSummaryResponse> updateMyQr(
             @Valid @RequestBody UpdateQrRequest request) {

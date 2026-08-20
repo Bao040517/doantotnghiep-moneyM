@@ -89,20 +89,47 @@ Bộ dữ liệu **Seed V11 (`seed_v11.sql` & `generate_seed_v11.js`)** là phi�
     *   Số dư ví chính: 4.8tr - 15.5tr VNĐ | Ví tiết kiệm: 1tr - 5tr VNĐ | Thẻ tín dụng âm nhẹ -> **Tổng tài sản ròng mỗi user luôn <= 25.000.000 VNĐ** (0 vi phạm).
 *   **Đồng bộ 100% Entity Java Spring Boot:**
     *   Khớp 100% tất cả 18 bảng, đầy đủ 9 cột của `payees`, liên kết `payee_id` vào `budgets`, khóa ngoại `UUID`, `tags`, `savings_goals`, `external_loans`, `payment_orders`.
-*   **Duy trì ca test Dashboard & Cảnh báo sinh động (Tháng 08/2026):**
-    *   1 ngân sách vượt hạn mức nhẹ (Ăn uống 2.15tr / 2tr -> 107.5%).
-    *   1 ngân sách tiệm cận hạn mức (Phí giao lưu 1.28tr / 1.5tr -> 85.3%).
-    *   Các đơn hàng trực tuyến PayOS & VNPay (Pending, Success, Cancelled).
 
 ---
 
-## 10. Tóm tắt các Script đang sử dụng
-*   `check_entities.js`: Tool nội bộ dùng để quét file `.java` và validate cấu trúc cột `NOT NULL`.
-*   `generate_seed_v11.js`: Kịch bản thế hệ mới nhất V11, áp dụng giới hạn ngân sách <= 2tr, số dư tài khoản <= 25tr, sinh đầy đủ thực thể và xuất ra `seed_v11.sql`.
-*   `seed_v11.sql`: File SQL thành phẩm V11 hoàn thiện sẵn sàng thực thi trên pgAdmin / DataGrip / DBeaver.
-*   `seed_v10.sql` / `generate_seed_v10.js`: Bản lưu trữ thế hệ V10.
-*   `seed_v9.sql` / `generate_seed_v9.js`: Bản lưu trữ thế hệ V9.
-*   `seed_v8.sql` / `generate_seed_v8.js`: Bản lưu trữ thế hệ V8.
+## 10. Đặc tả Bộ dữ liệu mẫu V12 (Seed V12 Data Specs)
+
+Bộ dữ liệu **Seed V12 (`seed_v12.sql` & `generate_seed_v12.js`)** là phiên bản tối ưu hóa toàn diện cho tính năng **Cố vấn tài chính AI & Tái cân bằng ngân sách (Rebalance Plan)**:
+*   **Hệ sinh thái Tái cân bằng & Cân bằng xám chuẩn mực (Tháng 08/2026):**
+    *   **Khoản vượt hạn mức cố định (Section 1):** *Tiền nhà* (1.850.000 / 1.800.000 đ -> Vượt 50.000 đ).
+    *   **Khoản vượt hạn mức linh hoạt (Section 1):** *Ăn uống* (2.150.000 / 2.000.000 đ -> Vượt 150.000 đ).
+    *   **Khoản đề xuất cắt giảm Tier 1 Luxury (Section 2 - Màu xanh):** *Quần áo* (Đã chi 350.000 / 1.000.000 đ -> Còn dư 650.000 đ -> Đề xuất cắt giảm 200.000 đ xuống 800.000 đ để bù đắp 100% phần tiêu lố).
+    *   **Khoản đã cân bằng tối ưu (Section 2 - Thẻ màu xám `✓ Đã cân bằng`):** *Chi tiêu hàng ngày* (1.45tr/1.5tr), *Phí giao lưu* (1.28tr/1.5tr), *Đi lại* (420k/800k).
+*   **Duy trì chuẩn tài chính thực tế:**
+    *   Mọi hạn mức ngân sách `<= 2.000.000 VNĐ`.
+    *   Tổng số dư ví mỗi User `<= 25.000.000 VNĐ`.
+    *   Đầy đủ 18 bảng Entity, 9 cột Payee, các đơn hàng thanh toán PayOS/VNPay.
+
+---
+
+## 11. Đặc tả Bộ dữ liệu mẫu V13 (Seed V13 Data Specs)
+
+Bộ dữ liệu **Seed V13 (`seed_v13.sql` & `generate_seed_v13.js`)** là phiên bản hoàn thiện chuẩn hóa **Mốc thời gian thực tế & Trải nghiệm thị giác**:
+*   **Mốc thời gian thực tế (Strict Real-time Cutoff):**
+    *   Toàn bộ dữ liệu giao dịch, chi tiêu nhóm, đơn thanh toán và thông báo đều được giới hạn nghiêm ngặt **đến ngày hôm nay 20/08/2026** (`<= 2026-08-20 23:59:59`).
+    *   **Tuyệt đối không có dữ liệu tương lai:** Không sinh bất kỳ giao dịch nào từ ngày 21/08/2026 trở đi hay các tháng 9, 10, 11, 12/2026.
+*   **Đồng bộ Avatar Hoạt hình Nghệ thuật (DiceBear Cartoon & Robot):**
+    *   Toàn bộ 5 User personas được gắn avatar hoạt hình DiceBear (`bottts` & `adventurer`) thay thế hoàn toàn ảnh chân dung người thật.
+    *   Các nhóm chi tiêu chung có đầy đủ trường `avatar_url` chuẩn Entity `Group.java`.
+*   **Hệ sinh thái Tái cân bằng ngân sách & Cố vấn AI tối ưu:**
+    *   Tháng 08/2026 thể hiện rõ ràng các khoản tiêu lố (*Tiền nhà, Ăn uống*), khoản đề xuất bù trừ (*Quần áo*) và các khoản đã cân bằng (*Chi tiêu hàng ngày, Phí giao lưu, Đi lại, Tiền điện, Phí liên lạc*).
+    *   Hạn mức ngân sách `<= 2.000.000 VNĐ`, tổng tài sản ròng `<= 25.000.000 VNĐ`.
+    *   Đồng bộ 100% 18 bảng Entity Spring Boot và đa cổng thanh toán PayOS / VNPay.
+
+---
+
+## 12. Tóm tắt các Script đang sử dụng
+*   `generate_seed_v13.js`: Kịch bản thế hệ mới nhất V13, chuẩn hóa mốc thời gian 20/08/2026 hôm nay và avatar DiceBear.
+*   `seed_v13.sql`: File SQL thành phẩm V13 sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / Render / pgAdmin / DataGrip / DBeaver).
+*   `check_entities.js`: Tool nội bộ quét file `.java` và validate cấu trúc cột `NOT NULL`.
+*   `seed_v12.sql` / `generate_seed_v12.js`: Bản lưu trữ thế hệ V12.
+*   `seed_v11.sql` / `generate_seed_v11.js`: Bản lưu trữ thế hệ V11.
+
 
 
 

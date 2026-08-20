@@ -20,6 +20,35 @@ import { financialServices } from "../services/financialServices";
 
 import { Home, BarChart3, Sparkles, User, Plus } from "lucide-react-native";
 
+import { useNavigation } from "@react-navigation/native";
+import { useAuth } from "../hooks/useAuth";
+
+const DashboardScreenWrapper = () => {
+  const navigation = useNavigation<any>();
+  return (
+    <DashboardScreen
+      onNavigate={(tab, targetId) => {
+        if (tab === "savings") navigation.navigate("Savings");
+        else if (tab === "budget") navigation.navigate("Budget", { targetBudgetId: targetId } as any);
+        else if (tab === "groups") navigation.navigate("Groups");
+        else if (tab === "history") navigation.navigate("History");
+      }}
+    />
+  );
+};
+
+const HistoryScreenWrapper = () => {
+  const navigation = useNavigation<any>();
+  return (
+    <HistoryScreen
+      onNavigate={(tab) => {
+        if (tab === "budget") navigation.navigate("Budget");
+        else if (tab === "savings") navigation.navigate("Savings");
+      }}
+    />
+  );
+};
+
 export type BottomTabParamList = {
   Dashboard: undefined;
   Report: undefined;
@@ -35,14 +64,14 @@ export type BottomTabParamList = {
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
 interface BottomTabNavigatorProps {
-  user: UserSummary | null;
-  onLogout: () => void;
-  onRefreshUser: () => void;
+  user?: UserSummary | null;
+  onLogout?: () => void;
+  onRefreshUser?: () => void;
 }
 
 const NullComponent = () => null;
 
-export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({ user, onLogout, onRefreshUser }) => {
+export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
   const [quickActionVisible, setQuickActionVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [transactionType, setTransactionType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
@@ -155,39 +184,21 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({ user, on
       >
         <Tab.Screen
           name="Dashboard"
+          component={DashboardScreenWrapper}
           options={{ title: "Tổng quan" }}
-        >
-          {({ navigation }) => (
-            <DashboardScreen
-              onNavigate={(tab, targetId) => {
-                if (tab === "savings") navigation.navigate("Savings");
-                else if (tab === "budget") navigation.navigate("Budget", { targetBudgetId: targetId } as any);
-                else if (tab === "groups") navigation.navigate("Groups");
-                else if (tab === "history") navigation.navigate("History");
-              }}
-            />
-          )}
-        </Tab.Screen>
+        />
 
         <Tab.Screen name="Report" component={ReportScreen} options={{ title: "Thống kê" }} />
 
         {/* Hidden History Screen Route */}
         <Tab.Screen
           name="History"
+          component={HistoryScreenWrapper}
           options={{
             title: "Lịch sử giao dịch",
             tabBarItemStyle: { display: "none" },
           }}
-        >
-          {({ navigation }) => (
-            <HistoryScreen
-              onNavigate={(tab) => {
-                if (tab === "budget") navigation.navigate("Budget");
-                else if (tab === "savings") navigation.navigate("Savings");
-              }}
-            />
-          )}
-        </Tab.Screen>
+        />
 
         {/* Hidden Budget Screen Route */}
         <Tab.Screen
@@ -241,9 +252,7 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = ({ user, on
 
         <Tab.Screen name="Advisor" component={AdvisorScreen} options={{ title: "Tư vấn" }} />
 
-        <Tab.Screen name="Profile" options={{ title: "Cá nhân" }}>
-          {() => <ProfileScreen user={user} onLogout={onLogout} onRefreshUser={onRefreshUser} />}
-        </Tab.Screen>
+        <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: "Cá nhân" }} />
       </Tab.Navigator>
 
       {/* Quick Action Selector Sheet (Tạo chi tiêu, Tạo nhóm, Nạp tiền) */}

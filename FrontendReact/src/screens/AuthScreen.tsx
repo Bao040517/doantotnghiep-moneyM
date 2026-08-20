@@ -6,18 +6,29 @@ import { Button } from "../components/ui/Button";
 import { colors } from "../constants/colors";
 
 import { LoginPayload, RegisterPayload } from "../types";
+import { useAuth } from "../hooks/useAuth";
 
 interface AuthScreenProps {
-  onLogin: (payload: LoginPayload) => Promise<any>;
-  onRegister: (payload: RegisterPayload) => Promise<any>;
+  onLogin?: (payload: LoginPayload) => Promise<any>;
+  onRegister?: (payload: RegisterPayload) => Promise<any>;
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin: propLogin, onRegister: propRegister }) => {
+  const { login: contextLogin, register: contextRegister } = useAuth();
+  const onLogin = propLogin || contextLogin;
+  const onRegister = propRegister || contextRegister;
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("nguyenvana@gmail.com");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const handleToggleMode = () => {
+    setIsRegister((prev) => !prev);
+    setName("");
+    setEmail("");
+    setPassword("");
+  };
 
   const handleSubmit = async () => {
     if (!email || !password || (isRegister && !name)) {
@@ -28,13 +39,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) =
     setLoading(true);
     try {
       if (isRegister) {
-        await onRegister({ name, email, password });
+        await onRegister({ name: name.trim(), email: email.trim(), password });
       } else {
-        await onLogin({ email, password });
+        await onLogin({ email: email.trim(), password });
       }
     } catch (e: any) {
       console.error("Login error detail:", e);
-      Alert.alert("Lỗi đăng nhập", e.response?.data?.message || e.message || "Đã có lỗi xảy ra, vui lòng thử lại");
+      Alert.alert("Lỗi", e.response?.data?.message || e.message || "Đã có lỗi xảy ra, vui lòng thử lại");
     } finally {
       setLoading(false);
     }
@@ -57,7 +68,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) =
           {isRegister && (
             <Input
               label="Họ và tên"
-              placeholder="Nguyễn Văn A"
+              placeholder="Nhập họ và tên của bạn"
               value={name}
               onChangeText={setName}
             />
@@ -65,7 +76,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) =
 
           <Input
             label="Email"
-            placeholder="example@gmail.com"
+            placeholder="Nhập địa chỉ email"
             keyboardType="email-address"
             autoCapitalize="none"
             value={email}
@@ -74,7 +85,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) =
 
           <Input
             label="Mật khẩu"
-            placeholder="••••••••"
+            placeholder="Nhập mật khẩu"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -91,7 +102,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister }) =
           <Button
             title={isRegister ? "Đã có tài khoản? Đăng nhập" : "Chưa có tài khoản? Đăng ký ngay"}
             variant="outline"
-            onPress={() => setIsRegister(!isRegister)}
+            onPress={handleToggleMode}
             style={styles.switchBtn}
           />
         </Card>

@@ -76,4 +76,14 @@ export const financialServices = {
   deleteTransaction: (id: string) => api.delete<void>(`/transactions/${id}`).then((res) => res.data),
   getUncategorizedTransactions: () => api.get<Transaction[]>("/transactions/uncategorized").then((res) => res.data),
   getUncategorizedCount: () => api.get<number>("/transactions/uncategorized/count").then((res) => res.data),
+  applyBudgetRebalance: (year?: number, month?: number, cuts?: Array<{ categoryId: string; cutAmount?: number; newLimit?: number }>) => {
+    const params = new URLSearchParams();
+    if (year) params.append("year", String(year));
+    if (month) params.append("month", String(month));
+    const query = params.toString();
+    return api.post<{ success: boolean; message: string; totalCompensated: number; updatedCategoriesCount: number }>(
+      `/advisor/rebalance/apply${query ? `?${query}` : ""}`,
+      cuts ? { cuts } : undefined
+    ).then((res) => res.data);
+  },
 };

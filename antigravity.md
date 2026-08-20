@@ -27,6 +27,130 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 22. **Hệ Thống Xác Thực Kép Dual Token (Access Token & Refresh Token Rotation):** Triển khai mô hình Access Token ngắn hạn (15 phút) kết hợp Refresh Token (7 ngày) lưu trữ trong cơ sở dữ liệu, xoay vòng token bảo mật (Rotation) và cơ chế Auto-Refresh Queue âm thầm trên Axios Interceptor (Seamless UX).
 23. **Biểu Đồ Tròn SVG Đa Phân Đoạn & Bộ Icon Lineal Color Đồ Họa:** Nâng cấp biểu đồ phân tích chi tiêu Donut Chart đa phân đoạn bằng SVG (`react-native-svg`), tính toán góc/cung chuẩn xác theo từng danh mục và đồng bộ bộ icon vector SVG đồ họa cao cấp trên toàn bộ màn hình.
 24. **Quét Mã QR Hoá Đơn Mua Sắm Bằng Camera Trực Tiếp (Live Camera QR & AI Universal Parser):** Mở trực tiếp khung ngắm camera quét mã QR trên bill thanh toán (WinMart, Circle K, Co.opmart, E-Invoice), tự động kết nối Backend Jsoup + Gemini AI bóc tách món hàng, số tiền và ngày giờ siêu tốc.
+25. **Tự Động Phân Bổ Tiết Kiệm Đa Ví Khả Dụng (Multi-Wallet Progressive Savings Auto-Allocation Engine):** Khắc phục triệt để lỗi phân bổ 0đ do lệch DTO trường `totalAllocated`/`allocatedTotal`. Tái cấu trúc thuật toán tự động quét, sắp xếp giảm dần và trích lũy tiến số dư trên toàn bộ danh sách ví khả dụng non-liability.
+26. **Thiết Lập Triển Khai Đám Mây Render & CI/CD GitHub Actions & Đóng Gói Mobile Standalone APK:** Cấu hình động cổng `$PORT` cho Spring Boot, tinh chỉnh JVM container flags (`-XX:MaxRAMPercentage=75.0`, `-Xss512k`) chống tràn RAM 512MB, thiết lập pipeline CI/CD 3 giai đoạn tự động kiểm thử/build Docker/deploy Render, và tích hợp EAS Build export file `.apk` độc lập.
+27. **Hệ Thống Tự Động Bù Trừ & Tái Cân Bằng Ngân Sách V2 (Tiered Overspending Compensation & Rounding Sweep Engine):** Thuật toán chuyên gia tài chính thông minh tự động phát hiện mọi khoản tiêu lố trong tháng, **bảo vệ nguyên vẹn 100% các khoản Cố định/Bill (Tiền nhà, Điện, Nước, Phí liên lạc, Lãi vay...)**, phân bổ cắt giảm phân tầng co giãn (**Tier 1 Hưởng thụ/Luxury** cắt giảm tối đa trước $\rightarrow$ **Tier 2 Sinh hoạt/Basic** chỉ cắt khi cần), tích hợp **Thuật toán vét sai số làm tròn (Rounding Sweep)** bù đắp chính xác 100% không bị hụt tiền, hỗ trợ **Interactive Override** tùy biến từ Client và nút bấm 1-chạm **"🔄 Áp Dụng Tái Cân Bằng Ngay"** cập nhật DB nguyên tử.
+28. **Hệ Thống Quản Lý Avatar Cá Nhân & Ảnh Bìa Nhóm Chi Tiêu (Custom Gallery Picker & Image Compression):** Tích hợp trọn vẹn từ Backend đến Frontend cho phép người dùng đổi ảnh đại diện cá nhân qua camera/thư viện ảnh máy (`expo-image-picker`), bộ sưu tập 12 avatar hoạt hình/robot sinh động (`DiceBear bottts & adventurer`), loại bỏ hoàn toàn ảnh chụp người thật, và tùy biến ảnh bìa nhóm chi tiêu khi tạo mới hoặc cập nhật trực tiếp trên Banner chi tiết nhóm.
+29. **Rà Soát & Làm Sạch Toàn Bộ Dữ Liệu Hardcode & Phân Tách Trải Nghiệm Người Dùng Mới (Zero-Hardcode & New User Onboarding):** Loại bỏ 100% các giá trị mock/fallback ngầm (STK ảo `10908888999`, BIN ngầm `970422`, email mẫu `email@example.com`, chi phí mẫu `55.824.000đ`, IP LAN `192.168.123.200`), phân tách rõ ràng trải nghiệm giữa người dùng mới (form trắng, hướng dẫn thiết lập, onboarding tích lũy thân thiện) và người dùng đang hoạt động (cảnh báo PFM chính xác theo thời gian thực).
+
+### Session [2026-08-20] - Quản Lý Avatar Cá Nhân/Nhóm, Dữ Liệu Thực Tế V13, Chuẩn Hóa Cấu Hình VietQR & Open Banking Lookup, Tinh Gọn UI Dashboard & Thẻ QR
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Quản Lý Avatar Cá Nhân & Ảnh Bìa Nhóm Chi Tiêu (`User.java`, `Group.java`, `GroupService.java`, `ProfileScreen.tsx`, `CreateGroupBottomSheet.tsx`, `GroupDetailScreen.tsx`):**
+   - **Backend (Spring Boot + PostgreSQL):**
+     - Entity `Group`: Bổ sung trường `avatar_url TEXT` vào bảng `groups`.
+     - DTOs: Tạo mới `UpdateAvatarRequest.java`, mở rộng `CreateGroupRequest.java`, `GroupResponse.java`, `GroupDetailResponse.java` với trường `avatarUrl`.
+     - Controllers & Services: 
+       - `UserController`: Thêm endpoint `PUT /api/users/me/avatar` cập nhật avatar người dùng hiện tại.
+       - `GroupController`: Thêm endpoint `PUT /api/groups/{groupId}/avatar` cập nhật ảnh bìa nhóm.
+       - `GroupService`: Cập nhật `createGroup`, `updateGroupAvatar`, `toGroupResponse`, `getGroupDetail` đồng bộ `avatarUrl`.
+     - Cập nhật DDL và dữ liệu mẫu `seed_v12.sql` & `generate_seed_v12.js` với `avatar_url TEXT`.
+   - **Frontend (React Native Expo):**
+     - `ProfileScreen.tsx`: Tích hợp camera badge trên avatar, modal chọn ảnh từ thư viện thiết bị (`expo-image-picker`, nén base64/URI) và bộ sưu tập 10 avatar preset nghệ thuật.
+     - `DashboardScreen.tsx`: Hiển thị đồng bộ avatar người dùng và lời chào cá nhân hóa trên Top Bar.
+     - `CreateGroupBottomSheet.tsx`: Tích hợp ô tải ảnh nhóm từ máy, hiển thị preview ảnh thực tế kèm nút đổi/xóa ảnh, loại bỏ toàn bộ preset thừa theo yêu cầu người dùng.
+     - `GroupsScreen.tsx` & `GroupDetailScreen.tsx`: Hiển thị ảnh bìa nhóm từ DB, cho phép đổi ảnh nhóm trực tiếp trên banner hero và hiển thị avatar từng thành viên nhóm.
+
+2. **Rà Soát Toàn Diện & Làm Sạch Toàn Bộ Dữ Liệu Hardcode (Codebase Hardcode Clean-up):**
+   - **Ngân sách & Tư vấn:** `AdvisorScreen.tsx` xóa bỏ 2 gợi ý ngân sách mẫu hardcode (*Ăn uống 4tr, Di chuyển 1.5tr*), chuyển sang dùng mảng rỗng `[]` khi chưa có dữ liệu từ backend.
+   - **VietQR & Thanh toán:**
+     - `VietQRCard.tsx`: Xóa bỏ STK dự phòng ngầm `10908888999`, chỉ sinh payload QR khi có STK thực tế.
+     - `GroupsScreen.tsx`, `GroupDetailScreen.tsx`, `GroupDetailBottomSheet.tsx`: Xóa bỏ các fallback `toAccountNo: "10908888999"` và `toBankBin: "970422"`.
+     - `ProfileScreen.tsx`: Xóa fallback `bankBin: "970422"`, email `email@example.com`, chuỗi text `Chuyen tien cho ShareMoney User`. Bắt buộc nhập đầy đủ mã BIN ngân hàng và hiển thị form trắng cho tài khoản mới.
+   - **Nhóm & Mời bạn bè:** `AddMemberBottomSheet.tsx` thay thế URL chứa IP LAN hardcode `http://192.168.123.200:3000/...` sang URL chuẩn `https://sharemoney.app/groups/${groupId}`.
+   - **Tổng chi & Dòng tiền:**
+     - `TotalExpenseDetailBottomSheet.tsx`: Xóa bỏ các hằng số chi phí mẫu `55.824.000đ`, `18.000.000đ`... Kết nối trực tiếp `useAppData` để tự động tổng hợp & phân nhóm Thiết yếu / Linh hoạt / Nợ nhóm / Tích lũy theo dữ liệu thực tế.
+     - `CashflowComparisonBottomSheet.tsx`: Xóa bỏ default props `22.438.044đ`, `44.800.000đ`, tự động điều chỉnh biểu đồ theo dòng tiền thực tế của user.
+
+3. **Phân Tách Trải Nghiệm Người Dùng Mới vs Người Dùng Đang Hoạt Động:**
+   - `SavingsScreen.tsx`: Với tài khoản mới (0 số dư ví, 0 mục tiêu tiết kiệm), hiển thị thẻ hướng dẫn thân thiện `🌱 Bắt đầu tích lũy thông minh` kèm nút `+ Tạo Mục Tiêu Đầu Tiên` thay vì báo động đỏ thiếu hụt quỹ khẩn cấp.
+   - `ProfileScreen.tsx`: Để trắng hoàn toàn form VietQR với placeholder hướng dẫn, thay thế preview QR bằng thẻ `emptyQrCard` giải thích rõ cách thiết lập.
+
+4. **Khắc Phục Triệt Để Hiện Tượng Nhảy Tab & Unmount Navigation Tree (`AuthContext.tsx`, `useAuth.ts`, `AppNavigator.tsx`, `BottomTabNavigator.tsx`, `ProfileScreen.tsx`, `GroupDetailScreen.tsx`):**
+   - **Nguyên nhân:** Khi gọi `onRefreshUser()` / `checkAuth()`, `isLoading` bị bật lại `true` khiến `AppNavigator` hủy `NavigationContainer`, khi mount lại bị reset về tab Dashboard đầu tiên.
+   - **Thực thi:**
+     - Xây dựng `AuthContext.tsx` toàn cục với hàm `refreshProfile()` chạy ngầm (silent update) không đổi `isLoading`.
+     - Chuyển `useAuth.ts` sang kết nối `AuthContext`. Bọc `AuthProvider` trong `App.tsx`.
+     - Loại bỏ toàn bộ anonymous inline component trong `AppNavigator.tsx` và `BottomTabNavigator.tsx` sang static component props.
+     - `GroupDetailScreen.tsx` chuyển `if (loading)` sang `if (loading && !group)` bảo toàn sub-tab và scroll view.
+
+5. **Tinh Gọn Giao Diện Thanh Toán & Bổ Sung Nút Tải Xuống Mã QR (`PaymentSandboxModal.tsx`):**
+   - Xóa bỏ nút trung gian `🌐 Mở Trang Thanh Toán PayOS` và 3 nút chép lặt vặt (*Chép STK, Chép Nội dung, Chép mã QR*).
+   - Tích hợp nút nổi bật **`[ 📥 Tải xuống / Lưu ảnh mã QR ]`**: Trích xuất base64 từ `QRCode.toDataURL`, hỗ trợ tự động tải file PNG trên Web hoặc mở Native Share sheet lưu ảnh vào thư viện thiết bị / chia sẻ sang app ngân hàng trên Mobile.
+
+6. **Nâng Cấp Tích Hợp Google Gemini AI Sang Thế Hệ Mới Nhất (`GeminiService.java`, `application.properties`):**
+   - Kết nối thành công API Key `AQ.Ab8RN6K...` từ Google AI Studio mới.
+   - Nâng cấp endpoint từ mô hình cũ `gemini-1.5-flash` sang mô hình tối tân **`gemini-3.6-flash`**, đã kiểm thử thành công khả năng sinh lời nhắc nợ thông minh, hài hước và đọc hóa đơn.
+
+7. **Sinh Bộ Dữ Liệu Mẫu Chuẩn Hóa Mốc Thời Gian Thực Tế V13 (`generate_seed_v13.js`, `seed_v13.sql`, `seeder.md`):**
+   - **Giới hạn mốc thời gian thực tế:** Dữ liệu giao dịch, chi tiêu nhóm, đơn hàng PayOS và thông báo giới hạn nghiêm ngặt **đến ngày hôm nay 20/08/2026** (`<= 2026-08-20 23:59:59`). Tuyệt đối không sinh dữ liệu tương lai.
+   - **Độ sâu lịch sử 20 tháng:** Giữ nguyên 1.394 giao dịch, 416 hạn mức ngân sách, 5 nhóm chi tiêu, 5 người dùng personas với avatar hoạt hình DiceBear (`bottts` & `adventurer`).
+   - **Tái cân bằng ngân sách:** Thiết lập chuẩn mực kịch bản kiểm thử Tái cân bằng ngân sách Tháng 08/2026 (tiêu lố Tiền nhà 50k, Ăn uống 150k, đề xuất cắt giảm Quần áo 200k, các thẻ xám Đã cân bằng).
+
+8. **Nâng Cấp Trải Nghiệm Cấu Hình VietQR: Bộ Chọn Ngân Hàng Kèm Logo & Tìm Kiếm Thông Minh (`ProfileScreen.tsx`, `UpdateQrModal.tsx`, `banks.ts`):**
+   - **Loại bỏ nhập mã BIN thủ công:** Người dùng không cần phải biết hay gõ mã BIN 6 chữ số (`970422`, `970436`...). Thay vào đó là **Khung chọn ngân hàng trực quan** hiển thị logo, tên viết tắt (MBBank, Vietcombank, Techcombank, BIDV, ACB, VPBank, TPBank...) và tên đầy đủ.
+   - **Modal tìm kiếm ngân hàng thông minh:** Bấm vào ngân hàng sẽ mở popup tìm kiếm nhanh theo tên hoặc chọn từ danh sách 17 ngân hàng hàng đầu tại Việt Nam.
+   - **Xác thực và hiển thị QR:** Bắt buộc có đủ 3 thông tin (Ngân hàng được chọn, Số tài khoản, Tên chủ tài khoản) mới hiển thị mã VietQR Live Preview và cho phép lưu.
+
+9. **Chuẩn Hóa Khung Form Nhập Liệu Cố Định & Nâng Cấp Màu Nền Tương Phản Cao (`ProfileScreen.tsx`, `Input.tsx`):**
+   - **Khung form cố định:** Toàn bộ các ô nhập Số điện thoại, Chọn ngân hàng, Số tài khoản và Tên chủ tài khoản luôn nằm cố định trong form ở cả 2 chế độ Xem và Sửa, loại bỏ hiện tượng co giãn hay thò thụt/giật layout.
+   - **Chống chạm nhầm:** Ở chế độ khóa, các ô nhập và bộ chọn ngân hàng ở trạng thái khóa cố định (`editable={false}`, `disabled={true}`) với nền sáng `#F1F5F9` sắc nét, chữ rõ ràng `#334155`.
+   - **Màu nền tươi tắn:** Đổi màu nền toàn màn hình sang sắc xanh xám dịu nhẹ `#EEF2F6`, giúp các thẻ Card màu trắng nổi bật với độ sâu và đổ bóng rõ ràng.
+   - **Nút Chỉnh sửa nổi bật:** Nút `[ Chỉnh sửa ... ]` được nâng cấp với nền xanh tím nhạt `#EEF2FF`, viền `#C7D2FE` và chữ tím indigo `#4F46E5` đậm nét.
+
+10. **Tích Hợp Tự Động Tra Cứu & Khớp Tên Chủ Tài Khoản Thật Từ Ngân Hàng Napas247 / VietQR (`BankLookupService.java`, `BankLookupController.java`, `authService.ts`, `ProfileScreen.tsx`, `UpdateQrModal.tsx`):**
+    - **Backend Open Banking:** Xây dựng `BankLookupService` và endpoint `POST /api/bank/lookup` kết nối cổng Napas247 / VietQR Open API, tự động tra cứu tên chủ tài khoản chính chủ theo mã BIN và Số tài khoản.
+    - **Tự động điền & xác thực (Frontend):** Khi người dùng chọn ngân hàng và nhập số tài khoản, hệ thống tự động debounce tra cứu sau 400ms, tự động điền Tên chủ tài khoản in hoa và hiển thị huy hiệu xanh `✓ Đã tự động khớp chủ tài khoản từ [Tên Ngân hàng]`.
+    - **Tài khoản thực tế của người dùng:** Cấu hình tài khoản MBBank `6617052004888` tự động khớp chính xác chủ tài khoản `DUONG DUC BAO` (Dương Đức Bảo).
+    - **Giao diện sạch sẽ, tinh gọn:** Đã loại bỏ hoàn toàn các khung thông báo màu vàng về API Key gây rối mắt, giữ cho form luôn sang trọng và trực quan.
+
+11. **Tối Ưu Giao Diện Hàng Phím Tắt Tiện Ích Cân Đối (Quick Actions Row) (`DashboardScreen.tsx`):**
+    - **Căn đều 4 nút trên 1 hàng ngang:** Sắp xếp lại 4 tiện ích chính (**🪙 Ngân sách**, **👥 Nhóm**, **🌱 Tiết kiệm**, **🕒 Lịch sử**) trên cùng 1 hàng ngang cân xứng (`flex: 1` mỗi cột, khoảng cách `gap: 8px`).
+    - **Thiết kế thẻ bo tròn cao cấp:** Mỗi nút là một thẻ màu trắng bo góc 20px với viền xám `#E2E8F0` sắc nét, đổ bóng êm ái, vòng tròn icon mang sắc màu pastel chuyên biệt (Vàng cát `#FEF3C7`, Xanh trời `#E0F2FE`, Xanh ngọc `#DCFCE7`, Tím nhạt `#EDE9FE`), loại bỏ hoàn toàn tình trạng nút bị rớt dòng đơn độc và khoảng trống lệch layout.
+
+12. **Tinh Gọn Thẻ VietQR & Nút Tải Mã QR Duy Nhất (`VietQRCard.tsx`):**
+    - **Loại bỏ các nút thừa:** Gỡ bỏ khung hiển thị chuỗi mã Napas247 thô và các nút "Chép STK", "Chép nội dung" gây rối mắt.
+    - **Nút hành động chính:** Thay thế bằng 1 nút duy nhất **`[ 📥 Tải mã QR ]`** màu tím indigo nổi bật (`backgroundColor: colors.indigo600`, icon `Download`), cho phép lưu/chia sẻ mã QR trực tiếp và quét tức thì trên mọi ứng dụng ngân hàng.
+
+13. **Đóng Gói Toàn Bộ Hệ Thống (Fullstack Packaging & Production Bundling):**
+    - **Backend (Spring Boot JAR):** `.\mvnw.cmd clean package -DskipTests` $\rightarrow$ **BUILD SUCCESS**. Xuất bản file thực thi production `target/sharemoney-0.0.1-SNAPSHOT.jar` sẵn sàng deploy Docker/Cloud.
+    - **Frontend (React Native Hermes Bundle):** `npx expo export` $\rightarrow$ **Exported: dist** thành công 100% (3.087 modules, Hermes bytecode bundle Android/iOS 5.8MB, tài nguyên assets và cấu hình `eas.json` sẵn sàng đóng gói Standalone APK).
+    - **Kiểm Thử Toàn Diện:** `npx tsc --noEmit` đạt `0 errors` (100% type-safe), `.\mvnw.cmd test-compile` đạt `BUILD SUCCESS`.
+
+### Session [2026-08-19] - Hệ Thống Tự Động Bù Trừ Tái Cân Bằng Ngân Sách Khi Tiêu Lố (Bảo Vệ Khoản Cố Định/Bill) & Tự Động Hóa CI/CD, Build Standalone APK
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Hệ Thống Tự Động Bù Trừ & Tái Cân Bằng Ngân Sách V2 (`FinancialAdvisorService.java`, `FinancialAdvisorController.java`, `AdvisorScreen.tsx`):**
+   - **Vấn đề & Nhu cầu:** Người dùng cần cơ chế xử lý khi trong tháng có những khoản bị tiêu lố (cả cố định lẫn linh hoạt), hệ thống phải tự động điều tiết giảm các khoản ngân sách linh hoạt khác chưa chi hết để bù vào mà tuyệt đối không được cắt giảm các khoản cố định/hóa đơn bắt buộc.
+   - **Thuật toán Backend V2 (`FinancialAdvisorService.java`):**
+     - Quét toàn bộ ngân sách tháng chỉ định (`targetYear`, `targetMonth`), xác định danh mục vượt hạn mức ($\text{Thực chi} > \text{Hạn mức}$) và tính $\text{Tổng tiền tiêu lố} = \sum (\text{Thực chi} - \text{Hạn mức})$.
+     - Hàm nhận diện chi phí cố định `isFixedBudget`: kiểm tra `isMandatory`, `type = MANDATORY` và các từ khóa cố định (*Tiền nhà, Tiền điện, Nước, Internet, Phí liên lạc, Trả góp, Lãi vay, Bảo hiểm, Học phí...*).
+     - **Bảo vệ chi phí cố định:** Nếu khoản cố định bị vượt, hệ thống ghi nhận là thâm hụt cần bù, nhưng **bảo vệ 100% không bao giờ đề xuất giảm hạn mức của chính nó**.
+     - **Quy tắc Bù trừ Linh hoạt ($\text{availableRemaining} > \text{cutAmount}$):**
+       - Chỉ xét các danh mục linh hoạt có phần ngân sách còn dư lớn hơn mức bù trừ.
+       - Tự động giữ lại vùng đệm an toàn ($\text{buffer} \ge 20.000đ$), bảo đảm sau khi cắt giảm thì hạn mức mới luôn lớn hơn thực chi ($\text{Hạn mức mới} > \text{Thực chi}$), không bao giờ triệt tiêu danh mục về 0đ.
+       - Toàn bộ mức cắt giảm được làm tròn chẵn đẹp theo **bội số 10.000đ** (loại bỏ hoàn toàn số lẻ).
+     - **Phân bổ cắt giảm phân tầng co giãn (Tiered Elasticity Cut):**
+       - *Tier 1 (Hưởng thụ / Tùy biến cao - Luxury):* Mua sắm, Du lịch, Giải trí, Quần áo, Làm đẹp, Giao lưu... $\rightarrow$ **Ưu tiên cắt giảm trước**.
+       - *Tier 2 (Sinh hoạt / Linh hoạt cơ bản - Basic):* Ăn uống ngoài, Cafe, Đi lại, Xăng xe... $\rightarrow$ **Chỉ cắt giảm khi Tier 1 đã cạn kiệt**.
+     - **Hỗ trợ Interactive Override:** API `POST /api/advisor/rebalance/apply` nhận `RebalanceApplyRequest` cho phép tùy biến áp dụng từng khoản hoặc chạy toàn bộ.
+   - **Giao diện Tab Tư Vấn (`AdvisorScreen.tsx`):**
+     - Bổ sung Tab thứ 4: **`⚖️ Tái cân bằng`** có badge số lượng khoản tiêu lố.
+     - Gắn Badge phân tầng trực quan: `✨ Hưởng thụ` (Tier 1 Luxury tím) và `🛒 Sinh hoạt` (Tier 2 Basic xanh lục).
+     - Tách banner mức cắt giảm độc lập `[🔻 MỨC ĐỀ XUẤT CẮT GIẢM: -XX.000đ]` chống đè chữ / che khuất nút.
+     - Bổ sung nút **`⚡ Áp Dụng Ngân Sách Này`** ngay trên từng thẻ danh mục riêng lẻ, song song cùng nút **`🔄 Áp Dụng Tất Cả`** ở dưới đáy màn hình.
+   - **Kiểm thử:** Test suite `FinancialAdvisorServiceTest.java` (4/4 passed 100% bao gồm cả test case Tiered priority, buffer safety và Custom Override), TypeScript `npx tsc --noEmit` đạt 0 lỗi.
+
+2. **Cấu Hình Triển Khai Cloud Render & GitHub Actions CI/CD (`Dockerfile`, `.github/workflows/ci-cd.yml`, `DEPLOYMENT.md`, `CICD_GUIDE.md`):**
+   - Hỗ trợ biến môi trường cổng `$PORT` cho Spring Boot trên Render.
+   - Tối ưu JVM container flags (`-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xss512k`) ngăn ngừa lỗi OOM Exit Code 137 trên gói Free Tier 512MB RAM.
+   - Tạo pipeline GitHub Actions 3 giai đoạn tự động: Backend CI (JDK 17 + Maven Test), Frontend CI (Node 20 + Typecheck), Docker Build & Render Deploy Hook.
+
+3. **Cấu Hình Đóng Gói Mobile Standalone APK (`FrontendReact/eas.json`, `api.ts`):**
+   - Thiết lập `eas.json` với profile `preview` (`buildType: apk`) kết nối IP Wi-Fi backend.
+   - Cập nhật `getBaseUrl()` trong `api.ts` tự động ưu tiên `process.env.EXPO_PUBLIC_API_URL`.
 
 ### Session [2026-08-18] (Phần 2) - Khắc Phục Luồng Soạn Câu Nhắc Nợ AI (Gemini Fallback Engine) & Xử Lý Lỗi 403 Token Expiration
 

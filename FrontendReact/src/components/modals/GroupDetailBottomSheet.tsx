@@ -697,8 +697,8 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
             ? {
                 amount: qrSettleDebt.amount,
                 toName: qrSettleDebt.toName || qrSettleDebt.to?.name || "Người nhận",
-                toBankBin: qrSettleDebt.toBankBin || qrSettleDebt.to?.bankBin || "970422",
-                toAccountNo: qrSettleDebt.toAccountNo || qrSettleDebt.to?.bankAccountNo || "10908888999",
+                toBankBin: qrSettleDebt.toBankBin || qrSettleDebt.to?.bankBin || "",
+                toAccountNo: qrSettleDebt.toAccountNo || qrSettleDebt.to?.bankAccountNo || "",
                 toUserId: qrSettleDebt.toUserId || qrSettleDebt.to?.id,
                 groupName: qrSettleDebt.groupName || group?.name,
                 groupId: qrSettleDebt.groupId || groupId,

@@ -205,38 +205,72 @@ export const SavingsScreen: React.FC = () => {
           />
         }
       >
-        {/* Safety Reserve Floor Banner */}
-        <Card style={[styles.reserveCard, isSafetyFloorReached ? styles.warningCard : styles.safeCard]}>
-          <View style={styles.reserveHeader}>
-            <Text style={styles.reserveTitle}>
-              {isSafetyFloorReached ? "⚠️ CẢNH BÁO ĐIỂM DỪNG AN TOÀN" : "🛡️ ĐIỂM DỪNG AN TOÀN (SAFETY RESERVE)"}
-            </Text>
-          </View>
-          <Text style={styles.reserveDescription}>
-            Số tiền tối thiểu cần giữ lại để đáp ứng 100% ngân sách sinh hoạt & các khoản nợ ròng tháng này.
-          </Text>
-
-          <View style={styles.reserveDetailsGrid}>
-            <View style={styles.reserveCol}>
-              <Text style={styles.reserveLabel}>Yêu cầu dự trữ:</Text>
-              <Text style={[styles.reserveVal, { color: colors.rose600 }]}>{formatVND(requiredReserve)}</Text>
+        {/* Safety Reserve Floor Banner / New User Onboarding */}
+        {totalWalletBalance <= 0 && goals.length === 0 ? (
+          <Card style={styles.onboardingCard}>
+            <View style={styles.onboardingHeader}>
+              <View style={styles.onboardingIconBox}>
+                <Text style={{ fontSize: 22 }}>🌱</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.onboardingTitle}>Bắt đầu tích lũy thông minh</Text>
+                <Text style={styles.onboardingSub}>Khởi tạo mục tiêu & quản lý quỹ tiết kiệm</Text>
+              </View>
             </View>
-            <View style={styles.reserveCol}>
-              <Text style={styles.reserveLabel}>Dư an toàn có thể gửi:</Text>
-              <Text style={[styles.reserveVal, { color: isSafetyFloorReached ? colors.rose600 : colors.emerald600 }]}>
-                {formatVND(safeToSpend)}
+            <Text style={styles.onboardingDesc}>
+              Tạo mục tiêu tiết kiệm đầu tiên và nạp tiền vào ví để kích hoạt thuật toán Điểm Dừng An Toàn & Tự động phân bổ dòng tiền.
+            </Text>
+            <Button
+              title="+ Tạo Mục Tiêu Đầu Tiên"
+              variant="primary"
+              onPress={() => setCreateVisible(true)}
+              style={{ marginTop: 8 }}
+            />
+          </Card>
+        ) : (
+          <Card style={[styles.reserveCard, (totalWalletBalance > 0 && safeToSpend <= 0) ? styles.warningCard : styles.safeCard]}>
+            <View style={styles.reserveHeader}>
+              <Text style={styles.reserveTitle}>
+                {totalWalletBalance > 0 && safeToSpend <= 0
+                  ? "⚠️ CẢNH BÁO ĐIỂM DỪNG AN TOÀN"
+                  : "🛡️ ĐIỂM DỪNG AN TOÀN (SAFETY RESERVE)"}
               </Text>
             </View>
-          </View>
+            <Text style={styles.reserveDescription}>
+              {totalWalletBalance <= 0
+                ? "Số dư ví hiện tại là 0 ₫. Vui lòng nạp tiền vào ví để kích hoạt tính năng phân bổ tự động an toàn."
+                : "Số tiền tối thiểu cần giữ lại để đáp ứng 100% ngân sách sinh hoạt & các khoản nợ ròng tháng này."}
+            </Text>
 
-          <Button
-            title="⚡ Phân Bổ Tự Động An Toàn Ngay"
-            variant={isSafetyFloorReached ? "secondary" : "amber"}
-            onPress={handleAutoAllocate}
-            loading={isAllocating}
-            style={styles.autoBtn}
-          />
-        </Card>
+            <View style={styles.reserveDetailsGrid}>
+              <View style={styles.reserveCol}>
+                <Text style={styles.reserveLabel}>Yêu cầu dự trữ:</Text>
+                <Text style={[styles.reserveVal, { color: colors.rose600 }]}>{formatVND(requiredReserve)}</Text>
+              </View>
+              <View style={styles.reserveCol}>
+                <Text style={styles.reserveLabel}>Dư an toàn có thể gửi:</Text>
+                <Text style={[styles.reserveVal, { color: (totalWalletBalance > 0 && safeToSpend <= 0) ? colors.rose600 : colors.emerald600 }]}>
+                  {formatVND(safeToSpend)}
+                </Text>
+              </View>
+            </View>
+
+            <Button
+              title={
+                totalWalletBalance <= 0
+                  ? "Chưa Có Số Dư Để Phân Bổ"
+                  : safeToSpend <= 0
+                  ? "⚠️ Số Dư Ví Không Đủ Để Trích Gửi"
+                  : "⚡ Phân Bổ Tự Động An Toàn Ngay"
+              }
+              variant={totalWalletBalance <= 0 || safeToSpend <= 0 ? "secondary" : "amber"}
+              onPress={handleAutoAllocate}
+              disabled={totalWalletBalance <= 0 || safeToSpend <= 0}
+              loading={isAllocating}
+              style={styles.autoBtn}
+            />
+          </Card>
+        )}
 
         {/* Goals List */}
         <Text style={styles.sectionTitle}>Mục tiêu tiết kiệm cá nhân</Text>
@@ -450,6 +484,43 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     marginBottom: 24,
+  },
+  onboardingCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 24,
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1.5,
+    borderColor: "#bbf7d0",
+  },
+  onboardingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  onboardingIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#dcfce7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  onboardingTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#166534",
+  },
+  onboardingSub: {
+    fontSize: 12,
+    color: "#15803d",
+    marginTop: 2,
+  },
+  onboardingDesc: {
+    fontSize: 13,
+    color: "#374151",
+    lineHeight: 19,
+    marginBottom: 14,
   },
   safeCard: {
     backgroundColor: colors.amber50,

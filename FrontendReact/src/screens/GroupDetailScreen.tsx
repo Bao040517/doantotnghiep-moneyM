@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { BottomSheet } from "../components/ui/BottomSheet";
@@ -67,6 +68,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   const [expenses, setExpenses] = useState<GroupExpense[]>([]);
   const [debts, setDebts] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [updatingPhoto, setUpdatingPhoto] = useState(false);
   const [activeTab, setActiveTab] = useState<"expenses" | "balances" | "history" | "members">("expenses");
   const [historyFilter, setHistoryFilter] = useState<"group" | "personal">("group");
 
@@ -86,6 +88,40 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
     setToastMsg(msg);
     setToastType(type);
     setToastVisible(true);
+  };
+
+  const handlePickGroupPhoto = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Quyền truy cập", "Vui lòng cấp quyền truy cập thư viện ảnh để đổi ảnh bìa nhóm.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.6,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        const photoUri = asset.base64
+          ? `data:image/jpeg;base64,${asset.base64}`
+          : asset.uri;
+
+        setUpdatingPhoto(true);
+        await groupService.updateGroupAvatar(groupId, photoUri);
+        showToast("Đã cập nhật ảnh đại diện nhóm! 🎉", "success");
+        fetchGroupDetails();
+      }
+    } catch (err: any) {
+      showToast("Không thể cập nhật ảnh nhóm", "error");
+    } finally {
+      setUpdatingPhoto(false);
+    }
   };
 
   // Add Expense form state
@@ -273,7 +309,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   const myDebts = debts?.transactions?.filter((t: any) => t.from?.id === user?.id) || [];
   const owedToMe = debts?.transactions?.filter((t: any) => t.to?.id === user?.id) || [];
 
-  if (loading) {
+  if (loading && !group) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.indigo600} />
@@ -313,14 +349,35 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
         {/* ─── HERO HEADER BANNER ─── */}
         <View style={styles.heroBanner}>
-          <Image source={{ uri: GROUP_IMAGES[0] }} style={styles.bannerImage} resizeMode="cover" />
+          <Image
+            source={{ uri: group.avatarUrl || GROUP_IMAGES[0] }}
+            style={styles.bannerImage}
+            resizeMode="cover"
+          />
+          <TouchableOpacity
+            style={styles.editGroupPhotoBtn}
+            onPress={handlePickGroupPhoto}
+            disabled={updatingPhoto}
+            activeOpacity={0.8}
+          >
+            {updatingPhoto ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Text style={styles.editGroupPhotoText}>📷 Đổi ảnh</Text>
+            )}
+          </TouchableOpacity>
+
           <View style={styles.bannerOverlay}>
             <Text style={styles.groupHeaderName}>{group.name}</Text>
             <Text style={styles.groupHeaderDesc}>{group.description || "Nhóm chia sẻ chi phí chung"}</Text>
             <View style={styles.memberAvatarsRow}>
               {group.members?.slice(0, 5).map((m, i) => (
                 <View key={m.id || i} style={styles.avatarBubble}>
-                  <Text style={styles.avatarLetter}>{(m.user?.name || "U").charAt(0)}</Text>
+                  {m.user?.avatarUrl ? (
+                    <Image source={{ uri: m.user.avatarUrl }} style={styles.avatarBubbleImg} />
+                  ) : (
+                    <Text style={styles.avatarLetter}>{(m.user?.name || "U").charAt(0)}</Text>
+                  )}
                 </View>
               ))}
               {(group.members?.length || 0) > 5 && (
@@ -688,8 +745,8 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
             ? {
                 amount: qrSettleDebt.amount,
                 toName: qrSettleDebt.toName || qrSettleDebt.to?.name || "Người nhận",
-                toBankBin: qrSettleDebt.toBankBin || qrSettleDebt.to?.bankBin || "970422",
-                toAccountNo: qrSettleDebt.toAccountNo || qrSettleDebt.to?.bankAccountNo || "10908888999",
+                toBankBin: qrSettleDebt.toBankBin || qrSettleDebt.to?.bankBin || "",
+                toAccountNo: qrSettleDebt.toAccountNo || qrSettleDebt.to?.bankAccountNo || "",
                 toUserId: qrSettleDebt.toUserId || qrSettleDebt.to?.id,
                 groupName: qrSettleDebt.groupName || group?.name,
                 groupId: qrSettleDebt.groupId || groupId,
@@ -1853,5 +1910,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.indigo600,
     marginTop: 1,
+  },
+  editGroupPhotoBtn: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    zIndex: 10,
+  },
+  editGroupPhotoText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  avatarBubbleImg: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 14,
   },
 });

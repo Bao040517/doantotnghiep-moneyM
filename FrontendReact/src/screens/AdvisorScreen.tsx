@@ -35,8 +35,12 @@ interface AdviceData {
     categoryIcon: string;
     suggestedAmount: number;
     currentBudget?: number | null;
+    lastMonthBudget?: number | null;
+    lastMonthSpent?: number | null;
     avgSpent3Months: number;
     reasoning: string;
+    budgetId?: string | null;
+    hasBudget?: boolean;
   }>;
   warnings?: Array<{
     categoryName: string;
@@ -46,6 +50,38 @@ interface AdviceData {
     currentMonthSpent: number;
     avg3MonthSpent: number;
   }>;
+  rebalancePlan?: {
+    hasOverspending: boolean;
+    totalOverspent: number;
+    totalCompensated: number;
+    remainingDeficit: number;
+    statusMessage: string;
+    overspentItems: Array<{
+      categoryId?: string;
+      categoryName: string;
+      categoryIcon: string;
+      limitAmount: number;
+      spentAmount: number;
+      overspentAmount: number;
+      overspentPercent: number;
+      isFixed?: boolean;
+      categoryType?: string;
+    }>;
+    compensationCuts: Array<{
+      categoryId?: string;
+      categoryName: string;
+      categoryIcon: string;
+      currentLimit: number;
+      currentSpent: number;
+      availableRemaining: number;
+      suggestedCutAmount: number;
+      newSuggestedLimit: number;
+      tier?: string;
+      tierLabel?: string;
+      reason: string;
+      isBalanced?: boolean;
+    }>;
+  };
 }
 
 export const AdvisorScreen: React.FC = () => {
@@ -65,15 +101,25 @@ export const AdvisorScreen: React.FC = () => {
       m = 12;
       y--;
     }
+    setAppliedCutIds({});
+    setAppliedCategoryMap({});
+    setIsAllRebalanced(false);
+    setRebalancePlanSnapshot(null);
     setSelectedMonth(m);
     setSelectedYear(y);
   };
 
   const [data, setData] = useState<AdviceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"habits" | "plan" | "alerts">("plan");
+  const [activeSection, setActiveSection] = useState<"plan" | "rebalance" | "habits" | "alerts">("plan");
   const [notifVisible, setNotifVisible] = useState(false);
   const [applyingCategory, setApplyingCategory] = useState<string | null>(null);
+  const [appliedCategoryMap, setAppliedCategoryMap] = useState<Record<string, boolean>>({});
+  const [rebalancing, setRebalancing] = useState(false);
+  const [applyingSingleCutId, setApplyingSingleCutId] = useState<string | null>(null);
+  const [appliedCutIds, setAppliedCutIds] = useState<Record<string, boolean>>({});
+  const [isAllRebalanced, setIsAllRebalanced] = useState(false);
+  const [rebalancePlanSnapshot, setRebalancePlanSnapshot] = useState<AdviceData["rebalancePlan"] | null>(null);
 
   // Toast state
   const [toastVisible, setToastVisible] = useState(false);
@@ -88,6 +134,38 @@ export const AdvisorScreen: React.FC = () => {
 
   const fmt = (n?: number) => new Intl.NumberFormat("vi-VN").format(Math.round(Number(n) || 0)) + "đ";
   const userName = user?.name ? user.name.split(" ").pop() : "Bạn";
+
+  const handleApplySingleCut = async (item: any) => {
+    if (!user?.id || applyingSingleCutId) return;
+    const catId = item.categoryId;
+    const cutKey = catId || item.categoryName;
+    setApplyingSingleCutId(cutKey);
+    try {
+      const res = await financialServices.applyBudgetRebalance(
+        selectedYear,
+        selectedMonth,
+        [{ categoryId: catId, cutAmount: item.suggestedCutAmount, newLimit: item.newSuggestedLimit }]
+      );
+      if (res.success) {
+        setAppliedCutIds((prev) => {
+          const next: Record<string, boolean> = { ...prev, [cutKey]: true };
+          const activeCuts = (rebalancePlanSnapshot || data?.rebalancePlan)?.compensationCuts || [];
+          if (activeCuts.length > 0 && activeCuts.every((c) => next[c.categoryId || c.categoryName])) {
+            setIsAllRebalanced(true);
+          }
+          return next;
+        });
+        showToast(`Đã điều chỉnh ngân sách ${item.categoryName} (${fmt(item.newSuggestedLimit)})! 🎉`, "success");
+        await fetchAdvisorData(true);
+      } else {
+        showToast(res.message || "Không thể áp dụng", "error");
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Lỗi khi áp dụng", "error");
+    } finally {
+      setApplyingSingleCutId(null);
+    }
+  };
 
   const getSmartInsight = (item: any) => {
     const suggested = Number(item.suggestedAmount || 0);
@@ -183,6 +261,9 @@ export const AdvisorScreen: React.FC = () => {
         params: { year: selectedYear, month: selectedMonth },
       });
       setData(res.data);
+      if (res.data?.rebalancePlan?.hasOverspending) {
+        setRebalancePlanSnapshot(res.data.rebalancePlan);
+      }
     } catch (err) {
       console.log("Error fetching advisor data:", err);
     } finally {
@@ -273,6 +354,32 @@ export const AdvisorScreen: React.FC = () => {
     }
   };
 
+  const handleApplyRebalance = async () => {
+    if (!user?.id || rebalancing) return;
+    setRebalancing(true);
+    try {
+      const res = await financialServices.applyBudgetRebalance(selectedYear, selectedMonth);
+      if (res.success) {
+        setIsAllRebalanced(true);
+        const activeCuts = (rebalancePlanSnapshot || data?.rebalancePlan)?.compensationCuts || [];
+        const newAppliedMap: Record<string, boolean> = {};
+        activeCuts.forEach((c) => {
+          newAppliedMap[c.categoryId || c.categoryName] = true;
+        });
+        setAppliedCutIds(newAppliedMap);
+
+        showToast(res.message || "Tái cân bằng ngân sách thành công! 🎉", "success");
+        await fetchAdvisorData(true);
+      } else {
+        showToast(res.message || "Không thể thực hiện tái cân bằng", "error");
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Lỗi khi áp dụng tái cân bằng", "error");
+    } finally {
+      setRebalancing(false);
+    }
+  };
+
   const habits = data?.habitAnalysis || {
     verdict: "Tài chính của bạn khá cân bằng. Tiết kiệm đang chiếm 20% tổng thu nhập.",
     needsPercent: 45,
@@ -287,24 +394,12 @@ export const AdvisorScreen: React.FC = () => {
     ],
   };
 
-  const plan = data?.budgetPlan || [
-    {
-      categoryName: "Ăn uống",
-      categoryIcon: "🍜",
-      suggestedAmount: 4000000,
-      avgSpent3Months: 4200000,
-      reasoning: "Dựa trên trung bình 3 tháng gần nhất, hãy duy trì mức 4.000.000đ.",
-    },
-    {
-      categoryName: "Di chuyển",
-      categoryIcon: "🚗",
-      suggestedAmount: 1500000,
-      avgSpent3Months: 1400000,
-      reasoning: "Khoản chi đi lại tăng nhẹ trong tháng vừa qua.",
-    },
-  ];
+  const plan = data?.budgetPlan || [];
 
   const warnings = data?.warnings || [];
+  const rebalancePlan = data?.rebalancePlan;
+  const activeRebalancePlan = rebalancePlanSnapshot || rebalancePlan;
+  const isRebalanceActive = !!activeRebalancePlan?.hasOverspending || isAllRebalanced;
 
   return (
     <View style={styles.container}>
@@ -329,8 +424,13 @@ export const AdvisorScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
-        {/* ─── SECTION PILLS ─── */}
-        <View style={styles.sectionRow}>
+        {/* ─── SECTION PILLS (HORIZONTAL SCROLL) ─── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.sectionScroll}
+          contentContainerStyle={styles.sectionRow}
+        >
           <TouchableOpacity
             onPress={() => setActiveSection("plan")}
             style={[styles.sectionPill, activeSection === "plan" && styles.sectionPillActive]}
@@ -341,8 +441,17 @@ export const AdvisorScreen: React.FC = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={() => setActiveSection("rebalance")}
+            style={[styles.sectionPill, activeSection === "rebalance" && styles.sectionPillActive]}
+          >
+            <Text style={[styles.sectionPillText, activeSection === "rebalance" && styles.sectionPillTextActive]}>
+              ⚖️ Tái cân bằng {isAllRebalanced ? "(✓)" : activeRebalancePlan?.hasOverspending ? `(${activeRebalancePlan.overspentItems?.length || 0})` : ""}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => setActiveSection("habits")}
-            style={[styles.sectionPill, activeTabStyle(activeSection === "habits")]}
+            style={[styles.sectionPill, activeSection === "habits" && styles.sectionPillActive]}
           >
             <Text style={[styles.sectionPillText, activeSection === "habits" && styles.sectionPillTextActive]}>
               📊 Thói quen
@@ -351,18 +460,347 @@ export const AdvisorScreen: React.FC = () => {
 
           <TouchableOpacity
             onPress={() => setActiveSection("alerts")}
-            style={[styles.sectionPill, activeTabStyle(activeSection === "alerts")]}
+            style={[styles.sectionPill, activeSection === "alerts" && styles.sectionPillActive]}
           >
             <Text style={[styles.sectionPillText, activeSection === "alerts" && styles.sectionPillTextActive]}>
               ⚠️ Cảnh báo ({warnings.length})
             </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
 
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color={colors.indigo600} />
             <Text style={styles.loadingText}>Đang phân tích thói quen tài chính...</Text>
+          </View>
+        ) : activeSection === "rebalance" ? (
+          <View style={styles.tabContent}>
+            {/* Month Selector Pill */}
+            <View style={styles.planMonthRow}>
+              <View style={styles.monthSelectorPill}>
+                <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthNavBtn}>
+                  <Text style={styles.monthNavText}>‹</Text>
+                </TouchableOpacity>
+                <Text style={styles.monthText}>
+                  Tái cân bằng Tháng {selectedMonth}/{selectedYear}
+                </Text>
+                <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthNavBtn}>
+                  <Text style={styles.monthNavText}>›</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {!isRebalanceActive ? (
+              <View style={styles.rebalanceSafeCard}>
+                <View style={styles.safeIconCircle}>
+                  <Text style={{ fontSize: 32 }}>🛡️</Text>
+                </View>
+                <Text style={styles.rebalanceSafeTitle}>Ngân Sách Đang Rất An Toàn!</Text>
+                <Text style={styles.rebalanceSafeSub}>
+                  Trong tháng {selectedMonth}/{selectedYear}, bạn chưa tiêu lố bất kỳ khoản ngân sách nào. Mọi khoản chi tiêu đều đang bám sát hạn mức kế hoạch.
+                </Text>
+              </View>
+            ) : (
+              <View>
+                {/* Hero Alert Card */}
+                {isAllRebalanced ? (
+                  <View style={[styles.rebalanceHeroCard, styles.heroCardBalanced]}>
+                    <View style={[styles.rebalanceHeroBadge, styles.heroBadgeBalanced]}>
+                      <Text style={styles.heroBadgeBalancedText}>🛡️ ĐÃ TÁI CÂN BẰNG THÀNH CÔNG</Text>
+                    </View>
+                    <Text style={[styles.rebalanceHeroTitle, styles.heroTitleBalanced]}>
+                      Ngân Sách Đã Được Cân Bằng Hoàn Toàn
+                    </Text>
+                    <Text style={styles.rebalanceHeroSub}>
+                      Đã tự động điều chỉnh các danh mục linh hoạt để bù đắp toàn bộ phần chi tiêu vượt hạn mức trong tháng {selectedMonth}/{selectedYear}.
+                    </Text>
+
+                    {/* 2 Stats Column */}
+                    <View style={[styles.rebalanceStatsRow, styles.statsRowBalanced]}>
+                      <View style={styles.rebalanceStatBox}>
+                        <Text style={styles.rebalanceStatLabel}>TỔNG ĐÃ BÙ ĐẮP</Text>
+                        <Text style={[styles.rebalanceStatValue, { color: colors.emerald600 }]}>
+                          +{fmt(activeRebalancePlan?.totalCompensated)}
+                        </Text>
+                      </View>
+                      <View style={[styles.rebalanceStatDivider, styles.dividerBalanced]} />
+                      <View style={styles.rebalanceStatBox}>
+                        <Text style={styles.rebalanceStatLabel}>TRẠNG THÁI</Text>
+                        <Text style={[styles.rebalanceStatValue, { color: colors.slate700 }]}>
+                          ✓ Đã cân bằng
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.rebalanceHeroCard}>
+                    <View style={styles.rebalanceHeroBadge}>
+                      <Text style={styles.rebalanceHeroBadgeText}>🚨 CẦN TÁI CÂN BẰNG NGÂN SÁCH</Text>
+                    </View>
+                    <Text style={styles.rebalanceHeroTitle}>
+                      Phát Hiện Tiêu Lố {fmt(activeRebalancePlan?.totalOverspent)}
+                    </Text>
+                    <Text style={styles.rebalanceHeroSub}>{activeRebalancePlan?.statusMessage}</Text>
+
+                    {/* 2 Stats Column */}
+                    <View style={styles.rebalanceStatsRow}>
+                      <View style={styles.rebalanceStatBox}>
+                        <Text style={styles.rebalanceStatLabel}>TỔNG TIÊU LỐ</Text>
+                        <Text style={[styles.rebalanceStatValue, { color: colors.rose600 }]}>
+                          +{fmt(activeRebalancePlan?.totalOverspent)}
+                        </Text>
+                      </View>
+                      <View style={styles.rebalanceStatDivider} />
+                      <View style={styles.rebalanceStatBox}>
+                        <Text style={styles.rebalanceStatLabel}>CÓ THỂ BÙ TRỪ</Text>
+                        <Text style={[styles.rebalanceStatValue, { color: colors.emerald600 }]}>
+                          -{fmt(activeRebalancePlan?.totalCompensated)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* 🔴 Section 1: Overspent Items */}
+                <View style={styles.rebalanceSectionHeaderRow}>
+                  <View style={[styles.sectionHeaderDot, isAllRebalanced ? styles.dotGray : styles.dotRose]} />
+                  <Text style={styles.rebalanceSectionHeader}>
+                    1. Các Khoản Đã Vượt Hạn Mức ({activeRebalancePlan?.overspentItems?.length || 0})
+                  </Text>
+                  {isAllRebalanced && (
+                    <View style={styles.sectionHeaderBadgeGray}>
+                      <Text style={styles.sectionHeaderBadgeGrayText}>✓ Đã bù đắp</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.rebalanceNoticeBox}>
+                  <Text style={styles.rebalanceNoticeText}>
+                    🛡️ Các khoản Cố định/Bill (Tiền nhà, Phí liên lạc...) sẽ được giữ nguyên và chỉ dùng ngân sách Linh hoạt còn dư để bù đắp.
+                  </Text>
+                </View>
+
+                {activeRebalancePlan?.overspentItems?.map((item, idx) => (
+                  <View key={idx} style={[styles.overspentItemCard, isAllRebalanced && styles.itemCardBalanced]}>
+                    <View style={styles.overspentHeaderRow}>
+                      <View style={[styles.planIconBox, isAllRebalanced && { backgroundColor: "#f1f5f9" }]}>
+                        <Text style={{ fontSize: 22 }}>
+                          {getCategoryIcon(item.categoryIcon, item.categoryName)}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Text style={[styles.overspentItemName, isAllRebalanced && styles.textMutedDark]}>
+                            {item.categoryName}
+                          </Text>
+                          {item.isFixed && (
+                            <View style={styles.fixedTypeBadge}>
+                              <Text style={styles.fixedTypeBadgeText}>Cố định</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={[styles.overspentItemSub, isAllRebalanced && styles.textMutedLight]}>
+                          Hạn mức: {fmt(item.limitAmount)} • Thực chi: {fmt(item.spentAmount)}
+                        </Text>
+                      </View>
+                      <View style={[styles.overspentBadge, isAllRebalanced && styles.badgeBalanced]}>
+                        <Text style={[styles.overspentBadgeText, isAllRebalanced && styles.badgeBalancedText]}>
+                          {isAllRebalanced ? "✓ Đã bù đắp" : `+${item.overspentPercent}%`}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={[styles.overspentAmountBox, isAllRebalanced && styles.amountBoxBalanced]}>
+                      <Text style={[styles.overspentAmountLabel, isAllRebalanced && styles.textMutedDark]}>
+                        {isAllRebalanced ? "Đã bù đắp đủ phần lố:" : "Vượt hạn mức:"}
+                      </Text>
+                      <Text style={[styles.overspentAmountValue, isAllRebalanced && { color: colors.emerald600 }]}>
+                        +{fmt(item.overspentAmount)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+
+                {/* 🟢 Section 2: Compensation Cuts */}
+                <View style={[styles.rebalanceSectionHeaderRow, { marginTop: 22 }]}>
+                  <View style={[styles.sectionHeaderDot, isAllRebalanced ? styles.dotGray : styles.dotEmerald]} />
+                  <Text style={styles.rebalanceSectionHeader}>
+                    2. Đề Xuất Cắt Giảm Bù Vào ({activeRebalancePlan?.compensationCuts?.length || 0})
+                  </Text>
+                  {isAllRebalanced && (
+                    <View style={styles.sectionHeaderBadgeGray}>
+                      <Text style={styles.sectionHeaderBadgeGrayText}>✓ Đã cân bằng</Text>
+                    </View>
+                  )}
+                </View>
+
+                {(!activeRebalancePlan?.compensationCuts || activeRebalancePlan.compensationCuts.length === 0) ? (
+                  <View style={styles.emptyCard}>
+                    <View style={styles.emptyIconCircle}>
+                      <Text style={{ fontSize: 24 }}>🍃</Text>
+                    </View>
+                    <Text style={styles.emptyTitle}>Không có danh mục linh hoạt nào</Text>
+                    <Text style={styles.emptySub}>
+                      Tất cả danh mục trong tháng này là chi phí cố định hoặc chưa được thiết lập ngân sách.
+                    </Text>
+                  </View>
+                ) : (
+                  activeRebalancePlan.compensationCuts.map((item, idx) => {
+                    const cutKey = item.categoryId || item.categoryName;
+                    const hasCutAmount = Number(item.suggestedCutAmount) > 0;
+                    const isCutApplied =
+                      isAllRebalanced ||
+                      !!appliedCutIds[cutKey] ||
+                      !!item.isBalanced ||
+                      !hasCutAmount ||
+                      Number(item.currentLimit) === Number(item.newSuggestedLimit);
+                    const isApplying = applyingSingleCutId === cutKey;
+
+                    return (
+                      <View key={idx} style={[styles.cutItemCard, isCutApplied && styles.cutItemCardBalanced]}>
+                        {/* Header: Icon + Name & Info + Tier Badge */}
+                        <View style={styles.cutHeaderRow}>
+                          <View
+                            style={[
+                              styles.planIconBox,
+                              isCutApplied ? { backgroundColor: "#f1f5f9" } : { backgroundColor: "#ecfdf5" },
+                            ]}
+                          >
+                            <Text style={{ fontSize: 22 }}>
+                              {getCategoryIcon(item.categoryIcon, item.categoryName)}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, marginLeft: 12 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                              <Text style={[styles.cutItemName, isCutApplied && styles.textMutedDark]} numberOfLines={1}>
+                                {item.categoryName}
+                              </Text>
+                              {isCutApplied ? (
+                                <View style={styles.balancedTag}>
+                                  <Text style={styles.balancedTagText}>✓ Đã cân bằng</Text>
+                                </View>
+                              ) : item.tier === "TIER_1_LUXURY" ? (
+                                <View style={styles.tier1Badge}>
+                                  <Text style={styles.tier1BadgeText}>✨ Hưởng thụ</Text>
+                                </View>
+                              ) : item.tier === "TIER_2_BASIC" ? (
+                                <View style={styles.tier2Badge}>
+                                  <Text style={styles.tier2BadgeText}>🛒 Sinh hoạt</Text>
+                                </View>
+                              ) : null}
+                            </View>
+                            <Text style={[styles.cutItemSub, isCutApplied && styles.textMutedLight]}>
+                              Đã chi {fmt(item.currentSpent)} • Hạn mức {fmt(item.currentLimit)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Mức cắt giảm highlight banner */}
+                        <View style={[styles.cutHighlightBanner, isCutApplied && styles.cutHighlightBannerBalanced]}>
+                          <Text style={[styles.cutHighlightLabel, isCutApplied && styles.cutHighlightLabelBalanced]}>
+                            {hasCutAmount
+                              ? isCutApplied
+                                ? "MỨC ĐÃ ĐIỀU CHỈNH CẮT GIẢM"
+                                : "MỨC ĐỀ XUẤT CẮT GIẢM"
+                              : "TRẠNG THÁI NGÂN SÁCH"}
+                          </Text>
+                          <Text style={[styles.cutHighlightValue, isCutApplied && styles.cutHighlightValueBalanced]}>
+                            {hasCutAmount ? `-${fmt(item.suggestedCutAmount)}` : "✓ Đã Cân Bằng"}
+                          </Text>
+                        </View>
+
+                        {/* Limits Row */}
+                        <View style={[styles.cutLimitsRow, isCutApplied && styles.cutLimitsRowBalanced]}>
+                          <View style={styles.cutLimitCol}>
+                            <Text style={styles.cutLimitLabel}>
+                              {hasCutAmount ? "HẠN MỨC CŨ" : "HẠN MỨC HIỆN TẠI"}
+                            </Text>
+                            <Text style={[styles.cutLimitOld, !hasCutAmount && { textDecorationLine: "none", color: colors.slate700 }]}>
+                              {fmt(item.currentLimit)}
+                            </Text>
+                          </View>
+                          <Text style={[styles.cutArrowText, isCutApplied && styles.cutArrowTextBalanced]}>
+                            {hasCutAmount ? "➔" : "•"}
+                          </Text>
+                          <View style={styles.cutLimitCol}>
+                            <Text style={styles.cutLimitLabel}>
+                              {hasCutAmount
+                                ? `HẠN MỨC MỚI ${isCutApplied ? "(ĐÃ ÁP DỤNG)" : "ĐỀ XUẤT"}`
+                                : "THỰC CHI HIỆN TẠI"}
+                            </Text>
+                            <Text style={[styles.cutLimitNew, isCutApplied && styles.cutLimitNewBalanced]}>
+                              {fmt(hasCutAmount ? item.newSuggestedLimit : item.currentSpent)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Reason Box */}
+                        <View style={[styles.cutReasonBox, isCutApplied && styles.cutReasonBoxBalanced]}>
+                          <Text style={[styles.cutReasonText, isCutApplied && styles.cutReasonTextBalanced]}>
+                            💡 {item.reason}
+                          </Text>
+                        </View>
+
+                        {/* Individual Apply Action Button on each card */}
+                        <TouchableOpacity
+                          style={[
+                            styles.cutApplySingleBtn,
+                            isCutApplied && styles.cutApplySingleBtnDone,
+                            isApplying && styles.applyBudgetBtnDisabled,
+                          ]}
+                          onPress={() => handleApplySingleCut(item)}
+                          disabled={isApplying || isCutApplied}
+                          activeOpacity={0.85}
+                        >
+                          {isApplying ? (
+                            <ActivityIndicator size="small" color={colors.white} />
+                          ) : isCutApplied ? (
+                            <Text style={styles.cutApplySingleBtnTextDone}>✓ Đã cân bằng</Text>
+                          ) : (
+                            <Text style={styles.cutApplySingleBtnText}>Áp Dụng Ngân Sách Này</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })
+                )}
+
+                {/* Section 3: 1-Click Apply Action Button */}
+                {activeRebalancePlan?.compensationCuts && activeRebalancePlan.compensationCuts.length > 0 && (
+                  <View style={styles.rebalanceActionBox}>
+                    {activeRebalancePlan.compensationCuts.some(
+                      (c) =>
+                        !isAllRebalanced &&
+                        !appliedCutIds[c.categoryId || c.categoryName] &&
+                        !c.isBalanced &&
+                        Number(c.suggestedCutAmount) > 0
+                    ) ? (
+                      <TouchableOpacity
+                        style={[styles.rebalanceApplyBtn, rebalancing && styles.applyBudgetBtnDisabled]}
+                        onPress={handleApplyRebalance}
+                        disabled={rebalancing}
+                        activeOpacity={0.85}
+                      >
+                        {rebalancing ? (
+                          <ActivityIndicator size="small" color={colors.white} />
+                        ) : (
+                          <Text style={styles.rebalanceApplyBtnText}>Áp Dụng Tất Cả Ngay</Text>
+                        )}
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.rebalanceApplyBtnDone}>
+                        <Text style={styles.rebalanceApplyBtnTextDone}>
+                          ✓ Đã Cân Bằng Toàn Bộ Ngân Sách
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={styles.rebalanceHintText}>
+                      * Hệ thống tự động tối ưu hóa và cân bằng ngân sách để tổng chi tiêu không bị thâm hụt.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         ) : activeSection === "habits" ? (
           <View style={styles.tabContent}>
@@ -451,6 +889,30 @@ export const AdvisorScreen: React.FC = () => {
               </View>
             </View>
 
+            {/* 🚨 Overspending Highlight Banner if active */}
+            {rebalancePlan?.hasOverspending && (
+              <TouchableOpacity
+                style={styles.rebalanceBannerCard}
+                onPress={() => setActiveSection("rebalance")}
+                activeOpacity={0.9}
+              >
+                <View style={styles.rebalanceBannerLeft}>
+                  <Text style={{ fontSize: 24, marginRight: 10 }}>🚨</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rebalanceBannerTitle}>
+                      Phát hiện {rebalancePlan.overspentItems.length} khoản chi tiêu lố (+{fmt(rebalancePlan.totalOverspent)})
+                    </Text>
+                    <Text style={styles.rebalanceBannerSub}>
+                      Đã có phương án cắt giảm {rebalancePlan.compensationCuts.length} khoản linh hoạt để bù vào.
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.rebalanceBannerAction}>
+                  <Text style={styles.rebalanceBannerActionText}>Tái cân bằng ➔</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
             {plan.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Text style={{ fontSize: 36, marginBottom: 8 }}>📭</Text>
@@ -461,8 +923,11 @@ export const AdvisorScreen: React.FC = () => {
               </View>
             ) : (
               plan.map((item, idx) => {
-                const hasCurrentBudget = item.currentBudget !== null && item.currentBudget !== undefined;
-                const isMatch = hasCurrentBudget && item.currentBudget! === item.suggestedAmount;
+                const hasCurrentBudget =
+                  (item.currentBudget !== null && item.currentBudget !== undefined) ||
+                  !!item.hasBudget ||
+                  !!item.budgetId ||
+                  !!appliedCategoryMap[item.categoryName];
                 const isApplying = applyingCategory === item.categoryName;
                 const insight = getSmartInsight(item);
 
@@ -528,30 +993,26 @@ export const AdvisorScreen: React.FC = () => {
                       <Text style={styles.smartInsightDesc}>{insight.description}</Text>
                     </View>
 
-                    {/* Action Button: Thêm ngân sách / Áp dụng */}
+                    {/* Action Button: Thêm ngân sách / Đã có ngân sách */}
                     <View style={styles.planActionRow}>
                       <TouchableOpacity
                         style={[
                           styles.applyBudgetBtn,
-                          hasCurrentBudget && isMatch && styles.applyBudgetBtnDisabled,
+                          hasCurrentBudget && styles.applyBudgetBtnDisabled,
                         ]}
                         onPress={() => handleApplyBudget(item)}
-                        disabled={isApplying || (hasCurrentBudget && isMatch)}
+                        disabled={isApplying || hasCurrentBudget}
                         activeOpacity={0.85}
                       >
                         {isApplying ? (
                           <ActivityIndicator size="small" color={colors.white} />
-                        ) : hasCurrentBudget && isMatch ? (
-                          <Text style={[styles.applyBudgetBtnText, styles.applyBudgetBtnTextDisabled]}>
-                            ✓ Đã thiết lập chuẩn
-                          </Text>
                         ) : hasCurrentBudget ? (
-                          <Text style={styles.applyBudgetBtnText}>
-                            ✏️ Cập nhật hạn mức ({fmt(item.suggestedAmount)})
+                          <Text style={[styles.applyBudgetBtnText, styles.applyBudgetBtnTextDisabled]}>
+                            ✓ Đã có ngân sách
                           </Text>
                         ) : (
                           <Text style={styles.applyBudgetBtnText}>
-                            + Thêm ngân sách ({fmt(item.suggestedAmount)}) 🎯
+                            + Thêm ngân sách
                           </Text>
                         )}
                       </TouchableOpacity>
@@ -1110,18 +1571,636 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     alignItems: "center",
-    paddingVertical: 32,
-    backgroundColor: colors.white,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    backgroundColor: "#f8fafc",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    marginVertical: 4,
+  },
+  emptyIconCircle: {
+    width: 48,
+    height: 48,
     borderRadius: 24,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 15.5,
+    fontWeight: "800",
+    color: colors.slate800,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontSize: 12.5,
+    color: colors.slate500,
+    textAlign: "center",
+    lineHeight: 18,
+    fontWeight: "500",
+    paddingHorizontal: 12,
+  },
+  sectionScroll: {
+    marginBottom: 16,
+  },
+  // ─── REBALANCE STYLES ───
+  safeIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#ecfdf5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
+  },
+  rebalanceSafeCard: {
+    alignItems: "center",
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: "#a7f3d0",
+    shadowColor: "#059669",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  rebalanceSafeTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#065f46",
+    marginBottom: 6,
+  },
+  rebalanceSafeSub: {
+    fontSize: 13,
+    color: "#047857",
+    textAlign: "center",
+    lineHeight: 19,
+    fontWeight: "500",
+  },
+  rebalanceHeroCard: {
+    backgroundColor: "#fff1f2",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1.5,
+    borderColor: "#fecdd3",
+    marginBottom: 18,
+    shadowColor: colors.rose600,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  heroCardBalanced: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#cbd5e1",
+    shadowColor: "#64748b",
+    shadowOpacity: 0.05,
+  },
+  rebalanceHeroBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#ffe4e6",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fda4af",
+    marginBottom: 8,
+  },
+  heroBadgeBalanced: {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#cbd5e1",
+  },
+  rebalanceHeroBadgeText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: colors.rose700,
+    letterSpacing: 0.5,
+  },
+  heroBadgeBalancedText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#475569",
+    letterSpacing: 0.5,
+  },
+  rebalanceHeroTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.rose800,
+    marginBottom: 4,
+  },
+  heroTitleBalanced: {
+    color: colors.slate800,
+  },
+  rebalanceHeroSub: {
+    fontSize: 13,
+    color: colors.slate700,
+    lineHeight: 18,
+    marginBottom: 14,
+    fontWeight: "500",
+  },
+  rebalanceStatsRow: {
+    flexDirection: "row",
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#fee2e2",
+  },
+  statsRowBalanced: {
+    borderColor: "#e2e8f0",
+    backgroundColor: colors.white,
+  },
+  rebalanceStatBox: {
+    flex: 1,
+    alignItems: "center",
+  },
+  rebalanceStatLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.slate400,
+    marginBottom: 2,
+    letterSpacing: 0.3,
+  },
+  rebalanceStatValue: {
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  rebalanceStatDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "#fecdd3",
+  },
+  dividerBalanced: {
+    backgroundColor: "#e2e8f0",
+  },
+  rebalanceSectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  sectionHeaderDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dotRose: {
+    backgroundColor: colors.rose500,
+  },
+  dotEmerald: {
+    backgroundColor: colors.emerald500,
+  },
+  dotGray: {
+    backgroundColor: colors.slate400,
+  },
+  rebalanceSectionHeader: {
+    fontSize: 15.5,
+    fontWeight: "800",
+    color: colors.slate800,
+    letterSpacing: -0.2,
+  },
+  sectionHeaderBadgeGray: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  sectionHeaderBadgeGrayText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#64748b",
+  },
+  rebalanceNoticeBox: {
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  rebalanceNoticeText: {
+    fontSize: 12,
+    color: "#166534",
+    lineHeight: 17.5,
+    fontWeight: "600",
+  },
+  fixedTypeBadge: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+  fixedTypeBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#475569",
+  },
+  overspentItemCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: "#fecaca",
+    shadowColor: colors.rose500,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  itemCardBalanced: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    shadowOpacity: 0.02,
+    shadowColor: "#000",
+  },
+  overspentHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  overspentItemName: {
+    fontSize: 15.5,
     fontWeight: "800",
     color: colors.slate900,
   },
-  emptySub: {
+  overspentItemSub: {
     fontSize: 12,
+    color: colors.slate500,
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  overspentBadge: {
+    backgroundColor: "#fee2e2",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#fca5a5",
+  },
+  overspentBadgeText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: colors.rose700,
+  },
+  badgeBalanced: {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#cbd5e1",
+  },
+  badgeBalancedText: {
+    color: "#475569",
+    fontWeight: "800",
+  },
+  overspentAmountBox: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#fff1f2",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+  amountBoxBalanced: {
+    backgroundColor: "#f1f5f9",
+  },
+  overspentAmountLabel: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: colors.rose800,
+  },
+  overspentAmountValue: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.rose700,
+  },
+  cutItemCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 12,
+    borderWidth: 1.5,
+    borderColor: "#a7f3d0",
+    shadowColor: colors.emerald500,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cutItemCardBalanced: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    shadowOpacity: 0.02,
+    shadowColor: "#000",
+  },
+  cutHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  cutItemName: {
+    fontSize: 15.5,
+    fontWeight: "800",
+    color: colors.slate900,
+  },
+  tier1Badge: {
+    backgroundColor: "#faf5ff",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#d8b4fe",
+  },
+  tier1BadgeText: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: "#7e22ce",
+  },
+  tier2Badge: {
+    backgroundColor: "#f0fdf4",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#86efac",
+  },
+  tier2BadgeText: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: "#15803d",
+  },
+  balancedTag: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+  balancedTagText: {
+    fontSize: 10.5,
+    fontWeight: "800",
+    color: "#475569",
+  },
+  cutItemSub: {
+    fontSize: 12,
+    color: colors.slate500,
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  cutBadge: {
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#6ee7b7",
+  },
+  cutBadgeText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#047857",
+  },
+  cutHighlightBanner: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
+  },
+  cutHighlightBannerBalanced: {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#e2e8f0",
+  },
+  cutHighlightLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#047857",
+    letterSpacing: 0.4,
+  },
+  cutHighlightLabelBalanced: {
+    color: "#64748b",
+  },
+  cutHighlightValue: {
+    fontSize: 14.5,
+    fontWeight: "900",
+    color: "#059669",
+  },
+  cutHighlightValueBalanced: {
+    color: "#475569",
+  },
+  cutLimitsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginTop: 8,
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  cutLimitsRowBalanced: {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#e2e8f0",
+  },
+  cutLimitCol: {
+    flex: 1,
+  },
+  cutLimitLabel: {
+    fontSize: 9.5,
+    fontWeight: "800",
     color: colors.slate400,
-    marginTop: 4,
+    marginBottom: 2,
+    letterSpacing: 0.4,
+  },
+  cutLimitOld: {
+    fontSize: 13.5,
+    fontWeight: "700",
+    color: colors.slate400,
+    textDecorationLine: "line-through",
+  },
+  cutLimitNew: {
+    fontSize: 14.5,
+    fontWeight: "900",
+    color: "#065f46",
+  },
+  cutLimitNewBalanced: {
+    color: "#334155",
+  },
+  cutArrowText: {
+    fontSize: 16,
+    color: "#059669",
+    marginHorizontal: 8,
+    fontWeight: "900",
+  },
+  cutArrowTextBalanced: {
+    color: "#94a3b8",
+  },
+  cutReasonBox: {
+    backgroundColor: "#f0fdf4",
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  cutReasonBoxBalanced: {
+    backgroundColor: "#f1f5f9",
+  },
+  cutReasonText: {
+    fontSize: 12,
+    color: "#065f46",
+    fontWeight: "500",
+    lineHeight: 16.5,
+  },
+  cutReasonTextBalanced: {
+    color: "#64748b",
+  },
+  cutApplySingleBtn: {
+    backgroundColor: "#059669",
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    shadowColor: "#059669",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cutApplySingleBtnDone: {
+    backgroundColor: "#f1f5f9",
+    shadowOpacity: 0,
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+  cutApplySingleBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  cutApplySingleBtnTextDone: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#64748b",
+  },
+  rebalanceActionBox: {
+    marginTop: 14,
+    marginBottom: 24,
+  },
+  rebalanceApplyBtn: {
+    backgroundColor: "#059669",
+    borderRadius: 18,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#059669",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  rebalanceApplyBtnDone: {
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    shadowOpacity: 0,
+    elevation: 0,
+    borderRadius: 18,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rebalanceApplyBtnText: {
+    fontSize: 15.5,
+    fontWeight: "900",
+    color: colors.white,
+  },
+  rebalanceApplyBtnTextDone: {
+    fontSize: 14.5,
+    fontWeight: "800",
+    color: "#64748b",
+  },
+  rebalanceHintText: {
+    fontSize: 11.5,
+    color: colors.slate500,
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 16,
+    fontStyle: "italic",
+  },
+  rebalanceBannerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff1f2",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: "#fecdd3",
+    marginBottom: 14,
+    shadowColor: colors.rose500,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  rebalanceBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 8,
+  },
+  rebalanceBannerTitle: {
+    fontSize: 13.5,
+    fontWeight: "900",
+    color: colors.rose800,
+    marginBottom: 2,
+  },
+  rebalanceBannerSub: {
+    fontSize: 11.5,
+    color: colors.slate600,
+    lineHeight: 15,
+  },
+  rebalanceBannerAction: {
+    backgroundColor: colors.rose600,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  rebalanceBannerActionText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  textMutedDark: {
+    color: "#334155",
+  },
+  textMutedLight: {
+    color: "#64748b",
   },
 });

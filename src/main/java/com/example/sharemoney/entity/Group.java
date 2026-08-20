@@ -41,6 +41,9 @@ public class Group {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
+    private String avatarUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;

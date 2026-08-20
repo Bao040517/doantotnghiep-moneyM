@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { X } from "lucide-react-native";
 import { colors } from "../../constants/colors";
+import { useAppData } from "../../hooks/useAppData";
 
 interface TotalExpenseDetailBottomSheetProps {
   visible: boolean;
@@ -19,11 +20,14 @@ interface TotalExpenseDetailBottomSheetProps {
   totalExpense?: number;
 }
 
+const ESSENTIAL_NAMES = ["nhà", "điện", "nước", "đi lại", "xăng", "liên lạc", "y tế", "thuốc", "giáo dục", "học phí"];
+
 export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomSheetProps> = ({
   visible,
   onClose,
-  totalExpense = 100144000,
+  totalExpense = 0,
 }) => {
+  const { topExpenseCategories, budgets, debtSummary, totalSavings } = useAppData();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [selectedHistoryCategory, setSelectedHistoryCategory] = useState<{ name: string; amount: number; subNote: string } | null>(null);
 
@@ -46,37 +50,43 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
 
   const fmt = (n: number) => new Intl.NumberFormat("vi-VN").format(Math.round(n)) + "đ";
 
-  // 4 Groups breakdown matching the 50/30/20 & Groups specification
-  const essentialAmount = 55824000;
-  const flexibleAmount = 34520000;
-  const debtAmount = 4800000;
-  const savingsAmount = 5000000;
+  // Categorize actual data dynamically
+  const sourceCategories = (topExpenseCategories && topExpenseCategories.length > 0)
+    ? topExpenseCategories.map((c) => ({
+        name: `${c.categoryIcon || "📦"} ${c.categoryName}`,
+        rawName: (c.categoryName || "").toLowerCase(),
+        amount: c.totalAmount || 0,
+        subNote: "Phát sinh trong tháng",
+      }))
+    : (budgets && budgets.length > 0)
+    ? budgets.map((b) => ({
+        name: `${b.categoryIcon || "🎯"} ${b.categoryName || b.name || "Ngân sách"}`,
+        rawName: (b.categoryName || b.name || "").toLowerCase(),
+        amount: b.spentAmount || b.limitAmount || 0,
+        subNote: `Hạn ngạch ${fmt(b.limitAmount || 0)}`,
+      }))
+    : [];
+
+  const essentialItems = sourceCategories.filter((item) =>
+    ESSENTIAL_NAMES.some((kw) => item.rawName.includes(kw))
+  );
+  const flexibleItems = sourceCategories.filter((item) =>
+    !ESSENTIAL_NAMES.some((kw) => item.rawName.includes(kw))
+  );
+
+  const essentialAmount = essentialItems.reduce((s, i) => s + i.amount, 0);
+  const flexibleAmount = flexibleItems.reduce((s, i) => s + i.amount, 0);
+  const debtAmount = debtSummary?.totalOwing || 0;
+  const savingsAmount = totalSavings || 0;
   const grandTotal = totalExpense || (essentialAmount + flexibleAmount + debtAmount + savingsAmount);
 
-  const essentialItems = [
-    { name: "🏠 Tiền nhà", amount: 18000000, subNote: "Hạn ngạch 18.000.000đ" },
-    { name: "💡 Tiền điện", amount: 4440000, subNote: "Cố định định kỳ" },
-    { name: "🚆 Đi lại", amount: 3500000, subNote: "Định mức tháng" },
-    { name: "📱 Phí liên lạc", amount: 2524000, subNote: "Gói cước & Internet" },
-    { name: "💊 Y tế", amount: 1500000, subNote: "Dự phòng thuốc men" },
-    { name: "📚 Giáo dục", amount: 25860000, subNote: "Học phí định kỳ" },
-  ];
+  const debtItems = debtAmount > 0
+    ? [{ name: "💸 Nợ nhóm cần trả", amount: debtAmount, subNote: "Thanh toán nợ nhóm" }]
+    : [];
 
-  const flexibleItems = [
-    { name: "🍽️ Ăn uống", amount: 16500000, subNote: "Cơm trưa & ăn ngoài" },
-    { name: "🧴 Chi tiêu hàng ngày", amount: 10000000, subNote: "Sinh hoạt linh hoạt" },
-    { name: "👕 Quần áo", amount: 5000000, subNote: "Mua sắm trang phục" },
-    { name: "🥂 Phí giao lưu", amount: 2020000, subNote: "Cà phê & bạn bè" },
-    { name: "💄 Mỹ phẩm", amount: 1000000, subNote: "Chăm sóc cá nhân" },
-  ];
-
-  const debtItems = [
-    { name: "💸 Trả nợ nhóm", amount: 4800000, subNote: "Thanh toán nợ nhóm" },
-  ];
-
-  const savingsItems = [
-    { name: "🎯 Mục tiêu tiết kiệm", amount: 5000000, subNote: "Tích lũy định kỳ" },
-  ];
+  const savingsItems = savingsAmount > 0
+    ? [{ name: "🎯 Mục tiêu tích lũy", amount: savingsAmount, subNote: "Đang tích lũy" }]
+    : [];
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>

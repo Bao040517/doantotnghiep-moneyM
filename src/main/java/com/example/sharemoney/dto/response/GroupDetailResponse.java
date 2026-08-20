@@ -14,6 +14,7 @@ public class GroupDetailResponse {
     private UUID id;
     private String name;
     private String description;
+    private String avatarUrl;
     private UserSummaryResponse owner;
     private List<MemberResponse> members;
     private LocalDateTime createdAt;

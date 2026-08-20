@@ -20,5 +20,7 @@ public class CreateGroupRequest {
     @Size(max = 500, message = "Mô tả tối đa 500 ký tự.")
     private String description;
 
+    private String avatarUrl;
+
     private List<UUID> memberIds;
 }

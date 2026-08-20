@@ -10,12 +10,8 @@ import {
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import {
-  Copy,
-  Share2,
-  Check,
   Smartphone,
-  ShieldCheck,
-  Code2,
+  Download,
 } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { VIETQR_BANKS } from "../../constants/banks";
@@ -64,7 +60,9 @@ function crc16(data: string): string {
 // ─── Sinh chuỗi payload mã QR chuẩn EMVCo Napas247 / VietQR / VNPay ───
 function generateEMVCoPayload(bankBin: string, accountNo: string, amount: number, memo: string) {
   const safeBin = resolveBankBin(bankBin);
-  const safeAccount = accountNo.replace(/\D/g, "") || "10908888999";
+  const safeAccount = accountNo.replace(/\D/g, "");
+  if (!safeAccount) return "";
+
   const sub38_00 = "0010A000000727";
   const sub38_01_00 = "0006" + safeBin;
   const sub38_01_01 = `01${safeAccount.length < 10 ? "0" + safeAccount.length : safeAccount.length}${safeAccount}`;
@@ -103,8 +101,8 @@ function generateEMVCoPayload(bankBin: string, accountNo: string, amount: number
 
 export const VietQRCard: React.FC<VietQRCardProps> = ({
   bankBin = "970422",
-  accountNo = "10908888999",
-  accountName = "SHAREMONEY PAYMENT",
+  accountNo = "",
+  accountName = "NGUOI NHAN",
   amount = 0,
   description = "Thanh toan ShareMoney",
   showActions = true,
@@ -114,8 +112,8 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
 
   const realBin = resolveBankBin(bankBin);
   const bank = VIETQR_BANKS.find((b) => b.bin === realBin);
-  const bankName = bank ? bank.shortName : "MBBank";
-  const displayAccountNo = accountNo || "10908888999";
+  const bankName = bank ? bank.shortName : "Ngân hàng";
+  const displayAccountNo = accountNo || "";
   const displayAccountName = (accountName || "NGUOI NHAN").toUpperCase();
   const displayDescription = description || "Thanh toan ShareMoney";
   const displayAmount = amount || 0;
@@ -191,63 +189,16 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
         </View>
       </View>
 
-      {/* Hiển thị chuỗi mã code thanh toán */}
-      <TouchableOpacity
-        style={styles.codeSnippetBox}
-        onPress={() => handleCopy(qrPayload, "mã thanh toán")}
-        activeOpacity={0.7}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-          <Code2 size={13} color={colors.indigo600} />
-          <Text style={styles.codeSnippetLabel}>Chuỗi mã VietQR Napas247 (Chạm để sao chép):</Text>
-        </View>
-        <Text style={styles.codeSnippetText} numberOfLines={1}>
-          {qrPayload}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Hàng nút hành động nhanh */}
+      {/* Nút Tải mã QR duy nhất */}
       {showActions && (
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => handleCopy(displayAccountNo, "Số tài khoản")}
-            activeOpacity={0.7}
-          >
-            {copiedField === "Số tài khoản" ? (
-              <Check size={13} color="#10B981" />
-            ) : (
-              <Copy size={13} color={colors.indigo600} />
-            )}
-            <Text style={styles.actionBtnText}>
-              {copiedField === "Số tài khoản" ? "Đã chép STK" : "Chép STK"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={handleShareQr}
-            activeOpacity={0.7}
-          >
-            <Share2 size={13} color={colors.indigo600} />
-            <Text style={styles.actionBtnText}>Lưu/Chia sẻ</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => handleCopy(displayDescription, "Nội dung")}
-            activeOpacity={0.7}
-          >
-            {copiedField === "Nội dung" ? (
-              <Check size={13} color="#10B981" />
-            ) : (
-              <Copy size={13} color={colors.indigo600} />
-            )}
-            <Text style={styles.actionBtnText}>
-              {copiedField === "Nội dung" ? "Đã chép" : "Chép nội dung"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.downloadQrBtn}
+          onPress={handleShareQr}
+          activeOpacity={0.8}
+        >
+          <Download size={18} color={colors.white} />
+          <Text style={styles.downloadQrBtnText}>Tải mã QR</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -361,48 +312,25 @@ const styles = StyleSheet.create({
     color: colors.slate500,
     fontWeight: "700",
   },
-  codeSnippetBox: {
-    width: "100%",
-    backgroundColor: "#EEF2FF",
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginTop: 10,
-  },
-  codeSnippetLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.indigo600,
-  },
-  codeSnippetText: {
-    fontSize: 10.5,
-    color: colors.slate600,
-    fontFamily: "monospace",
-    marginTop: 2,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    gap: 8,
-    width: "100%",
-    marginTop: 10,
-  },
-  actionBtn: {
-    flex: 1,
+  downloadQrBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    paddingVertical: 9,
-    borderRadius: 12,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    gap: 8,
+    width: "100%",
+    backgroundColor: colors.indigo600,
+    paddingVertical: 14,
+    borderRadius: 16,
+    marginTop: 12,
+    shadowColor: colors.indigo600,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  actionBtnText: {
-    fontSize: 11.5,
+  downloadQrBtnText: {
+    fontSize: 15,
     fontWeight: "800",
-    color: colors.slate700,
+    color: colors.white,
   },
 });

@@ -49,17 +49,24 @@ export const Input: React.FC<InputProps> = ({
         style={[
           styles.inputWrapper,
           rest.multiline && styles.multilineWrapper,
+          rest.editable === false && styles.disabledWrapper,
           error ? styles.errorBorder : null,
         ]}
       >
         {icon && <View style={styles.iconWrapper}>{icon}</View>}
         <TextInput
           ref={inputRef}
-          style={[styles.input, rest.multiline && styles.multilineInput, style]}
+          style={[
+            styles.input,
+            rest.multiline && styles.multilineInput,
+            rest.editable === false && styles.disabledInput,
+            style,
+          ]}
           placeholderTextColor={colors.slate400}
           autoCorrect={autoCorrect}
           autoCapitalize={autoCapitalize}
-          defaultValue={value ?? defaultValue}
+          value={value}
+          defaultValue={defaultValue}
           onChangeText={handleChangeText}
           {...rest}
         />
@@ -90,6 +97,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     minHeight: 52,
   },
+  disabledWrapper: {
+    backgroundColor: "#F1F5F9",
+    borderColor: "#CBD5E1",
+  },
   multilineWrapper: {
     alignItems: "flex-start",
     paddingVertical: 12,
@@ -108,6 +119,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: colors.slate900,
+  },
+  disabledInput: {
+    color: "#334155",
+    fontWeight: "600",
   },
   errorText: {
     fontSize: 12,

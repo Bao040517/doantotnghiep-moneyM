@@ -35,8 +35,30 @@ export const authService = {
     return response.data;
   },
 
+  updateAvatar: async (avatarUrl: string): Promise<UserSummary> => {
+    const response = await api.put<UserSummary>("/users/me/avatar", { avatarUrl });
+    return response.data;
+  },
+
   updateVietQRLink: async (data: { bankQrUrl?: string; bankBin?: string; bankAccountNo?: string; bankAccountName?: string }): Promise<UserSummary> => {
     const response = await api.put<UserSummary>("/users/me/qr", data);
+    return response.data;
+  },
+
+  lookupBankAccount: async (bin: string, accountNumber: string): Promise<{
+    accountName?: string;
+    bin: string;
+    accountNumber: string;
+    verified: boolean;
+    message?: string;
+  }> => {
+    const response = await api.post<{
+      accountName?: string;
+      bin: string;
+      accountNumber: string;
+      verified: boolean;
+      message?: string;
+    }>("/bank/lookup", { bin, accountNumber });
     return response.data;
   },
 };

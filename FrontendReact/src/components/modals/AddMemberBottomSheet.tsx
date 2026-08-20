@@ -114,7 +114,7 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
     }
   };
 
-  const inviteUrl = `http://192.168.123.200:3000/groups/${groupId}`;
+  const inviteUrl = `https://sharemoney.app/groups/${groupId}`;
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(inviteUrl)}`;
 
   return (

@@ -157,6 +157,8 @@ public class FinancialAdvisorService {
                 .savingsSuggestion(
                         generateSavingsSuggestion(
                                 safeToSpend, categoryHistory, currentMonthSpending))
+                .rebalancePlan(
+                        generateRebalancePlan(currentBudgets))
                 .build();
     }
 
@@ -172,12 +174,15 @@ public class FinancialAdvisorService {
 
         List<BudgetSuggestion> suggestions = new ArrayList<>();
 
-        // Map budget hiện tại theo categoryName (an toàn null key/value)
+        // Map budget hiện tại theo categoryName (chữ thường) và categoryId
         Map<String, BudgetSummaryResponse> budgetMap = new HashMap<>();
         if (currentBudgets != null) {
             for (BudgetSummaryResponse b : currentBudgets) {
                 if (b != null && b.getCategoryName() != null) {
-                    budgetMap.putIfAbsent(b.getCategoryName(), b);
+                    budgetMap.putIfAbsent(b.getCategoryName().toLowerCase().trim(), b);
+                }
+                if (b != null && b.getCategoryId() != null) {
+                    budgetMap.putIfAbsent(b.getCategoryId().toString(), b);
                 }
             }
         }
@@ -187,7 +192,10 @@ public class FinancialAdvisorService {
         if (lastMonthBudgets != null) {
             for (BudgetSummaryResponse b : lastMonthBudgets) {
                 if (b != null && b.getCategoryName() != null) {
-                    lastBudgetMap.putIfAbsent(b.getCategoryName(), b);
+                    lastBudgetMap.putIfAbsent(b.getCategoryName().toLowerCase().trim(), b);
+                }
+                if (b != null && b.getCategoryId() != null) {
+                    lastBudgetMap.putIfAbsent(b.getCategoryId().toString(), b);
                 }
             }
         }
@@ -213,11 +221,11 @@ public class FinancialAdvisorService {
             // Skip nếu số tiền quá nhỏ (< 30.000đ)
             if (suggested.compareTo(BigDecimal.valueOf(30000)) < 0) continue;
 
-            BudgetSummaryResponse existingBudget = budgetMap.get(catName);
+            BudgetSummaryResponse existingBudget = budgetMap.get(catName.toLowerCase().trim());
             BigDecimal currentBudgetAmt =
                     existingBudget != null ? existingBudget.getLimitAmount() : null;
 
-            BudgetSummaryResponse lastBudget = lastBudgetMap.get(catName);
+            BudgetSummaryResponse lastBudget = lastBudgetMap.get(catName.toLowerCase().trim());
             BigDecimal lastMonthBudgetAmt = lastBudget != null ? lastBudget.getLimitAmount() : null;
             BigDecimal lastMonthSpentAmt = lastBudget != null ? lastBudget.getSpentAmount() : null;
 
@@ -239,6 +247,12 @@ public class FinancialAdvisorService {
                                 formatVND(currentBudgetAmt));
             }
 
+            String existingBudgetIdStr =
+                    existingBudget != null && existingBudget.getBudgetId() != null
+                            ? existingBudget.getBudgetId().toString()
+                            : null;
+            boolean hasBudgetBool = existingBudget != null;
+
             suggestions.add(
                     BudgetSuggestion.builder()
                             .categoryName(catName)
@@ -256,6 +270,8 @@ public class FinancialAdvisorService {
                             .lastMonthSpent(lastMonthSpentAmt)
                             .avgSpent3Months(cleanAvg)
                             .reasoning(reasoning)
+                            .budgetId(existingBudgetIdStr)
+                            .hasBudget(hasBudgetBool)
                             .build());
         }
 
@@ -593,8 +609,441 @@ public class FinancialAdvisorService {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // FEATURE 5: Dynamic Budget Rebalance & Overspending Compensation V2
+    // (Tái cân bằng phân tầng ưu tiên: Cắt giảm Hưởng thụ trước -> Sinh hoạt sau -> Vét sai số làm tròn)
+    // ═══════════════════════════════════════════════════════════════
+
+    public RebalancePlan generateRebalancePlan(List<BudgetSummaryResponse> currentBudgets) {
+        if (currentBudgets == null || currentBudgets.isEmpty()) {
+            return RebalancePlan.builder()
+                    .hasOverspending(false)
+                    .totalOverspent(BigDecimal.ZERO)
+                    .totalCompensated(BigDecimal.ZERO)
+                    .remainingDeficit(BigDecimal.ZERO)
+                    .statusMessage("Chưa có dữ liệu ngân sách trong tháng này để phân tích tái cân bằng.")
+                    .overspentItems(Collections.emptyList())
+                    .compensationCuts(Collections.emptyList())
+                    .build();
+        }
+
+        List<OverspentItem> overspentItems = new ArrayList<>();
+        List<BudgetSummaryResponse> tier1Luxury = new ArrayList<>();
+        List<BudgetSummaryResponse> tier2Basic = new ArrayList<>();
+        BigDecimal totalOverspent = BigDecimal.ZERO;
+        BigDecimal totalTier1Avail = BigDecimal.ZERO;
+        BigDecimal totalTier2Avail = BigDecimal.ZERO;
+
+        for (BudgetSummaryResponse b : currentBudgets) {
+            if (b == null || b.getLimitAmount() == null || b.getSpentAmount() == null) continue;
+
+            BigDecimal limit = b.getLimitAmount();
+            BigDecimal spent = b.getSpentAmount();
+            boolean isFixed = isFixedBudget(b);
+
+            if (spent.compareTo(limit) > 0) {
+                // Tiêu lố ngân sách (cả khoản Cố định lẫn Linh hoạt)
+                BigDecimal overspent = spent.subtract(limit);
+                totalOverspent = totalOverspent.add(overspent);
+                int overPct = limit.compareTo(BigDecimal.ZERO) > 0
+                        ? overspent.multiply(BigDecimal.valueOf(100)).divide(limit, 0, RoundingMode.HALF_UP).intValue()
+                        : 100;
+
+                overspentItems.add(OverspentItem.builder()
+                        .categoryId(b.getCategoryId() != null ? b.getCategoryId().toString() : null)
+                        .categoryName(b.getCategoryName() != null ? b.getCategoryName() : b.getName())
+                        .categoryIcon(b.getCategoryIcon())
+                        .limitAmount(limit)
+                        .spentAmount(spent)
+                        .overspentAmount(overspent)
+                        .overspentPercent(overPct)
+                        .isFixed(isFixed)
+                        .categoryType(isFixed ? "FIXED" : "FLEXIBLE")
+                        .build());
+            } else if (limit.compareTo(spent) > 0) {
+                // Chưa chi hết: TUYỆT ĐỐI CHỈ xem xét cắt giảm nếu là danh mục LINH HOẠT (không phải Cố định/Bill)
+                if (!isFixed) {
+                    BigDecimal remaining = limit.subtract(spent);
+                    // Chỉ cắt giảm nếu số tiền còn dư >= 10.000đ
+                    if (remaining.compareTo(BigDecimal.valueOf(10000)) >= 0) {
+                        if (isLuxuryCategory(b)) {
+                            tier1Luxury.add(b);
+                            totalTier1Avail = totalTier1Avail.add(remaining);
+                        } else {
+                            tier2Basic.add(b);
+                            totalTier2Avail = totalTier2Avail.add(remaining);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (overspentItems.isEmpty() || totalOverspent.compareTo(BigDecimal.ZERO) <= 0) {
+            return RebalancePlan.builder()
+                    .hasOverspending(false)
+                    .totalOverspent(BigDecimal.ZERO)
+                    .totalCompensated(BigDecimal.ZERO)
+                    .remainingDeficit(BigDecimal.ZERO)
+                    .statusMessage("🎉 Tuyệt vời! Tất cả các khoản chi tiêu tháng này đều đang trong tầm kiểm soát.")
+                    .overspentItems(Collections.emptyList())
+                    .compensationCuts(Collections.emptyList())
+                    .build();
+        }
+
+        // Sắp xếp các khoản tiêu lố theo số tiền lố giảm dần
+        overspentItems.sort((a, b) -> b.getOverspentAmount().compareTo(a.getOverspentAmount()));
+
+        List<CompensateCutItem> compensationCuts = new ArrayList<>();
+        BigDecimal remainingNeed = totalOverspent;
+
+        // ─── TẦNG 1: Cắt giảm từ nhóm Siêu linh hoạt / Hưởng thụ (Tier 1 Luxury) ───
+        // Quy tắc: Chỉ thay đổi với những khoản flexible có phần ngân sách còn dư lớn hơn phần bù trừ
+        // Đảm bảo sau khi cắt, ngân sách còn lại luôn > 0 (giữ lại tối thiểu 20.000đ vùng an toàn)
+        if (!tier1Luxury.isEmpty() && remainingNeed.compareTo(BigDecimal.ZERO) > 0) {
+            for (BudgetSummaryResponse b : tier1Luxury) {
+                if (remainingNeed.compareTo(BigDecimal.ZERO) <= 0) break;
+                BigDecimal remaining = b.getLimitAmount().subtract(b.getSpentAmount());
+                
+                // Chỉ cắt nếu ngân sách còn dư > 30.000đ
+                if (remaining.compareTo(BigDecimal.valueOf(30000)) <= 0) continue;
+
+                // Mức cắt tối đa không vượt quá (remaining - 20.000đ) để đảm bảo remaining > cutAmount
+                BigDecimal maxCutAllowed = remaining.subtract(BigDecimal.valueOf(20000));
+                maxCutAllowed = maxCutAllowed.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR)
+                        .multiply(BigDecimal.valueOf(10000));
+
+                if (maxCutAllowed.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+                BigDecimal cutAmount = remainingNeed.min(maxCutAllowed);
+                // Làm tròn xuống bội số 10.000đ
+                cutAmount = cutAmount.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR)
+                        .multiply(BigDecimal.valueOf(10000));
+
+                if (cutAmount.compareTo(BigDecimal.ZERO) > 0 && cutAmount.compareTo(remaining) < 0) {
+                    BigDecimal newLimit = b.getLimitAmount().subtract(cutAmount);
+                    remainingNeed = remainingNeed.subtract(cutAmount);
+
+                    String reason = String.format("Cắt giảm %s từ ngân sách hưởng thụ (còn dư %s > mức bù %s).",
+                            formatVND(cutAmount), formatVND(remaining), formatVND(cutAmount));
+
+                    compensationCuts.add(CompensateCutItem.builder()
+                            .categoryId(b.getCategoryId() != null ? b.getCategoryId().toString() : null)
+                            .categoryName(b.getCategoryName() != null ? b.getCategoryName() : b.getName())
+                            .categoryIcon(b.getCategoryIcon())
+                            .currentLimit(b.getLimitAmount())
+                            .currentSpent(b.getSpentAmount())
+                            .availableRemaining(remaining)
+                            .suggestedCutAmount(cutAmount)
+                            .newSuggestedLimit(newLimit)
+                            .tier("TIER_1_LUXURY")
+                            .tierLabel("Ưu tiên cắt giảm (Hưởng thụ)")
+                            .reason(reason)
+                            .build());
+                }
+            }
+        }
+
+        // ─── TẦNG 2: Cắt giảm từ nhóm Linh hoạt cơ bản / Sinh hoạt (Tier 2 Basic) ───
+        // (Chỉ kích hoạt nếu Tier 1 chưa đủ bù đắp và remainingNeed vẫn > 0)
+        // Quy tắc: Chỉ thay đổi với những khoản flexible có phần ngân sách còn dư lớn hơn phần bù trừ
+        if (!tier2Basic.isEmpty() && remainingNeed.compareTo(BigDecimal.ZERO) > 0) {
+            for (BudgetSummaryResponse b : tier2Basic) {
+                if (remainingNeed.compareTo(BigDecimal.ZERO) <= 0) break;
+                BigDecimal remaining = b.getLimitAmount().subtract(b.getSpentAmount());
+                
+                // Chỉ cắt nếu ngân sách còn dư > 30.000đ
+                if (remaining.compareTo(BigDecimal.valueOf(30000)) <= 0) continue;
+
+                // Mức cắt tối đa không vượt quá (remaining - 20.000đ) để đảm bảo remaining > cutAmount
+                BigDecimal maxCutAllowed = remaining.subtract(BigDecimal.valueOf(20000));
+                maxCutAllowed = maxCutAllowed.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR)
+                        .multiply(BigDecimal.valueOf(10000));
+
+                if (maxCutAllowed.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+                BigDecimal cutAmount = remainingNeed.min(maxCutAllowed);
+                // Làm tròn xuống bội số 10.000đ
+                cutAmount = cutAmount.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR)
+                        .multiply(BigDecimal.valueOf(10000));
+
+                if (cutAmount.compareTo(BigDecimal.ZERO) > 0 && cutAmount.compareTo(remaining) < 0) {
+                    BigDecimal newLimit = b.getLimitAmount().subtract(cutAmount);
+                    remainingNeed = remainingNeed.subtract(cutAmount);
+
+                    String reason = String.format("Cắt giảm bổ sung %s từ khoản sinh hoạt (còn dư %s > mức bù %s).",
+                            formatVND(cutAmount), formatVND(remaining), formatVND(cutAmount));
+
+                    compensationCuts.add(CompensateCutItem.builder()
+                            .categoryId(b.getCategoryId() != null ? b.getCategoryId().toString() : null)
+                            .categoryName(b.getCategoryName() != null ? b.getCategoryName() : b.getName())
+                            .categoryIcon(b.getCategoryIcon())
+                            .currentLimit(b.getLimitAmount())
+                            .currentSpent(b.getSpentAmount())
+                            .availableRemaining(remaining)
+                            .suggestedCutAmount(cutAmount)
+                            .newSuggestedLimit(newLimit)
+                            .tier("TIER_2_BASIC")
+                            .tierLabel("Cắt giảm bổ sung (Sinh hoạt)")
+                            .reason(reason)
+                            .build());
+                }
+            }
+        }
+
+        // Bổ sung tất cả các danh mục linh hoạt khác (chưa bị tiêu lố, đã chi hết hoặc không cần cắt thêm) vào danh sách với trạng thái ĐÃ CÂN BẰNG
+        Set<String> cutCategoryNames = new HashSet<>();
+        for (CompensateCutItem cut : compensationCuts) {
+            if (cut.getCategoryName() != null) {
+                cutCategoryNames.add(cut.getCategoryName().toLowerCase());
+            }
+        }
+
+        Set<String> overspentCategoryNames = new HashSet<>();
+        for (OverspentItem oi : overspentItems) {
+            if (oi.getCategoryName() != null) {
+                overspentCategoryNames.add(oi.getCategoryName().toLowerCase());
+            }
+        }
+
+        for (BudgetSummaryResponse b : currentBudgets) {
+            if (b == null || isFixedBudget(b)) continue;
+            String catName = b.getCategoryName() != null ? b.getCategoryName() : b.getName();
+            if (catName != null 
+                    && !cutCategoryNames.contains(catName.toLowerCase())
+                    && !overspentCategoryNames.contains(catName.toLowerCase())) {
+                BigDecimal limit = b.getLimitAmount() != null ? b.getLimitAmount() : BigDecimal.ZERO;
+                BigDecimal spent = b.getSpentAmount() != null ? b.getSpentAmount() : BigDecimal.ZERO;
+                BigDecimal remaining = limit.compareTo(spent) > 0 ? limit.subtract(spent) : BigDecimal.ZERO;
+                boolean isLuxury = isLuxuryCategory(b);
+
+                compensationCuts.add(CompensateCutItem.builder()
+                        .categoryId(b.getCategoryId() != null ? b.getCategoryId().toString() : null)
+                        .categoryName(catName)
+                        .categoryIcon(b.getCategoryIcon())
+                        .currentLimit(limit)
+                        .currentSpent(spent)
+                        .availableRemaining(remaining)
+                        .suggestedCutAmount(BigDecimal.ZERO)
+                        .newSuggestedLimit(limit)
+                        .tier(isLuxury ? "TIER_1_LUXURY" : "TIER_2_BASIC")
+                        .tierLabel(isLuxury ? "✨ Hưởng thụ (Đã cân bằng)" : "🛒 Sinh hoạt (Đã cân bằng)")
+                        .reason(remaining.compareTo(BigDecimal.ZERO) > 0
+                                ? String.format("Danh mục đang cân bằng an toàn (còn dư %s trong hạn mức %s).", formatVND(remaining), formatVND(limit))
+                                : String.format("Danh mục đã chi hết hạn mức %s và đang được giữ ổn định.", formatVND(limit)))
+                        .isBalanced(true)
+                        .build());
+            }
+        }
+
+        BigDecimal totalCompensated = compensationCuts.stream()
+                .filter(c -> c.getSuggestedCutAmount() != null)
+                .map(CompensateCutItem::getSuggestedCutAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal remainingDeficit = totalOverspent.subtract(totalCompensated);
+        if (remainingDeficit.compareTo(BigDecimal.ZERO) < 0) remainingDeficit = BigDecimal.ZERO;
+
+        long activeCutsCount = compensationCuts.stream()
+                .filter(c -> c.getSuggestedCutAmount() != null && c.getSuggestedCutAmount().compareTo(BigDecimal.ZERO) > 0)
+                .count();
+
+        String statusMessage;
+        if (remainingDeficit.compareTo(BigDecimal.ZERO) == 0) {
+            statusMessage = String.format("Bạn đã tiêu lố %s ở %d danh mục. Đã lập phương án ưu tiên cắt giảm %d danh mục linh hoạt để bù đắp 100%%!",
+                    formatVND(totalOverspent), overspentItems.size(), activeCutsCount);
+        } else if (totalCompensated.compareTo(BigDecimal.ZERO) > 0) {
+            statusMessage = String.format("Bạn đã tiêu lố %s. Đã ưu tiên bù đắp %s từ %d khoản linh hoạt. Phần thâm hụt còn lại %s sẽ được trích từ quỹ dự phòng.",
+                    formatVND(totalOverspent), formatVND(totalCompensated), activeCutsCount, formatVND(remainingDeficit));
+        } else {
+            statusMessage = String.format("Bạn đã tiêu lố %s. Tất cả %d danh mục linh hoạt khác đã ở trạng thái cân bằng hoặc không còn đủ số dư để cắt giảm.",
+                    formatVND(totalOverspent), compensationCuts.size());
+        }
+
+        return RebalancePlan.builder()
+                .hasOverspending(true)
+                .totalOverspent(totalOverspent)
+                .totalCompensated(totalCompensated)
+                .remainingDeficit(remainingDeficit)
+                .statusMessage(statusMessage)
+                .overspentItems(overspentItems)
+                .compensationCuts(compensationCuts)
+                .build();
+    }
+
+    /**
+     * Thực thi áp dụng kế hoạch Tái cân bằng ngân sách: Cập nhật hạn mức ngân sách mới vào Database.
+     * Hỗ trợ nhận danh sách tùy chỉnh (Override) từ Client hoặc chạy tự động.
+     */
+    @Transactional
+    public com.example.sharemoney.dto.response.RebalanceApplyResponse applyRebalance(
+            UUID userId, Integer year, Integer month, com.example.sharemoney.dto.request.RebalanceApplyRequest request) {
+        LocalDate today = LocalDate.now();
+        int targetYear = (year != null && year > 0) ? year : today.getYear();
+        int targetMonth = (month != null && month >= 1 && month <= 12) ? month : today.getMonthValue();
+
+        List<BudgetSummaryResponse> currentBudgets = budgetService.getBudgetSummary(userId, targetYear, targetMonth);
+        RebalancePlan plan = generateRebalancePlan(currentBudgets);
+
+        if (!plan.isHasOverspending()) {
+            return com.example.sharemoney.dto.response.RebalanceApplyResponse.builder()
+                    .success(false)
+                    .message("Không có khoản tiêu lố nào cần bù trừ trong tháng này.")
+                    .totalCompensated(BigDecimal.ZERO)
+                    .updatedCategoriesCount(0)
+                    .build();
+        }
+
+        int updatedCount = 0;
+        BigDecimal appliedTotal = BigDecimal.ZERO;
+
+        // Trường hợp 1: Có request tùy chỉnh (custom override) từ Client
+        if (request != null && request.getCuts() != null && !request.getCuts().isEmpty()) {
+            for (var customCut : request.getCuts()) {
+                if (customCut.getCategoryId() == null || (customCut.getNewLimit() == null && customCut.getCutAmount() == null)) continue;
+                try {
+                    UUID catId = UUID.fromString(customCut.getCategoryId());
+                    List<com.example.sharemoney.entity.Budget> budgets =
+                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(userId, catId, targetMonth, targetYear);
+                    if (budgets != null && !budgets.isEmpty()) {
+                        for (var b : budgets) {
+                            BigDecimal newLimit = customCut.getNewLimit();
+                            if (newLimit == null && customCut.getCutAmount() != null) {
+                                newLimit = b.getLimitAmount().subtract(customCut.getCutAmount());
+                            }
+                            if (newLimit != null && newLimit.compareTo(BigDecimal.ZERO) >= 0) {
+                                BigDecimal cutAmt = b.getLimitAmount().subtract(newLimit);
+                                if (cutAmt.compareTo(BigDecimal.ZERO) > 0) {
+                                    appliedTotal = appliedTotal.add(cutAmt);
+                                }
+                                b.setLimitAmount(newLimit);
+                                budgetRepository.save(b);
+                                updatedCount++;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to apply custom override for categoryId: {}", customCut.getCategoryId(), e);
+                }
+            }
+        } else {
+            // Trường hợp 2: Áp dụng toàn bộ theo kế hoạch tự động của AI
+            if (plan.getCompensationCuts().isEmpty()) {
+                return com.example.sharemoney.dto.response.RebalanceApplyResponse.builder()
+                        .success(false)
+                        .message("Không tìm thấy danh mục linh hoạt nào khả dụng để cắt giảm.")
+                        .totalCompensated(BigDecimal.ZERO)
+                        .updatedCategoriesCount(0)
+                        .build();
+            }
+
+            for (CompensateCutItem cut : plan.getCompensationCuts()) {
+                if (cut.getCategoryId() == null || cut.getNewSuggestedLimit() == null) continue;
+                if (cut.getSuggestedCutAmount() == null || cut.getSuggestedCutAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                try {
+                    UUID catId = UUID.fromString(cut.getCategoryId());
+                    List<com.example.sharemoney.entity.Budget> budgets =
+                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(userId, catId, targetMonth, targetYear);
+                    if (budgets != null && !budgets.isEmpty()) {
+                        for (var b : budgets) {
+                            b.setLimitAmount(cut.getNewSuggestedLimit());
+                            budgetRepository.save(b);
+                            updatedCount++;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to update budget for categoryId: {}", cut.getCategoryId(), e);
+                }
+            }
+            appliedTotal = plan.getTotalCompensated();
+        }
+
+        // Bù đắp số tiền đã cắt giảm sang các danh mục bị tiêu lố để đưa ngân sách về trạng thái cân bằng
+        if (appliedTotal.compareTo(BigDecimal.ZERO) > 0 && plan.getOverspentItems() != null) {
+            BigDecimal toCompensate = appliedTotal;
+            for (OverspentItem item : plan.getOverspentItems()) {
+                if (toCompensate.compareTo(BigDecimal.ZERO) <= 0) break;
+                if (item.getCategoryId() == null) continue;
+                try {
+                    UUID overCatId = UUID.fromString(item.getCategoryId());
+                    List<com.example.sharemoney.entity.Budget> overBudgets =
+                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(userId, overCatId, targetMonth, targetYear);
+                    if (overBudgets != null && !overBudgets.isEmpty()) {
+                        for (var ob : overBudgets) {
+                            BigDecimal overAmt = item.getOverspentAmount();
+                            if (overAmt != null && overAmt.compareTo(BigDecimal.ZERO) > 0) {
+                                BigDecimal addAmt = toCompensate.min(overAmt);
+                                ob.setLimitAmount(ob.getLimitAmount().add(addAmt));
+                                budgetRepository.save(ob);
+                                toCompensate = toCompensate.subtract(addAmt);
+                                if (toCompensate.compareTo(BigDecimal.ZERO) <= 0) break;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to increase overspent budget limit for categoryId: {}", item.getCategoryId(), e);
+                }
+            }
+        }
+
+        return com.example.sharemoney.dto.response.RebalanceApplyResponse.builder()
+                .success(true)
+                .message(String.format("Tái cân bằng thành công! Đã điều chỉnh hạn mức %d danh mục để bù đắp %,.0fđ tiêu lố.",
+                        updatedCount, appliedTotal.doubleValue()))
+                .totalCompensated(appliedTotal)
+                .updatedCategoriesCount(updatedCount)
+                .build();
+    }
+
+    /** Overload cho phương thức applyRebalance */
+    @Transactional
+    public com.example.sharemoney.dto.response.RebalanceApplyResponse applyRebalance(
+            UUID userId, Integer year, Integer month) {
+        return applyRebalance(userId, year, month, null);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // HELPER METHODS
     // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Nhận diện khoản chi Cố định / Hóa đơn / Bắt buộc (Fixed Costs / Bills).
+     * Tuyệt đối không cắt giảm hạn mức của các khoản này.
+     */
+    private boolean isFixedBudget(BudgetSummaryResponse b) {
+        if (b == null) return false;
+        if (b.isMandatory()) return true;
+        if ("MANDATORY".equalsIgnoreCase(b.getType())) return true;
+
+        String name = (b.getName() != null ? b.getName() : "") + " " + (b.getCategoryName() != null ? b.getCategoryName() : "");
+        String lower = name.toLowerCase();
+
+        List<String> fixedKeywords = Arrays.asList(
+            "điện", "tiền điện", "nước", "tiền nước", "nhà", "tiền nhà", "thuê nhà",
+            "mạng", "internet", "wifi", "rác", "tiền rác", "trả góp", "lãi vay", "vay",
+            "bảo hiểm", "học phí", "phí liên lạc", "viễn thông", "cố định", "định kỳ",
+            "bill", "hóa đơn", "phí quản lý", "phí giữ xe", "gửi xe", "chung cư"
+        );
+
+        return fixedKeywords.stream().anyMatch(lower::contains);
+    }
+
+    /**
+     * Nhận diện danh mục Siêu linh hoạt / Hưởng thụ (Tier 1 Luxury / High Elasticity).
+     * Sẽ được ưu tiên cắt giảm TỐI ĐA trước khi đụng đến các khoản sinh hoạt khác.
+     */
+    private boolean isLuxuryCategory(BudgetSummaryResponse b) {
+        if (b == null) return false;
+        String name = (b.getName() != null ? b.getName() : "") + " " + (b.getCategoryName() != null ? b.getCategoryName() : "");
+        String lower = name.toLowerCase();
+
+        List<String> luxuryKeywords = Arrays.asList(
+            "mua sắm", "shopping", "giải trí", "entertainment", "du lịch", "travel",
+            "làm đẹp", "mỹ phẩm", "beauty", "spa", "thời trang", "quần áo", "clothes",
+            "fashion", "giao lưu", "nhậu", "tiệc tùng", "bar", "pub", "game", "đồ chơi",
+            "sở thích", "hobbies", "trang sức", "quà tặng"
+        );
+
+        return luxuryKeywords.stream().anyMatch(lower::contains);
+    }
 
     /** Thu thập lịch sử chi tiêu theo danh mục, mỗi phần tử là tổng chi 1 tháng. */
     private Map<String, List<BigDecimal>> collectCategoryHistory(

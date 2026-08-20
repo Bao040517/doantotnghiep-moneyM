@@ -58,6 +58,14 @@ public class GroupController {
         return ResponseEntity.ok(groupService.getGroupDetail(groupId, userId));
     }
 
+    /** PUT /api/groups/{groupId}/avatar Cập nhật ảnh đại diện nhóm. */
+    @org.springframework.web.bind.annotation.PutMapping("/{groupId}/avatar")
+    public ResponseEntity<GroupDetailResponse> updateGroupAvatar(
+            @PathVariable UUID groupId,
+            @Valid @RequestBody com.example.sharemoney.dto.request.UpdateAvatarRequest req) {
+        return ResponseEntity.ok(groupService.updateGroupAvatar(groupId, req.getAvatarUrl()));
+    }
+
     /** POST /api/groups/{groupId}/members Thêm thành viên vào nhóm. */
     @PostMapping("/{groupId}/members")
     public ResponseEntity<Void> addMember(

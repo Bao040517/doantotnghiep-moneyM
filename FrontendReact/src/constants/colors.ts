@@ -24,6 +24,8 @@ export const colors = {
   rose500: "#F43F5E",
   rose600: "#E11D48",
   rose700: "#BE123C",
+  rose800: "#9F1239",
+  rose900: "#881337",
 
   // Amber (Safety Reserve & Warnings)
   amber50: "#FFFBEB",

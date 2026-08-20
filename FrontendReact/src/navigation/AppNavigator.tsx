@@ -44,13 +44,9 @@ export const AppNavigator: React.FC = () => {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
-          <Stack.Screen name="MainTabs">
-            {() => <BottomTabNavigator user={user} onLogout={logout} onRefreshUser={refreshProfile} />}
-          </Stack.Screen>
+          <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
         ) : (
-          <Stack.Screen name="Auth">
-            {() => <AuthScreen onLogin={login} onRegister={register} />}
-          </Stack.Screen>
+          <Stack.Screen name="Auth" component={AuthScreen} />
         )}
       </Stack.Navigator>
     </NavigationContainer>

@@ -11,6 +11,7 @@ import {
   TextInput,
   Modal,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { BottomSheet } from "../ui/BottomSheet";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
@@ -38,6 +39,7 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
 }) => {
   const [groupName, setGroupName] = useState("");
   const [groupDesc, setGroupDesc] = useState("");
+  const [groupAvatar, setGroupAvatar] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
   // Sub-tab selection state: "past" | "phone" | "qr"
@@ -58,6 +60,7 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
     if (visible) {
       setGroupName("");
       setGroupDesc("");
+      setGroupAvatar("");
       setSelectedMembers([]);
       setSearchPhone("");
       setSearchResult(null);
@@ -65,6 +68,34 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
       fetchPastMembers();
     }
   }, [visible]);
+
+  const handlePickGroupAvatarFromGallery = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Quyền truy cập", "Vui lòng cấp quyền truy cập thư viện ảnh để chọn ảnh nhóm.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.6,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        const avatarUri = asset.base64
+          ? `data:image/jpeg;base64,${asset.base64}`
+          : asset.uri;
+        setGroupAvatar(avatarUri);
+      }
+    } catch (err: any) {
+      Alert.alert("Lỗi", "Không thể chọn ảnh từ máy");
+    }
+  };
 
   const fetchPastMembers = async () => {
     setLoadingPast(true);
@@ -114,13 +145,15 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
     }
     setIsCreating(true);
     try {
-      // 1. Create Group
+      // 1. Create Group with avatarUrl
       const newGroup = await groupService.createGroup({
         name: cleanName,
         description: groupDesc.trim(),
+        avatarUrl: groupAvatar,
+        memberIds: selectedMembers.map((m) => m.id),
       });
 
-      // 2. Add selected members to the group
+      // 2. Add selected members to the group (fallback if not auto-added)
       if (newGroup && newGroup.id && selectedMembers.length > 0) {
         await Promise.all(
           selectedMembers.map((m) =>
@@ -151,6 +184,48 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
   return (
     <BottomSheet visible={visible} onClose={onClose} title="Tạo Nhóm Chi Tiêu Mới 👥">
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* ─── GROUP AVATAR PICKER ─── */}
+        <View style={styles.groupAvatarSection}>
+          {groupAvatar ? (
+            <View style={styles.groupAvatarPreviewRow}>
+              <Image source={{ uri: groupAvatar }} style={styles.groupAvatarBigPreview} resizeMode="cover" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.avatarSectionTitle}>Ảnh đại diện nhóm</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+                  <TouchableOpacity
+                    style={styles.galleryUploadBtn}
+                    onPress={handlePickGroupAvatarFromGallery}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.galleryUploadBtnText}>📸 Đổi ảnh</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.galleryUploadBtn, { backgroundColor: colors.rose50, borderColor: colors.rose200 }]}
+                    onPress={() => setGroupAvatar("")}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.galleryUploadBtnText, { color: colors.rose600 }]}>Xóa</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.emptyAvatarPickerBox}
+              onPress={handlePickGroupAvatarFromGallery}
+              activeOpacity={0.8}
+            >
+              <View style={styles.emptyAvatarIconCircle}>
+                <Text style={{ fontSize: 20 }}>📷</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.avatarSectionTitle}>Thêm ảnh đại diện nhóm (Tùy chọn)</Text>
+                <Text style={styles.avatarSectionSub}>Chọn ảnh bìa từ thư viện điện thoại của bạn</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Basic Info Inputs */}
         <Input
           label="Tên nhóm (*)"
@@ -771,5 +846,69 @@ const styles = StyleSheet.create({
   },
   flexBtn: {
     flex: 1,
+  },
+
+  /* Group Avatar Picker Styles */
+  groupAvatarSection: {
+    backgroundColor: colors.slate50,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 20,
+    padding: 12,
+    marginBottom: 12,
+  },
+  groupAvatarPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  groupAvatarBigPreview: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: colors.slate200,
+    borderWidth: 2,
+    borderColor: colors.indigo600,
+  },
+  avatarSectionTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.slate900,
+  },
+  avatarSectionSub: {
+    fontSize: 11,
+    color: colors.slate500,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  galleryUploadBtn: {
+    backgroundColor: colors.indigo50,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  galleryUploadBtnText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.indigo600,
+  },
+  emptyAvatarPickerBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 4,
+  },
+  emptyAvatarIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: colors.indigo50,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

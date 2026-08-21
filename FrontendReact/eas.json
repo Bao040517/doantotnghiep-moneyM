@@ -14,13 +14,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.1.218:8080/api"
+        "EXPO_PUBLIC_API_URL": "https://sharemoney-bao.duckdns.org/api"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.1.218:8080/api"
+        "EXPO_PUBLIC_API_URL": "https://sharemoney-bao.duckdns.org/api"
       }
     }
   },

@@ -703,20 +703,16 @@ public class FinancialAdvisorService {
                 if (remainingNeed.compareTo(BigDecimal.ZERO) <= 0) break;
                 BigDecimal remaining = b.getLimitAmount().subtract(b.getSpentAmount());
                 
-                // Chỉ cắt nếu ngân sách còn dư > 30.000đ
-                if (remaining.compareTo(BigDecimal.valueOf(30000)) <= 0) continue;
+                // Chỉ cắt nếu ngân sách còn dư > 20.000đ
+                if (remaining.compareTo(BigDecimal.valueOf(20000)) <= 0) continue;
 
-                // Mức cắt tối đa không vượt quá (remaining - 20.000đ) để đảm bảo remaining > cutAmount
+                // Mức cắt tối đa giữ lại tối thiểu 20.000đ vùng an toàn
                 BigDecimal maxCutAllowed = remaining.subtract(BigDecimal.valueOf(20000));
-                maxCutAllowed = maxCutAllowed.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR)
-                        .multiply(BigDecimal.valueOf(10000));
-
                 if (maxCutAllowed.compareTo(BigDecimal.ZERO) <= 0) continue;
 
                 BigDecimal cutAmount = remainingNeed.min(maxCutAllowed);
-                // Làm tròn xuống bội số 10.000đ
-                cutAmount = cutAmount.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR)
-                        .multiply(BigDecimal.valueOf(10000));
+                // Làm tròn về số nguyên đồng (không ép về 0 nếu < 10k)
+                cutAmount = cutAmount.setScale(0, RoundingMode.HALF_UP);
 
                 if (cutAmount.compareTo(BigDecimal.ZERO) > 0 && cutAmount.compareTo(remaining) < 0) {
                     BigDecimal newLimit = b.getLimitAmount().subtract(cutAmount);
@@ -750,20 +746,15 @@ public class FinancialAdvisorService {
                 if (remainingNeed.compareTo(BigDecimal.ZERO) <= 0) break;
                 BigDecimal remaining = b.getLimitAmount().subtract(b.getSpentAmount());
                 
-                // Chỉ cắt nếu ngân sách còn dư > 30.000đ
-                if (remaining.compareTo(BigDecimal.valueOf(30000)) <= 0) continue;
+                // Chỉ cắt nếu ngân sách còn dư > 20.000đ
+                if (remaining.compareTo(BigDecimal.valueOf(20000)) <= 0) continue;
 
-                // Mức cắt tối đa không vượt quá (remaining - 20.000đ) để đảm bảo remaining > cutAmount
+                // Mức cắt tối đa giữ lại tối thiểu 20.000đ vùng an toàn
                 BigDecimal maxCutAllowed = remaining.subtract(BigDecimal.valueOf(20000));
-                maxCutAllowed = maxCutAllowed.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR)
-                        .multiply(BigDecimal.valueOf(10000));
-
                 if (maxCutAllowed.compareTo(BigDecimal.ZERO) <= 0) continue;
 
                 BigDecimal cutAmount = remainingNeed.min(maxCutAllowed);
-                // Làm tròn xuống bội số 10.000đ
-                cutAmount = cutAmount.divide(BigDecimal.valueOf(10000), 0, RoundingMode.FLOOR)
-                        .multiply(BigDecimal.valueOf(10000));
+                cutAmount = cutAmount.setScale(0, RoundingMode.HALF_UP);
 
                 if (cutAmount.compareTo(BigDecimal.ZERO) > 0 && cutAmount.compareTo(remaining) < 0) {
                     BigDecimal newLimit = b.getLimitAmount().subtract(cutAmount);

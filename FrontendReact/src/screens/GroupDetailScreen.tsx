@@ -439,22 +439,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
 
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionHeaderTitle}>Danh sách hóa đơn</Text>
-              <View style={{ flexDirection: "row", gap: 6 }}>
-                <TouchableOpacity
-                  style={[styles.addBillBtn, { backgroundColor: colors.emerald50, borderWidth: 1, borderColor: "rgba(16, 185, 129, 0.3)" }]}
-                  onPress={async () => {
-                    try {
-                      await groupService.exportExpenses(groupId);
-                      showToast("Đã tải dữ liệu báo cáo CSV thành công! 📊", "success");
-                    } catch (e: any) {
-                      showToast("Lỗi khi xuất file báo cáo CSV", "error");
-                    }
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: "800", color: colors.emerald700 }}>Xuất CSV 📊</Text>
-                </TouchableOpacity>
-                <Button title="+ Thêm hóa đơn" variant="primary" onPress={() => setIsAddingExpense(true)} style={styles.addBillBtn} textStyle={{ fontSize: 12 }} />
-              </View>
+              <Button title="+ Thêm hóa đơn" variant="primary" onPress={() => setIsAddingExpense(true)} style={styles.addBillBtn} textStyle={{ fontSize: 12 }} />
             </View>
 
             {expenses.length === 0 ? (

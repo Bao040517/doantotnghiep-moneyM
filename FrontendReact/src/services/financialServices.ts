@@ -12,6 +12,7 @@ import {
   TransactionPayload,
   MonthlySummary,
   CategoryBreakdown,
+  CashflowSummaryResponse,
 } from "../types";
 
 export interface Category {
@@ -86,4 +87,6 @@ export const financialServices = {
       cuts ? { cuts } : undefined
     ).then((res) => res.data);
   },
+  getCashflowSummary: (year: number, month: number) =>
+    api.get<CashflowSummaryResponse>(`/transactions/summary/cashflow?year=${year}&month=${month}`).then((res) => res.data),
 };

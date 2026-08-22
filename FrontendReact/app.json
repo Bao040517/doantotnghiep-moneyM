@@ -12,7 +12,6 @@
     },
     "android": {
       "package": "com.sharemoney.app",
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -27,6 +26,11 @@
     "plugins": [
       "expo-web-browser",
       "expo-sharing"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6efe0222-cede-41c1-83f2-1bfd0bb56dd2"
+      }
+    }
   }
 }

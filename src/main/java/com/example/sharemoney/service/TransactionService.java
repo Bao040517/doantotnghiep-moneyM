@@ -2,6 +2,7 @@ package com.example.sharemoney.service;
 
 import com.example.sharemoney.dto.request.CreateTransactionRequest;
 import com.example.sharemoney.dto.request.UpdateTransactionRequest;
+import com.example.sharemoney.dto.response.CashflowSummaryResponse;
 import com.example.sharemoney.dto.response.CategoryBreakdownResponse;
 import com.example.sharemoney.dto.response.CategoryResponse;
 import com.example.sharemoney.dto.response.MonthlySummaryResponse;
@@ -23,6 +24,7 @@ import com.example.sharemoney.repository.TransactionRepository;
 import com.example.sharemoney.repository.WalletRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -569,6 +571,123 @@ public class TransactionService {
                 .months(months)
                 .currentMonth(current)
                 .comparison(comparison)
+                .build();
+    }
+
+    /**
+     * Báo cáo biến động dòng tiền thực tế theo Tuần (4 tuần trong tháng), 
+     * Tháng (12 tháng trong năm), và Năm (các năm gần nhất).
+     * Dữ liệu hoàn toàn thực tế 100% từ database, không sử dụng hệ số giả lập.
+     */
+    @Transactional(readOnly = true)
+    public CashflowSummaryResponse getCashflowSummary(UUID userId, int year, int month) {
+        // 1. Phân bổ thực tế 4 tuần của tháng được chọn
+        YearMonth selectedYM = YearMonth.of(year, month);
+        int daysInMonth = selectedYM.lengthOfMonth();
+        List<CashflowSummaryResponse.CashflowPoint> weeks = new ArrayList<>();
+
+        int[][] weekRanges = {
+            {1, 7},
+            {8, 14},
+            {15, 21},
+            {22, daysInMonth}
+        };
+
+        for (int i = 0; i < weekRanges.length; i++) {
+            int startDay = weekRanges[i][0];
+            int endDay = weekRanges[i][1];
+            LocalDateTime from = selectedYM.atDay(startDay).atStartOfDay();
+            LocalDateTime to = (endDay == daysInMonth)
+                    ? selectedYM.plusMonths(1).atDay(1).atStartOfDay()
+                    : selectedYM.atDay(endDay + 1).atStartOfDay();
+
+            BigDecimal income = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, from, to);
+            if (income == null) income = BigDecimal.ZERO;
+            BigDecimal debtRecovery = transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
+            if (debtRecovery == null) debtRecovery = BigDecimal.ZERO;
+            income = income.add(debtRecovery);
+
+            BigDecimal expense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, from, to);
+            if (expense == null) expense = BigDecimal.ZERO;
+            BigDecimal debtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, from, to);
+            if (debtPayment == null) debtPayment = BigDecimal.ZERO;
+            expense = expense.add(debtPayment);
+
+            BigDecimal net = income.subtract(expense);
+            weeks.add(CashflowSummaryResponse.CashflowPoint.builder()
+                    .period("Tuần " + (i + 1))
+                    .label("T" + (i + 1))
+                    .income(income)
+                    .expense(expense)
+                    .net(net)
+                    .build());
+        }
+
+        // 2. Phân bổ thực tế các tháng trong năm được chọn (chỉ hiển thị từ T1 đến tháng hiện tại nếu là năm nay, hoặc 12 tháng nếu là năm cũ)
+        int curYear = LocalDate.now().getYear();
+        int curMonth = LocalDate.now().getMonthValue();
+        int maxMonth = (year == curYear) ? curMonth : (year < curYear ? 12 : 0);
+
+        List<CashflowSummaryResponse.CashflowPoint> months = new ArrayList<>();
+        for (int m = 1; m <= maxMonth; m++) {
+            YearMonth ym = YearMonth.of(year, m);
+            LocalDateTime from = ym.atDay(1).atStartOfDay();
+            LocalDateTime to = ym.plusMonths(1).atDay(1).atStartOfDay();
+
+            BigDecimal income = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, from, to);
+            if (income == null) income = BigDecimal.ZERO;
+            BigDecimal debtRecovery = transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
+            if (debtRecovery == null) debtRecovery = BigDecimal.ZERO;
+            income = income.add(debtRecovery);
+
+            BigDecimal expense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, from, to);
+            if (expense == null) expense = BigDecimal.ZERO;
+            BigDecimal debtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, from, to);
+            if (debtPayment == null) debtPayment = BigDecimal.ZERO;
+            expense = expense.add(debtPayment);
+
+            BigDecimal net = income.subtract(expense);
+            months.add(CashflowSummaryResponse.CashflowPoint.builder()
+                    .period("T" + m)
+                    .label("T" + m)
+                    .income(income)
+                    .expense(expense)
+                    .net(net)
+                    .build());
+        }
+
+        // 3. Phân bổ thực tế các năm (3 năm gần nhất: year - 2, year - 1, year)
+        List<CashflowSummaryResponse.CashflowPoint> years = new ArrayList<>();
+        for (int y = year - 2; y <= year; y++) {
+            LocalDateTime from = LocalDate.of(y, 1, 1).atStartOfDay();
+            LocalDateTime to = LocalDate.of(y + 1, 1, 1).atStartOfDay();
+
+            BigDecimal income = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, from, to);
+            if (income == null) income = BigDecimal.ZERO;
+            BigDecimal debtRecovery = transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
+            if (debtRecovery == null) debtRecovery = BigDecimal.ZERO;
+            income = income.add(debtRecovery);
+
+            BigDecimal expense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, from, to);
+            if (expense == null) expense = BigDecimal.ZERO;
+            BigDecimal debtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, from, to);
+            if (debtPayment == null) debtPayment = BigDecimal.ZERO;
+            expense = expense.add(debtPayment);
+
+            BigDecimal net = income.subtract(expense);
+            years.add(CashflowSummaryResponse.CashflowPoint.builder()
+                    .period(String.valueOf(y))
+                    .label(String.valueOf(y))
+                    .income(income)
+                    .expense(expense)
+                    .net(net)
+                    .build());
+        }
+
+        return CashflowSummaryResponse.builder()
+                .weeks(weeks)
+                .months(months)
+                .years(years)
                 .build();
     }
 

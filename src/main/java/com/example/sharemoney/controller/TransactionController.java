@@ -2,6 +2,7 @@ package com.example.sharemoney.controller;
 
 import com.example.sharemoney.dto.request.CreateTransactionRequest;
 import com.example.sharemoney.dto.request.UpdateTransactionRequest;
+import com.example.sharemoney.dto.response.CashflowSummaryResponse;
 import com.example.sharemoney.dto.response.CategoryBreakdownResponse;
 import com.example.sharemoney.dto.response.MonthlySummaryResponse;
 import com.example.sharemoney.dto.response.TransactionResponse;
@@ -116,5 +117,16 @@ public class TransactionController {
         int y = year == 0 ? LocalDate.now().getYear() : year;
         int m = month == 0 ? LocalDate.now().getMonthValue() : month;
         return ResponseEntity.ok(transactionService.getIncomeCategoryBreakdown(userId, y, m));
+    }
+
+    /** GET /api/transactions/summary/cashflow?year=&month= - Báo cáo biến động dòng tiền thực tế (Tuần / Tháng / Năm) */
+    @GetMapping("/summary/cashflow")
+    public ResponseEntity<CashflowSummaryResponse> getCashflowSummary(
+            @RequestParam(defaultValue = "0") int year,
+            @RequestParam(defaultValue = "0") int month) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        int y = year == 0 ? LocalDate.now().getYear() : year;
+        int m = month == 0 ? LocalDate.now().getMonthValue() : month;
+        return ResponseEntity.ok(transactionService.getCashflowSummary(userId, y, m));
     }
 }

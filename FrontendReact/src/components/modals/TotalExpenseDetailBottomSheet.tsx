@@ -13,6 +13,7 @@ import {
 import { X } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { useAppData } from "../../hooks/useAppData";
+import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface TotalExpenseDetailBottomSheetProps {
   visible: boolean;
@@ -20,7 +21,7 @@ interface TotalExpenseDetailBottomSheetProps {
   totalExpense?: number;
 }
 
-const ESSENTIAL_NAMES = ["nhà", "điện", "nước", "đi lại", "xăng", "liên lạc", "y tế", "thuốc", "giáo dục", "học phí"];
+const ESSENTIAL_NAMES = ["nhà", "điện", "nước", "đi lại", "xăng", "liên lạc", "y tế", "thuốc", "giáo dục", "học phí", "ăn uống"];
 
 export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomSheetProps> = ({
   visible,
@@ -29,7 +30,7 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
 }) => {
   const { topExpenseCategories, budgets, debtSummary, totalSavings } = useAppData();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [selectedHistoryCategory, setSelectedHistoryCategory] = useState<{ name: string; amount: number; subNote: string } | null>(null);
+  const [selectedHistoryCategory, setSelectedHistoryCategory] = useState<{ name: string; iconName?: string; amount: number; subNote: string } | null>(null);
 
   const toggleSection = (section: string) => {
     try {
@@ -53,14 +54,16 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
   // Categorize actual data dynamically
   const sourceCategories = (topExpenseCategories && topExpenseCategories.length > 0)
     ? topExpenseCategories.map((c) => ({
-        name: `${c.categoryIcon || "📦"} ${c.categoryName}`,
+        name: c.categoryName,
+        iconName: c.categoryName || c.categoryIcon || "Khác",
         rawName: (c.categoryName || "").toLowerCase(),
         amount: c.totalAmount || 0,
         subNote: "Phát sinh trong tháng",
       }))
     : (budgets && budgets.length > 0)
     ? budgets.map((b) => ({
-        name: `${b.categoryIcon || "🎯"} ${b.categoryName || b.name || "Ngân sách"}`,
+        name: b.categoryName || b.name || "Ngân sách",
+        iconName: b.categoryName || b.name || b.categoryIcon || "Khác",
         rawName: (b.categoryName || b.name || "").toLowerCase(),
         amount: b.spentAmount || b.limitAmount || 0,
         subNote: `Hạn ngạch ${fmt(b.limitAmount || 0)}`,
@@ -81,11 +84,11 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
   const grandTotal = totalExpense || (essentialAmount + flexibleAmount + debtAmount + savingsAmount);
 
   const debtItems = debtAmount > 0
-    ? [{ name: "💸 Nợ nhóm cần trả", amount: debtAmount, subNote: "Thanh toán nợ nhóm" }]
+    ? [{ name: "Nợ nhóm cần trả", iconName: "Trả nợ nhóm", amount: debtAmount, subNote: "Thanh toán nợ nhóm" }]
     : [];
 
   const savingsItems = savingsAmount > 0
-    ? [{ name: "🎯 Mục tiêu tích lũy", amount: savingsAmount, subNote: "Đang tích lũy" }]
+    ? [{ name: "Mục tiêu tích lũy", iconName: "Mục tiêu tiết kiệm", amount: savingsAmount, subNote: "Đang tích lũy" }]
     : [];
 
   return (
@@ -124,7 +127,10 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                 </TouchableOpacity>
 
                 <View style={{ backgroundColor: "#fff1f2", borderRadius: 18, padding: 14, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: "#e11d48" }}>Tổng đã chi mục này</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <CategoryIcon name={selectedHistoryCategory.iconName || selectedHistoryCategory.name} size={22} />
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: "#e11d48" }}>{selectedHistoryCategory.name}</Text>
+                  </View>
                   <Text style={{ fontSize: 18, fontWeight: "900", color: "#e11d48" }}>
                     {fmt(selectedHistoryCategory.amount)}
                   </Text>
@@ -135,9 +141,12 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                 </Text>
 
                 <View style={{ paddingVertical: 12, paddingHorizontal: 14, backgroundColor: "#f8fafc", borderRadius: 14, borderWidth: 1, borderColor: "#f1f5f9", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                  <View>
-                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#1e293b" }}>Chi tiêu {selectedHistoryCategory.name}</Text>
-                    <Text style={{ fontSize: 10, color: "#94a3b8", marginTop: 2, fontWeight: "500" }}>Giao dịch phát sinh trong tháng</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <CategoryIcon name={selectedHistoryCategory.iconName || selectedHistoryCategory.name} size={20} />
+                    <View>
+                      <Text style={{ fontSize: 13, fontWeight: "800", color: "#1e293b" }}>Chi tiêu {selectedHistoryCategory.name}</Text>
+                      <Text style={{ fontSize: 10, color: "#94a3b8", marginTop: 2, fontWeight: "500" }}>Giao dịch phát sinh trong tháng</Text>
+                    </View>
                   </View>
                   <Text style={{ fontSize: 14, fontWeight: "900", color: "#e11d48" }}>-{fmt(selectedHistoryCategory.amount)}</Text>
                 </View>
@@ -216,9 +225,12 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                             onPress={() => setSelectedHistoryCategory(item)}
                             activeOpacity={0.7}
                           >
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.itemName}>{item.name}</Text>
-                              <Text style={styles.itemSub}>{item.subNote} • Bấm xem lịch sử ›</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                              <CategoryIcon name={item.iconName || item.name} size={24} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.itemName}>{item.name}</Text>
+                                <Text style={styles.itemSub}>{item.subNote} • Bấm xem lịch sử ›</Text>
+                              </View>
                             </View>
                             <Text style={styles.itemVal}>{fmt(item.amount)}</Text>
                           </TouchableOpacity>
@@ -256,9 +268,12 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                             onPress={() => setSelectedHistoryCategory(item)}
                             activeOpacity={0.7}
                           >
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.itemName}>{item.name}</Text>
-                              <Text style={styles.itemSub}>{item.subNote} • Bấm xem lịch sử ›</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                              <CategoryIcon name={item.iconName || item.name} size={24} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.itemName}>{item.name}</Text>
+                                <Text style={styles.itemSub}>{item.subNote} • Bấm xem lịch sử ›</Text>
+                              </View>
                             </View>
                             <Text style={styles.itemVal}>{fmt(item.amount)}</Text>
                           </TouchableOpacity>
@@ -296,9 +311,12 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                             onPress={() => setSelectedHistoryCategory(item)}
                             activeOpacity={0.7}
                           >
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.itemName}>{item.name}</Text>
-                              <Text style={styles.itemSub}>{item.subNote} • Bấm xem lịch sử ›</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                              <CategoryIcon name={item.iconName || item.name} size={24} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.itemName}>{item.name}</Text>
+                                <Text style={styles.itemSub}>{item.subNote} • Bấm xem lịch sử ›</Text>
+                              </View>
                             </View>
                             <Text style={styles.itemVal}>{fmt(item.amount)}</Text>
                           </TouchableOpacity>
@@ -336,9 +354,12 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                             onPress={() => setSelectedHistoryCategory(item)}
                             activeOpacity={0.7}
                           >
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.itemName}>{item.name}</Text>
-                              <Text style={styles.itemSub}>{item.subNote} • Bấm xem lịch sử ›</Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                              <CategoryIcon name={item.iconName || item.name} size={24} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.itemName}>{item.name}</Text>
+                                <Text style={styles.itemSub}>{item.subNote} • Bấm xem lịch sử ›</Text>
+                              </View>
                             </View>
                             <Text style={styles.itemVal}>{fmt(item.amount)}</Text>
                           </TouchableOpacity>

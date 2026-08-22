@@ -9,7 +9,7 @@ import { SavingsGoal, SavingsPriority } from "../../types";
 
 interface SavingsGoalCardProps {
   goal: SavingsGoal;
-  onDeposit: (goalId: string) => void;
+  onDeposit?: (goalId: string) => void;
 }
 
 export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, onDeposit }) => {
@@ -40,8 +40,10 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, onDeposi
       <View style={styles.header}>
         <View style={styles.titleWrapper}>
           <Text style={styles.icon}>{goal.icon || "🎯"}</Text>
-          <View>
-            <Text style={styles.goalName}>{goal.name}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.goalName} numberOfLines={2} ellipsizeMode="tail">
+              {goal.name}
+            </Text>
             {formattedDate ? (
               <Text style={styles.targetDate}>Hạn mục tiêu: {formattedDate}</Text>
             ) : (
@@ -65,13 +67,6 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, onDeposi
 
       <View style={styles.footer}>
         <Text style={styles.percentageText}>{percentage}% Hoàn thành</Text>
-        <Button
-          title="Nạp tiền"
-          variant="outline"
-          onPress={() => onDeposit(goal.id)}
-          style={styles.depositBtn}
-          textStyle={{ fontSize: 13 }}
-        />
       </View>
     </Card>
   );
@@ -91,6 +86,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    flex: 1,
+    marginRight: 8,
   },
   icon: {
     fontSize: 24,
@@ -99,6 +96,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: colors.slate900,
+    flexShrink: 1,
   },
   targetDate: {
     fontSize: 12,
@@ -133,10 +131,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: colors.indigo600,
-  },
-  depositBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 12,
   },
 });

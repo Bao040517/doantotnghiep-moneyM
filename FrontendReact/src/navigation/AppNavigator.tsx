@@ -17,9 +17,14 @@ export const AppNavigator: React.FC = () => {
   React.useEffect(() => {
     if (isAuthenticated && user?.id) {
       socketService.connect(() => {
+        socketService.subscribe(`/topic/user/${user.id}`, (message) => {
+          console.log("[SOCKET USER TOPIC]", message);
+          DeviceEventEmitter.emit('new_notification', message);
+          DeviceEventEmitter.emit('pfm_event_updated', message);
+        });
         socketService.subscribe(`/user/queue/notifications`, (message) => {
           console.log("[SOCKET NOTIFICATION]", message);
-          DeviceEventEmitter.emit('new_notification');
+          DeviceEventEmitter.emit('new_notification', message);
           Alert.alert("Thông báo mới 🔔", message.message || "Bạn có thông báo mới.");
         });
       });

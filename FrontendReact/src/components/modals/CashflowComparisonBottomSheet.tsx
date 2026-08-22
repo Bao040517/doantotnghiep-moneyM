@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,14 +6,19 @@ import {
   TouchableOpacity,
   ScrollView,
   LayoutAnimation,
+  ActivityIndicator,
 } from "react-native";
 import Svg, { Rect, Line, Text as SvgText, G } from "react-native-svg";
 import { BottomSheet } from "../ui/BottomSheet";
 import { colors } from "../../constants/colors";
+import { financialServices } from "../../services/financialServices";
+import { CashflowPoint } from "../../types";
 
 interface CashflowComparisonBottomSheetProps {
   visible: boolean;
   onClose: () => void;
+  selectedYear?: number;
+  selectedMonth?: number;
   currentMonthExpense?: number;
   currentMonthIncome?: number;
 }
@@ -21,11 +26,149 @@ interface CashflowComparisonBottomSheetProps {
 export const CashflowComparisonBottomSheet: React.FC<CashflowComparisonBottomSheetProps> = ({
   visible,
   onClose,
+  selectedYear,
+  selectedMonth,
   currentMonthExpense = 0,
   currentMonthIncome = 0,
 }) => {
   const [timeRange, setTimeRange] = useState<"week" | "month" | "year">("month");
   const [activeType, setActiveType] = useState<"income" | "expense" | "diff">("diff");
+  const [weeksData, setWeeksData] = useState<CashflowPoint[]>([]);
+  const [monthsData, setMonthsData] = useState<CashflowPoint[]>([]);
+  const [yearsData, setYearsData] = useState<CashflowPoint[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const now = new Date();
+  const targetYear = selectedYear || now.getFullYear();
+  const targetMonth = selectedMonth || (now.getMonth() + 1);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    let isMounted = true;
+    setLoading(true);
+
+    const loadRealData = async () => {
+      try {
+        // 1. Load Months (T1 -> targetMonth for current year, or 1..12 for past year)
+        const maxMonths =
+          targetYear === now.getFullYear()
+            ? targetMonth
+            : targetYear < now.getFullYear()
+            ? 12
+            : targetMonth;
+
+        const monthPromises = [];
+        for (let m = 1; m <= maxMonths; m++) {
+          monthPromises.push(
+            financialServices
+              .getMonthlySummary(targetYear, m)
+              .then((res) => {
+                const inc = Number(res?.currentMonth?.totalIncome ?? res?.totalIncome ?? 0);
+                const exp = Number(res?.currentMonth?.totalExpense ?? res?.totalExpense ?? 0);
+                return {
+                  period: `T${m}`,
+                  label: `T${m}`,
+                  income: inc,
+                  expense: exp,
+                  net: inc - exp,
+                };
+              })
+              .catch(() => ({
+                period: `T${m}`,
+                label: `T${m}`,
+                income: 0,
+                expense: 0,
+                net: 0,
+              }))
+          );
+        }
+
+        // 2. Load Transactions for 4 Weeks in selected month
+        const weekPromise = financialServices
+          .getMonthlyTransactions(targetYear, targetMonth)
+          .then((txs) => {
+            const w1 = { income: 0, expense: 0 };
+            const w2 = { income: 0, expense: 0 };
+            const w3 = { income: 0, expense: 0 };
+            const w4 = { income: 0, expense: 0 };
+
+            (txs || []).forEach((t) => {
+              const d = new Date(t.transactionDate);
+              const day = isNaN(d.getDate()) ? 1 : d.getDate();
+              const amt = Number(t.amount || 0);
+
+              if (day <= 7) {
+                if (t.type === "INCOME") w1.income += amt;
+                else if (t.type === "EXPENSE") w1.expense += amt;
+              } else if (day <= 14) {
+                if (t.type === "INCOME") w2.income += amt;
+                else if (t.type === "EXPENSE") w2.expense += amt;
+              } else if (day <= 21) {
+                if (t.type === "INCOME") w3.income += amt;
+                else if (t.type === "EXPENSE") w3.expense += amt;
+              } else {
+                if (t.type === "INCOME") w4.income += amt;
+                else if (t.type === "EXPENSE") w4.expense += amt;
+              }
+            });
+
+            return [
+              { period: "Tuần 1", label: "T1", income: w1.income, expense: w1.expense, net: w1.income - w1.expense },
+              { period: "Tuần 2", label: "T2", income: w2.income, expense: w2.expense, net: w2.income - w2.expense },
+              { period: "Tuần 3", label: "T3", income: w3.income, expense: w3.expense, net: w3.income - w3.expense },
+              { period: "Tuần 4", label: "T4", income: w4.income, expense: w4.expense, net: w4.income - w4.expense },
+            ];
+          })
+          .catch(() => []);
+
+        // 3. Load Year comparison (e.g. 2025 and 2026)
+        const yearPromises = [targetYear - 1, targetYear].map(async (y) => {
+          try {
+            const monthsInY = y === now.getFullYear() ? targetMonth : 12;
+            const resList = await Promise.all(
+              Array.from({ length: monthsInY }, (_, i) =>
+                financialServices.getMonthlySummary(y, i + 1).catch(() => null)
+              )
+            );
+            const totalInc = resList.reduce((s, r) => s + Number(r?.currentMonth?.totalIncome ?? 0), 0);
+            const totalExp = resList.reduce((s, r) => s + Number(r?.currentMonth?.totalExpense ?? 0), 0);
+            return {
+              period: String(y),
+              label: String(y),
+              income: totalInc,
+              expense: totalExp,
+              net: totalInc - totalExp,
+            };
+          } catch (e) {
+            return { period: String(y), label: String(y), income: 0, expense: 0, net: 0 };
+          }
+        });
+
+        const [fetchedMonths, fetchedWeeks, fetchedYears] = await Promise.all([
+          Promise.all(monthPromises),
+          weekPromise,
+          Promise.all(yearPromises),
+        ]);
+
+        if (isMounted) {
+          setMonthsData(fetchedMonths);
+          setWeeksData(fetchedWeeks);
+          setYearsData(fetchedYears);
+        }
+      } catch (err) {
+        console.error("Failed to load real cashflow data", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadRealData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, targetYear, targetMonth]);
 
   const switchTimeRange = (range: "week" | "month" | "year") => {
     try {
@@ -46,35 +189,27 @@ export const CashflowComparisonBottomSheet: React.FC<CashflowComparisonBottomShe
     return safe.toLocaleString("vi-VN") + "đ";
   };
 
-  const netDiff = currentMonthIncome - currentMonthExpense;
-  const currentYear = new Date().getFullYear();
-  const currentMonthNum = new Date().getMonth() + 1;
-
-  // DYNAMIC DATA STRUCTURE BASED ON ACTUAL USER FINANCIAL DATA
-  const compData =
+  // 100% REAL DATA FROM DATABASE (NO SYNTHETIC DATA)
+  const compData: CashflowPoint[] =
     timeRange === "year"
-      ? [
-          { period: (currentYear - 2).toString(), label: (currentYear - 2).toString(), income: Math.round(currentMonthIncome * 10), expense: Math.round(currentMonthExpense * 10) },
-          { period: (currentYear - 1).toString(), label: (currentYear - 1).toString(), income: Math.round(currentMonthIncome * 11), expense: Math.round(currentMonthExpense * 11) },
-          { period: currentYear.toString(), label: currentYear.toString(), income: Math.round(currentMonthIncome * 12), expense: Math.round(currentMonthExpense * 12) },
-        ]
+      ? yearsData
       : timeRange === "month"
-      ? Array.from({ length: 12 }, (_, i) => {
-          const m = i + 1;
-          const isCurrent = m === currentMonthNum;
-          return {
-            period: `T${m}`,
-            label: `T${m}`,
-            income: isCurrent ? currentMonthIncome : Math.round(currentMonthIncome * (0.85 + (m % 3) * 0.1)),
-            expense: isCurrent ? currentMonthExpense : Math.round(currentMonthExpense * (0.8 + (m % 4) * 0.1)),
-          };
-        })
-      : [
-          { period: "Tuần 1", label: "T1", income: Math.round(currentMonthIncome * 0.22), expense: Math.round(currentMonthExpense * 0.22) },
-          { period: "Tuần 2", label: "T2", income: Math.round(currentMonthIncome * 0.26), expense: Math.round(currentMonthExpense * 0.26) },
-          { period: "Tuần 3", label: "T3", income: Math.round(currentMonthIncome * 0.24), expense: Math.round(currentMonthExpense * 0.24) },
-          { period: "Tuần 4", label: "T4", income: Math.round(currentMonthIncome * 0.28), expense: Math.round(currentMonthExpense * 0.28) },
-        ];
+      ? monthsData
+      : weeksData;
+
+  // Selected period totals for Hero Box
+  const activeMonthData = monthsData.find((d) => d.period === `T${targetMonth}`);
+  const totalPeriodIncome =
+    timeRange === "month"
+      ? (activeMonthData?.income ?? currentMonthIncome)
+      : compData.reduce((sum, d) => sum + (d.income || 0), 0);
+
+  const totalPeriodExpense =
+    timeRange === "month"
+      ? (activeMonthData?.expense ?? currentMonthExpense)
+      : compData.reduce((sum, d) => sum + (d.expense || 0), 0);
+
+  const totalPeriodNet = totalPeriodIncome - totalPeriodExpense;
 
   // Theme colors
   const themeColor =
@@ -84,6 +219,14 @@ export const CashflowComparisonBottomSheet: React.FC<CashflowComparisonBottomShe
 
   // DYNAMIC SVG BAR CHART CALCULATION
   const renderChart = () => {
+    if (compData.length === 0) {
+      return (
+        <View style={[styles.chartContainer, { height: 190, justifyContent: "center", alignItems: "center" }]}>
+          <Text style={{ fontSize: 12, color: "#94a3b8", fontWeight: "600" }}>Đang tải dữ liệu thực tế...</Text>
+        </View>
+      );
+    }
+
     const W = 320, H = 190, PAD_LEFT = 42, PAD_RIGHT = 14, PAD_TOP = 20, PAD_BOTTOM = 35;
     const chartW = W - PAD_LEFT - PAD_RIGHT;
     const chartH = H - PAD_TOP - PAD_BOTTOM;
@@ -91,9 +234,9 @@ export const CashflowComparisonBottomSheet: React.FC<CashflowComparisonBottomShe
 
     // 1. Calculate actual raw values in Millions for current active period & type
     const rawValsInMillions = compData.map((d) => {
-      if (activeType === "income") return d.income / 1000000;
-      if (activeType === "expense") return d.expense / 1000000;
-      return Math.abs(d.income - d.expense) / 1000000;
+      if (activeType === "income") return (d.income || 0) / 1000000;
+      if (activeType === "expense") return (d.expense || 0) / 1000000;
+      return Math.abs((d.income || 0) - (d.expense || 0)) / 1000000;
     });
 
     const maxValReal = Math.max(...rawValsInMillions, 0.5);
@@ -121,10 +264,10 @@ export const CashflowComparisonBottomSheet: React.FC<CashflowComparisonBottomShe
       Number(niceMax.toFixed(niceMax <= 3 ? 1 : 0)),
     ];
 
-    // Responsive bar dimensions for 4 weeks, 12 months, or 5 years
+    // Responsive bar dimensions for 4 weeks, 8/12 months, or years
     const numBars = compData.length;
     const slotW = chartW / numBars;
-    const barW = Math.max(10, Math.min(42, slotW * 0.65));
+    const barW = Math.max(12, Math.min(42, slotW * 0.65));
 
     return (
       <View style={styles.chartContainer}>
@@ -157,13 +300,14 @@ export const CashflowComparisonBottomSheet: React.FC<CashflowComparisonBottomShe
             
             const rawVal =
               activeType === "income"
-                ? d.income / 1000000
+                ? (d.income || 0) / 1000000
                 : activeType === "expense"
-                ? d.expense / 1000000
-                : Math.abs(d.income - d.expense) / 1000000;
+                ? (d.expense || 0) / 1000000
+                : Math.abs((d.income || 0) - (d.expense || 0)) / 1000000;
 
+            const hasValue = rawVal > 0;
             const barH = (rawVal / niceMax) * chartH;
-            const y = yBaseline - Math.max(4, barH); // Standing ON bottom baseline
+            const y = yBaseline - Math.max(hasValue ? 4 : 0, barH); // Standing ON bottom baseline
 
             const barFill =
               activeType === "income"
@@ -183,20 +327,24 @@ export const CashflowComparisonBottomSheet: React.FC<CashflowComparisonBottomShe
                 ? "#10B981"
                 : "#FF2E55";
 
-            const isCurrentItem = d.label.includes("2026") || d.label.includes("T8") || d.label.includes("T4");
+            const isCurrentItem =
+              d.period === `T${targetMonth}` ||
+              d.period === targetYear.toString();
 
             return (
               <G key={d.period}>
-                <Rect
-                  x={x}
-                  y={y}
-                  width={barW}
-                  height={Math.max(4, barH)}
-                  rx={numBars > 6 ? 4 : 8}
-                  fill={barFill}
-                  stroke={barStroke}
-                  strokeWidth={1.2}
-                />
+                {hasValue && (
+                  <Rect
+                    x={x}
+                    y={y}
+                    width={barW}
+                    height={Math.max(4, barH)}
+                    rx={numBars > 6 ? 4 : 8}
+                    fill={barFill}
+                    stroke={barStroke}
+                    strokeWidth={1.2}
+                  />
+                )}
                 <SvgText
                   x={x + barW / 2}
                   y={H - 10}
@@ -281,40 +429,48 @@ export const CashflowComparisonBottomSheet: React.FC<CashflowComparisonBottomShe
         <View style={styles.heroBox}>
           <Text style={styles.heroSub}>
             {activeType === "income"
-              ? `Tổng thu nhập ${timeRange === "year" ? "năm nay" : timeRange === "month" ? "tháng này" : "tuần này"}`
+              ? `Tổng thu nhập ${timeRange === "year" ? `năm ${targetYear}` : timeRange === "month" ? `tháng ${targetMonth}/${targetYear}` : `tháng ${targetMonth}`}`
               : activeType === "expense"
-              ? `Tổng chi tiêu ${timeRange === "year" ? "năm nay" : timeRange === "month" ? "tháng này" : "tuần này"}`
-              : `Tổng chênh lệch ${timeRange === "year" ? "năm nay" : timeRange === "month" ? "tháng này" : "tuần này"}`}
+              ? `Tổng chi tiêu ${timeRange === "year" ? `năm ${targetYear}` : timeRange === "month" ? `tháng ${targetMonth}/${targetYear}` : `tháng ${targetMonth}`}`
+              : `Tổng chênh lệch ${timeRange === "year" ? `năm ${targetYear}` : timeRange === "month" ? `tháng ${targetMonth}/${targetYear}` : `tháng ${targetMonth}`}`}
           </Text>
 
           <Text style={[styles.heroVal, { color: heroValColor }]}>
             {activeType === "income"
-              ? fmt(currentMonthIncome)
+              ? fmt(totalPeriodIncome)
               : activeType === "expense"
-              ? fmt(currentMonthExpense)
-              : fmt(netDiff)}
+              ? fmt(totalPeriodExpense)
+              : fmt(totalPeriodNet)}
           </Text>
 
           <View style={[
             styles.heroBadge,
-            { backgroundColor: activeType === "income" ? "#ECFDF5" : activeType === "expense" ? "#FFF1F2" : "#F0FDF4" }
+            { backgroundColor: totalPeriodNet >= 0 ? "#ECFDF5" : "#FFF1F2" }
           ]}>
             <Text style={[
               styles.heroBadgeText,
-              { color: activeType === "income" ? "#059669" : activeType === "expense" ? "#E11D48" : "#16A34A" }
+              { color: totalPeriodNet >= 0 ? "#059669" : "#E11D48" }
             ]}>
-              {fmt(netDiff)}
+              {totalPeriodNet >= 0 ? `Dư ${fmt(totalPeriodNet)}` : `Âm ${fmt(Math.abs(totalPeriodNet))}`}
             </Text>
           </View>
         </View>
 
         {/* ─── BAR CHART SECTION ─── */}
-        <Text style={styles.sectionHeaderTitle}>Biến động ({timeRange === "week" ? "4 tuần" : timeRange === "month" ? "12 tháng" : "5 năm"})</Text>
-        {renderChart()}
+        <Text style={styles.sectionHeaderTitle}>
+          Biến động ({timeRange === "week" ? `4 tuần Tháng ${targetMonth}` : timeRange === "month" ? `${compData.length} tháng Năm ${targetYear}` : `${compData.length} năm`})
+        </Text>
+        {loading ? (
+          <View style={{ height: 190, justifyContent: "center", alignItems: "center" }}>
+            <ActivityIndicator size="small" color={colors.indigo600} />
+          </View>
+        ) : (
+          renderChart()
+        )}
 
         {/* ─── COMPARISON BREAKDOWN LIST ─── */}
         <View style={styles.compList}>
-          {compData.slice(-4).map((d) => {
+          {compData.map((d) => {
             const diff = d.income - d.expense;
             return (
               <View key={d.period} style={styles.compRowItem}>
@@ -358,33 +514,32 @@ const styles = StyleSheet.create({
   pillBtn: {
     flex: 1,
     paddingVertical: 8,
-    borderRadius: 16,
     alignItems: "center",
+    borderRadius: 16,
   },
   pillBtnActive: {
-    backgroundColor: colors.white,
+    backgroundColor: "#FFFFFF",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
   pillText: {
     fontSize: 13,
     fontWeight: "700",
-    color: colors.slate500,
-    fontFamily: "Roboto",
+    color: "#64748B",
   },
   pillTextActive: {
-    color: "#FF2E55",
-    fontWeight: "900",
+    color: "#0F172A",
+    fontWeight: "800",
   },
 
-  /* Sub Tab Row */
+  /* Sub-Tab Selector */
   subTabRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: colors.slate100,
+    borderBottomColor: "#E2E8F0",
     marginBottom: 16,
   },
   subTabBtn: {
@@ -404,121 +559,122 @@ const styles = StyleSheet.create({
     borderBottomColor: "#6366F1",
   },
   subTabText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
-    color: colors.slate400,
-    fontFamily: "Roboto",
+    color: "#64748B",
   },
   subTabIncomeText: {
     color: "#10B981",
-    fontWeight: "900",
+    fontWeight: "800",
   },
   subTabExpenseText: {
     color: "#FF2E55",
-    fontWeight: "900",
+    fontWeight: "800",
   },
   subTabDiffText: {
     color: "#6366F1",
-    fontWeight: "900",
+    fontWeight: "800",
   },
 
-  /* Hero Box */
+  /* Hero Amount Box */
   heroBox: {
     alignItems: "center",
     marginVertical: 12,
+    gap: 4,
   },
   heroSub: {
     fontSize: 12,
-    fontWeight: "700",
-    color: colors.slate500,
-    marginBottom: 4,
-    fontFamily: "Roboto",
+    fontWeight: "600",
+    color: "#64748B",
   },
   heroVal: {
     fontSize: 26,
     fontWeight: "900",
-    color: colors.slate900,
-    marginBottom: 8,
-    fontFamily: "Roboto",
+    letterSpacing: -0.5,
   },
   heroBadge: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
+    marginTop: 4,
   },
   heroBadgeText: {
     fontSize: 12,
-    fontWeight: "700",
-    fontFamily: "Roboto",
+    fontWeight: "800",
   },
 
-  /* Section Header */
+  /* Bar Chart */
   sectionHeaderTitle: {
     fontSize: 15,
-    fontWeight: "900",
-    color: colors.slate900,
+    fontWeight: "800",
+    color: "#0F172A",
     marginTop: 12,
     marginBottom: 8,
-    fontFamily: "Roboto",
   },
   chartContainer: {
-    backgroundColor: colors.white,
-    borderRadius: 20,
+    backgroundColor: "#FAFAFA",
+    borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: colors.slate100,
-    marginBottom: 16,
+    borderColor: "#F1F5F9",
+    position: "relative",
   },
   unitText: {
+    position: "absolute",
+    top: 10,
+    left: 12,
     fontSize: 10,
-    color: colors.slate500,
     fontWeight: "700",
-    marginBottom: 4,
-    fontFamily: "Roboto",
+    color: "#64748B",
+    zIndex: 1,
   },
 
-  /* Comp List */
+  /* Comparison List */
   compList: {
-    gap: 10,
+    marginTop: 16,
+    gap: 8,
   },
   compRowItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.slate50,
-    padding: 14,
-    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
     gap: 12,
   },
   compYearBadge: {
-    backgroundColor: colors.white,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.slate100,
+    borderColor: "#E2E8F0",
   },
   compYearText: {
     fontSize: 13,
-    fontWeight: "900",
-    color: colors.slate900,
-    fontFamily: "Roboto",
+    fontWeight: "800",
+    color: "#1E293B",
   },
   compSubText: {
-    fontSize: 11,
-    color: colors.slate500,
-    fontFamily: "Roboto",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748B",
   },
   compValText: {
-    fontWeight: "700",
+    fontWeight: "800",
   },
   remainLabel: {
     fontSize: 10,
-    color: colors.slate400,
-    fontFamily: "Roboto",
+    fontWeight: "600",
+    color: "#94A3B8",
   },
   remainVal: {
     fontSize: 13,
     fontWeight: "900",
-    fontFamily: "Roboto",
   },
 });

@@ -280,6 +280,8 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
       <CashflowComparisonBottomSheet
         visible={showCompModal}
         onClose={() => setShowCompModal(false)}
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
         currentMonthExpense={currentMonthExpense}
         currentMonthIncome={currentMonthIncome}
       />

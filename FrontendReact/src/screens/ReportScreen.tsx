@@ -690,13 +690,16 @@ export const ReportScreen: React.FC = () => {
                 <Text style={[styles.modalHeroVal, { color: colors.emerald600 }]}>{fmt(totalIncome)}</Text>
               </View>
 
-              <Text style={styles.modalSectionTitle}>Phân bón danh mục Thu nhập</Text>
+              <Text style={styles.modalSectionTitle}>Phân bổ danh mục Thu nhập</Text>
               {incBreakdown.length === 0 ? (
                 <Text style={styles.emptyText}>Chưa có thu nhập ghi nhận</Text>
               ) : (
                 incBreakdown.map((item) => (
                   <View key={item.categoryId} style={styles.modalItemRow}>
-                    <Text style={styles.modalItemName}>💵 {item.categoryName}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <CategoryIcon name={item.categoryName || item.categoryIcon} size={22} />
+                      <Text style={styles.modalItemName}>{item.categoryName}</Text>
+                    </View>
                     <Text style={[styles.modalItemVal, { color: colors.emerald600 }]}>+{fmt(item.totalAmount)}</Text>
                   </View>
                 ))
@@ -721,7 +724,7 @@ export const ReportScreen: React.FC = () => {
 
                 <View style={{ backgroundColor: "#fff1f2", borderRadius: 18, padding: 14, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Text style={{ fontSize: 20 }}>{selectedCategoryHist.categoryIcon || "💸"}</Text>
+                    <CategoryIcon name={selectedCategoryHist.categoryName || selectedCategoryHist.categoryIcon} size={24} />
                     <Text style={{ fontSize: 14, fontWeight: "900", color: "#e11d48" }}>{selectedCategoryHist.categoryName}</Text>
                   </View>
                   <Text style={{ fontSize: 18, fontWeight: "900", color: "#e11d48" }}>
@@ -956,8 +959,8 @@ export const ReportScreen: React.FC = () => {
                                     activeOpacity={0.7}
                                   >
                                     <View style={styles.expenseItemLeft}>
-                                      <Text style={{ fontSize: 16 }}>{item.categoryIcon || "💸"}</Text>
-                                      <View>
+                                      <CategoryIcon name={item.categoryName || item.categoryIcon || "Khác"} size={24} />
+                                      <View style={{ marginLeft: 4 }}>
                                         <Text style={styles.expenseItemName}>{item.categoryName}</Text>
                                         <Text style={{ fontSize: 9, color: colors.indigo600, fontWeight: "700", marginTop: 1 }}>
                                           Bấm xem lịch sử chi ›

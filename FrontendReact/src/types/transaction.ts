@@ -52,3 +52,18 @@ export interface CategoryBreakdown {
   percentage: number;
   groupType?: "NEEDS" | "WANTS" | "SAVINGS";
 }
+
+export interface CashflowPoint {
+  period: string;
+  label: string;
+  income: number;
+  expense: number;
+  net: number;
+}
+
+export interface CashflowSummaryResponse {
+  weeks: CashflowPoint[];
+  months: CashflowPoint[];
+  years: CashflowPoint[];
+}
+

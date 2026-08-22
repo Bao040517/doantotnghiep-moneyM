@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
   Platform,
   StatusBar,
   Alert,
+  DeviceEventEmitter,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
@@ -273,7 +274,27 @@ export const AdvisorScreen: React.FC = () => {
 
   useEffect(() => {
     fetchAdvisorData();
+
+    // Lắng nghe sự kiện WebSocket thời gian thực từ Server
+    const subPfm = DeviceEventEmitter.addListener("pfm_event_updated", () => {
+      fetchAdvisorData(true);
+    });
+    const subNotif = DeviceEventEmitter.addListener("new_notification", () => {
+      fetchAdvisorData(true);
+    });
+
+    return () => {
+      subPfm.remove();
+      subNotif.remove();
+    };
   }, [user?.id, selectedYear, selectedMonth]);
+
+  // Tự động làm mới dữ liệu mỗi khi người dùng chuyển sang tab Cố Vấn (Focus tab)
+  useFocusEffect(
+    useCallback(() => {
+      fetchAdvisorData(true);
+    }, [user?.id, selectedYear, selectedMonth])
+  );
 
   const handleApplyBudget = async (item: any) => {
     if (!user?.id) return;

@@ -10,6 +10,9 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   note?: string;
+  payeeName?: string;
+  linkedBudgetId?: string;
+  paymentMethod?: "CASH" | "TRANSFER" | "VIETQR" | string;
   transactionDate: string;
   linkedExpenseId?: string;
   createdAt?: string;
@@ -21,6 +24,7 @@ export interface TransactionPayload {
   amount: number;
   type: TransactionType;
   note?: string;
+  paymentMethod?: "CASH" | "TRANSFER" | "VIETQR" | string;
   transactionDate?: string;
   linkedBudgetId?: string;
   linkedExpenseId?: string;

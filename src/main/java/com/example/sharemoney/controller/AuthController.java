@@ -140,6 +140,10 @@ public class AuthController {
                 .bankQrUrl(user.getBankQrUrl())
                 .bankBin(user.getBankBin())
                 .bankAccountNo(user.getBankAccountNo())
+                .bankAccountName(user.getBankAccountName())
+                .savingsBankBin(user.getSavingsBankBin())
+                .savingsBankAccountNo(user.getSavingsBankAccountNo())
+                .savingsBankAccountName(user.getSavingsBankAccountName())
                 .build();
     }
 }

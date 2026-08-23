@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Alert, ActivityIndicator } from "react-native";
+import React from "react";
+import { View, StyleSheet, ScrollView, Text, Share } from "react-native";
 import { BottomSheet } from "../ui/BottomSheet";
-import { Input } from "../ui/Input";
-import { Button } from "../ui/Button";
 import { Transaction } from "../../types";
-import { financialServices, Category } from "../../services/financialServices";
 import { colors } from "../../constants/colors";
 import { CategoryIcon } from "../ui/CategoryIcon";
 
@@ -12,216 +9,180 @@ interface EditTransactionModalProps {
   visible: boolean;
   transaction: Transaction | null;
   onClose: () => void;
-  onRefresh: () => void;
+  onRefresh?: () => void;
 }
-
-const CATEGORY_ICONS: Record<string, string> = {
-  "Ăn uống": "🍽️",
-  "Chi tiêu hàng ngày": "🧴",
-  "Quần áo": "👕",
-  "Phí giao lưu": "🥂",
-  "Mỹ phẩm": "💄",
-  "Tiền nhà": "🏠",
-  "Tiền điện": "💡",
-  "Đi lại": "🚆",
-  "Phí liên lạc": "📱",
-  "Y tế": "💊",
-  "Giáo dục": "📚",
-  "Mục tiêu tiết kiệm": "🎯",
-  "Trả nợ nhóm": "💸",
-  "Lương": "💰",
-  "Thưởng": "🎁",
-  "Thu nhập khác": "📥",
-};
 
 export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   visible,
   transaction,
   onClose,
-  onRefresh,
 }) => {
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState("");
-  const [loadingCategories, setLoadingCategories] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  if (!transaction) return null;
 
-  useEffect(() => {
-    if (visible && transaction) {
-      setAmount(transaction.amount ? Math.round(transaction.amount).toLocaleString("vi-VN") : "");
-      setNote(transaction.note || "");
-      setSelectedCategoryId(transaction.categoryId || (transaction as any).category?.id || "");
+  const isIncome = transaction.type === "INCOME";
+  const amountFormatted = Math.round(Number(transaction.amount) || 0).toLocaleString("vi-VN") + " ₫";
+  const catName = transaction.categoryName || (transaction as any).category?.name || "Khác";
 
-      // Load categories
-      setLoadingCategories(true);
-      financialServices
-        .getCategories()
-        .then((data) => setCategories(data || []))
-        .catch(() => setCategories([]))
-        .finally(() => setLoadingCategories(false));
-    }
-  }, [visible, transaction]);
+  const isCash =
+    transaction.paymentMethod === "CASH" ||
+    (transaction.note && (transaction.note.includes("tiền mặt") || transaction.note.includes("Tiền mặt")));
 
-  const handleAmountChange = (text: string) => {
-    const cleanDigits = text.replace(/\D/g, "");
-    if (!cleanDigits) {
-      setAmount("");
-      return;
-    }
-    const formatted = parseInt(cleanDigits, 10).toLocaleString("vi-VN");
-    setAmount(formatted);
-  };
-
-  const handleUpdate = async () => {
-    const rawNumber = parseFloat(amount.replace(/\./g, "")) || 0;
-    if (rawNumber <= 0 || !transaction) {
-      Alert.alert("Lỗi", "Vui lòng nhập số tiền hợp lệ");
-      return;
-    }
-
-    setSubmitting(true);
+  const formatDateStr = (rawDateStr?: string) => {
+    if (!rawDateStr) return "";
     try {
-      await financialServices.updateTransaction(transaction.id, {
-        amount: rawNumber,
-        categoryId: selectedCategoryId || transaction.categoryId || (transaction as any).category?.id,
-        note,
-        transactionDate: transaction.transactionDate,
-      });
-      Alert.alert("Thành công 🎉", "Đã cập nhật giao dịch!");
-      onClose();
-      onRefresh();
-    } catch (e: any) {
-      Alert.alert("Lỗi", e.response?.data?.message || "Không thể cập nhật giao dịch");
-    } finally {
-      setSubmitting(false);
+      const d = new Date(rawDateStr);
+      if (isNaN(d.getTime())) return rawDateStr;
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      const DD = String(d.getDate()).padStart(2, "0");
+      const MM = String(d.getMonth() + 1).padStart(2, "0");
+      const YYYY = d.getFullYear();
+      return `${hh}:${mm} - ${DD}/${MM}/${YYYY}`;
+    } catch (e) {
+      return rawDateStr;
     }
   };
 
-  const handleDelete = () => {
-    if (!transaction) return;
-    Alert.alert(
-      "Xóa giao dịch",
-      "Bạn có chắc chắn muốn xóa giao dịch này? Số dư ví sẽ được tự động cập nhật lại.",
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Xóa",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await financialServices.deleteTransaction(transaction.id);
-              Alert.alert("Thành công", "Đã xóa giao dịch!");
-              onClose();
-              onRefresh();
-            } catch (e: any) {
-              Alert.alert("Lỗi", e.response?.data?.message || "Không thể xóa giao dịch");
-            }
-          },
-        },
-      ]
-    );
-  };
+  const invoiceCode = transaction.id
+    ? `#HD-${transaction.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`
+    : `#HD-${Date.now().toString().slice(-6)}`;
 
-  const filteredCategories = categories.filter((c) => c.type === (transaction?.type || "EXPENSE"));
-  const selectedCategory = filteredCategories.find(c => c.id === selectedCategoryId);
+  const handleShareReceipt = async () => {
+    try {
+      await Share.share({
+        message: `🧾 HÓA ĐƠN GIAO DỊCH SHAREMONEY\n- Mã HĐ: ${invoiceCode}\n- Số tiền: ${isIncome ? "+" : "-"}${amountFormatted}\n- Danh mục: ${catName}\n- Hình thức: ${isCash ? "Tiền mặt" : "Chuyển khoản VietQR"}\n- Nội dung: ${transaction.note || catName}\n- Thời gian: ${formatDateStr(transaction.transactionDate || transaction.createdAt)}`,
+      });
+    } catch (e) {}
+  };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Sửa Giao Dịch ✏️">
-      <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-        {/* Amount Input */}
-        <Input
-          label="Số tiền (VND) *"
-          placeholder="VD: 100.000"
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={handleAmountChange}
-        />
+    <BottomSheet visible={visible} onClose={onClose} title="Chi Tiết Hóa Đơn 🧾">
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* ─── HERO AMOUNT & STATUS CARD ─── */}
+        <View style={styles.heroCard}>
+          <View
+            style={[
+              styles.iconWrapper,
+              { backgroundColor: isIncome ? "#ECFDF5" : "#FFF1F2" },
+            ]}
+          >
+            <CategoryIcon name={catName} size={32} />
+          </View>
 
-        {/* Category Selector (Dropdown List) */}
-        <View style={styles.sectionBox}>
-          <Text style={styles.sectionLabel}>Danh mục *</Text>
-          {loadingCategories ? (
-            <ActivityIndicator size="small" color={colors.indigo600} style={{ marginVertical: 12 }} />
-          ) : (
-            <View>
-              <TouchableOpacity
-                style={styles.dropdownBtn}
-                onPress={() => setDropdownOpen(!dropdownOpen)}
-                activeOpacity={0.8}
+          <Text
+            style={[
+              styles.amountText,
+              { color: isIncome ? colors.emerald600 : colors.rose600 },
+            ]}
+          >
+            {isIncome ? "+" : "-"}
+            {amountFormatted}
+          </Text>
+
+          <View style={styles.statusPill}>
+            <Text style={styles.statusPillText}>✓ Giao dịch thành công</Text>
+          </View>
+
+          <Text style={styles.dateText}>
+            {formatDateStr(transaction.transactionDate || transaction.createdAt)}
+          </Text>
+        </View>
+
+        {/* ─── RECEIPT DETAILS TICKET ─── */}
+        <View style={styles.receiptCard}>
+          <View style={styles.receiptHeader}>
+            <Text style={styles.receiptHeaderTitle}>THÔNG TIN HÓA ĐƠN</Text>
+            <Text style={styles.invoiceCodeText}>{invoiceCode}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Row: Loại giao dịch */}
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Loại giao dịch</Text>
+            <View style={styles.detailValueRow}>
+              <Text
+                style={[
+                  styles.detailValueBold,
+                  { color: isIncome ? colors.emerald600 : colors.slate800 },
+                ]}
               >
-                <View style={styles.dropdownBtnLeft}>
-                  <View style={{ marginRight: 8 }}>
-                    <CategoryIcon name={selectedCategory ? selectedCategory.name : "Khác"} size={22} />
-                  </View>
-                  <Text style={styles.dropdownSelectedText}>
-                    {selectedCategory ? selectedCategory.name : "Chọn danh mục..."}
-                  </Text>
-                </View>
-                <Text style={styles.dropdownArrow}>{dropdownOpen ? "▲" : "▼"}</Text>
-              </TouchableOpacity>
+                {isIncome ? "Khoản thu nhập" : "Khoản chi tiêu"}
+              </Text>
+            </View>
+          </View>
 
-              {dropdownOpen && (
-                <View style={styles.dropdownListBox}>
-                  <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 180 }} showsVerticalScrollIndicator={true}>
-                    {filteredCategories.map((cat) => {
-                      const isSelected = selectedCategoryId === cat.id;
-                      return (
-                        <TouchableOpacity
-                          key={cat.id}
-                          style={[styles.dropdownItemRow, isSelected && styles.dropdownItemRowActive]}
-                          onPress={() => {
-                            setSelectedCategoryId(cat.id);
-                            setDropdownOpen(false);
-                          }}
-                        >
-                          <View style={styles.catRowLeft}>
-                            <View style={{ marginRight: 10 }}>
-                              <CategoryIcon name={cat.name} size={20} />
-                            </View>
-                            <Text style={[styles.catNameText, isSelected && styles.catNameTextActive]}>
-                              {cat.name}
-                            </Text>
-                          </View>
-                          {isSelected && (
-                            <View style={styles.checkBadge}>
-                              <Text style={styles.checkBadgeText}>✓</Text>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+          {/* Row: Hình thức thanh toán */}
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Hình thức</Text>
+            <View style={styles.detailValueRow}>
+              {isCash ? (
+                <View style={styles.cashBadge}>
+                  <Text style={styles.cashBadgeText}>💵 Tiền mặt</Text>
+                </View>
+              ) : (
+                <View style={styles.transferBadge}>
+                  <Text style={styles.transferBadgeText}>⚡ Chuyển khoản VietQR</Text>
                 </View>
               )}
             </View>
-          )}
-        </View>
+          </View>
 
-        {/* Note Input */}
-        <Input
-          label="Ghi chú"
-          placeholder="VD: Highlands Coffee, Ăn trưa"
-          value={note}
-          onChangeText={setNote}
-        />
+          {/* Row: Danh mục */}
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Danh mục</Text>
+            <View style={styles.detailValueRow}>
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryBadgeText}>🧾 {catName}</Text>
+              </View>
+            </View>
+          </View>
 
-        {/* Action Buttons */}
-        <View style={styles.btnRow}>
-          <Button
-            title="🗑️ Xóa"
-            variant="danger"
-            onPress={handleDelete}
-            style={{ flex: 1 }}
-          />
-          <Button
-            title="Lưu thay đổi"
-            variant="primary"
-            onPress={handleUpdate}
-            loading={submitting}
-            style={{ flex: 2 }}
-          />
+          {/* Row: Nội dung / Ghi chú (Bố trí dọc thông thoáng khi nội dung dài) */}
+          <View style={styles.noteSection}>
+            <Text style={styles.detailLabel}>Nội dung</Text>
+            <View style={styles.noteBox}>
+              <Text style={styles.noteText}>
+                {transaction.note || catName || "Chi tiêu thông thường"}
+              </Text>
+            </View>
+          </View>
+
+          {/* Row: Người nhận (nếu có) */}
+          {transaction.payeeName ? (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Người nhận</Text>
+              <Text style={styles.detailValueBold}>{transaction.payeeName}</Text>
+            </View>
+          ) : null}
+
+          {/* Row: Ví nguồn (nếu có) */}
+          {transaction.walletName ? (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Tài khoản nguồn</Text>
+              <Text style={styles.detailValue}>💳 {transaction.walletName}</Text>
+            </View>
+          ) : null}
+
+          {/* Row: Khoản chi nhóm (nếu có) */}
+          {transaction.linkedExpenseId ? (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Nguồn gốc</Text>
+              <View style={styles.groupBadge}>
+                <Text style={styles.groupBadgeText}>👥 Hóa đơn chia tiền nhóm</Text>
+              </View>
+            </View>
+          ) : null}
+
+          {/* Row: Ngân sách liên kết (nếu có) */}
+          {transaction.linkedBudgetId ? (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Sổ ngân sách</Text>
+              <View style={styles.budgetBadge}>
+                <Text style={styles.budgetBadgeText}>🎯 Đã khớp ngân sách</Text>
+              </View>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </BottomSheet>
@@ -229,100 +190,188 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  form: {
-    paddingTop: 8,
+  container: {
+    paddingTop: 4,
   },
-  sectionBox: {
+  heroCard: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.slate100,
     marginBottom: 14,
   },
-  sectionLabel: {
+  iconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  amountText: {
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  statusPill: {
+    backgroundColor: "#ECFDF5",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    marginBottom: 6,
+  },
+  statusPillText: {
+    color: "#059669",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  dateText: {
     fontSize: 13,
-    fontWeight: "700",
-    color: colors.slate700,
-    marginBottom: 8,
+    color: colors.slate500,
+    fontWeight: "500",
   },
-  btnRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 12,
-    marginBottom: 24,
+  receiptCard: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 16,
+    marginBottom: 28,
   },
-  dropdownBtn: {
+  receiptHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: colors.white,
-    borderWidth: 1.5,
-    borderColor: colors.slate200,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    alignItems: "center",
+    paddingBottom: 10,
   },
-  dropdownBtnLeft: {
+  receiptHeaderTitle: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: colors.slate500,
+    letterSpacing: 0.5,
+  },
+  invoiceCodeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.indigo600,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E2E8F0",
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  noteSection: {
+    paddingVertical: 8,
+  },
+  noteBox: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 6,
+  },
+  noteText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.slate800,
+    lineHeight: 20,
+  },
+  detailLabel: {
+    fontSize: 13,
+    color: colors.slate600,
+    fontWeight: "600",
+  },
+  detailValueRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    flex: 1,
   },
-  dropdownSelectedText: {
-    fontSize: 14,
+  detailValue: {
+    fontSize: 13,
+    color: colors.slate700,
+    fontWeight: "600",
+  },
+  detailValueBold: {
+    fontSize: 13,
     fontWeight: "800",
     color: colors.slate900,
   },
-  dropdownArrow: {
+  cashBadge: {
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  cashBadgeText: {
     fontSize: 12,
-    color: colors.slate400,
     fontWeight: "800",
+    color: "#059669",
   },
-  dropdownListBox: {
-    backgroundColor: "#F8FAFC",
+  transferBadge: {
+    backgroundColor: "#EEF2FF",
     borderWidth: 1,
-    borderColor: colors.slate200,
-    borderRadius: 16,
-    marginTop: 6,
-    padding: 6,
-    maxHeight: 200,
+    borderColor: "#C7D2FE",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
-  dropdownItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.white,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
+  transferBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.indigo700,
+  },
+  categoryBadge: {
+    backgroundColor: "#F1F5F9",
     borderWidth: 1,
-    borderColor: colors.transparent,
+    borderColor: "#CBD5E1",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
-  dropdownItemRowActive: {
-    backgroundColor: "#EFF6FF",
-    borderColor: "#93C5FD",
-  },
-  catRowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  catNameText: {
-    fontSize: 13,
+  categoryBadgeText: {
+    fontSize: 12,
     fontWeight: "700",
     color: colors.slate800,
   },
-  catNameTextActive: {
-    color: "#1D4ED8",
-    fontWeight: "900",
+  groupBadge: {
+    backgroundColor: "#FAF5FF",
+    borderWidth: 1,
+    borderColor: "#E9D5FF",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
-  checkBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.emerald600,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkBadgeText: {
-    color: colors.white,
+  groupBadgeText: {
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "700",
+    color: "#7E22CE",
+  },
+  budgetBadge: {
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  budgetBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#B45309",
   },
 });

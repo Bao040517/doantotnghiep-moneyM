@@ -24,6 +24,7 @@ public class CreateTransactionRequest {
 
     private boolean isSplit;
     private boolean excludeFromBudget;
+    private String paymentMethod;
 
     private java.util.List<TransactionSplitRequest> splits;
 }

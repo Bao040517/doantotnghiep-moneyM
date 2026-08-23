@@ -25,6 +25,7 @@ public class UpdateTransactionRequest {
 
     private boolean isSplit;
     private boolean excludeFromBudget;
+    private String paymentMethod;
 
     private java.util.List<TransactionSplitRequest> splits;
 }

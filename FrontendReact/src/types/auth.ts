@@ -8,6 +8,9 @@ export interface UserSummary {
   bankAccountNo?: string;
   bankAccountName?: string;
   bankQrUrl?: string;
+  savingsBankBin?: string;
+  savingsBankAccountNo?: string;
+  savingsBankAccountName?: string;
 }
 
 export interface AuthResponse {

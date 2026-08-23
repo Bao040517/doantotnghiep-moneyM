@@ -123,12 +123,58 @@ Bộ dữ liệu **Seed V13 (`seed_v13.sql` & `generate_seed_v13.js`)** là phi�
 
 ---
 
-## 12. Tóm tắt các Script đang sử dụng
-*   `generate_seed_v13.js`: Kịch bản thế hệ mới nhất V13, chuẩn hóa mốc thời gian 20/08/2026 hôm nay và avatar DiceBear.
-*   `seed_v13.sql`: File SQL thành phẩm V13 sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / Render / pgAdmin / DataGrip / DBeaver).
+## 12. Đặc tả Bộ dữ liệu mẫu V14 (Seed V14 Data Specs)
+
+Bộ dữ liệu **Seed V14 (`seed_v14.sql` & `generate_seed_v14.js`)** là phiên bản tối ưu hóa chuyên sâu phục vụ cho **Kiểm thử Luồng Thanh Toán Chuyển Khoản Trực Tiếp VietQR P2P & Cổng Tự Động PayOS**:
+*   **3 User Đặc Biệt với Tài Khoản Ngân Hàng Chỉ Định:**
+    *   **User A (`nguyenvana@gmail.com`):** Ngân hàng **MBBank** (Mã BIN `970422`), Số tài khoản **`6617052004888`**, Tên chủ tài khoản: **`DUONG DUC BAO`**.
+    *   **User B (`nguyenvanb@gmail.com`):** Ngân hàng **Techcombank** (Mã BIN `970407`), Số tài khoản **`6617052004`**, Tên chủ tài khoản: **`NGUYEN VAN B`**.
+    *   **User C (`nguyenvanc@gmail.com`):** Ngân hàng **MSB** (Mã BIN `970426`), Số tài khoản **`4517052004`**, Tên chủ tài khoản: **`NGUYEN VAN C`**.
+    *   *User D (`phamvand@gmail.com`)*: BIDV (`970418` - `10938888999`).
+    *   *User E (`hoangthie@gmail.com`)*: TPBank (`970423` - `10948888999`).
+*   **Hệ Thống Ngân Sách Hóa Đơn Cố Định (BILL) Phong Phú Có Sẵn Thụ Hưởng:**
+    *   Cả 3 User A, B, C đều được thiết lập nhiều khoản ngân sách phân loại **`BILL`** (Hóa đơn cố định) như *Tiền nhà, Tiền điện, Phí liên lạc/Internet, Phí dịch vụ chung cư*.
+    *   Mỗi khoản BILL đều được liên kết sẵn thông tin thụ hưởng (`payee_bank_bin`, `payee_bank_account`, `payee_account_name`, `payee_id`) của nhau (A chuyển tiền nhà cho B Techcombank, B chuyển cho C MSB, C chuyển cho A MBBank).
+    *   **Tháng hiện tại (08/2026):** Giữ lại các khoản BILL chưa thanh toán hoặc thanh toán 1 phần để khi mở app xuất hiện ngay nút **`✓ Trả ngay`**, phục vụ kiểm thử luồng 1-chạm VietQR P2P và PayOS tự động.
+*   **Duy trì toàn vẹn ràng buộc PFM:**
+## 13. Đặc tả Bộ dữ liệu mẫu V15 (Seed V15 Data Specs)
+
+Bộ dữ liệu **Seed V15 (`seed_v15.sql` & `generate_seed_v15.js`)** là phiên bản mở rộng toàn diện hệ thống **Ngân sách Hóa đơn Cố định (BILL)** cho 3 User chỉ định:
+*   **3 User Đặc Biệt với Tài Khoản Ngân Hàng Chỉ Định:**
+    *   **User A (`nguyenvana@gmail.com`):** Ngân hàng **MBBank** (Mã BIN `970422`), Số tài khoản **`6617052004888`**, Tên chủ tài khoản: **`DUONG DUC BAO`**.
+    *   **User B (`nguyenvanb@gmail.com`):** Ngân hàng **Techcombank** (Mã BIN `970407`), Số tài khoản **`6617052004`**, Tên chủ tài khoản: **`NGUYEN VAN B`**.
+    *   **User C (`nguyenvanc@gmail.com`):** Ngân hàng **MSB** (Mã BIN `970426`), Số tài khoản **`4517052004`**, Tên chủ tài khoản: **`NGUYEN VAN C`**.
+    *   *User D (`phamvand@gmail.com`)*: BIDV (`970418` - `10938888999`).
+    *   *User E (`hoangthie@gmail.com`)*: TPBank (`970423` - `10948888999`).
+*   **5 Khoản Ngân Sách BILL (Hóa Đơn Cố Định) Mở Rộng Cho Mỗi User Đặc Biệt:**
+    *   **1. Tiền nhà / Phòng trọ** (`BILL`, 1.5tr - 1.8tr): Chuyển tiền nhà chéo nhau giữa A (MBBank) -> B (Techcombank) -> C (MSB) -> A.
+    *   **2. Tiền điện sinh hoạt** (`BILL`, 650k - 750k): Gắn EVN HCMC (VCB `1012345678`).
+    *   **3. Phí Internet / 4G liên lạc** (`BILL`, 200k - 250k): Gắn Viettel Telecom (Techcombank `19033338888`).
+    *   **4. Học phí / Đào tạo / Khóa học** (`BILL`, 800k - 1.2tr): Gắn Đại Học FPT / FPT Telecom / VUS.
+    *   **5. Bảo hiểm / Y tế định kỳ** (`BILL`, 400k - 500k): Gắn Bảo Việt / Bệnh viện Hoàn Mỹ / Phòng khám CarePlus.
+    *   **Tháng hiện tại (08/2026):** Giữ lại các khoản BILL chưa thanh toán hoặc thanh toán 1 phần để khi mở app xuất hiện ngay nút **`✓ Trả ngay`**, test trọn vẹn luồng thanh toán VietQR P2P & PayOS.
+*   **Nhóm Chung Riêng Biệt & Nợ Nhau Chéo Giữa A - B - C:**
+    *   Nhóm **"Hội Bạn Thân (A - B - C)"**: Cả 3 User A, B, C cùng tham gia.
+    *   **Khoản nợ 1 (User A chi)**: Ăn lẩu nướng Haidilao (1.200.000 ₫ $\rightarrow$ mỗi người 400.000 ₫) $\rightarrow$ **B nợ A 400k**, **C nợ A 400k** (Chưa thanh toán).
+    *   **Khoản nợ 2 (User B chi)**: Thuê xe tự lái dã ngoại (900.000 ₫ $\rightarrow$ mỗi người 300.000 ₫) $\rightarrow$ **A nợ B 300k**, **C nợ B 300k** (Chưa thanh toán).
+    *   **Khoản nợ 3 (User C chi)**: Homestay cuối tuần (1.500.000 ₫ $\rightarrow$ mỗi người 500.000 ₫) $\rightarrow$ **A nợ C 500k**, **B nợ C 500k** (Chưa thanh toán).
+    *   Mỗi user đều có nút **`⚡ Trả nợ`** với mã VietQR P2P chuyển tiền thẳng vào đúng STK ngân hàng chỉ định (MBBank, Techcombank, MSB).
+*   **Duy trì toàn vẹn ràng buộc PFM:**
+    *   Dữ liệu 20 tháng liên tục (01/2025 -> 20/08/2026), mốc cutoff thời gian thực tế `<= 20/08/2026`.
+    *   Hạn mức ngân sách `<= 2.000.000 VNĐ`, tổng tài sản ròng `<= 25.000.000 VNĐ`.
+    *   Đầy đủ 18 bảng Entity Spring Boot, 1.369 giao dịch và 488 ngân sách.
+
+---
+
+## 14. Tóm tắt các Script đang sử dụng
+*   `generate_seed_v15.js`: Kịch bản thế hệ mới nhất V15, cấu hình 3 tài khoản ngân hàng đặc biệt (MBBank, Techcombank, MSB) và 5 khoản ngân sách BILL cho mỗi user.
+*   `seed_v15.sql`: File SQL thành phẩm V15 sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / Render / pgAdmin / DataGrip / DBeaver).
+*   `seed_v14.sql` / `generate_seed_v14.js`: Bản lưu trữ thế hệ V14.
+*   `seed_v13.sql` / `generate_seed_v13.js`: Bản lưu trữ thế hệ V13.
 *   `check_entities.js`: Tool nội bộ quét file `.java` và validate cấu trúc cột `NOT NULL`.
 *   `seed_v12.sql` / `generate_seed_v12.js`: Bản lưu trữ thế hệ V12.
 *   `seed_v11.sql` / `generate_seed_v11.js`: Bản lưu trữ thế hệ V11.
+
 
 
 

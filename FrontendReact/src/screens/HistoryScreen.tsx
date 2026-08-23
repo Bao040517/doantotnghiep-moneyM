@@ -248,15 +248,22 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
 
                   {/* Transaction Info */}
                   <View style={styles.txMainInfo}>
-                    <Text style={styles.txNameText} numberOfLines={1}>
+                    <Text style={styles.txNameText} numberOfLines={2}>
                       {item.note || item.categoryName || (item as any).category?.name || "Giao dịch"}
                     </Text>
                     <Text style={styles.txDateText}>{formatDateStr(item.transactionDate)}</Text>
-                    {(item.categoryName || (item as any).category?.name) && (
-                      <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryBadgeText}>🧾 {item.categoryName || (item as any).category?.name}</Text>
-                      </View>
-                    )}
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                      {(item.categoryName || (item as any).category?.name) && (
+                        <View style={styles.categoryBadge}>
+                          <Text style={styles.categoryBadgeText}>🧾 {item.categoryName || (item as any).category?.name}</Text>
+                        </View>
+                      )}
+                      {(item.paymentMethod === "CASH" || (item.note && (item.note.includes("tiền mặt") || item.note.includes("Tiền mặt")))) && (
+                        <View style={[styles.categoryBadge, { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }]}>
+                          <Text style={[styles.categoryBadgeText, { color: "#059669", fontWeight: "700" }]}>💵 Tiền mặt</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
 
                   {/* Transaction Amount */}
@@ -513,9 +520,10 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   txNameText: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: "700",
     color: colors.slate900,
+    lineHeight: 18,
     marginBottom: 2,
   },
   txDateText: {

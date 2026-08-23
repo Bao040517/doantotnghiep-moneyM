@@ -63,11 +63,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [bankModalVisible, setBankModalVisible] = useState(false);
+  const [bankModalTarget, setBankModalTarget] = useState<"main" | "savings">("main");
   const [searchBank, setSearchBank] = useState("");
 
   // Edit / Lock states: Mặc định khóa để tránh vô tình chạm vào nhảy thông tin
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [isEditingVietQr, setIsEditingVietQr] = useState(false);
+
+  // Savings Bank ("Ví Tiết Kiệm") states
+  const [savingsBankBin, setSavingsBankBin] = useState(user?.savingsBankBin || "970407");
+  const [savingsAccountNo, setSavingsAccountNo] = useState(user?.savingsBankAccountNo || "");
+  const [savingsAccountName, setSavingsAccountName] = useState(user?.savingsBankAccountName || user?.name || "");
+  const [isEditingSavingsBank, setIsEditingSavingsBank] = useState(false);
+  const [savingsLoading, setSavingsLoading] = useState(false);
+  const [savingsLookupLoading, setSavingsLookupLoading] = useState(false);
+  const [savingsLookupVerified, setSavingsLookupVerified] = useState(false);
+  const [savingsLookupMessage, setSavingsLookupMessage] = useState<string | null>(null);
 
   // Bank Lookup states
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -87,10 +98,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       setAccountNo(accNo);
       setAccountName(cleanAccountName(user.bankAccountName || user.name || ""));
       setPhone(user.phone || "");
+
+      setSavingsBankBin(user.savingsBankBin || "970407");
+      setSavingsAccountNo(user.savingsBankAccountNo || "");
+      setSavingsAccountName(cleanAccountName(user.savingsBankAccountName || user.name || ""));
     }
   }, [user]);
 
   const selectedBank = VIETQR_BANKS.find((b) => b.bin === bankBin) || VIETQR_BANKS[0];
+  const selectedSavingsBank = VIETQR_BANKS.find((b) => b.bin === savingsBankBin) || VIETQR_BANKS[0];
 
   const filteredBanks = VIETQR_BANKS.filter(
     (b) =>
@@ -122,6 +138,30 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
+  const handleLookupSavingsAccount = async (targetBin?: string, targetAccNo?: string) => {
+    const currentBin = targetBin || savingsBankBin;
+    const currentAcc = (targetAccNo !== undefined ? targetAccNo : savingsAccountNo).trim();
+    if (!currentBin || currentAcc.length < 6) return;
+
+    setSavingsLookupLoading(true);
+    setSavingsLookupMessage(null);
+    try {
+      const res = await authService.lookupBankAccount(currentBin, currentAcc);
+      if (res.verified && res.accountName) {
+        setSavingsAccountName(res.accountName);
+        setSavingsLookupVerified(true);
+        setSavingsLookupMessage(`✓ Đã tự động khớp chủ tài khoản từ ${selectedSavingsBank.shortName}`);
+      } else {
+        setSavingsLookupVerified(false);
+        if (res.message) setSavingsLookupMessage(res.message);
+      }
+    } catch (e: any) {
+      setSavingsLookupVerified(false);
+    } finally {
+      setSavingsLookupLoading(false);
+    }
+  };
+
   // Tự động tra cứu và nhảy tên chủ tài khoản sau khi nhập số tài khoản (debounce 400ms)
   React.useEffect(() => {
     if (isEditingVietQr && bankBin && accountNo.trim().length >= 6) {
@@ -134,6 +174,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       setLookupMessage(null);
     }
   }, [bankBin, accountNo, isEditingVietQr]);
+
+  React.useEffect(() => {
+    if (isEditingSavingsBank && savingsBankBin && savingsAccountNo.trim().length >= 6) {
+      const timer = setTimeout(() => {
+        handleLookupSavingsAccount(savingsBankBin, savingsAccountNo.trim());
+      }, 400);
+      return () => clearTimeout(timer);
+    } else {
+      setSavingsLookupVerified(false);
+      setSavingsLookupMessage(null);
+    }
+  }, [savingsBankBin, savingsAccountNo, isEditingSavingsBank]);
 
   const handlePickAvatarFromGallery = async () => {
     try {
@@ -202,6 +254,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     accountName && accountName.trim().length > 0
   );
 
+  const isSavingsBankConfigured = Boolean(
+    savingsBankBin && savingsBankBin.trim().length >= 4 &&
+    savingsAccountNo && savingsAccountNo.trim().length >= 4 &&
+    savingsAccountName && savingsAccountName.trim().length > 0
+  );
+
   const handleUpdateVietQR = async () => {
     if (!bankBin.trim()) {
       Alert.alert("Lỗi", "Vui lòng chọn ngân hàng nhận tiền");
@@ -229,6 +287,36 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       Alert.alert("Lỗi", e.response?.data?.message || "Cập nhật thất bại");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateSavingsBank = async () => {
+    if (!savingsBankBin.trim()) {
+      Alert.alert("Lỗi", "Vui lòng chọn ngân hàng cho Ví Tiết Kiệm");
+      return;
+    }
+    if (!savingsAccountNo.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập số tài khoản Ví Tiết Kiệm");
+      return;
+    }
+    if (!savingsAccountName.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập tên chủ tài khoản Ví Tiết Kiệm");
+      return;
+    }
+    setSavingsLoading(true);
+    try {
+      await authService.updateVietQRLink({
+        savingsBankBin: savingsBankBin.trim(),
+        savingsBankAccountNo: savingsAccountNo.trim(),
+        savingsBankAccountName: savingsAccountName.trim().toUpperCase(),
+      });
+      Alert.alert("Thành công 🎉", "Đã lưu thông tin tài khoản ngân hàng Ví Tiết Kiệm!");
+      setIsEditingSavingsBank(false);
+      onRefreshUser();
+    } catch (e: any) {
+      Alert.alert("Lỗi", e.response?.data?.message || "Cập nhật Ví Tiết Kiệm thất bại");
+    } finally {
+      setSavingsLoading(false);
     }
   };
 
@@ -316,7 +404,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <Text style={styles.fieldLabel}>Chọn ngân hàng (*)</Text>
           <TouchableOpacity
             style={[styles.bankSelectBtn, !isEditingVietQr && styles.bankSelectBtnDisabled]}
-            onPress={() => isEditingVietQr && setBankModalVisible(true)}
+            onPress={() => {
+              if (isEditingVietQr) {
+                setBankModalTarget("main");
+                setBankModalVisible(true);
+              }
+            }}
             activeOpacity={isEditingVietQr ? 0.8 : 1}
             disabled={!isEditingVietQr}
           >
@@ -428,6 +521,133 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </Card>
         )}
 
+        {/* ─── SAVINGS BANK CONFIGURATION CARD (Ví Tiết Kiệm) ─── */}
+        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>🏦 Cấu hình "Ví Tiết Kiệm" (Ngân Hàng Tích Lũy)</Text>
+        <Card style={styles.bankFormCard}>
+          <Text style={{ fontSize: 13, color: colors.slate600, marginBottom: 14, lineHeight: 18 }}>
+            Tài khoản ngân hàng dùng để nhận tiền khi thực hiện <Text style={{ fontWeight: "700", color: colors.amber700 }}>Phân bổ tự động an toàn</Text> & Nạp tiền vào quỹ tích lũy.
+          </Text>
+
+          <Text style={styles.fieldLabel}>Chọn ngân hàng Ví Tiết Kiệm (*)</Text>
+          <TouchableOpacity
+            style={[styles.bankSelectBtn, !isEditingSavingsBank && styles.bankSelectBtnDisabled]}
+            onPress={() => {
+              if (isEditingSavingsBank) {
+                setBankModalTarget("savings");
+                setBankModalVisible(true);
+              }
+            }}
+            activeOpacity={isEditingSavingsBank ? 0.8 : 1}
+            disabled={!isEditingSavingsBank}
+          >
+            <View style={styles.bankSelectLeft}>
+              <Image source={{ uri: selectedSavingsBank.logo }} style={styles.bankSelectLogo} resizeMode="contain" />
+              <View style={styles.bankSelectTextGroup}>
+                <Text style={styles.bankSelectShortName}>{selectedSavingsBank.shortName}</Text>
+                <Text style={styles.bankSelectFullName} numberOfLines={1}>
+                  {selectedSavingsBank.name}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.bankSelectArrowBox}>
+              <Text style={styles.bankSelectArrow}>▼</Text>
+            </View>
+          </TouchableOpacity>
+
+          <Input
+            label="Số tài khoản Ví Tiết Kiệm (*)"
+            placeholder="Nhập số tài khoản ngân hàng tích lũy"
+            keyboardType="number-pad"
+            value={savingsAccountNo}
+            onChangeText={(text) => {
+              setSavingsAccountNo(text);
+              setSavingsLookupVerified(false);
+            }}
+            editable={isEditingSavingsBank}
+          />
+
+          {isEditingSavingsBank && savingsLookupLoading && (
+            <View style={styles.lookupStatusRow}>
+              <ActivityIndicator size="small" color={colors.indigo600} />
+              <Text style={styles.lookupLoadingText}>Đang tra cứu tên từ ngân hàng...</Text>
+            </View>
+          )}
+
+          {isEditingSavingsBank && savingsLookupVerified && (
+            <View style={styles.lookupVerifiedRow}>
+              <Text style={styles.lookupVerifiedText}>✓ Đã xác thực chính chủ từ {selectedSavingsBank.shortName}</Text>
+            </View>
+          )}
+
+          <Input
+            label="Tên chủ tài khoản Ví Tiết Kiệm (*)"
+            placeholder="Tự động điền theo số tài khoản ngân hàng..."
+            value={savingsAccountName}
+            onChangeText={setSavingsAccountName}
+            editable={isEditingSavingsBank}
+          />
+
+          {isEditingSavingsBank ? (
+            <View style={styles.actionBtnRow}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Hủy"
+                  variant="secondary"
+                  onPress={() => {
+                    setSavingsBankBin(user?.savingsBankBin || "970407");
+                    setSavingsAccountNo(user?.savingsBankAccountNo || "");
+                    setSavingsAccountName(cleanAccountName(user?.savingsBankAccountName || user?.name || ""));
+                    setIsEditingSavingsBank(false);
+                    setSavingsLookupVerified(false);
+                    setSavingsLookupMessage(null);
+                  }}
+                  disabled={savingsLoading}
+                />
+              </View>
+              <View style={{ flex: 1.6 }}>
+                <Button
+                  title="Lưu Ví Tiết Kiệm"
+                  variant="amber"
+                  onPress={handleUpdateSavingsBank}
+                  loading={savingsLoading}
+                />
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.editOutlineBtn}
+              onPress={() => {
+                setIsEditingSavingsBank(true);
+                if (savingsBankBin && savingsAccountNo.trim().length >= 6) {
+                  handleLookupSavingsAccount(savingsBankBin, savingsAccountNo.trim());
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.editOutlineBtnText}>Chỉnh sửa Ví Tiết Kiệm</Text>
+            </TouchableOpacity>
+          )}
+        </Card>
+
+        {/* Live Preview QR Ví Tiết Kiệm */}
+        <Text style={styles.sectionTitle}>Mã VietQR Ví Tiết Kiệm</Text>
+        {isSavingsBankConfigured ? (
+          <VietQRCard
+            bankBin={savingsBankBin.trim()}
+            accountNo={savingsAccountNo.trim()}
+            accountName={savingsAccountName.trim().toUpperCase()}
+            description="Chuyen tien vao Vi Tiet Kiem"
+          />
+        ) : (
+          <Card style={styles.emptyQrCard}>
+            <Text style={{ fontSize: 36, marginBottom: 8 }}>🏦</Text>
+            <Text style={styles.emptyQrTitle}>Chưa thiết lập ngân hàng Ví Tiết Kiệm</Text>
+            <Text style={styles.emptyQrSub}>
+              Vui lòng chọn Ngân hàng và nhập Số tài khoản Ví Tiết Kiệm ở trên để hiển thị mã QR nạp quỹ.
+            </Text>
+          </Card>
+        )}
+
         {/* Logout Button */}
         <Button
           title="Đăng xuất tài khoản"
@@ -451,7 +671,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         >
           <TouchableOpacity style={[styles.modalContent, { maxHeight: "85%" }]} activeOpacity={1}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chọn Ngân Hàng Nhận Tiền 🏦</Text>
+              <Text style={styles.modalTitle}>
+                {bankModalTarget === "savings" ? "Chọn Ngân Hàng Ví Tiết Kiệm 🏦" : "Chọn Ngân Hàng Nhận Tiền 🏦"}
+              </Text>
               <TouchableOpacity
                 style={styles.modalCloseBtn}
                 onPress={() => setBankModalVisible(false)}
@@ -469,17 +691,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
               {filteredBanks.map((bank) => {
-                const isSelected = bank.bin === bankBin;
+                const isSelected = bankModalTarget === "savings" ? bank.bin === savingsBankBin : bank.bin === bankBin;
                 return (
                   <TouchableOpacity
                     key={bank.bin}
                     style={[styles.bankItemRow, isSelected && styles.bankItemRowSelected]}
                     onPress={() => {
-                      setBankBin(bank.bin);
-                      setBankModalVisible(false);
-                      setSearchBank("");
-                      if (accountNo.trim().length >= 6) {
-                        handleLookupAccount(bank.bin, accountNo.trim());
+                      if (bankModalTarget === "savings") {
+                        setSavingsBankBin(bank.bin);
+                        setBankModalVisible(false);
+                        setSearchBank("");
+                        if (savingsAccountNo.trim().length >= 6) {
+                          handleLookupSavingsAccount(bank.bin, savingsAccountNo.trim());
+                        }
+                      } else {
+                        setBankBin(bank.bin);
+                        setBankModalVisible(false);
+                        setSearchBank("");
+                        if (accountNo.trim().length >= 6) {
+                          handleLookupAccount(bank.bin, accountNo.trim());
+                        }
                       }
                     }}
                     activeOpacity={0.7}

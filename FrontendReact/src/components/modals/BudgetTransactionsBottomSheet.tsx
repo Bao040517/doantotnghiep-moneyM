@@ -240,7 +240,13 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
                     </Text>
 
                     <View style={styles.txMetaRow}>
-                      <Text style={styles.txWallet}>💳 {tx.walletName || "Ví mặc định"}</Text>
+                      {(tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) ? (
+                        <View style={[styles.groupBadge, { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }]}>
+                          <Text style={[styles.groupBadgeText, { color: "#059669", fontWeight: "700" }]}>💵 Tiền mặt</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.txWallet}>💳 {tx.walletName || "Ví mặc định"}</Text>
+                      )}
                       {tx.linkedExpenseId && (
                         <View style={styles.groupBadge}>
                           <Text style={styles.groupBadgeText}>👥 Khoản chi nhóm</Text>
@@ -252,8 +258,10 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
                   {/* Right Amount Column */}
                   <View style={styles.txRightCol}>
                     <Text style={styles.txAmount}>-{fmt(tx.amount)}</Text>
-                    <View style={styles.settledTag}>
-                      <Text style={styles.settledTagText}>Đã trừ ví ✓</Text>
+                    <View style={[styles.settledTag, (tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) && { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }]}>
+                      <Text style={[styles.settledTagText, (tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) && { color: "#059669" }]}>
+                        {(tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) ? "Tiền mặt ✓" : "Đã trừ ví ✓"}
+                      </Text>
                     </View>
                   </View>
                 </View>

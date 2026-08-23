@@ -23,5 +23,6 @@ public class TransactionResponse {
     private java.util.List<String> tags;
 
     private boolean isSplit;
+    private String paymentMethod;
     private List<TransactionSplitResponse> splits;
 }

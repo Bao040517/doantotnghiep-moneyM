@@ -125,6 +125,11 @@ public class TransactionService {
             }
         }
 
+        String paymentMethod = req.getPaymentMethod();
+        if (paymentMethod == null || paymentMethod.trim().isEmpty()) {
+            paymentMethod = "TRANSFER";
+        }
+
         Transaction transaction =
                 Transaction.builder()
                         .wallet(wallet)
@@ -138,6 +143,7 @@ public class TransactionService {
                         .isSplit(req.isSplit())
                         .linkedBudgetId(linkedBudgetId)
                         .excludeFromBudget(req.isExcludeFromBudget())
+                        .paymentMethod(paymentMethod)
                         .build();
 
         if (req.isSplit() && req.getSplits() != null && !req.getSplits().isEmpty()) {
@@ -171,10 +177,17 @@ public class TransactionService {
         if (category.getType() == TransactionType.INCOME) {
             wallet.setBalance(wallet.getBalance().add(req.getAmount()));
         } else if (category.getType() == TransactionType.EXPENSE) {
-            if (wallet.getBalance().compareTo(req.getAmount()) < 0) {
-                throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
+            if ("CASH".equalsIgnoreCase(paymentMethod)) {
+                // Tiền mặt: nếu số dư ví đủ thì trừ, nếu không đủ thì ghi nhận chi tiêu bình thường mà không chặn lỗi ví
+                if (wallet.getBalance().compareTo(req.getAmount()) >= 0) {
+                    wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
+                }
+            } else {
+                if (wallet.getBalance().compareTo(req.getAmount()) < 0) {
+                    throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
+                }
+                wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
             }
-            wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
         }
         // TRANSFER: không thay đổi số dư ví
 
@@ -273,6 +286,9 @@ public class TransactionService {
         tx.setCategory(newCategory);
         tx.setType(newCategory.getType());
         tx.setNote(req.getNote());
+        if (req.getPaymentMethod() != null && !req.getPaymentMethod().trim().isEmpty()) {
+            tx.setPaymentMethod(req.getPaymentMethod().trim());
+        }
         if (req.getTransactionDate() != null) {
             tx.setTransactionDate(req.getTransactionDate());
         }
@@ -886,6 +902,7 @@ public class TransactionService {
                 .note(transaction.getNote())
                 .linkedExpenseId(transaction.getLinkedExpenseId())
                 .payeeName(transaction.getPayee() != null ? transaction.getPayee().getName() : null)
+                .paymentMethod(transaction.getPaymentMethod() != null ? transaction.getPaymentMethod() : "TRANSFER")
                 .tags(
                         transaction.getTags() != null
                                 ? transaction.getTags().stream()

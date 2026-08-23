@@ -17,4 +17,8 @@ public class UserSummaryResponse {
     private String bankQrUrl;
     private String bankBin;
     private String bankAccountNo;
+    private String bankAccountName;
+    private String savingsBankBin;
+    private String savingsBankAccountNo;
+    private String savingsBankAccountName;
 }

@@ -155,4 +155,38 @@ public class PayOSService {
             return false;
         }
     }
+
+    /**
+     * Truy vấn thông tin trạng thái Payment Link trực tiếp từ PayOS Server
+     * GET https://api-merchant.payos.vn/v2/payment-requests/{orderCode}
+     */
+    public Map<String, Object> getPaymentLinkInformation(long orderCode) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(PAYOS_API_URL + "/" + orderCode))
+                    .header("Content-Type", "application/json")
+                    .header("x-client-id", payOSConfig.getClientId())
+                    .header("x-api-key", payOSConfig.getApiKey())
+                    .GET()
+                    .timeout(Duration.ofSeconds(6))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            log.info("[PayOS Query] OrderCode: {}, Status: {}, Body: {}", orderCode, response.statusCode(), response.body());
+
+            JsonNode root = objectMapper.readTree(response.body());
+            if (root.has("code") && "00".equals(root.get("code").asText())) {
+                JsonNode data = root.get("data");
+                Map<String, Object> result = new HashMap<>();
+                result.put("orderCode", orderCode);
+                result.put("status", data.has("status") ? data.get("status").asText() : "PENDING");
+                result.put("amount", data.has("amount") ? data.get("amount").asLong() : 0L);
+                result.put("amountPaid", data.has("amountPaid") ? data.get("amountPaid").asLong() : 0L);
+                return result;
+            }
+        } catch (Exception e) {
+            log.error("[PayOS Query] Failed to query order {} from PayOS API", orderCode, e);
+        }
+        return java.util.Collections.emptyMap();
+    }
 }

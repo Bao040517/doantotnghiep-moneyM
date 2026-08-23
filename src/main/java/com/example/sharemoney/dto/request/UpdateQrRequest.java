@@ -14,5 +14,9 @@ public class UpdateQrRequest {
     private String bankBin;
     private String bankAccountNo;
     private String bankAccountName;
+
+    private String savingsBankBin;
+    private String savingsBankAccountNo;
+    private String savingsBankAccountName;
 }
 

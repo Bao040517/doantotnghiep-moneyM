@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from "react";
-import { View, TextInput, Text, StyleSheet, TextInputProps, ViewStyle } from "react-native";
+import React, { useRef } from "react";
+import { View, TextInput, Text, StyleSheet, ViewStyle } from "react-native";
 import { colors } from "../../constants/colors";
+import { VietnameseTextInput, VietnameseTextInputProps } from "./VietnameseTextInput";
 
-
-interface InputProps extends TextInputProps {
+export interface InputProps extends VietnameseTextInputProps {
   label?: string;
   error?: string;
   containerStyle?: ViewStyle;
@@ -21,22 +21,13 @@ export const Input: React.FC<InputProps> = ({
   onChangeText,
   autoCorrect = false,
   autoCapitalize = "none",
+  vietnameseTelex,
+  onValidatedTextChange,
   ...rest
 }) => {
   const inputRef = useRef<TextInput>(null);
-  const lastValRef = useRef<string>(value ?? defaultValue ?? "");
-
-  useEffect(() => {
-    if (value !== undefined && value !== lastValRef.current) {
-      lastValRef.current = value;
-      if (inputRef.current) {
-        inputRef.current.setNativeProps({ text: value });
-      }
-    }
-  }, [value]);
 
   const handleChangeText = (text: string) => {
-    lastValRef.current = text;
     if (onChangeText) {
       onChangeText(text);
     }
@@ -54,7 +45,7 @@ export const Input: React.FC<InputProps> = ({
         ]}
       >
         {icon && <View style={styles.iconWrapper}>{icon}</View>}
-        <TextInput
+        <VietnameseTextInput
           ref={inputRef}
           style={[
             styles.input,
@@ -65,9 +56,10 @@ export const Input: React.FC<InputProps> = ({
           placeholderTextColor={colors.slate400}
           autoCorrect={autoCorrect}
           autoCapitalize={autoCapitalize}
-          value={value}
-          defaultValue={defaultValue}
+          {...(value !== undefined ? { value } : { defaultValue })}
           onChangeText={handleChangeText}
+          vietnameseTelex={vietnameseTelex}
+          onValidatedTextChange={onValidatedTextChange}
           {...rest}
         />
       </View>
@@ -106,11 +98,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 96,
   },
-  multilineInput: {
-    textAlignVertical: "top",
-  },
   errorBorder: {
-    borderColor: colors.rose500,
+    borderColor: colors.rose600,
   },
   iconWrapper: {
     marginRight: 10,
@@ -119,14 +108,18 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: colors.slate900,
+    paddingVertical: 12,
+  },
+  multilineInput: {
+    textAlignVertical: "top",
+    minHeight: 72,
   },
   disabledInput: {
-    color: "#334155",
-    fontWeight: "600",
+    color: colors.slate400,
   },
   errorText: {
     fontSize: 12,
-    color: colors.rose500,
+    color: colors.rose600,
     marginTop: 4,
     fontWeight: "500",
   },

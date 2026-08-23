@@ -103,26 +103,48 @@ public class PayOSController {
      * GET /api/payos/order/{orderCode}
      */
     @GetMapping("/order/{orderCode}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> getOrderStatus(@PathVariable String orderCode) {
         String safeTxn = orderCode.startsWith("POS") ? orderCode : "POS" + orderCode;
-        return paymentOrderRepository.findByTxnRef(safeTxn)
+        String rawOrderCode = orderCode.startsWith("POS") ? orderCode.substring(3) : orderCode;
+
+        PaymentOrder order = paymentOrderRepository.findByTxnRef(safeTxn)
                 .or(() -> paymentOrderRepository.findByTxnRef(orderCode))
-                .map(order -> {
-                    Map<String, Object> res = new HashMap<>();
-                    res.put("orderCode", orderCode);
-                    res.put("txnRef", order.getTxnRef());
-                    res.put("amount", order.getAmount());
-                    res.put("status", order.getStatus().name());
-                    res.put("type", order.getType().name());
-                    res.put("paidAt", order.getPaidAt());
-                    return ResponseEntity.ok(res);
-                })
-                .orElseGet(() -> {
-                    Map<String, Object> notFound = new HashMap<>();
-                    notFound.put("orderCode", orderCode);
-                    notFound.put("status", "NOT_FOUND");
-                    return ResponseEntity.ok(notFound);
-                });
+                .orElse(null);
+
+        if (order != null) {
+            // Nếu đơn hàng đang PENDING, chủ động hỏi PayOS Server xem giao dịch đã PAID chưa
+            if (order.getStatus() == PaymentOrderStatus.PENDING) {
+                try {
+                    long code = Long.parseLong(rawOrderCode);
+                    Map<String, Object> payosInfo = payOSService.getPaymentLinkInformation(code);
+                    String payosStatus = (String) payosInfo.get("status");
+                    if ("PAID".equalsIgnoreCase(payosStatus)) {
+                        order.setStatus(PaymentOrderStatus.SUCCESS);
+                        order.setPaidAt(LocalDateTime.now());
+                        paymentOrderRepository.save(order);
+                        processPaymentOrderSuccess(order);
+                        log.info("[PayOS Polling Check] Order {} detected as PAID from PayOS Cloud! Settled and updated DB.", order.getTxnRef());
+                    }
+                } catch (Exception e) {
+                    log.warn("[PayOS Polling Check] Error querying PayOS API for order {}: {}", rawOrderCode, e.getMessage());
+                }
+            }
+
+            Map<String, Object> res = new HashMap<>();
+            res.put("orderCode", orderCode);
+            res.put("txnRef", order.getTxnRef());
+            res.put("amount", order.getAmount());
+            res.put("status", order.getStatus().name());
+            res.put("type", order.getType().name());
+            res.put("paidAt", order.getPaidAt());
+            return ResponseEntity.ok(res);
+        }
+
+        Map<String, Object> notFound = new HashMap<>();
+        notFound.put("orderCode", orderCode);
+        notFound.put("status", "NOT_FOUND");
+        return ResponseEntity.ok(notFound);
     }
 
     /**

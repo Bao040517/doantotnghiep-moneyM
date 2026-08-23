@@ -10,12 +10,12 @@ try {
 }
 
 export const getBaseUrl = () => {
-  // 0. Production / Environment configured URL (for EAS Build or Cloud deploy)
-  if (process.env.EXPO_PUBLIC_API_URL) {
+  // 0. Production / Environment configured URL (if not stale duckdns)
+  if (process.env.EXPO_PUBLIC_API_URL && !process.env.EXPO_PUBLIC_API_URL.includes("duckdns")) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, "");
   }
 
-  // 1. Try extracting host IP dynamically from Expo (Metro hostUri e.g. "192.168.1.218:8081")
+  // 1. Try extracting host IP dynamically from Expo (Metro hostUri e.g. "192.168.10.106:8081")
   const hostUri =
     Constants.expoConfig?.hostUri ||
     (Constants.manifest as any)?.hostUri ||
@@ -34,8 +34,8 @@ export const getBaseUrl = () => {
     return "http://10.0.2.2:8080/api";
   }
 
-  // 3. Fallback for Web / iOS Simulator
-  return "http://localhost:8080/api";
+  // 3. Fallback for Web / Local
+  return "http://192.168.10.106:8080/api";
 };
 
 export const api = axios.create({

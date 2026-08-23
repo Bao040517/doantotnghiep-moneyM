@@ -1,5 +1,5 @@
-import React from "react";
-import { LogBox } from "react-native";
+import React, { useEffect } from "react";
+import { LogBox, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { AppNavigator } from "./src/navigation/AppNavigator";
@@ -10,6 +10,16 @@ import { AuthProvider } from "./src/context/AuthContext";
 LogBox.ignoreAllLogs(true);
 
 export default function App() {
+  useEffect(() => {
+    // Helps browser IMEs, including UniKey, identify the app as Vietnamese.
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    const previousLanguage = document.documentElement.lang;
+    document.documentElement.lang = "vi";
+    return () => {
+      document.documentElement.lang = previousLanguage;
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
       <AlertProvider>

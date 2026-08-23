@@ -6,14 +6,17 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { BottomSheet } from "../components/ui/BottomSheet";
 import { SavingsGoalCard } from "../components/features/SavingsGoalCard";
+import { VietQRCard } from "../components/features/VietQRCard";
 import { colors } from "../constants/colors";
 import { useAppData } from "../hooks/useAppData";
 import { useSavings } from "../hooks/useSavings";
+import { useAuth } from "../hooks/useAuth";
 import { financialServices } from "../services/financialServices";
 import { SavingsPriority } from "../types";
 
 export const SavingsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const { totalWalletBalance, budgets, isLoading: appLoading, refresh: refreshApp, safeToSpend: apiSafeToSpend } = useAppData();
 
   const {
@@ -43,10 +46,36 @@ export const SavingsScreen: React.FC = () => {
   const [fundMode, setFundMode] = useState<"fund" | "withdraw">("fund");
   const [fundLoading, setFundLoading] = useState(false);
 
-  const handleAutoAllocate = async () => {
+  // VietQR Allocate Modal state
+  const [allocateQrModalVisible, setAllocateQrModalVisible] = useState(false);
+
+  const targetSavingsBin = user?.savingsBankBin || user?.bankBin;
+  const targetSavingsAccNo = user?.savingsBankAccountNo || user?.bankAccountNo;
+  const targetSavingsAccName = user?.savingsBankAccountName || user?.bankAccountName || user?.name;
+
+  const handleOpenAutoAllocateQr = () => {
+    if (!targetSavingsBin || !targetSavingsAccNo) {
+      Alert.alert(
+        "Chưa Cấu Hình Ví Tiết Kiệm 🏦",
+        "Bạn chưa thiết lập tài khoản ngân hàng nhận tiền cho Ví Tiết Kiệm. Vui lòng vào trang Cá nhân để cài đặt ngân hàng tích lũy.",
+        [
+          { text: "Để sau", style: "cancel" },
+          {
+            text: "Cài đặt ngay",
+            onPress: () => navigation.navigate("Profile" as never),
+          },
+        ]
+      );
+      return;
+    }
+    setAllocateQrModalVisible(true);
+  };
+
+  const handleConfirmAllocation = async () => {
     try {
       const res = await autoAllocate();
       const allocated = res?.totalAllocated ?? res?.allocatedTotal ?? 0;
+      setAllocateQrModalVisible(false);
       if (allocated > 0) {
         Alert.alert(
           "⚡ Tự Động Phân Bổ Thành Công!",
@@ -60,6 +89,7 @@ export const SavingsScreen: React.FC = () => {
         );
       }
     } catch (e: any) {
+      setAllocateQrModalVisible(false);
       if (
         e.message === "SAFETY_RESERVE_VIOLATION" ||
         e.response?.data?.message?.includes("SAFETY_RESERVE_VIOLATION") ||
@@ -239,7 +269,7 @@ export const SavingsScreen: React.FC = () => {
             <Text style={styles.reserveDescription}>
               {totalWalletBalance <= 0
                 ? "Số dư ví hiện tại là 0 ₫. Vui lòng nạp tiền vào ví để kích hoạt tính năng phân bổ tự động an toàn."
-                : "Số tiền tối thiểu cần giữ lại để đáp ứng 100% ngân sách sinh hoạt & các khoản nợ ròng tháng này."}
+                : "Số tiền tối thiểu cần giữ lại để đáp ứng 100% ngân sách sinh hoạt & các khoản nợ cần thanh toán tháng này."}
             </Text>
 
             <View style={styles.reserveDetailsGrid}>
@@ -264,7 +294,7 @@ export const SavingsScreen: React.FC = () => {
                   : "⚡ Phân Bổ Tự Động An Toàn Ngay"
               }
               variant={totalWalletBalance <= 0 || safeToSpend <= 0 ? "secondary" : "amber"}
-              onPress={handleAutoAllocate}
+              onPress={handleOpenAutoAllocateQr}
               disabled={totalWalletBalance <= 0 || safeToSpend <= 0}
               loading={isAllocating}
               style={styles.autoBtn}
@@ -418,6 +448,41 @@ export const SavingsScreen: React.FC = () => {
             />
           </View>
         </View>
+      </BottomSheet>
+
+      {/* ─── ALLOCATE VIETQR BOTTOM SHEET (Ví Tiết Kiệm) ─── */}
+      <BottomSheet
+        visible={allocateQrModalVisible}
+        onClose={() => setAllocateQrModalVisible(false)}
+        title="Quét Mã Nạp Ví Tiết Kiệm 🏦"
+      >
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24, paddingTop: 4 }}>
+          <Text style={{ fontSize: 13, color: colors.slate600, marginBottom: 14, lineHeight: 19 }}>
+            Quét mã VietQR chuyển số dư an toàn <Text style={{ fontWeight: "900", color: colors.amber700 }}>{formatVND(safeToSpend)}</Text> vào <Text style={{ fontWeight: "800", color: colors.slate800 }}>Ví Tiết Kiệm</Text> để hoàn tất trích gửi tích lũy:
+          </Text>
+
+          <VietQRCard
+            bankBin={targetSavingsBin || "970407"}
+            accountNo={targetSavingsAccNo || ""}
+            accountName={targetSavingsAccName || "VI TIET KIEM"}
+            amount={safeToSpend}
+            description={`Nap quy tiet kiem T${new Date().getMonth() + 1}`}
+          />
+
+          <View style={{ marginTop: 20, gap: 10 }}>
+            <Button
+              title="✓ Tôi Đã Chuyển Khoản — Hoàn Tất Phân Bổ"
+              variant="amber"
+              onPress={handleConfirmAllocation}
+              loading={isAllocating}
+            />
+            <Button
+              title="Đóng"
+              variant="secondary"
+              onPress={() => setAllocateQrModalVisible(false)}
+            />
+          </View>
+        </ScrollView>
       </BottomSheet>
     </View>
   );

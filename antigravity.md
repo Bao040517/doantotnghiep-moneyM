@@ -32,6 +32,44 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 27. **Hệ Thống Tự Động Bù Trừ & Tái Cân Bằng Ngân Sách V2 (Tiered Overspending Compensation & Rounding Sweep Engine):** Thuật toán chuyên gia tài chính thông minh tự động phát hiện mọi khoản tiêu lố trong tháng, **bảo vệ nguyên vẹn 100% các khoản Cố định/Bill (Tiền nhà, Điện, Nước, Phí liên lạc, Lãi vay...)**, phân bổ cắt giảm phân tầng co giãn (**Tier 1 Hưởng thụ/Luxury** cắt giảm tối đa trước $\rightarrow$ **Tier 2 Sinh hoạt/Basic** chỉ cắt khi cần), tích hợp **Thuật toán vét sai số làm tròn (Rounding Sweep)** bù đắp chính xác 100% không bị hụt tiền, hỗ trợ **Interactive Override** tùy biến từ Client và nút bấm 1-chạm **"🔄 Áp Dụng Tái Cân Bằng Ngay"** cập nhật DB nguyên tử.
 28. **Hệ Thống Quản Lý Avatar Cá Nhân & Ảnh Bìa Nhóm Chi Tiêu (Custom Gallery Picker & Image Compression):** Tích hợp trọn vẹn từ Backend đến Frontend cho phép người dùng đổi ảnh đại diện cá nhân qua camera/thư viện ảnh máy (`expo-image-picker`), bộ sưu tập 12 avatar hoạt hình/robot sinh động (`DiceBear bottts & adventurer`), loại bỏ hoàn toàn ảnh chụp người thật, và tùy biến ảnh bìa nhóm chi tiêu khi tạo mới hoặc cập nhật trực tiếp trên Banner chi tiết nhóm.
 29. **Rà Soát & Làm Sạch Toàn Bộ Dữ Liệu Hardcode & Phân Tách Trải Nghiệm Người Dùng Mới (Zero-Hardcode & New User Onboarding):** Loại bỏ 100% các giá trị mock/fallback ngầm (STK ảo `10908888999`, BIN ngầm `970422`, email mẫu `email@example.com`, chi phí mẫu `55.824.000đ`, IP LAN `192.168.123.200`), phân tách rõ ràng trải nghiệm giữa người dùng mới (form trắng, hướng dẫn thiết lập, onboarding tích lũy thân thiện) và người dùng đang hoạt động (cảnh báo PFM chính xác theo thời gian thực).
+30. **Hệ Thống Thanh Toán Kép VietQR P2P & Cổng PayOS Tự Động (Active Polling & Live Bank Lookup):** Mô hình chuyển tiền kép: VietQR Napas247 P2P chuyển thẳng 100% vào đúng tài khoản ngân hàng chính chủ của người nhận (MB, VCB, TCB, MSB...), song song cổng PayOS với Active Polling 2s tự động đối soát realtime trên server merchant và gạch nợ tức thì; tích hợp danh bạ người nhận thông minh, form ngân sách tùy chọn và tự động tra cứu chính chủ Napas247.
+31. **Hệ Thống Thanh Toán VietQR P2P Trực Tiếp Tinh Gọn & Nhóm Quyết Toán Nợ Nần Chéo (Zero-Gateway & Seamless P2P Settlement):** Tối ưu hóa trải nghiệm chuyển tiền: loại bỏ hoàn toàn cổng trung gian PayOS khỏi popup thanh toán, tập trung 100% vào Chuyển khoản trực tiếp VietQR Napas 24/7. Hỗ trợ cơ chế gạch nợ tự động thông minh cho cả 2 tình huống (Người nhận ngoài đời không dùng app $\rightarrow$ Gạch nợ & trừ ngân sách ngay khi bấm *Tôi đã chuyển*; Người nhận trong nhóm $\rightarrow$ Gạch nợ tức thì + Bắn thông báo Realtime WebSocket). Đồng bộ trọn vẹn bộ dữ liệu **Seed V15** lên Supabase Cloud Database với nhóm riêng *"Hội Bạn Thân (A - B - C)"* nợ nần chéo và 5 khoản ngân sách BILL có sẵn STK cho 3 user đặc biệt.
+
+### Session [2026-08-23] - Tinh Gọn Thanh Toán VietQR P2P Trực Tiếp, Nhóm Quyết Toán Nợ Chéo A-B-C, Cấu Hình Supabase Cloud & Khởi Tạo Bộ Dữ Liệu Mẫu Seed V15
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Loại Bỏ Hoàn Toàn Cổng PayOS, Tinh Gọn Popup Thanh Toán VietQR P2P (`PaymentSandboxModal.tsx`):**
+   - **Bối cảnh & Quyết định:** Cổng PayOS với 1 API Key cố định luôn sinh mã QR về STK của chủ cổng (MSB), không phù hợp với mô hình chuyển tiền trực tiếp vào STK ngân hàng của từng cá nhân (MBBank, Techcombank, MSB) và các hóa đơn ngoài đời thực (EVN, Viettel, FPT...).
+   - **Thực thi:**
+     - Loại bỏ hoàn toàn tab `[ 🤖 Cổng PayOS ]`, polling ngầm, và các nút mở link web thanh toán PayOS.
+     - Popup mở lên tức thì (0ms latency), tập trung 100% vào thẻ **VietQR Napas 24/7** hiển thị chuẩn xác Logo ngân hàng, STK, Tên người nhận, Số tiền và Nội dung chuyển khoản.
+     - Nút bấm chính: **`✓ Tôi đã chuyển khoản`** (hỗ trợ popup điều chỉnh số tiền thực chuyển & gạch nợ ngay lập tức).
+     - Hỗ trợ đầy đủ các phương thức thay thế: `Trừ Ví ShareMoney` và `💵 Báo trả tiền mặt`.
+
+2. **Cơ Chế Ghi Sổ & Đối Soát 2 Chiều Toàn Diện (In-App & External Payees):**
+   - **Tình huống A (Người nhận KHÔNG dùng app - Tiền nhà chủ trọ, Điện lực EVN, 4G, Học phí...):** Người dùng quét VietQR $\rightarrow$ Bấm *`✓ Tôi đã chuyển khoản`* $\rightarrow$ Hệ thống tự động cập nhật số tiền đã chi (`spent_amount`), trừ ví, và lưu vào Sổ giao dịch ngay lập tức 100% (không bắt buộc người ngoài phải vào app xác nhận).
+   - **Tình huống B (Người nhận CÓ dùng app - Thành viên trong nhóm):** Người nợ quét VietQR $\rightarrow$ Bấm *`✓ Tôi đã chuyển khoản`* $\rightarrow$ Hệ thống tự động gạch nợ và bắn **Thông báo Realtime (WebSocket / Push)** tới người nhận. Tích hợp đầy đủ các chức năng: `🔔 Nhắc nợ`, `⏳ Báo đã chuyển tiền`, và `🎉 Xác nhận đã nhận tiền (Approve Settle)`.
+
+3. **Cấu Hình Supabase Cloud Database & Khắc Phục Lỗi Mạng / DuckDNS (`application.properties`, `api.ts`, `.env`):**
+   - **Kết nối Supabase Cloud:** Cấu hình Spring Boot kết nối trực tiếp tới PostgreSQL Supabase Pooler (`aws-0-ap-northeast-1.pooler.supabase.com:5432` / `postgres.yzocyymegnmqkncdprkl`).
+   - **Khắc phục lỗi 401 do DuckDNS cũ:** Phát hiện biến môi trường cũ ghim cứng URL `sharemoney.duckdns.org` (trỏ sang VPS cũ ở Singapore chứa database cũ `tranthib`). Đã tái cấu trúc hàm `getBaseUrl()` trong [FrontendReact/src/services/api.ts](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/FrontendReact/src/services/api.ts) để tự động nhận diện IP LAN máy chủ đang chạy (`192.168.10.106:8080/api` hoặc `10.0.2.2:8080/api`), giải phóng hoàn toàn khỏi DuckDNS cũ.
+   - **Xác thực BCrypt:** Xác minh chuỗi hash BCrypt `$2a$10$GK1LUpu5xnOCQt1I4V5zz.A4crOZWPjtcC3CHmaaZoqJitEgxpFXm` khớp chính xác 100% với mật khẩu **`123456`** cho toàn bộ 5/5 tài khoản.
+
+4. **Bộ Dữ Liệu Mẫu Thế Hệ Mới Seed V15 (`generate_seed_v15.js`, `seed_v15.sql`, `seeder.md`):**
+   - **Nạp trực tiếp vào Supabase:** Toàn bộ 2.390 dòng lệnh SQL đã được nạp thành công và đồng bộ 100% trên Supabase Cloud Database.
+   - **3 User Đặc Biệt (Mật khẩu `123456`):**
+     - **User A (`nguyenvana@gmail.com`):** MBBank (`970422`) - STK **`6617052004888`** - `DUONG DUC BAO`.
+     - **User B (`nguyenvanb@gmail.com`):** Techcombank (`970407`) - STK **`6617052004`** - `NGUYEN VAN B`.
+     - **User C (`nguyenvanc@gmail.com`):** MSB (`970426`) - STK **`4517052004`** - `NGUYEN VAN C`.
+     - *User D (`phamvand@gmail.com`)*: BIDV (`970418` - `10938888999`).
+     - *User E (`hoangthie@gmail.com`)*: TPBank (`970423` - `10948888999`).
+   - **Nhóm Quyết Toán Nợ Nần Chéo "Hội Bạn Thân (A - B - C)":**
+     - 🍲 *Lẩu Haidilao (User A chi 1.2tr)* $\rightarrow$ **User B nợ A 400k**, **User C nợ A 400k** (Chưa thanh toán).
+     - 🚗 *Thuê xe tự lái (User B chi 900k)* $\rightarrow$ **User A nợ B 300k**, **User C nợ B 300k** (Chưa thanh toán).
+     - 🏡 *Homestay cuối tuần (User C chi 1.5tr)* $\rightarrow$ **User A nợ C 500k**, **User B nợ C 500k** (Chưa thanh toán).
+     - Các nút **`⚡ Trả nợ`** tự động sinh đúng mã VietQR P2P với STK chính chủ của từng người.
+   - **5 Khoản Ngân Sách BILL cho mỗi User:** Tiền nhà (chuyển chéo A $\rightarrow$ B $\rightarrow$ C $\rightarrow$ A), Tiền điện (EVN HCMC), Phí 4G (Viettel), Học phí (FPT), Bảo hiểm (Bảo Việt) sẵn sàng với nút **`✓ Trả ngay`** trong tháng 08/2026.
 
 ### Session [2026-08-20] - Quản Lý Avatar Cá Nhân/Nhóm, Dữ Liệu Thực Tế V13, Chuẩn Hóa Cấu Hình VietQR & Open Banking Lookup, Tinh Gọn UI Dashboard & Thẻ QR
 

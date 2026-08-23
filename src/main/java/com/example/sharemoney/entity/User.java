@@ -51,9 +51,25 @@ public class User {
     @Column(name = "bank_account_no", length = 50)
     private String bankAccountNo;
 
+    /** Tên chủ tài khoản ngân hàng chính */
+    @Column(name = "bank_account_name", length = 100)
+    private String bankAccountName;
+
     /** Mã QR cá nhân (ngân hàng) do user tự upload */
     @Column(name = "bank_qr_url", length = 500)
     private String bankQrUrl;
+
+    /** Mã BIN ngân hàng Ví tiết kiệm */
+    @Column(name = "savings_bank_bin", length = 20)
+    private String savingsBankBin;
+
+    /** Số tài khoản Ví tiết kiệm */
+    @Column(name = "savings_bank_account_no", length = 50)
+    private String savingsBankAccountNo;
+
+    /** Tên chủ tài khoản Ví tiết kiệm */
+    @Column(name = "savings_bank_account_name", length = 100)
+    private String savingsBankAccountName;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

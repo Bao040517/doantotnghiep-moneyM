@@ -96,6 +96,10 @@ public class UserController {
         user.setBankQrUrl(request.getBankQrUrl());
         if (request.getBankBin() != null) user.setBankBin(request.getBankBin());
         if (request.getBankAccountNo() != null) user.setBankAccountNo(request.getBankAccountNo());
+        if (request.getBankAccountName() != null) user.setBankAccountName(request.getBankAccountName());
+        if (request.getSavingsBankBin() != null) user.setSavingsBankBin(request.getSavingsBankBin());
+        if (request.getSavingsBankAccountNo() != null) user.setSavingsBankAccountNo(request.getSavingsBankAccountNo());
+        if (request.getSavingsBankAccountName() != null) user.setSavingsBankAccountName(request.getSavingsBankAccountName());
 
         userRepository.save(user);
 
@@ -112,6 +116,10 @@ public class UserController {
                 .bankQrUrl(user.getBankQrUrl())
                 .bankBin(user.getBankBin())
                 .bankAccountNo(user.getBankAccountNo())
+                .bankAccountName(user.getBankAccountName())
+                .savingsBankBin(user.getSavingsBankBin())
+                .savingsBankAccountNo(user.getSavingsBankAccountNo())
+                .savingsBankAccountName(user.getSavingsBankAccountName())
                 .build();
     }
 }

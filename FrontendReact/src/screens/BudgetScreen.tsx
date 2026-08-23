@@ -15,6 +15,7 @@ import {
   Modal,
   TextInput,
   Pressable,
+  Image,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Star, X } from "lucide-react-native";
@@ -23,6 +24,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { BottomSheet } from "../components/ui/BottomSheet";
 import { colors } from "../constants/colors";
+import { VIETQR_BANKS } from "../constants/banks";
 import { useAuth } from "../hooks/useAuth";
 import { financialServices, Category } from "../services/financialServices";
 import { BudgetSummary } from "../types";
@@ -32,7 +34,9 @@ import { BudgetTransactionsBottomSheet } from "../components/modals/BudgetTransa
 import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
 import { Payee } from "../types/payee";
 import { payeeService } from "../services/payeeService";
+import { authService } from "../services/authService";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
+import { VietnameseTextInput } from "../components/ui/VietnameseTextInput";
 
 const CATEGORY_ICONS: Record<string, string> = {
   // Slug / English icon keys from DB
@@ -196,19 +200,59 @@ export const BudgetScreen: React.FC = () => {
   // Create Budget Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [budgetName, setBudgetName] = useState("");
-  const [payeeBankBin, setPayeeBankBin] = useState("");
+  const [payeeBankBin, setPayeeBankBin] = useState("970422");
   const [payeeBankAccount, setPayeeBankAccount] = useState("");
   const [payeeAccountName, setPayeeAccountName] = useState("");
   const [showPayeeSetup, setShowPayeeSetup] = useState(false);
+  const [budgetBankPickerVisible, setBudgetBankPickerVisible] = useState(false);
+  const [budgetSearchBank, setBudgetSearchBank] = useState("");
+  const [budgetLookupLoading, setBudgetLookupLoading] = useState(false);
+  const [budgetLookupVerified, setBudgetLookupVerified] = useState(false);
+
+  // Debounce auto lookup account owner
+  const handleBudgetAccountLookup = async (bin?: string, accNo?: string) => {
+    const targetBin = bin || payeeBankBin || "970422";
+    const targetAcc = (accNo !== undefined ? accNo : payeeBankAccount).trim();
+    if (!targetBin || targetAcc.length < 6) return;
+
+    setBudgetLookupLoading(true);
+    try {
+      const res = await authService.lookupBankAccount(targetBin, targetAcc);
+      if (res.verified && res.accountName) {
+        setPayeeAccountName(res.accountName);
+        setBudgetLookupVerified(true);
+      } else {
+        setBudgetLookupVerified(false);
+      }
+    } catch {
+      setBudgetLookupVerified(false);
+    } finally {
+      setBudgetLookupLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showPayeeSetup && payeeBankBin && payeeBankAccount.trim().length >= 6) {
+      const timer = setTimeout(() => {
+        handleBudgetAccountLookup(payeeBankBin, payeeBankAccount.trim());
+      }, 600);
+      return () => clearTimeout(timer);
+    } else {
+      setBudgetLookupVerified(false);
+    }
+  }, [showPayeeSetup, payeeBankBin, payeeBankAccount]);
 
   useEffect(() => {
     if (!modalVisible) {
       setBudgetName("");
       setLimitAmount("");
-      setPayeeBankBin("");
+      setPayeeBankBin("970422");
       setPayeeBankAccount("");
       setPayeeAccountName("");
       setShowPayeeSetup(false);
+      setBudgetBankPickerVisible(false);
+      setBudgetSearchBank("");
+      setBudgetLookupVerified(false);
       budgetNameInputRef.current?.clear();
     }
   }, [modalVisible]);
@@ -995,7 +1039,6 @@ export const BudgetScreen: React.FC = () => {
                 style={[styles.typeSegmentItem, type === "BILL" && styles.typeSegmentItemActive]}
                 onPress={() => {
                   setType("BILL");
-                  setShowPayeeSetup(true);
                   setCategoryDropdownOpen(false);
                 }}
                 activeOpacity={0.8}
@@ -1007,78 +1050,120 @@ export const BudgetScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Field 4.1: Payee Bank Account Info (Tùy chọn thiết lập thanh toán nhanh) */}
-          {(type === "BILL" || showPayeeSetup) && (
-            <View style={styles.payeeSetupBox}>
-              <View style={styles.payeeSetupHeader}>
-                <Text style={styles.payeeSetupTitle}>💳 THÔNG TIN THỤ HƯỞNG (VIETQR)</Text>
-                <Text style={styles.payeeSetupBadge}>Tự động</Text>
-              </View>
-              <Text style={styles.payeeSetupSub}>
-                💡 Nhập STK để kích hoạt nút Trả ngay VietQR 1 chạm mỗi tháng (Tiền trọ, điện, net...).
-              </Text>
-
-              {/* Ngân hàng */}
-              <Text style={styles.payeeFieldLabel}>Ngân hàng thụ hưởng</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-                <View style={{ flexDirection: "row", gap: 6, paddingVertical: 2 }}>
-                  {[
-                    { name: "MBBank", bin: "970422" },
-                    { name: "VCB", bin: "970436" },
-                    { name: "Techcombank", bin: "970407" },
-                    { name: "BIDV", bin: "970418" },
-                    { name: "VietinBank", bin: "970415" },
-                    { name: "TPBank", bin: "970423" },
-                    { name: "VPBank", bin: "970432" },
-                    { name: "ACB", bin: "970416" },
-                    { name: "MSB", bin: "970426" },
-                  ].map((b) => (
-                    <TouchableOpacity
-                      key={b.bin}
-                      style={[
-                        styles.payeeBankChip,
-                        payeeBankBin === b.bin && styles.payeeBankChipSelected,
-                      ]}
-                      onPress={() => setPayeeBankBin(b.bin)}
-                      activeOpacity={0.75}
-                    >
-                      <Text
-                        style={[
-                          styles.payeeBankChipText,
-                          payeeBankBin === b.bin && styles.payeeBankChipTextSelected,
-                        ]}
-                      >
-                        {b.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+          {/* Field 4.1: Tài khoản chuyển tiền nhanh VietQR (CHỈ HIỂN THỊ KHI LÀ HÓA ĐƠN CỐ ĐỊNH - TÙY CHỌN KHÔNG BẮT BUỘC) */}
+          {type === "BILL" && (
+            <View style={styles.payeeAccordionCard}>
+              <TouchableOpacity
+                style={styles.payeeAccordionHeader}
+                onPress={() => setShowPayeeSetup(!showPayeeSetup)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.payeeAccordionHeaderLeft}>
+                  <Text style={{ fontSize: 16 }}>💳</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.payeeAccordionTitle}>Tài khoản chuyển tiền nhanh (VietQR)</Text>
+                    <Text style={styles.payeeAccordionSub}>
+                      {showPayeeSetup
+                        ? "Lưu STK chủ trọ, tiền điện... để tạo nút Trả ngay"
+                        : "Tùy chọn • Có thể thêm sau khi thanh toán"}
+                    </Text>
+                  </View>
                 </View>
-              </ScrollView>
+                <View style={[styles.payeeAccordionToggleBtn, showPayeeSetup && styles.payeeAccordionToggleBtnActive]}>
+                  <Text style={[styles.payeeAccordionToggleBtnText, showPayeeSetup && { color: "#4F46E5" }]}>
+                    {showPayeeSetup ? "Thu gọn ▲" : "+ Thêm STK ▼"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-              {/* Số tài khoản */}
-              <Text style={styles.payeeFieldLabel}>Số tài khoản</Text>
-              <View style={styles.payeeInputWrap}>
-                <TextInput
-                  placeholder="VD: 0987654321"
-                  placeholderTextColor={colors.slate400}
-                  keyboardType="numeric"
-                  value={payeeBankAccount}
-                  onChangeText={setPayeeBankAccount}
-                  style={styles.payeeInput}
-                />
-              </View>
+              {showPayeeSetup && (
+                <View style={styles.payeeAccordionBody}>
+                  {/* 1. Chọn Ngân Hàng */}
+                  <Text style={styles.payeeFieldLabel}>Ngân hàng nhận tiền *</Text>
+                  <TouchableOpacity
+                    style={styles.budgetBankSelectBtn}
+                    onPress={() => setBudgetBankPickerVisible(true)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.budgetBankSelectLeft}>
+                      <View style={styles.budgetBankLogoBox}>
+                        <Image
+                          source={{ uri: (VIETQR_BANKS.find(b => b.bin === payeeBankBin) || VIETQR_BANKS[0]).logo }}
+                          style={styles.budgetBankLogo}
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.budgetBankShortName}>
+                          {(VIETQR_BANKS.find(b => b.bin === payeeBankBin) || VIETQR_BANKS[0]).shortName}
+                        </Text>
+                        <Text style={styles.budgetBankFullName} numberOfLines={1}>
+                          {(VIETQR_BANKS.find(b => b.bin === payeeBankBin) || VIETQR_BANKS[0]).name}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.budgetBankChangeBadge}>
+                      <Text style={styles.budgetBankChangeText}>Đổi ▼</Text>
+                    </View>
+                  </TouchableOpacity>
 
-              {/* Tên chủ tài khoản */}
-              <Text style={styles.payeeFieldLabel}>Tên người nhận / Chủ tài khoản</Text>
-              <View style={styles.payeeInputWrap}>
-                <TextInput
-                  placeholder="VD: Cô Lan chủ nhà, EVN HCMC..."
-                  placeholderTextColor={colors.slate400}
-                  value={payeeAccountName}
-                  onChangeText={setPayeeAccountName}
-                  style={styles.payeeInput}
-                />
-              </View>
+                  {/* 2. Số tài khoản */}
+                  <Text style={styles.payeeFieldLabel}>Số tài khoản nhận</Text>
+                  <View style={styles.payeeInputWrap}>
+                    <TextInput
+                      placeholder="VD: 0987654321, 1012345678..."
+                      placeholderTextColor={colors.slate400}
+                      keyboardType="numeric"
+                      value={payeeBankAccount}
+                      onChangeText={(val) => {
+                        setPayeeBankAccount(val);
+                        setBudgetLookupVerified(false);
+                      }}
+                      style={styles.payeeInput}
+                    />
+                    {payeeBankAccount.length > 0 && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setPayeeBankAccount("");
+                          setBudgetLookupVerified(false);
+                        }}
+                        style={{ paddingHorizontal: 10 }}
+                      >
+                        <Text style={{ color: "#94A3B8", fontSize: 13, fontWeight: "800" }}>✕</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Lookup status */}
+                  {budgetLookupLoading && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginVertical: 4 }}>
+                      <ActivityIndicator size="small" color="#6366F1" />
+                      <Text style={{ fontSize: 11.5, color: "#6366F1", fontWeight: "600" }}>
+                        Đang tra cứu tên từ ngân hàng...
+                      </Text>
+                    </View>
+                  )}
+                  {budgetLookupVerified && (
+                    <View style={styles.budgetLookupVerifiedBox}>
+                      <Text style={styles.budgetLookupVerifiedText}>
+                        ✓ Đã xác thực: {payeeAccountName}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* 3. Tên người nhận */}
+                  <Text style={styles.payeeFieldLabel}>Tên người nhận / Tên gợi nhớ</Text>
+                  <View style={styles.payeeInputWrap}>
+                    <VietnameseTextInput
+                      placeholder="VD: Cô Lan chủ nhà, EVN HCMC..."
+                      placeholderTextColor={colors.slate400}
+                      value={payeeAccountName}
+                      onChangeText={setPayeeAccountName}
+                      style={styles.payeeInput}
+                    />
+                  </View>
+                </View>
+              )}
             </View>
           )}
 
@@ -1312,6 +1397,90 @@ export const BudgetScreen: React.FC = () => {
         type={toastType}
         onDismiss={() => setToastVisible(false)}
       />
+
+      {/* ─── BUDGET BANK PICKER SUB-MODAL ─── */}
+      <Modal
+        visible={budgetBankPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBudgetBankPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.budgetBankPickerOverlay}
+          activeOpacity={1}
+          onPress={() => setBudgetBankPickerVisible(false)}
+        >
+          <TouchableOpacity style={styles.budgetBankPickerContent} activeOpacity={1}>
+            <View style={styles.budgetBankPickerHeader}>
+              <Text style={styles.budgetBankPickerTitle}>Chọn Ngân Hàng Thụ Hưởng 🏦</Text>
+              <TouchableOpacity
+                onPress={() => setBudgetBankPickerVisible(false)}
+                style={styles.budgetBankPickerCloseBtn}
+              >
+                <Text style={styles.budgetBankPickerCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.budgetBankPickerSearchBox}>
+              <Text style={{ fontSize: 15 }}>🔍</Text>
+              <TextInput
+                placeholder="Tìm tên hoặc mã ngân hàng (MB, VCB, BIDV...)"
+                placeholderTextColor="#94A3B8"
+                value={budgetSearchBank}
+                onChangeText={setBudgetSearchBank}
+                style={styles.budgetBankPickerSearchInput}
+              />
+              {budgetSearchBank.length > 0 && (
+                <TouchableOpacity onPress={() => setBudgetSearchBank("")}>
+                  <Text style={{ color: "#94A3B8", fontSize: 15 }}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              {VIETQR_BANKS.filter(
+                (b) =>
+                  b.name.toLowerCase().includes(budgetSearchBank.toLowerCase()) ||
+                  b.shortName.toLowerCase().includes(budgetSearchBank.toLowerCase())
+              ).map((bank) => {
+                const isSelected = bank.bin === payeeBankBin;
+                return (
+                  <TouchableOpacity
+                    key={bank.bin}
+                    style={[styles.budgetBankPickerItem, isSelected && styles.budgetBankPickerItemSelected]}
+                    onPress={() => {
+                      setPayeeBankBin(bank.bin);
+                      setBudgetBankPickerVisible(false);
+                      setBudgetSearchBank("");
+                      if (payeeBankAccount.trim().length >= 6) {
+                        handleBudgetAccountLookup(bank.bin, payeeBankAccount.trim());
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.budgetBankPickerItemLogoWrap}>
+                      <Image source={{ uri: bank.logo }} style={styles.budgetBankPickerItemLogo} resizeMode="contain" />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={[styles.budgetBankPickerItemShortName, isSelected && { color: "#4F46E5", fontWeight: "900" }]}>
+                        {bank.shortName}
+                      </Text>
+                      <Text style={styles.budgetBankPickerItemFullName} numberOfLines={1}>
+                        {bank.name}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.budgetBankPickerCheckmark}>
+                        <Text style={{ color: "#fff", fontSize: 12, fontWeight: "900" }}>✓</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -2262,83 +2431,261 @@ const styles = StyleSheet.create({
   dropdownItemIconBoxActive: {
     backgroundColor: colors.emerald100,
   },
-  // Payee Setup in Create Budget BottomSheet
-  payeeSetupBox: {
-    backgroundColor: "#F0FDF4",
+  // Payee Setup Accordion in Create Budget BottomSheet
+  payeeAccordionCard: {
+    backgroundColor: "#F8FAFC",
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: "#86EFAC",
-    padding: 14,
+    borderColor: "#E2E8F0",
     marginBottom: 16,
+    overflow: "hidden",
   },
-  payeeSetupHeader: {
+  payeeAccordionHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
+    justifyContent: "space-between",
+    padding: 12,
+    backgroundColor: "#F8FAFC",
   },
-  payeeSetupTitle: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: "#166534",
-    letterSpacing: 0.5,
+  payeeAccordionHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
   },
-  payeeSetupBadge: {
-    backgroundColor: "#DCFCE7",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    fontSize: 10,
+  payeeAccordionTitle: {
+    fontSize: 13,
     fontWeight: "800",
-    color: "#15803D",
+    color: "#0F172A",
   },
-  payeeSetupSub: {
-    fontSize: 12,
-    color: "#15803D",
-    lineHeight: 17,
-    marginBottom: 12,
+  payeeAccordionSub: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 1,
+  },
+  payeeAccordionToggleBtn: {
+    backgroundColor: "#EEF2FF",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+  },
+  payeeAccordionToggleBtnActive: {
+    backgroundColor: "#EDE9FE",
+    borderColor: "#C4B5FD",
+  },
+  payeeAccordionToggleBtnText: {
+    fontSize: 11.5,
+    fontWeight: "800",
+    color: "#4F46E5",
+  },
+  payeeAccordionBody: {
+    padding: 14,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    backgroundColor: "#fff",
   },
   payeeFieldLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#374151",
-    marginBottom: 4,
-    marginTop: 6,
+    color: "#475569",
+    marginBottom: 5,
+    marginTop: 8,
     textTransform: "uppercase",
   },
-  payeeBankChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+  budgetBankSelectBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
+    padding: 10,
+    marginBottom: 8,
+  },
+  budgetBankSelectLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 10,
+  },
+  budgetBankLogoBox: {
+    width: 38,
+    height: 38,
     borderRadius: 10,
     backgroundColor: "#fff",
-    borderWidth: 1.5,
-    borderColor: "#D1D5DB",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 3,
   },
-  payeeBankChipSelected: {
-    backgroundColor: "#DCFCE7",
-    borderColor: "#16A34A",
+  budgetBankLogo: {
+    width: "100%",
+    height: "100%",
   },
-  payeeBankChipText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#4B5563",
-  },
-  payeeBankChipTextSelected: {
-    color: "#15803D",
+  budgetBankShortName: {
+    fontSize: 13.5,
     fontWeight: "900",
+    color: "#0F172A",
+  },
+  budgetBankFullName: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 1,
+  },
+  budgetBankChangeBadge: {
+    backgroundColor: "#EEF2FF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+  },
+  budgetBankChangeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#4F46E5",
   },
   payeeInputWrap: {
-    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#D1D5DB",
+    borderColor: "#E2E8F0",
     marginBottom: 4,
   },
   payeeInput: {
+    flex: 1,
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: 13,
     fontWeight: "600",
-    color: "#111827",
+    color: "#0F172A",
+  },
+  budgetLookupVerifiedBox: {
+    backgroundColor: "#ECFDF5",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  budgetLookupVerifiedText: {
+    fontSize: 11.5,
+    fontWeight: "800",
+    color: "#059669",
+  },
+
+  // Bank Picker Modal Styles
+  budgetBankPickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(2, 6, 23, 0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  budgetBankPickerContent: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 16,
+  },
+  budgetBankPickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  budgetBankPickerTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
+  budgetBankPickerCloseBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  budgetBankPickerCloseBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+  budgetBankPickerSearchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 12,
+    gap: 8,
+  },
+  budgetBankPickerSearchInput: {
+    flex: 1,
+    fontSize: 13.5,
+    color: "#0F172A",
+    fontWeight: "600",
+  },
+  budgetBankPickerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  budgetBankPickerItemSelected: {
+    backgroundColor: "#EEF2FF",
+  },
+  budgetBankPickerItemLogoWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 3,
+  },
+  budgetBankPickerItemLogo: {
+    width: "100%",
+    height: "100%",
+  },
+  budgetBankPickerItemShortName: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  budgetBankPickerItemFullName: {
+    fontSize: 11.5,
+    color: "#64748B",
+    marginTop: 1,
+  },
+  budgetBankPickerCheckmark: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#4F46E5",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

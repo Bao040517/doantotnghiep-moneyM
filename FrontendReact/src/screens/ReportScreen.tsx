@@ -1005,7 +1005,7 @@ export const ReportScreen: React.FC = () => {
           {selectedCardModal === "SAVINGS" && (
             <View style={{ gap: 12 }}>
               <View style={styles.modalHeroBox}>
-                <Text style={styles.modalHeroLabel}>Dòng Tiền Ròng Tháng Này (Thu - Chi)</Text>
+                <Text style={styles.modalHeroLabel}>Tiền Tích Lũy Tháng Này (Thu - Chi)</Text>
                 <Text style={[styles.modalHeroVal, { color: netSavings >= 0 ? colors.emerald600 : colors.rose600 }]}>
                   {netSavings >= 0 ? "+" : ""}
                   {fmt(netSavings)}

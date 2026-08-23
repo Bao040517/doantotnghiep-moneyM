@@ -34,8 +34,30 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 29. **Rà Soát & Làm Sạch Toàn Bộ Dữ Liệu Hardcode & Phân Tách Trải Nghiệm Người Dùng Mới (Zero-Hardcode & New User Onboarding):** Loại bỏ 100% các giá trị mock/fallback ngầm (STK ảo `10908888999`, BIN ngầm `970422`, email mẫu `email@example.com`, chi phí mẫu `55.824.000đ`, IP LAN `192.168.123.200`), phân tách rõ ràng trải nghiệm giữa người dùng mới (form trắng, hướng dẫn thiết lập, onboarding tích lũy thân thiện) và người dùng đang hoạt động (cảnh báo PFM chính xác theo thời gian thực).
 30. **Hệ Thống Thanh Toán Kép VietQR P2P & Cổng PayOS Tự Động (Active Polling & Live Bank Lookup):** Mô hình chuyển tiền kép: VietQR Napas247 P2P chuyển thẳng 100% vào đúng tài khoản ngân hàng chính chủ của người nhận (MB, VCB, TCB, MSB...), song song cổng PayOS với Active Polling 2s tự động đối soát realtime trên server merchant và gạch nợ tức thì; tích hợp danh bạ người nhận thông minh, form ngân sách tùy chọn và tự động tra cứu chính chủ Napas247.
 31. **Hệ Thống Thanh Toán VietQR P2P Trực Tiếp Tinh Gọn & Nhóm Quyết Toán Nợ Nần Chéo (Zero-Gateway & Seamless P2P Settlement):** Tối ưu hóa trải nghiệm chuyển tiền: loại bỏ hoàn toàn cổng trung gian PayOS khỏi popup thanh toán, tập trung 100% vào Chuyển khoản trực tiếp VietQR Napas 24/7. Hỗ trợ cơ chế gạch nợ tự động thông minh cho cả 2 tình huống (Người nhận ngoài đời không dùng app $\rightarrow$ Gạch nợ & trừ ngân sách ngay khi bấm *Tôi đã chuyển*; Người nhận trong nhóm $\rightarrow$ Gạch nợ tức thì + Bắn thông báo Realtime WebSocket). Đồng bộ trọn vẹn bộ dữ liệu **Seed V15** lên Supabase Cloud Database với nhóm riêng *"Hội Bạn Thân (A - B - C)"* nợ nần chéo và 5 khoản ngân sách BILL có sẵn STK cho 3 user đặc biệt.
+32. **Triển Khai Trực Tuyến Thành Công Lên AWS Cloud EC2 & Supabase Cloud (Live Production Deployment):** Cấu hình và đồng bộ toàn diện Backend Spring Boot chạy trên máy chủ ảo **AWS EC2 `t3.small` Singapore (`18.142.90.90:8080`)** kết nối trực tiếp PostgreSQL Supabase Cloud (Seed V15). Mở thành công Inbound Rule Port 8080 trên AWS Security Group, kiểm thử End-to-End đạt 100% (200 OK), đồng bộ `FrontendReact/.env` & `eas.json` sẵn sàng xuất bản Mobile APK.
 
-### Session [2026-08-23] - Tinh Gọn Thanh Toán VietQR P2P Trực Tiếp, Nhóm Quyết Toán Nợ Chéo A-B-C, Cấu Hình Supabase Cloud & Khởi Tạo Bộ Dữ Liệu Mẫu Seed V15
+### Session [2026-08-23] (Phần 2) - Triển Khai Trực Tuyến Lên AWS EC2 (Singapore), Supabase Cloud & Cấu Hình Môi Trường Production
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Triển Khai & Khởi Chạy Backend Trên AWS EC2 (`18.142.90.90`):**
+   - **Môi trường:** Máy chủ AWS EC2 Ubuntu 24.04 `t3.small` (2 vCPU, 2GB RAM) đặt tại Singapore (`ap-southeast-1c`), tận dụng $98.21 USD credit miễn phí (hạn dùng đến 21/02/2027).
+   - **Docker Container:** Kéo nhánh `main` mới nhất từ GitHub (`Bao040517/doantotnghiep-moneyM`), biên dịch và khởi chạy container `sharemoney_backend` trên port `8080`.
+   - **Kết nối Supabase Cloud:** Cấu hình biến môi trường kết nối trực tiếp JDBC Pooler `aws-0-ap-northeast-1.pooler.supabase.com:5432` với DDL `none` bảo vệ an toàn 100% dữ liệu **Seed V15**.
+
+2. **Cấu Hình Mở Port 8080 Trên AWS Security Group:**
+   - Cấu hình Inbound Rule cho nhóm bảo mật `sg-01c266881de7d2ab9` (`launch-wizard-1`): Thêm rule **Custom TCP - Port 8080 - Source `0.0.0.0/0` (Anywhere-IPv4)**.
+   - Kiểm thử kết nối mạng: `Test-NetConnection -ComputerName 18.142.90.90 -Port 8080` trả về **`TcpTestSucceeded: True`**.
+
+3. **Kiểm Thử Nghiệm Thu API Trực Tuyến (Public Verification):**
+   - Gửi request trực tiếp qua Internet: `POST http://18.142.90.90:8080/api/auth/login` với User A (`nguyenvana@gmail.com` / `123456`).
+   - Kết quả: Phản hồi **HTTP 200 OK**, sinh đầy đủ JWT Access Token & Refresh Token, trả về đúng STK MBBank `6617052004888` và avatar DiceBear.
+
+4. **Đồng Bộ Cấu Hình Mobile App (FrontendReact):**
+   - Cập nhật [FrontendReact/.env](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/FrontendReact/.env): `EXPO_PUBLIC_API_URL=http://18.142.90.90:8080/api`.
+   - Cập nhật [FrontendReact/eas.json](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/FrontendReact/eas.json): Thiết lập URL production cho profiles `preview` và `production` sẵn sàng cho lệnh `eas build -p android --profile preview`.
+
+### Session [2026-08-23] (Phần 1) - Tinh Gọn Thanh Toán VietQR P2P Trực Tiếp, Nhóm Quyết Toán Nợ Chéo A-B-C, Cấu Hình Supabase Cloud & Khởi Tạo Bộ Dữ Liệu Mẫu Seed V15
 
 **✅ Đã hoàn thành (Compact Procedure):**
 

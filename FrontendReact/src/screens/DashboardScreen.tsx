@@ -11,6 +11,7 @@ import {
   StatusBar,
   Image,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { Card } from "../components/ui/Card";
 import { WalletManagerBottomSheet } from "../components/modals/WalletManagerBottomSheet";
 import { AddTransactionModal } from "../components/modals/AddTransactionModal";
@@ -30,6 +31,7 @@ interface DashboardScreenProps {
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
+  const navigation = useNavigation<any>();
   const { user } = useAuth();
   const {
     wallets,

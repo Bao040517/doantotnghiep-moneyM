@@ -44,6 +44,7 @@ public class FinancialAdvisorService {
                     "Ăn uống",
                     "Tiền nhà",
                     "Tiền điện",
+                    "Tiền nước",
                     "Đi lại",
                     "Y tế",
                     "Giáo dục",

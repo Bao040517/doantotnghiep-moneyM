@@ -36,6 +36,35 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 31. **Hệ Thống Thanh Toán VietQR P2P Trực Tiếp Tinh Gọn & Nhóm Quyết Toán Nợ Nần Chéo (Zero-Gateway & Seamless P2P Settlement):** Tối ưu hóa trải nghiệm chuyển tiền: loại bỏ hoàn toàn cổng trung gian PayOS khỏi popup thanh toán, tập trung 100% vào Chuyển khoản trực tiếp VietQR Napas 24/7. Hỗ trợ cơ chế gạch nợ tự động thông minh cho cả 2 tình huống (Người nhận ngoài đời không dùng app $\rightarrow$ Gạch nợ & trừ ngân sách ngay khi bấm *Tôi đã chuyển*; Người nhận trong nhóm $\rightarrow$ Gạch nợ tức thì + Bắn thông báo Realtime WebSocket). Đồng bộ trọn vẹn bộ dữ liệu **Seed V15** lên Supabase Cloud Database với nhóm riêng *"Hội Bạn Thân (A - B - C)"* nợ nần chéo và 5 khoản ngân sách BILL có sẵn STK cho 3 user đặc biệt.
 32. **Triển Khai Trực Tuyến Thành Công Lên AWS Cloud EC2 & Supabase Cloud (Live Production Deployment):** Cấu hình và đồng bộ toàn diện Backend Spring Boot chạy trên máy chủ ảo **AWS EC2 `t3.small` Singapore (`18.142.90.90:8080`)** kết nối trực tiếp PostgreSQL Supabase Cloud (Seed V15). Mở thành công Inbound Rule Port 8080 trên AWS Security Group, kiểm thử End-to-End đạt 100% (200 OK), đồng bộ `FrontendReact/.env` & `eas.json` sẵn sàng xuất bản Mobile APK.
 33. **Chuẩn Hóa Danh Mục Toàn Diện Hệ Thống & Bộ Dữ Liệu Mẫu Seed V16 (Unified Categories & Seed V16 with Dedicated Water Bill):** Bổ sung category `"Tiền nước"` (`droplets`, 🚿) trên toàn bộ hệ thống (Database, Backend default categories, Frontend design system `constants/categories.ts`, `CategoryIcon.tsx` SVG icon, `BudgetScreen`, `AdvisorScreen`, `ExpenseChart`, `ReportScreen`). Sinh thành công bộ dữ liệu mẫu **Seed V16** (`generate_seed_v16.js` & `seed_v16.sql`) với 1.436 giao dịch, 540 ngân sách (có ngân sách BILL Tiền nước Sawaco) phục vụ kiểm thử luồng Trả ngay và gạch nợ tự động.
+34. **Rà Soát Toàn Diện Codebase, Sửa Lỗi Crash Navigation, Đồng Bộ "Tiền Nước" Vào Expert System & Khắc Phục CI/CD Pipeline (System Audit, Bug Fixes & CI/CD Green Build):** Rà soát toàn bộ hệ thống phát hiện và khắc phục 2 lỗi quan trọng: sửa lỗi crash runtime `useNavigation` khi tap vào Avatar trên `DashboardScreen.tsx`, bổ sung `"Tiền nước"` vào `NEEDS_CATEGORIES` trong `FinancialAdvisorService.java` giúp chuẩn hóa phân tích 50/30/20. Sửa lỗi `Exit code 126` trên GitHub Actions bằng cách cấp quyền thực thi `chmod +x ./mvnw` giúp pipeline CI/CD chạy xanh 100% (Passed), biên dịch Docker và triển khai trực tuyến thành công lên máy chủ AWS EC2 Singapore (`18.142.90.90:8080`) kết nối PostgreSQL Supabase.
+
+### Session [2026-08-24] - Rà Soát Toàn Diện Hệ Thống, Khắc Phục Lỗi Crash Navigation, Đồng Bộ "Tiền Nước" Vào Expert System & Sửa Lỗi CI/CD Pipeline
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Khắc Phục Lỗi Runtime Crash Navigation Trên Dashboard (`DashboardScreen.tsx`):**
+   - **Vấn đề:** Khi người dùng bấm vào Avatar hoặc Tên người dùng trên Header Dashboard (`onPress={() => navigation.navigate("Profile")}`), ứng dụng bị văng/crash do thiếu import `useNavigation` và chưa khai báo hook `const navigation = useNavigation()`.
+   - **Khắc phục:** Bổ sung `import { useNavigation } from "@react-navigation/native";` và khai báo `const navigation = useNavigation<any>();` bên trong component. Kiểm tra toàn bộ 9 screen còn lại đảm bảo 100% đều đã khai báo hook điều hướng chuẩn xác.
+
+2. **Bổ Sung "Tiền Nước" Vào Hệ Thống Chuyên Gia Tư Vấn Tài Chính (`FinancialAdvisorService.java`):**
+   - **Vấn đề:** Dù danh mục `"Tiền nước"` đã được tạo trong `CategoryService` và nạp vào DB `seed_v16.sql`, nhưng tập hợp `NEEDS_CATEGORIES` trong `FinancialAdvisorService` bị thiếu từ khóa `"Tiền nước"`, khiến chi phí nước sinh hoạt bị xếp nhầm vào nhóm `Wants` (Linh hoạt 30%) thay vì `Needs` (Thiết yếu 50%).
+   - **Khắc phục:** Thêm `"Tiền nước"` vào `Set.of(...)` trong `NEEDS_CATEGORIES`, đảm bảo thuật toán phân tích 50/30/20 và hệ thống tự động bù trừ ngân sách vận hành chính xác 100%.
+
+3. **Sửa Lỗi CI/CD Pipeline Exit Code 126 Trên GitHub Actions (`.github/workflows/ci-cd.yml`, `mvnw`):**
+   - **Vấn đề:** Workflow GitHub Actions bị fail tại job `Backend CI (Test & Build)` với lỗi `Process completed with exit code 126` do runner Ubuntu Linux không có quyền thực thi file `./mvnw` khi clone từ git.
+   - **Khắc phục:** 
+     - Gán quyền thực thi trong git repository: `git update-index --chmod=+x mvnw` (`mode change 100644 => 100755`).
+     - Thêm bước tự động cấp quyền trong workflow: `- name: 🔑 Make Maven Wrapper Executable \n run: chmod +x ./mvnw`.
+     - Pipeline GitHub Actions (`ShareMoney CI/CD Pipeline #11`) đã chạy thành công **100% Xanh (Success)** cho cả Backend CI, Frontend CI và Continuous Deployment.
+
+4. **Triển Khai Cập Nhật Bản Mới Lên Máy Chủ AWS EC2 (`18.142.90.90`):**
+   - Kéo code commit mới nhất (`42e7940`) trên EC2 qua `git pull origin main`.
+   - Biên dịch lại image `docker build -t sharemoney-backend:latest .` thành công.
+   - Dọn dẹp container cũ và chạy lại container `sharemoney_backend` kết nối Supabase Cloud PostgreSQL với profile `prod`.
+   - Kiểm tra log máy chủ: Tomcat khởi động thành công trên cổng `8080` (`Started SharemoneyApplication in 18.54 seconds`).
+
+5. **Khảo Sát & Tài Liệu Hóa Toàn Diện 9 Phân Hệ Tính Năng Của Dự Án:**
+   - Hệ thống hóa toàn bộ 9 phân hệ: Auth & Profile, Wallets & Cashflow, Transactions & AI Scanner, Smart Budgets, Groups & Greedy Debt Settle, Savings & Auto-Allocate, Financial Advisor 50/30/20 & Rebalance, Analytics & Reports, Payment Gateways (VietQR Napas 24/7, PayOS, VNPay).
 
 ### Session [2026-08-23] (Phần 2) - Triển Khai Trực Tuyến Lên AWS EC2 (Singapore), Supabase Cloud & Cấu Hình Môi Trường Production
 

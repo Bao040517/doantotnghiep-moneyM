@@ -166,14 +166,36 @@ Bộ dữ liệu **Seed V15 (`seed_v15.sql` & `generate_seed_v15.js`)** là phi�
 
 ---
 
-## 14. Tóm tắt các Script đang sử dụng
-*   `generate_seed_v15.js`: Kịch bản thế hệ mới nhất V15, cấu hình 3 tài khoản ngân hàng đặc biệt (MBBank, Techcombank, MSB) và 5 khoản ngân sách BILL cho mỗi user.
-*   `seed_v15.sql`: File SQL thành phẩm V15 sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / Render / pgAdmin / DataGrip / DBeaver).
+## 14. Đặc tả Bộ dữ liệu mẫu V16 (Seed V16 Data Specs)
+
+Bộ dữ liệu **Seed V16 (`seed_v16.sql` & `generate_seed_v16.js`)** là phiên bản chuẩn hóa toàn diện hệ sinh thái danh mục tài chính có thêm hạng mục **"Tiền nước" (Water Bill, `droplets`, 🚿)**:
+*   **Chuẩn Hóa Danh Mục Toàn Diện Hệ Thống (16 Standard Categories):**
+    *   **EXPENSE (12 danh mục):** *Ăn uống* (utensils), *Chi tiêu hàng ngày* (shopping-bag), *Quần áo* (shirt), *Mỹ phẩm* (sparkles), *Phí giao lưu* (users), *Y tế* (heart-pulse), *Giáo dục* (graduation-cap), *Tiền điện* (zap), **`Tiền nước` (droplets)**, *Đi lại* (car), *Phí liên lạc* (phone), *Tiền nhà* (home).
+    *   **INCOME (4 danh mục):** *Tiền lương* (wallet), *Thưởng* (gift), *Đầu tư* (trending-up), *Thu nhập phụ* (coins).
+    *   Tách biệt hoàn toàn `Tiền nước` khỏi `Tiền điện`, có icon riêng, màu hiển thị Cyan `#06B6D4`, và từ khóa tra cứu riêng biệt.
+*   **Ngân Sách BILL Tiền Nước & Đơn Vị Cấp Nước Chỉ Định:**
+    *   Toàn bộ 5 User personas đều có khoản ngân sách **`Tiền nước`** định kỳ hàng tháng (`BILL`, 150k - 180k, ngày đến hạn 12 - 18).
+    *   Liên kết đơn vị thụ hưởng: **Công ty Cấp nước Sawaco HCMC** (BIDV `970418` - `110022334455` - `SAWACO HCMC`).
+    *   **Tháng hiện tại (08/2026):** Khoản `Tiền nước` được để ở trạng thái chưa thanh toán hoặc thanh toán 1 phần để kiểm thử nút **`✓ Trả ngay`** bằng mã VietQR P2P và cổng PayOS.
+*   **Duy trì toàn vẹn ràng buộc PFM & Tài khoản Ngân hàng A-B-C:**
+    *   **User A:** MBBank (`970422` - `6617052004888` - `DUONG DUC BAO`).
+    *   **User B:** Techcombank (`970407` - `6617052004` - `NGUYEN VAN B`).
+    *   **User C:** MSB (`970426` - `4517052004` - `NGUYEN VAN C`).
+    *   Nợ chéo nhóm A-B-C đầy đủ 3 khoản nợ ăn uống, thuê xe, homestay.
+    *   Quy mô 20 tháng liên tục (01/2025 -> 20/08/2026), **1.436 giao dịch**, **540 ngân sách**, **8 chi tiêu nhóm**.
+
+---
+
+## 15. Tóm tắt các Script đang sử dụng
+*   `generate_seed_v16.js`: **Kịch bản thế hệ mới nhất V16**, cấu hình chuẩn hóa danh mục có "Tiền nước", ngân sách BILL Sawaco, 3 tài khoản ngân hàng chỉ định (MBBank, Techcombank, MSB) và nợ nhóm chéo.
+*   `seed_v16.sql`: **File SQL thành phẩm V16** sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / Render / AWS RDS / pgAdmin / DataGrip / DBeaver).
+*   `seed_v15.sql` / `generate_seed_v15.js`: Bản lưu trữ thế hệ V15.
 *   `seed_v14.sql` / `generate_seed_v14.js`: Bản lưu trữ thế hệ V14.
 *   `seed_v13.sql` / `generate_seed_v13.js`: Bản lưu trữ thế hệ V13.
 *   `check_entities.js`: Tool nội bộ quét file `.java` và validate cấu trúc cột `NOT NULL`.
 *   `seed_v12.sql` / `generate_seed_v12.js`: Bản lưu trữ thế hệ V12.
 *   `seed_v11.sql` / `generate_seed_v11.js`: Bản lưu trữ thế hệ V11.
+
 
 
 

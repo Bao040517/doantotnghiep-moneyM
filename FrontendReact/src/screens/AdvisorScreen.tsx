@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
   ActivityIndicator,
   Platform,
   StatusBar,
@@ -18,6 +19,7 @@ import { api } from "../services/api";
 import { financialServices } from "../services/financialServices";
 import { Toast } from "../components/ui/Toast";
 import { NotificationBottomSheet } from "../components/modals/NotificationBottomSheet";
+import { getCategoryEmoji } from "../constants/categories";
 
 interface AdviceData {
   habitAnalysis?: {
@@ -215,43 +217,7 @@ export const AdvisorScreen: React.FC = () => {
   };
 
   const getCategoryIcon = (icon?: string, name?: string) => {
-    const iconMap: Record<string, string> = {
-      shirt: "👕",
-      users: "👥",
-      utensils: "🍽️",
-      coffee: "☕",
-      home: "🏠",
-      zap: "💡",
-      car: "🚗",
-      phone: "📱",
-      "heart-pulse": "💊",
-      "book-open": "📚",
-      target: "🎯",
-      gift: "🎁",
-      wallet: "💳",
-      "shopping-bag": "🛍️",
-    };
-    const nameMap: Record<string, string> = {
-      "Quần áo": "👕",
-      "Phí giao lưu": "🥂",
-      "Ăn uống": "🍽️",
-      "Tiền nhà": "🏠",
-      "Tiền điện": "💡",
-      "Đi lại": "🚆",
-      "Phí liên lạc": "📱",
-      "Y tế": "💊",
-      "Giáo dục": "📚",
-      "Mỹ phẩm": "💄",
-      "Chi tiêu hàng ngày": "🧴",
-      "Mục tiêu tiết kiệm": "🎯",
-      "Trả nợ nhóm": "💸",
-      "Tiền lương": "💰",
-      Lương: "💰",
-    };
-    if (name && nameMap[name]) return nameMap[name];
-    if (icon && iconMap[icon.toLowerCase()]) return iconMap[icon.toLowerCase()];
-    if (icon && icon.length <= 4 && !/^[a-zA-Z0-9_-]+$/.test(icon)) return icon;
-    return "📋";
+    return getCategoryEmoji(icon, name);
   };
 
   const fetchAdvisorData = async (silent = false) => {
@@ -437,9 +403,17 @@ export const AdvisorScreen: React.FC = () => {
             <TouchableOpacity style={styles.iconCircle} onPress={() => setNotifVisible(true)}>
               <Text style={{ fontSize: 15 }}>🔔</Text>
             </TouchableOpacity>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{user?.name?.charAt(0) || "U"}</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.avatarCircle}
+              onPress={() => navigation.navigate("Profile" as never)}
+              activeOpacity={0.8}
+            >
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
+              ) : (
+                <Text style={styles.avatarText}>{user?.name?.charAt(0)?.toUpperCase() || "U"}</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -1194,6 +1168,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#0284c7",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   avatarText: {
     color: colors.white,

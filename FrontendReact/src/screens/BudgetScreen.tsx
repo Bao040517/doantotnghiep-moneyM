@@ -37,57 +37,7 @@ import { payeeService } from "../services/payeeService";
 import { authService } from "../services/authService";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { VietnameseTextInput } from "../components/ui/VietnameseTextInput";
-
-const CATEGORY_ICONS: Record<string, string> = {
-  // Slug / English icon keys from DB
-  "shirt": "👕",
-  "utensils": "🍽️",
-  "shopping-bag": "🛍️",
-  "sparkles": "💄",
-  "users": "🥂",
-  "heart-pulse": "💊",
-  "graduation-cap": "📚",
-  "zap": "💡",
-  "car": "🚗",
-  "phone": "📱",
-  "home": "🏠",
-  "wallet": "💰",
-  "gift": "🎁",
-  "trending-up": "📈",
-  "coins": "🪙",
-  // Vietnamese names
-  "Ăn uống": "🍽️",
-  "Chi tiêu hàng ngày": "🧴",
-  "Quần áo": "👕",
-  "Mỹ phẩm": "💄",
-  "Phí giao lưu": "🥂",
-  "Y tế": "💊",
-  "Giáo dục": "📚",
-  "Tiền điện": "💡",
-  "Đi lại": "🚗",
-  "Di chuyển": "🚗",
-  "Phí liên lạc": "📱",
-  "Tiền nhà": "🏠",
-  "Nhà cửa": "🏠",
-  "Mua sắm": "🛍️",
-  "Giải trí": "🍿",
-  "Đầu tư": "📈",
-  "Lương": "💰",
-  "Tiền lương": "💰",
-  "Thưởng": "🎁",
-  "Tiền lãi": "🏦",
-  "Đòi nợ": "💸",
-  "Trả nợ": "💳",
-  "Chuyển khoản": "🔄",
-  "Khác": "📂",
-};
-
-const getCategoryEmoji = (icon?: string, name?: string): string => {
-  if (icon && CATEGORY_ICONS[icon]) return CATEGORY_ICONS[icon];
-  if (name && CATEGORY_ICONS[name]) return CATEGORY_ICONS[name];
-  if (icon && icon.length <= 4 && !/^[a-zA-Z0-9_-]+$/.test(icon)) return icon;
-  return "💵";
-};
+import { CATEGORY_ICONS, getCategoryEmoji } from "../constants/categories";
 
 // The absolute core text input that NEVER re-renders to prevent ANY React Native interference with IME
 const SearchInputCore = React.memo(

@@ -30,6 +30,7 @@ interface MemberCandidate {
   name: string;
   phone?: string;
   email?: string;
+  avatarUrl?: string;
 }
 
 export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
@@ -308,9 +309,13 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
                         ]}
                       >
                         <View style={[styles.avatarCircle, isSelected && styles.avatarCircleSelected]}>
-                          <Text style={[styles.avatarLetter, isSelected && styles.avatarLetterSelected]}>
-                            {m.name.charAt(0)}
-                          </Text>
+                          {m.avatarUrl ? (
+                            <Image source={{ uri: m.avatarUrl }} style={styles.avatarImg} />
+                          ) : (
+                            <Text style={[styles.avatarLetter, isSelected && styles.avatarLetterSelected]}>
+                              {m.name.charAt(0)}
+                            </Text>
+                          )}
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text
@@ -608,6 +613,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.slate200,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   avatarCircleSelected: {
     backgroundColor: colors.emerald600,

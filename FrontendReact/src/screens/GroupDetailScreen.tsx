@@ -663,7 +663,11 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
             {group.members?.map((m) => (
               <View key={m.id} style={styles.memberRow}>
                 <View style={styles.memberAvatarCircle}>
-                  <Text style={styles.memberAvatarText}>{(m.user?.name || "U").charAt(0)}</Text>
+                  {m.user?.avatarUrl ? (
+                    <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
+                  ) : (
+                    <Text style={styles.memberAvatarText}>{(m.user?.name || "U").charAt(0)}</Text>
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.memberName}>{m.user?.name}</Text>
@@ -987,7 +991,11 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                   >
                     <View style={styles.memberCheckLeft}>
                       <View style={styles.memberAvatarCircle}>
-                        <Text style={styles.memberAvatarText}>{uName.charAt(0)}</Text>
+                        {m.user?.avatarUrl ? (
+                          <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
+                        ) : (
+                          <Text style={styles.memberAvatarText}>{uName.charAt(0)}</Text>
+                        )}
                       </View>
                       <Text style={styles.memberCheckName}>{uName}</Text>
                     </View>
@@ -1545,6 +1553,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#b3e5d1",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  memberAvatarImg: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
   },
   memberAvatarText: {
     fontSize: 16,

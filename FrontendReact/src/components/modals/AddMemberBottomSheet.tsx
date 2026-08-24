@@ -29,6 +29,7 @@ interface MemberCandidate {
   name: string;
   phone?: string;
   email?: string;
+  avatarUrl?: string;
 }
 
 export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
@@ -174,7 +175,11 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
                       style={styles.pastMemberVerticalRow}
                     >
                       <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarLetter}>{m.name.charAt(0)}</Text>
+                        {m.avatarUrl ? (
+                          <Image source={{ uri: m.avatarUrl }} style={styles.avatarImg} />
+                        ) : (
+                          <Text style={styles.avatarLetter}>{m.name.charAt(0)}</Text>
+                        )}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.pastMemberName}>{m.name}</Text>
@@ -401,6 +406,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.slate200,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   avatarLetter: {
     fontSize: 13,

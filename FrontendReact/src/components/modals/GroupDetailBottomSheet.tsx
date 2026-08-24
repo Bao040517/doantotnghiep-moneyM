@@ -28,6 +28,8 @@ interface GroupDetailBottomSheetProps {
   onClose: () => void;
 }
 
+import { CATEGORY_ICONS } from "../../constants/categories";
+
 const CATEGORY_EMOJI: Record<string, string> = {
   "Ăn uống": "🍽️",
   "Chi tiêu hàng ngày": "🧴",
@@ -37,13 +39,14 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "Y tế": "💊",
   "Giáo dục": "📚",
   "Tiền điện": "💡",
-  "Đi lại": "🚆",
+  "Tiền nước": "🚿",
+  "Đi lại": "🚗",
   "Phí liên lạc": "📱",
   "Tiền nhà": "🏠",
-  "Mục tiêu tiết kiệm": "🎯",
   "Mua sắm": "🛍️",
   "Giải trí": "🎮",
   "Lưu trú": "🏨",
+  "Mục tiêu tiết kiệm": "🎯",
   "Di chuyển": "🚗",
   "Khác": "📦",
 };
@@ -432,7 +435,11 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
                   >
                     <View style={styles.memberCheckLeft}>
                       <View style={styles.memberAvatarCircle}>
-                        <Text style={styles.memberAvatarText}>{uName.charAt(0)}</Text>
+                        {m.user?.avatarUrl ? (
+                          <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
+                        ) : (
+                          <Text style={styles.memberAvatarText}>{uName.charAt(0)}</Text>
+                        )}
                       </View>
                       <Text style={styles.memberCheckName}>{uName}</Text>
                     </View>
@@ -660,7 +667,11 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
               {group.members?.map((m) => (
                 <View key={m.id} style={styles.memberRow}>
                   <View style={styles.memberAvatarCircle}>
-                    <Text style={styles.memberAvatarText}>{(m.user?.name || "U").charAt(0)}</Text>
+                    {m.user?.avatarUrl ? (
+                      <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
+                    ) : (
+                      <Text style={styles.memberAvatarText}>{(m.user?.name || "U").charAt(0)}</Text>
+                    )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.memberName}>{m.user?.name}</Text>
@@ -1113,6 +1124,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#b3e5d1",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  memberAvatarImg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
   memberAvatarText: {
     fontSize: 15,

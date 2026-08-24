@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { colors } from "../../constants/colors";
@@ -12,6 +12,7 @@ interface GroupDebtCardProps {
 
 export const GroupDebtCard: React.FC<GroupDebtCardProps> = ({ debt, onSettle }) => {
   const memberName = debt?.otherMemberName || (debt as any)?.memberName || (debt as any)?.userName || "Thành viên";
+  const avatarUrl = (debt as any)?.otherMemberAvatarUrl || (debt as any)?.avatarUrl || (debt as any)?.counterparty?.avatarUrl;
   const firstChar = memberName ? memberName.charAt(0).toUpperCase() : "U";
   const amountVal = debt?.amount ?? 0;
   const isOwedToMe = amountVal > 0;
@@ -21,7 +22,11 @@ export const GroupDebtCard: React.FC<GroupDebtCardProps> = ({ debt, onSettle }) 
     <Card style={styles.card}>
       <View style={styles.infoRow}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{firstChar}</Text>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+          ) : (
+            <Text style={styles.avatarText}>{firstChar}</Text>
+          )}
         </View>
         <View style={styles.textContainer}>
           <Text style={styles.memberName}>{memberName}</Text>
@@ -63,6 +68,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    overflow: "hidden",
+  },
+  avatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   avatarText: {
     fontSize: 18,

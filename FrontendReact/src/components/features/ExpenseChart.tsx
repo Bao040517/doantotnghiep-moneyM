@@ -3,21 +3,11 @@ import { View, Text, StyleSheet } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
 import { colors } from "../../constants/colors";
 import { GroupExpense } from "../../types";
+import { CATEGORY_COLORS, getCategoryColor } from "../../constants/categories";
 
 interface ExpenseChartProps {
   expenses: GroupExpense[];
 }
-
-const CATEGORY_COLORS: Record<string, string> = {
-  "Ăn uống": "#10b981", // emerald
-  "Di chuyển": "#3b82f6", // blue
-  "Lưu trú": "#8b5cf6", // violet
-  "Giải trí": "#f59e0b", // amber
-  "Mua sắm": "#ec4899", // pink
-  "Sức khỏe": "#06b6d4", // cyan
-  "Hóa đơn": "#2980b9", // strong blue
-  "Khác": "#6b7280", // gray
-};
 
 const DEFAULT_COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#f97316"];
 
@@ -40,7 +30,7 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ expenses }) => {
       category: cat,
       amount: amt,
       pct: totalAmount > 0 ? (amt / totalAmount) * 100 : 0,
-      color: CATEGORY_COLORS[cat] || DEFAULT_COLORS[i % DEFAULT_COLORS.length],
+      color: getCategoryColor(cat, i),
     }));
 
   const fmt = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "đ";

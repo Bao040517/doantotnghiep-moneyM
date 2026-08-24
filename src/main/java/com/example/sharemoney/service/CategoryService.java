@@ -85,6 +85,12 @@ public class CategoryService {
                                     .build(),
                             Category.builder()
                                     .user(user)
+                                    .name("Tiền nước")
+                                    .type(TransactionType.EXPENSE)
+                                    .iconName("🚿")
+                                    .build(),
+                            Category.builder()
+                                    .user(user)
                                     .name("Đi lại")
                                     .type(TransactionType.EXPENSE)
                                     .iconName("🚆")

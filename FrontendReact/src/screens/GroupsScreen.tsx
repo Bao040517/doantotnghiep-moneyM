@@ -312,9 +312,17 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             <TouchableOpacity style={styles.iconCircle}>
               <Text style={{ fontSize: 15 }}>⚙️</Text>
             </TouchableOpacity>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{user?.name?.charAt(0) || "U"}</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.avatarCircle}
+              onPress={() => navigation.navigate("Profile" as never)}
+              activeOpacity={0.8}
+            >
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
+              ) : (
+                <Text style={styles.avatarText}>{user?.name?.charAt(0)?.toUpperCase() || "U"}</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -684,6 +692,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#0284c7",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   avatarText: {
     color: colors.white,

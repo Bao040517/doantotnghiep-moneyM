@@ -36,7 +36,7 @@ const CHART_COLORS = [
 ];
 
 const NEEDS_KEYWORDS = [
-  "tiền nhà", "thuê nhà", "tiền điện", "điện nước", "y tế", "đi lại",
+  "tiền nhà", "thuê nhà", "tiền điện", "tiền nước", "điện nước", "y tế", "đi lại",
   "phí liên lạc", "internet", "học phí", "trả góp", "cơm trưa", "siêu thị", "ăn uống"
 ];
 const SAVINGS_KEYWORDS = ["mục tiêu tiết kiệm", "hoàn tiền tiết kiệm", "tích lũy"];

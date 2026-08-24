@@ -19,28 +19,7 @@ interface AddTransactionModalProps {
   initialNote?: string;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  "Ăn uống": "🍽️",
-  "Chi tiêu hàng ngày": "🧴",
-  "Quần áo": "👕",
-  "Phí giao lưu": "🥂",
-  "Mỹ phẩm": "💄",
-  "Tiền nhà": "🏠",
-  "Tiền điện": "💡",
-  "Đi lại": "🚆",
-  "Phí liên lạc": "📱",
-  "Y tế": "💊",
-  "Giáo dục": "📚",
-  "Mục tiêu tiết kiệm": "🎯",
-  "Trả nợ nhóm": "💸",
-  "Lương": "💰",
-  "Tiền lương": "💰",
-  "Thưởng": "🎁",
-  "Tiền thưởng": "🎁",
-  "Hoàn tiền": "🔄",
-  "Thu nhập khác": "📥",
-  "Nạp tiền ví": "💳",
-};
+import { CATEGORY_ICONS } from "../../constants/categories";
 
 export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   visible,

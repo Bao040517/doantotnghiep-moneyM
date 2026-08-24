@@ -10,6 +10,7 @@ export type CategoryKey =
   | "Mỹ phẩm"
   | "Tiền nhà"
   | "Tiền điện"
+  | "Tiền nước"
   | "Đi lại"
   | "Phí liên lạc"
   | "Y tế"
@@ -53,7 +54,10 @@ export function normalizeCategoryName(rawName?: string): string {
   if (s.includes("nhà") || s.includes("phòng") || s.includes("rent") || s.includes("house") || s.includes("home") || s.includes("trọ") || s.includes("building")) {
     return "Tiền nhà";
   }
-  if (s.includes("điện") || s.includes("nước") || s.includes("tiện ích") || s.includes("utility") || s.includes("electric") || s.includes("evn") || s.includes("zap")) {
+  if (s.includes("nước") || s.includes("water") || s.includes("droplet") || s.includes("cấp nước") || s.includes("sawaco") || s.includes("biwase")) {
+    return "Tiền nước";
+  }
+  if (s.includes("điện") || s.includes("tiện ích") || s.includes("utility") || s.includes("electric") || s.includes("evn") || s.includes("zap")) {
     return "Tiền điện";
   }
   if (s.includes("đi lại") || s.includes("di chuyển") || s.includes("xăng") || s.includes("xe") || s.includes("taxi") || s.includes("grab") || s.includes("transport") || s.includes("vé") || s.includes("car") || s.includes("bus")) {
@@ -274,6 +278,37 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ name, size = 28, sty
             {/* Metal Base */}
             <Path d="M13 22H19V25H13V22Z" fill="#94A3B8" stroke={OUTLINE} strokeWidth={STROKE_WIDTH} />
             <Path d="M14 25H18L16 27.5L14 25Z" fill="#64748B" stroke={OUTLINE} strokeWidth={STROKE_WIDTH} />
+          </Svg>
+        );
+
+      case "Tiền nước":
+        return (
+          /* Sparkling Water Droplet & Ripple */
+          <Svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+            {/* Water Droplet Body */}
+            <Path
+              d="M16 4C16 4 9 14.5 9 20C9 23.866 12.134 27 16 27C19.866 27 23 23.866 23 20C23 14.5 16 4 16 4Z"
+              fill="#38BDF8"
+              stroke={OUTLINE}
+              strokeWidth={STROKE_WIDTH}
+              strokeLinejoin="round"
+            />
+            {/* Inner Reflection Arc */}
+            <Path
+              d="M13 18C13 15.5 14.5 12 15.5 10"
+              stroke="#FFFFFF"
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+            {/* Water Wave Base Accent */}
+            <Path
+              d="M12 21C13.5 22.5 18.5 22.5 20 21"
+              stroke="#0284C7"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+            />
+            {/* Mini Splash Bubble */}
+            <Circle cx="22.5" cy="11.5" r="2.2" fill="#7DD3FC" stroke={OUTLINE} strokeWidth={1.2} />
           </Svg>
         );
 

@@ -10,8 +10,10 @@ import {
 import { BottomSheet } from "../ui/BottomSheet";
 import { Button } from "../ui/Button";
 import { colors } from "../../constants/colors";
-import { BudgetSummary, Transaction } from "../../types";
+import { BudgetSummary } from "../../types/budget";
+import { Transaction } from "../../types/transaction";
 import { financialServices } from "../../services/financialServices";
+import { CATEGORY_ICONS, getCategoryEmoji } from "../../constants/categories";
 import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface BudgetTransactionsBottomSheetProps {
@@ -22,27 +24,6 @@ interface BudgetTransactionsBottomSheetProps {
   month: number;
   onAddNewExpense?: () => void;
 }
-
-const CATEGORY_ICONS: Record<string, string> = {
-  "Ăn uống": "🍽️",
-  "Chi tiêu hàng ngày": "🧴",
-  "Quần áo": "👕",
-  "Phí giao lưu": "🥂",
-  "Mỹ phẩm": "💄",
-  "Tiền nhà": "🏠",
-  "Tiền điện": "💡",
-  "Đi lại": "🚆",
-  "Phí liên lạc": "📱",
-  "Y tế": "💊",
-  "Giáo dục": "📚",
-  "Mục tiêu tiết kiệm": "🎯",
-  "Trả nợ nhóm": "💸",
-  "Mua sắm": "🛍️",
-  "Giải trí": "🎮",
-  "Lưu trú": "🏨",
-  "Di chuyển": "🚗",
-  "Khác": "📦",
-};
 
 export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomSheetProps> = ({
   visible,
@@ -108,7 +89,7 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
   };
 
   const catName = budget.name || budget.categoryName || "Danh mục";
-  const icon = CATEGORY_ICONS[catName] || budget.categoryIcon || "📊";
+  const icon = getCategoryEmoji(budget.categoryIcon, catName);
   const spent = budget.spentAmount || 0;
   const limit = budget.limitAmount || 1;
   const pct = Math.round((spent / limit) * 100);

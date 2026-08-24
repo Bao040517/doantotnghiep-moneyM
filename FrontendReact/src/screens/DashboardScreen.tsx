@@ -99,7 +99,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         <View style={styles.headerHeroContainer}>
           {/* Top User Bar */}
           <View style={styles.topBar}>
-            <View style={styles.userInfoRow}>
+            <TouchableOpacity
+              style={styles.userInfoRow}
+              onPress={() => navigation.navigate("Profile" as never)}
+              activeOpacity={0.8}
+            >
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl }} style={styles.userAvatarTop} />
               ) : (
@@ -111,7 +115,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                 <Text style={styles.headerSubtitle}>Tổng quan Tài chính</Text>
                 <Text style={styles.headerTitle}>{user?.name ? `Chào ${user.name},` : "Chào bạn,"}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
 
             <View style={{ flexDirection: "row", gap: 12 }}>
               <TouchableOpacity onPress={() => setNotifSheetVisible(true)} style={styles.eyeBtn}>

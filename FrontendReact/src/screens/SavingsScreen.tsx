@@ -219,6 +219,11 @@ export const SavingsScreen: React.FC = () => {
 
   const formatVND = (num: number) => (num ?? 0).toLocaleString("vi-VN") + " ₫";
 
+  // Tổng tiền trong tài khoản tiết kiệm (tích lũy tất cả mục tiêu)
+  const totalSavingsBalance = goals.reduce((acc, g) => acc + (g.currentAmount || 0), 0);
+  const totalTargetAmount = goals.reduce((acc, g) => acc + (g.targetAmount || 0), 0);
+  const overallSavingsProgress = totalTargetAmount > 0 ? Math.min(100, Math.round((totalSavingsBalance / totalTargetAmount) * 100)) : 0;
+
   return (
     <View style={styles.container}>
       {/* ─── STICKY HEADER ─── */}
@@ -252,6 +257,41 @@ export const SavingsScreen: React.FC = () => {
           />
         }
       >
+        {/* ─── TỔNG TIỀN TRONG TÀI KHOẢN TIẾT KIỆM HERO CARD ─── */}
+        <Card style={styles.heroSavingsCard}>
+          <View style={styles.heroSavingsHeaderRow}>
+            <View style={styles.heroSavingsIconBox}>
+              <Text style={{ fontSize: 24 }}>🏦</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.heroSavingsLabel}>TỔNG TIỀN TRONG TÀI KHOẢN TIẾT KIỆM</Text>
+              <Text style={styles.heroSavingsSub}>
+                {targetSavingsAccNo ? `STK: ${targetSavingsAccNo} • Quỹ tích lũy ngân hàng` : "Quỹ tích lũy các mục tiêu"}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.heroSavingsAmount}>{formatVND(totalSavingsBalance)}</Text>
+
+          {/* Mini 3-Stat Grid */}
+          <View style={styles.heroSavingsStatsGrid}>
+            <View style={styles.heroSavingsStatCol}>
+              <Text style={styles.heroSavingsStatLabel}>MỤC TIÊU</Text>
+              <Text style={styles.heroSavingsStatVal}>{goals.length} mục tiêu</Text>
+            </View>
+            <View style={styles.heroSavingsStatDivider} />
+            <View style={styles.heroSavingsStatCol}>
+              <Text style={styles.heroSavingsStatLabel}>TỔNG ĐÍCH ĐẾN</Text>
+              <Text style={styles.heroSavingsStatVal}>{formatVND(totalTargetAmount)}</Text>
+            </View>
+            <View style={styles.heroSavingsStatDivider} />
+            <View style={styles.heroSavingsStatCol}>
+              <Text style={styles.heroSavingsStatLabel}>TIẾN ĐỘ</Text>
+              <Text style={[styles.heroSavingsStatVal, { color: colors.emerald600 }]}>{overallSavingsProgress}%</Text>
+            </View>
+          </View>
+        </Card>
+
         {/* Safety Reserve Floor Banner / New User Onboarding */}
         {totalWalletBalance <= 0 && goals.length === 0 ? (
           <Card style={styles.onboardingCard}>
@@ -567,6 +607,81 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+  },
+  heroSavingsCard: {
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  heroSavingsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  heroSavingsIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#ECFDF5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroSavingsLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.slate500,
+    letterSpacing: 0.6,
+  },
+  heroSavingsSub: {
+    fontSize: 12,
+    color: colors.slate600,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  heroSavingsAmount: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: colors.emerald600,
+    marginVertical: 10,
+  },
+  heroSavingsStatsGrid: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  heroSavingsStatCol: {
+    flex: 1,
+    alignItems: "center",
+  },
+  heroSavingsStatDivider: {
+    width: 1,
+    height: 22,
+    backgroundColor: "#E2E8F0",
+  },
+  heroSavingsStatLabel: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: colors.slate400,
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  heroSavingsStatVal: {
+    fontSize: 12.5,
+    fontWeight: "800",
+    color: colors.slate800,
   },
   reserveCard: {
     borderRadius: 24,

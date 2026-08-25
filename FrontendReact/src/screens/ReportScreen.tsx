@@ -772,7 +772,7 @@ export const ReportScreen: React.FC = () => {
                         </View>
 
                         <Text style={{ fontSize: 14, fontWeight: "900", color: "#e11d48" }}>
-                          -{fmt(tx.amount)}
+                          {fmt(tx.amount)}
                         </Text>
                       </View>
                     ))}

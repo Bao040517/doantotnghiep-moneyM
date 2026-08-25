@@ -68,7 +68,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   };
 
   const fmt = (n: number) => {
-    const safe = Math.round(Number(n) || 0);
+    const safe = Math.abs(Math.round(Number(n) || 0));
     return safe.toLocaleString("vi-VN") + "đ";
   };
 
@@ -392,7 +392,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                         </View>
                       </View>
                       <Text style={[styles.categoryAmountText, idx === 0 && { color: colors.rose600 }]}>
-                        -{fmt(cat.totalAmount)}
+                        {fmt(cat.totalAmount)}
                       </Text>
                     </View>
                   </View>

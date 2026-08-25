@@ -108,7 +108,7 @@ export const ExpenseDetailBottomSheet: React.FC<ExpenseDetailBottomSheetProps> =
     );
   };
 
-  const fmt = (n?: number) => (Math.round(Number(n) || 0)).toLocaleString("vi-VN") + " ₫";
+  const fmt = (n?: number) => (Math.abs(Math.round(Number(n) || 0))).toLocaleString("vi-VN") + " ₫";
 
   return (
     <BottomSheet visible={visible} onClose={onClose} title={isEditing ? "Chỉnh Sửa Khoản Chi" : "Chi Tiết Khoản Chi 🧾"}>

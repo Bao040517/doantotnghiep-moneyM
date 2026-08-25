@@ -522,7 +522,7 @@ export const BudgetScreen: React.FC = () => {
     }
   };
 
-  const fmt = (n?: number) => new Intl.NumberFormat("vi-VN").format(Math.round(Number(n) || 0));
+  const fmt = (n?: number) => new Intl.NumberFormat("vi-VN").format(Math.abs(Math.round(Number(n) || 0)));
 
   const filteredBudgets = React.useMemo(() => {
     let list = [...budgets];

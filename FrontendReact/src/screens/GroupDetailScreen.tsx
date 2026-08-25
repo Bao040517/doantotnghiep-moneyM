@@ -302,7 +302,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   };
 
   const fmt = (n?: number) => {
-    const safe = Math.round(Number(n) || 0);
+    const safe = Math.abs(Math.round(Number(n) || 0));
     return safe.toLocaleString("vi-VN") + " ₫";
   };
 
@@ -580,7 +580,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                         <View style={{ flex: 1 }}>
                           <Text style={styles.debtNameText} numberOfLines={1}>{creditorName}</Text>
                           <Text style={styles.debtAmountPayable}>
-                            -{fmt(t.amount)}
+                            {fmt(t.amount)}
                           </Text>
                         </View>
                       </View>

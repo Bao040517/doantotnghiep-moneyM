@@ -245,7 +245,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   };
 
   const fmt = (val?: number) => {
-    const safe = Math.round(Number(val) || 0);
+    const safe = Math.abs(Math.round(Number(val) || 0));
     return safe.toLocaleString("vi-VN") + "đ";
   };
 
@@ -535,7 +535,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           </View>
                           <View style={styles.amountCol}>
                             <Text style={styles.debtTagLabelRed}>Bạn nợ:</Text>
-                            <Text style={styles.debtAmountRed}>-{fmt(Math.abs(item.amount))}</Text>
+                            <Text style={styles.debtAmountRed}>{fmt(item.amount)}</Text>
                           </View>
                         </View>
 

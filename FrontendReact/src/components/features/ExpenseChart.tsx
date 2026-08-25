@@ -33,7 +33,7 @@ export const ExpenseChart: React.FC<ExpenseChartProps> = ({ expenses }) => {
       color: getCategoryColor(cat, i),
     }));
 
-  const fmt = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "đ";
+  const fmt = (v: number) => new Intl.NumberFormat("vi-VN").format(Math.abs(Math.round(Number(v) || 0))) + "đ";
 
   const chartSize = 150;
   const strokeWidth = 20;

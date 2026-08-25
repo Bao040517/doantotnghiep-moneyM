@@ -49,7 +49,7 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
     return new Intl.NumberFormat("vi-VN").format(Math.round(n)) + "đ";
   };
 
-  const fmt = (n: number) => new Intl.NumberFormat("vi-VN").format(Math.round(n)) + "đ";
+  const fmt = (n: number) => new Intl.NumberFormat("vi-VN").format(Math.abs(Math.round(n))) + "đ";
 
   // Categorize actual data dynamically
   const sourceCategories = (topExpenseCategories && topExpenseCategories.length > 0)
@@ -148,7 +148,7 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                       <Text style={{ fontSize: 10, color: "#94a3b8", marginTop: 2, fontWeight: "500" }}>Giao dịch phát sinh trong tháng</Text>
                     </View>
                   </View>
-                  <Text style={{ fontSize: 14, fontWeight: "900", color: "#e11d48" }}>-{fmt(selectedHistoryCategory.amount)}</Text>
+                  <Text style={{ fontSize: 14, fontWeight: "900", color: "#e11d48" }}>{fmt(selectedHistoryCategory.amount)}</Text>
                 </View>
               </View>
             ) : (

@@ -135,7 +135,7 @@ export const AdvisorScreen: React.FC = () => {
     setToastVisible(true);
   };
 
-  const fmt = (n?: number) => new Intl.NumberFormat("vi-VN").format(Math.round(Number(n) || 0)) + "đ";
+  const fmt = (n?: number) => new Intl.NumberFormat("vi-VN").format(Math.abs(Math.round(Number(n) || 0))) + "đ";
   const userName = user?.name ? user.name.split(" ").pop() : "Bạn";
 
   const handleApplySingleCut = async (item: any) => {
@@ -693,7 +693,7 @@ export const AdvisorScreen: React.FC = () => {
                       <View style={styles.rebalanceStatBox}>
                         <Text style={styles.rebalanceStatLabel}>CÓ THỂ BÙ TRỪ</Text>
                         <Text style={[styles.rebalanceStatValue, { color: colors.emerald600 }]}>
-                          -{fmt(activeRebalancePlan?.totalCompensated)}
+                          {fmt(activeRebalancePlan?.totalCompensated)}
                         </Text>
                       </View>
                     </View>
@@ -844,7 +844,7 @@ export const AdvisorScreen: React.FC = () => {
                               : "TRẠNG THÁI NGÂN SÁCH"}
                           </Text>
                           <Text style={[styles.cutHighlightValue, isCutApplied && styles.cutHighlightValueBalanced]}>
-                            {hasCutAmount ? `-${fmt(item.suggestedCutAmount)}` : "✓ Đã Cân Bằng"}
+                            {hasCutAmount ? `${fmt(item.suggestedCutAmount)}` : "✓ Đã Cân Bằng"}
                           </Text>
                         </View>
 

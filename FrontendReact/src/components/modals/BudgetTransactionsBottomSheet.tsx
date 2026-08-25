@@ -84,7 +84,7 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
   if (!budget) return null;
 
   const fmt = (n?: number) => {
-    const safe = Math.round(Number(n) || 0);
+    const safe = Math.abs(Math.round(Number(n) || 0));
     return safe.toLocaleString("vi-VN") + " ₫";
   };
 
@@ -238,7 +238,7 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
 
                   {/* Right Amount Column */}
                   <View style={styles.txRightCol}>
-                    <Text style={styles.txAmount}>-{fmt(tx.amount)}</Text>
+                    <Text style={styles.txAmount}>{fmt(tx.amount)}</Text>
                     <View style={[styles.settledTag, (tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) && { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }]}>
                       <Text style={[styles.settledTagText, (tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) && { color: "#059669" }]}>
                         {(tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) ? "Tiền mặt ✓" : "Đã trừ ví ✓"}

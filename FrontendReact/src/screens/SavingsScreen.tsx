@@ -141,9 +141,19 @@ export const SavingsScreen: React.FC = () => {
 
   const handleDeleteGoal = (goalId: string) => {
     const goal = goals.find((g) => g.id === goalId);
+    const amount = goal?.currentAmount || 0;
+    const otherGoals = goals.filter((g) => g.id !== goalId && (g.currentAmount || 0) < (g.targetAmount || 0));
+
+    const message =
+      amount > 0
+        ? otherGoals.length > 0
+          ? `Bạn có chắc muốn xóa mục tiêu "${goal?.name}"?\n\nSố tiền đã tích lũy (${formatVND(amount)}) vẫn nằm trong tài khoản tiết kiệm và sẽ được tự động phân bổ lại vào ${otherGoals.length} mục tiêu tiết kiệm khác!`
+          : `Bạn có chắc muốn xóa mục tiêu "${goal?.name}"?\n\nSố tiền đã tích lũy (${formatVND(amount)}) sẽ được thu hồi về ví chính do bạn không còn mục tiêu tiết kiệm nào khác.`
+        : `Bạn có chắc muốn xóa mục tiêu "${goal?.name}"?`;
+
     Alert.alert(
-      "Xóa mục tiêu",
-      `Bạn có chắc muốn xóa mục tiêu "${goal?.name}"? Số tiền đã tích lũy sẽ được trả lại ví.`,
+      "Xác nhận xóa mục tiêu 🗑️",
+      message,
       [
         { text: "Hủy", style: "cancel" },
         {
@@ -152,8 +162,14 @@ export const SavingsScreen: React.FC = () => {
           onPress: async () => {
             try {
               await financialServices.deleteSavingsGoal(goalId);
-              Alert.alert("Đã xóa", "Mục tiêu tiết kiệm đã được xóa thành công.");
+              Alert.alert(
+                "Đã xóa thành công 🎉",
+                amount > 0 && otherGoals.length > 0
+                  ? `Mục tiêu đã được xóa. Số tiền ${formatVND(amount)} đã được tự động tái phân bổ vào các mục tiêu tiết kiệm khác trong tài khoản tiết kiệm của bạn!`
+                  : "Mục tiêu tiết kiệm đã được xóa thành công."
+              );
               refreshGoals();
+              refreshApp();
             } catch (e: any) {
               Alert.alert("Lỗi", e.response?.data?.message || "Không thể xóa mục tiêu");
             }

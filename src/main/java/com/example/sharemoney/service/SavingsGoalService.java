@@ -429,26 +429,80 @@ public class SavingsGoalService {
             throw new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND);
         }
 
-        // If goal had money, should we refund it to wallet?
-        if (goal.getCurrentAmount().compareTo(BigDecimal.ZERO) > 0) {
-            Wallet wallet = getWalletForSavings(userId, null, null);
-            if (wallet != null) {
-                wallet.setBalance(wallet.getBalance().add(goal.getCurrentAmount()));
-                walletRepository.save(wallet);
+        BigDecimal freedAmount = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : BigDecimal.ZERO;
 
-                // We might also want to create an INCOME transaction to log the refund
-                Category savingsIncomeCategory = categoryService.getOrCreateCategory(
-                        userId, "Hoàn tiền tiết kiệm", TransactionType.INCOME, "🏦");
+        if (freedAmount.compareTo(BigDecimal.ZERO) > 0) {
+            // 1. Tìm các mục tiêu tiết kiệm khác của người dùng chưa hoàn thành để tái phân bổ
+            List<SavingsGoal> otherGoals = savingsGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId)
+                    .stream()
+                    .filter(g -> !g.getId().equals(goalId))
+                    .filter(g -> g.getStatus() == null || g.getStatus() != SavingsGoalStatus.COMPLETED)
+                    .filter(g -> g.getCurrentAmount() != null && g.getTargetAmount() != null
+                            && g.getCurrentAmount().compareTo(g.getTargetAmount()) < 0)
+                    .collect(Collectors.toList());
 
-                Transaction refundTx = Transaction.builder()
-                        .wallet(wallet)
-                        .amount(goal.getCurrentAmount())
-                        .type(TransactionType.INCOME)
-                        .category(savingsIncomeCategory)
-                        .note("Hoàn tiền từ mục tiêu đã xóa: " + goal.getName())
-                        .excludeFromBudget(true)
-                        .build();
-                transactionRepository.save(refundTx);
+            BigDecimal remainingFreed = freedAmount;
+
+            if (!otherGoals.isEmpty()) {
+                // Tính tổng độ thiếu hụt của các mục tiêu còn lại
+                BigDecimal totalDeficit = BigDecimal.ZERO;
+                for (SavingsGoal og : otherGoals) {
+                    BigDecimal deficit = og.getTargetAmount().subtract(og.getCurrentAmount());
+                    totalDeficit = totalDeficit.add(deficit);
+                }
+
+                if (totalDeficit.compareTo(BigDecimal.ZERO) > 0) {
+                    for (int i = 0; i < otherGoals.size(); i++) {
+                        SavingsGoal og = otherGoals.get(i);
+                        BigDecimal deficit = og.getTargetAmount().subtract(og.getCurrentAmount());
+
+                        BigDecimal alloc;
+                        if (i == otherGoals.size() - 1 && remainingFreed.compareTo(deficit) <= 0) {
+                            alloc = remainingFreed;
+                        } else {
+                            alloc = freedAmount.multiply(deficit)
+                                    .divide(totalDeficit, 0, java.math.RoundingMode.FLOOR);
+                            if (alloc.compareTo(deficit) > 0) {
+                                alloc = deficit;
+                            }
+                            if (alloc.compareTo(remainingFreed) > 0) {
+                                alloc = remainingFreed;
+                            }
+                        }
+
+                        if (alloc.compareTo(BigDecimal.ZERO) > 0) {
+                            og.setCurrentAmount(og.getCurrentAmount().add(alloc));
+                            if (og.getCurrentAmount().compareTo(og.getTargetAmount()) >= 0) {
+                                og.setStatus(SavingsGoalStatus.COMPLETED);
+                            }
+                            remainingFreed = remainingFreed.subtract(alloc);
+                        }
+                    }
+                    savingsGoalRepository.saveAll(otherGoals);
+                }
+            }
+
+            // 2. Nếu sau khi phân bổ cho tất cả mục tiêu khác mà vẫn còn dư (hoặc không có mục tiêu nào khác)
+            // thì hoàn phần tiền dư về ví và ghi nhận giao dịch rõ ràng
+            if (remainingFreed.compareTo(BigDecimal.ZERO) > 0) {
+                Wallet wallet = getWalletForSavings(userId, null, null);
+                if (wallet != null) {
+                    wallet.setBalance(wallet.getBalance().add(remainingFreed));
+                    walletRepository.save(wallet);
+
+                    Category savingsIncomeCategory = categoryService.getOrCreateCategory(
+                            userId, "Thu hồi tiền tiết kiệm", TransactionType.INCOME, "🏦");
+
+                    Transaction refundTx = Transaction.builder()
+                            .wallet(wallet)
+                            .amount(remainingFreed)
+                            .type(TransactionType.INCOME)
+                            .category(savingsIncomeCategory)
+                            .note("Thu hồi phần dư từ mục tiêu đã xóa: " + goal.getName())
+                            .excludeFromBudget(true)
+                            .build();
+                    transactionRepository.save(refundTx);
+                }
             }
         }
 

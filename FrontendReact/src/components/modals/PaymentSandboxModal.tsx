@@ -9,7 +9,7 @@ import {
   Alert,
   TextInput,
 } from "react-native";
-import { CheckCircle2, Wallet, Download } from "lucide-react-native";
+import { CheckCircle2, Download } from "lucide-react-native";
 import { BottomSheet } from "../ui/BottomSheet";
 import { VIETQR_BANKS } from "../../constants/banks";
 import { VietQRCard } from "../features/VietQRCard";
@@ -241,23 +241,14 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
           )}
         </TouchableOpacity>
 
-        {/* ── 5. PHƯƠNG THỨC KHÁC ── */}
-        <View style={styles.altRow}>
-          <TouchableOpacity style={styles.altBtn} onPress={handleOpenConfirmDialog} activeOpacity={0.7}>
-            <Wallet size={15} color="#D97706" />
-            <Text style={styles.altBtnText}>Trừ Ví ShareMoney</Text>
-          </TouchableOpacity>
-
-          {debtInfo.groupId && debtInfo.toUserId && (
-            <TouchableOpacity
-              style={[styles.altBtn, { backgroundColor: "#F1F5F9" }]}
-              onPress={handleCashNotify}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.altBtnText}>💵 Báo trả tiền mặt</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* ── 5. PHƯƠNG THỨC TIỀN MẶT ── */}
+        <TouchableOpacity
+          style={styles.cashBtn}
+          onPress={debtInfo.groupId && debtInfo.toUserId ? handleCashNotify : handleOpenConfirmDialog}
+          activeOpacity={0.75}
+        >
+          <Text style={styles.cashBtnText}>💵 Báo trả bằng tiền mặt</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* ─── MODAL XÁC NHẬN SỐ TIỀN THỰC CHUYỂN ─── */}
@@ -468,27 +459,25 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  // Alt methods
-  altRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 8,
-  },
-  altBtn: {
-    flex: 1,
+  // Cash button
+  cashBtn: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FEF3C7",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    gap: 6,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginTop: 4,
+    marginBottom: 8,
   },
-  altBtnText: {
-    fontSize: 12,
+  cashBtnText: {
+    fontSize: 13,
     fontWeight: "700",
-    color: "#92400E",
+    color: "#334155",
   },
 
   // Receipt

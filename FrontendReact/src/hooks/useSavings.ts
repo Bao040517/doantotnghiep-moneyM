@@ -5,6 +5,7 @@ import { SavingsGoal, AutoAllocateResponse } from "../types";
 export function useSavings(walletBalance: number, safeToSpend: number) {
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [isAllocating, setIsAllocating] = useState(false);
+  const [hasAllocatedThisMonth, setHasAllocatedThisMonth] = useState(false);
   const [lastAllocationResult, setLastAllocationResult] = useState<AutoAllocateResponse | null>(null);
 
   // Safety Reserve Floor Calculation: Derived from backend safeToSpend
@@ -18,6 +19,13 @@ export function useSavings(walletBalance: number, safeToSpend: number) {
     } catch (e) {
       console.log("Failed to fetch savings goals:", e);
       setGoals([]);
+    }
+
+    try {
+      const status = await financialServices.getAutoAllocateStatus();
+      setHasAllocatedThisMonth(!!status?.hasAllocatedThisMonth);
+    } catch (e: any) {
+      setHasAllocatedThisMonth(false);
     }
   }, []);
 
@@ -33,6 +41,7 @@ export function useSavings(walletBalance: number, safeToSpend: number) {
     try {
       const res = await financialServices.autoAllocateSavings();
       setLastAllocationResult(res);
+      setHasAllocatedThisMonth(true);
       await fetchGoals();
       return res;
     } finally {
@@ -45,6 +54,7 @@ export function useSavings(walletBalance: number, safeToSpend: number) {
     requiredReserve,
     safeToSpend,
     isSafetyFloorReached,
+    hasAllocatedThisMonth,
     autoAllocate,
     isAllocating,
     lastAllocationResult,

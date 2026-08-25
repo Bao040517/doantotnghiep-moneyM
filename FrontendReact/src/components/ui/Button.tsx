@@ -5,7 +5,7 @@ import { colors } from "../../constants/colors";
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "danger" | "amber" | "outline" | "cancel";
+  variant?: "primary" | "secondary" | "danger" | "amber" | "emerald" | "outline" | "cancel";
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
@@ -97,6 +97,14 @@ const styles = StyleSheet.create({
   amber: {
     backgroundColor: colors.amber500,
     shadowColor: colors.amber500,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  emerald: {
+    backgroundColor: "#10B981",
+    shadowColor: "#10B981",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

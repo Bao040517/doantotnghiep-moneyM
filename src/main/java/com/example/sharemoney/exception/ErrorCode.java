@@ -42,6 +42,9 @@ public enum ErrorCode {
     SAFETY_RESERVE_VIOLATION(
             HttpStatus.BAD_REQUEST,
             "Số dư ví không đủ để đảm bảo quỹ dự trữ an toàn cho ngân sách và nợ phải trả."),
+    SAVINGS_ALREADY_ALLOCATED_THIS_MONTH(
+            HttpStatus.BAD_REQUEST,
+            "Mỗi tháng chỉ được thực hiện phân bổ tiết kiệm tự động 1 lần duy nhất."),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy danh mục."),
     BUDGET_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy ngân sách."),
     LOAN_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy khoản vay."),

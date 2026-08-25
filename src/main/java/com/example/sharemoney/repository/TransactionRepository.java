@@ -46,6 +46,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("userId") UUID userId, @Param("year") int year, @Param("month") int month);
 
     @Query(
+            "SELECT COUNT(t) > 0 FROM Transaction t WHERE t.wallet.user.id = :userId "
+                    + "AND t.note LIKE 'Tự động phân bổ vào mục tiêu%' "
+                    + "AND YEAR(t.transactionDate) = :year AND MONTH(t.transactionDate) = :month")
+    boolean existsAutoAllocationInMonth(
+            @Param("userId") UUID userId, @Param("year") int year, @Param("month") int month);
+
+    @Query(
             "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
                     + "WHERE t.wallet.user.id = :userId "
                     + "AND (t.wallet.isLiability = false OR t.wallet.isLiability IS NULL) "

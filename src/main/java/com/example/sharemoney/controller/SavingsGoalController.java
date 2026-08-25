@@ -70,4 +70,10 @@ public class SavingsGoalController {
         return ResponseEntity.ok(
                 savingsGoalService.autoAllocateSavingsGoals(SecurityUtils.getCurrentUserId()));
     }
+
+    @GetMapping("/auto-allocate/status")
+    public ResponseEntity<com.example.sharemoney.dto.response.AutoAllocateStatusResponse> getAutoAllocateStatus() {
+        return ResponseEntity.ok(
+                savingsGoalService.getAutoAllocateStatus(SecurityUtils.getCurrentUserId()));
+    }
 }

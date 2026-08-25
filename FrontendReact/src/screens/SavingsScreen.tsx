@@ -24,6 +24,7 @@ export const SavingsScreen: React.FC = () => {
     requiredReserve,
     safeToSpend,
     isSafetyFloorReached,
+    hasAllocatedThisMonth,
     autoAllocate,
     isAllocating,
     refreshGoals,
@@ -261,13 +262,17 @@ export const SavingsScreen: React.FC = () => {
           <Card style={[styles.reserveCard, (totalWalletBalance > 0 && safeToSpend <= 0) ? styles.warningCard : styles.safeCard]}>
             <View style={styles.reserveHeader}>
               <Text style={styles.reserveTitle}>
-                {totalWalletBalance > 0 && safeToSpend <= 0
+                {hasAllocatedThisMonth
+                  ? "🛡️ ĐIỂM DÙNG AN TOÀN (ĐÃ PHÂN BỔ THÁNG NÀY)"
+                  : totalWalletBalance > 0 && safeToSpend <= 0
                   ? "⚠️ CẢNH BÁO ĐIỂM DỪNG AN TOÀN"
-                  : "🛡️ ĐIỂM DỪNG AN TOÀN (SAFETY RESERVE)"}
+                  : "🛡️ ĐIỂM DÙNG AN TOÀN (SAFETY RESERVE)"}
               </Text>
             </View>
             <Text style={styles.reserveDescription}>
-              {totalWalletBalance <= 0
+              {hasAllocatedThisMonth
+                ? `Bạn đã hoàn thành phân bổ tiết kiệm cho Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()} (Quy định 1 lần/tháng để duy trì dòng tiền ổn định). Lượt tiếp theo sẽ mở vào ngày 01 tháng sau.`
+                : totalWalletBalance <= 0
                 ? "Số dư ví hiện tại là 0 ₫. Vui lòng nạp tiền vào ví để kích hoạt tính năng phân bổ tự động an toàn."
                 : "Số tiền tối thiểu cần giữ lại để đáp ứng 100% ngân sách sinh hoạt & các khoản nợ cần thanh toán tháng này."}
             </Text>
@@ -287,15 +292,17 @@ export const SavingsScreen: React.FC = () => {
 
             <Button
               title={
-                totalWalletBalance <= 0
+                hasAllocatedThisMonth
+                  ? `✓ Đã Gửi Tiết Kiệm Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`
+                  : totalWalletBalance <= 0
                   ? "Chưa Có Số Dư Để Phân Bổ"
                   : safeToSpend <= 0
                   ? "⚠️ Số Dư Ví Không Đủ Để Trích Gửi"
-                  : "⚡ Phân Bổ Tự Động An Toàn Ngay"
+                  : "🌱 Gửi Tiết Kiệm Ngay"
               }
-              variant={totalWalletBalance <= 0 || safeToSpend <= 0 ? "secondary" : "amber"}
+              variant={hasAllocatedThisMonth ? "secondary" : (totalWalletBalance <= 0 || safeToSpend <= 0 ? "secondary" : "emerald")}
               onPress={handleOpenAutoAllocateQr}
-              disabled={totalWalletBalance <= 0 || safeToSpend <= 0}
+              disabled={hasAllocatedThisMonth || totalWalletBalance <= 0 || safeToSpend <= 0}
               loading={isAllocating}
               style={styles.autoBtn}
             />

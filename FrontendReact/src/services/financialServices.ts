@@ -55,6 +55,8 @@ export const financialServices = {
   createSavingsGoal: (payload: SavingsGoalPayload) => api.post<SavingsGoal>("/savings-goals", payload).then((res) => res.data),
   updateSavingsGoal: (id: string, payload: SavingsGoalPayload) => api.put<SavingsGoal>(`/savings-goals/${id}`, payload).then((res) => res.data),
   autoAllocateSavings: () => api.post<AutoAllocateResponse>("/savings-goals/auto-allocate").then((res) => res.data),
+  getAutoAllocateStatus: () =>
+    api.get<{ hasAllocatedThisMonth: boolean; month: number; year: number; message: string }>("/savings-goals/auto-allocate/status").then((res) => res.data),
   fundSavingsGoal: (id: string, amount: number) =>
     api.post<SavingsGoal>(`/savings-goals/${id}/fund`, { amount }).then((res) => res.data),
   withdrawSavingsGoal: (id: string, amount: number) =>

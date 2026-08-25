@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -7,8 +7,11 @@ import {
   Share,
   Alert,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import {
   Smartphone,
   Download,
@@ -109,6 +112,8 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
   onCopySuccess,
 }) => {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [savingQr, setSavingQr] = useState(false);
+  const qrSvgRef = useRef<any>(null);
 
   const realBin = resolveBankBin(bankBin);
   const bank = VIETQR_BANKS.find((b) => b.bin === realBin);
@@ -135,14 +140,39 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
     }, 2000);
   };
 
-  const handleShareQr = async () => {
+  const handleSaveToGallery = async () => {
+    if (!qrSvgRef.current) return;
+    setSavingQr(true);
     try {
-      await Share.share({
-        title: "Mã chuyển khoản VietQR Napas247",
-        message: `Mã thanh toán VietQR / VNPAY-QR Napas247\n• Ngân hàng: ${bankName}\n• Số tài khoản: ${displayAccountNo}\n• Chủ tài khoản: ${displayAccountName}\n• Số tiền: ${displayAmount.toLocaleString("vi-VN")} ₫\n• Nội dung: ${displayDescription}\n• Chuỗi mã QR EMVCo: ${qrPayload}`,
+      qrSvgRef.current.toDataURL(async (dataURL: string) => {
+        try {
+          const filePath = `${FileSystem.cacheDirectory}vietqr_${Date.now()}.png`;
+          await FileSystem.writeAsStringAsync(filePath, dataURL, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(filePath, {
+              mimeType: "image/png",
+              dialogTitle: "Lưu ảnh mã QR hoặc gửi",
+              UTI: "public.png",
+            });
+            if (onCopySuccess) {
+              onCopySuccess("Đã xuất ảnh mã QR thành công! 📸");
+            }
+          } else {
+            Alert.alert("Thông báo", "Tính năng lưu ảnh không khả dụng trên môi trường này.");
+          }
+        } catch (innerErr: any) {
+          console.error("Lỗi khi lưu ảnh QR:", innerErr);
+          Alert.alert("Lỗi", "Không thể tạo file ảnh mã QR. Vui lòng thử lại!");
+        } finally {
+          setSavingQr(false);
+        }
       });
-    } catch (error: any) {
-      console.log("Error sharing QR:", error);
+    } catch (err: any) {
+      console.error("Lỗi get dataURL QR:", err);
+      setSavingQr(false);
     }
   };
 
@@ -175,6 +205,9 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
             size={220}
             color="#0f172a"
             backgroundColor="#ffffff"
+            getRef={(ref) => {
+              qrSvgRef.current = ref;
+            }}
           />
         </View>
 
@@ -189,15 +222,22 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
         </View>
       </View>
 
-      {/* Nút Tải mã QR duy nhất */}
+      {/* Nút Tải mã QR trực tiếp vào Bộ sưu tập */}
       {showActions && (
         <TouchableOpacity
           style={styles.downloadQrBtn}
-          onPress={handleShareQr}
-          activeOpacity={0.8}
+          onPress={handleSaveToGallery}
+          disabled={savingQr}
+          activeOpacity={0.75}
         >
-          <Download size={18} color={colors.white} />
-          <Text style={styles.downloadQrBtnText}>Tải mã QR</Text>
+          {savingQr ? (
+            <ActivityIndicator size="small" color="#334155" />
+          ) : (
+            <>
+              <Download size={16} color="#334155" />
+              <Text style={styles.downloadQrBtnText}>📥 Lưu mã QR vào Bộ sưu tập</Text>
+            </>
+          )}
         </TouchableOpacity>
       )}
     </View>
@@ -318,19 +358,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     width: "100%",
-    backgroundColor: colors.indigo600,
-    paddingVertical: 14,
-    borderRadius: 16,
-    marginTop: 12,
-    shadowColor: colors.indigo600,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1.2,
+    borderColor: "#E2E8F0",
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginTop: 10,
   },
   downloadQrBtnText: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#334155",
   },
 });

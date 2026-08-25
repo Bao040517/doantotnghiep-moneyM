@@ -382,6 +382,13 @@ export const AdvisorScreen: React.FC = () => {
   };
 
   const plan = data?.budgetPlan || [];
+  const activeBudgets: any[] = plan.filter(
+    (p: any) => p.hasBudget || (p.currentBudget !== null && p.currentBudget !== undefined && Number(p.currentBudget) > 0)
+  );
+  const totalAllocatedBudget = activeBudgets.reduce(
+    (sum: number, p: any) => sum + (Number(p.currentBudget) || 0),
+    0
+  );
 
   const warnings = data?.warnings || [];
   const rebalancePlan = data?.rebalancePlan;
@@ -486,14 +493,134 @@ export const AdvisorScreen: React.FC = () => {
             </View>
 
             {!isRebalanceActive ? (
-              <View style={styles.rebalanceSafeCard}>
-                <View style={styles.safeIconCircle}>
-                  <Text style={{ fontSize: 32 }}>🛡️</Text>
+              <View>
+                {/* Hero Safe Card */}
+                <View style={styles.rebalanceSafeCard}>
+                  <View style={styles.safeIconCircle}>
+                    <Text style={{ fontSize: 32 }}>🛡️</Text>
+                  </View>
+                  <Text style={styles.rebalanceSafeTitle}>Ngân Sách Đang Rất An Toàn!</Text>
+                  <Text style={styles.rebalanceSafeSub}>
+                    Trong tháng {selectedMonth}/{selectedYear}, bạn chưa tiêu lố bất kỳ khoản ngân sách nào. Mọi khoản chi tiêu đều đang bám sát hạn mức kế hoạch.
+                  </Text>
+
+                  {/* 2 Stats Column */}
+                  {activeBudgets.length > 0 && (
+                    <View style={[styles.rebalanceStatsRow, styles.statsRowBalanced, { marginTop: 14 }]}>
+                      <View style={styles.rebalanceStatBox}>
+                        <Text style={styles.rebalanceStatLabel}>TỔNG HẠN MỨC ĐÃ ĐẶT</Text>
+                        <Text style={[styles.rebalanceStatValue, { color: colors.indigo600 }]}>
+                          {fmt(totalAllocatedBudget)}
+                        </Text>
+                      </View>
+                      <View style={[styles.rebalanceStatDivider, styles.dividerBalanced]} />
+                      <View style={styles.rebalanceStatBox}>
+                        <Text style={styles.rebalanceStatLabel}>TRẠNG THÁI</Text>
+                        <Text style={[styles.rebalanceStatValue, { color: colors.emerald600 }]}>
+                          ✓ 100% Cân bằng
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.rebalanceSafeTitle}>Ngân Sách Đang Rất An Toàn!</Text>
-                <Text style={styles.rebalanceSafeSub}>
-                  Trong tháng {selectedMonth}/{selectedYear}, bạn chưa tiêu lố bất kỳ khoản ngân sách nào. Mọi khoản chi tiêu đều đang bám sát hạn mức kế hoạch.
-                </Text>
+
+                {/* Section Header: Danh Sách Các Khoản Đã Cân Bằng */}
+                <View style={[styles.rebalanceSectionHeaderRow, { marginTop: 20 }]}>
+                  <View style={[styles.sectionHeaderDot, styles.dotEmerald]} />
+                  <Text style={styles.rebalanceSectionHeader}>
+                    Danh Sách Các Khoản Đang Cân Bằng ({activeBudgets.length > 0 ? activeBudgets.length : plan.length})
+                  </Text>
+                  <View style={styles.sectionHeaderBadgeGray}>
+                    <Text style={styles.sectionHeaderBadgeGrayText}>✓ An toàn</Text>
+                  </View>
+                </View>
+
+                {/* Danh sách các card danh mục đang cân bằng an toàn */}
+                {activeBudgets.length > 0 ? (
+                  activeBudgets.map((item, idx) => {
+                    const limit = Number(item.currentBudget || item.suggestedAmount || 0);
+                    const avgSpent = Number(item.avgSpent3Months || item.lastMonthSpent || 0);
+                    const remaining = limit > avgSpent ? limit - avgSpent : 0;
+                    const percentSpent = limit > 0 ? Math.min(100, Math.round((avgSpent / limit) * 100)) : 0;
+
+                    return (
+                      <View key={idx} style={[styles.cutItemCard, styles.cutItemCardBalanced]}>
+                        {/* Header: Icon + Name + Badge Đã cân bằng */}
+                        <View style={styles.cutHeaderRow}>
+                          <View style={[styles.planIconBox, { backgroundColor: "#ECFDF5" }]}>
+                            <Text style={{ fontSize: 22 }}>
+                              {getCategoryIcon(item.categoryIcon, item.categoryName)}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, marginLeft: 12 }}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                              <Text style={[styles.cutItemName, styles.textMutedDark]} numberOfLines={1}>
+                                {item.categoryName}
+                              </Text>
+                              <View style={styles.balancedTag}>
+                                <Text style={styles.balancedTagText}>✓ Đã cân bằng</Text>
+                              </View>
+                            </View>
+                            <Text style={[styles.cutItemSub, styles.textMutedLight]}>
+                              Hạn mức: {fmt(limit)} • Chi TB: {fmt(avgSpent)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Banner trạng thái an toàn */}
+                        <View style={[styles.cutHighlightBanner, styles.cutHighlightBannerBalanced]}>
+                          <Text style={[styles.cutHighlightLabel, styles.cutHighlightLabelBalanced]}>
+                            TRẠNG THÁI DANH MỤC
+                          </Text>
+                          <Text style={[styles.cutHighlightValue, styles.cutHighlightValueBalanced]}>
+                            ✓ Đang An Toàn (Còn dư {fmt(remaining)})
+                          </Text>
+                        </View>
+
+                        {/* Limits Row */}
+                        <View style={[styles.cutLimitsRow, styles.cutLimitsRowBalanced]}>
+                          <View style={styles.cutLimitCol}>
+                            <Text style={styles.cutLimitLabel}>HẠN MỨC THÁNG NÀY</Text>
+                            <Text style={[styles.cutLimitOld, { textDecorationLine: "none", color: colors.indigo600, fontWeight: "800" }]}>
+                              {fmt(limit)}
+                            </Text>
+                          </View>
+                          <Text style={[styles.cutArrowText, styles.cutArrowTextBalanced]}>•</Text>
+                          <View style={styles.cutLimitCol}>
+                            <Text style={styles.cutLimitLabel}>MỨC ĐỘ SỬ DỤNG</Text>
+                            <Text style={[styles.cutLimitNew, styles.cutLimitNewBalanced]}>
+                              {percentSpent}% hạn mức
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Reason Box */}
+                        <View style={[styles.cutReasonBox, styles.cutReasonBoxBalanced]}>
+                          <Text style={[styles.cutReasonText, styles.cutReasonTextBalanced]}>
+                            💡 {item.reasoning || `Khoản chi tiêu ${item.categoryName} đang được duy trì ổn định, bám sát hạn mức.`}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })
+                ) : (
+                  <View style={styles.emptyCard}>
+                    <View style={styles.emptyIconCircle}>
+                      <Text style={{ fontSize: 28 }}>💡</Text>
+                    </View>
+                    <Text style={styles.emptyTitle}>Chưa thiết lập ngân sách tháng này</Text>
+                    <Text style={styles.emptySub}>
+                      Hãy sang tab "Gợi ý chi tiêu" để hệ thống tự động đề xuất và thiết lập hạn mức chuẩn cho các danh mục chỉ với 1 chạm!
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.rebalanceBannerAction, { alignSelf: "center", marginTop: 12, paddingHorizontal: 20 }]}
+                      onPress={() => setActiveSection("plan")}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.rebalanceBannerActionText}>Sang tab Gợi ý chi tiêu ➔</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             ) : (
               <View>

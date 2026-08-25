@@ -4,6 +4,7 @@ import com.example.sharemoney.dto.request.FundSavingsGoalRequest;
 import com.example.sharemoney.dto.request.SavingsGoalRequest;
 import com.example.sharemoney.dto.request.WithdrawSavingsGoalRequest;
 import com.example.sharemoney.dto.response.AutoAllocateResponse;
+import com.example.sharemoney.dto.response.AutoAllocateStatusResponse;
 import com.example.sharemoney.dto.response.SavingsGoalResponse;
 import com.example.sharemoney.entity.*;
 import com.example.sharemoney.exception.AppException;
@@ -219,9 +220,16 @@ public class SavingsGoalService {
      */
     @Transactional
     public AutoAllocateResponse autoAllocateSavingsGoals(UUID userId) {
-        // 1. Tính toán quỹ dự trữ bắt buộc (required reserve = unpaid budgets + debt
-        // owing)
         java.time.LocalDate today = java.time.LocalDate.now();
+
+        // 0. Kiểm tra ràng buộc mỗi tháng chỉ phân bổ tiết kiệm tự động 1 lần duy nhất
+        boolean alreadyAllocated = transactionRepository.existsAutoAllocationInMonth(
+                userId, today.getYear(), today.getMonthValue());
+        if (alreadyAllocated) {
+            throw new AppException(ErrorCode.SAVINGS_ALREADY_ALLOCATED_THIS_MONTH);
+        }
+
+        // 1. Tính toán quỹ dự trữ bắt buộc (required reserve = unpaid budgets + debt owing)
         var currentBudgets = budgetService.getBudgetSummary(userId, today.getYear(), today.getMonthValue());
         BigDecimal unpaidBudgets = BigDecimal.ZERO;
         for (var b : currentBudgets) {
@@ -484,5 +492,19 @@ public class SavingsGoalService {
                     .orElse(wallets.get(0));
         }
         return wallets.get(0);
+    }
+
+    public AutoAllocateStatusResponse getAutoAllocateStatus(UUID userId) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        boolean alreadyAllocated = transactionRepository.existsAutoAllocationInMonth(
+                userId, today.getYear(), today.getMonthValue());
+        return AutoAllocateStatusResponse.builder()
+                .hasAllocatedThisMonth(alreadyAllocated)
+                .month(today.getMonthValue())
+                .year(today.getYear())
+                .message(alreadyAllocated
+                        ? String.format("Bạn đã thực hiện phân bổ tiết kiệm cho Tháng %d/%d (Tối đa 1 lần/tháng).", today.getMonthValue(), today.getYear())
+                        : "Chưa phân bổ tiết kiệm trong tháng này.")
+                .build();
     }
 }

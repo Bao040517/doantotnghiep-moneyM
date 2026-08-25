@@ -38,6 +38,17 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 33. **Chuẩn Hóa Danh Mục Toàn Diện Hệ Thống & Bộ Dữ Liệu Mẫu Seed V16 (Unified Categories & Seed V16 with Dedicated Water Bill):** Bổ sung category `"Tiền nước"` (`droplets`, 🚿) trên toàn bộ hệ thống (Database, Backend default categories, Frontend design system `constants/categories.ts`, `CategoryIcon.tsx` SVG icon, `BudgetScreen`, `AdvisorScreen`, `ExpenseChart`, `ReportScreen`). Sinh thành công bộ dữ liệu mẫu **Seed V16** (`generate_seed_v16.js` & `seed_v16.sql`) với 1.436 giao dịch, 540 ngân sách (có ngân sách BILL Tiền nước Sawaco) phục vụ kiểm thử luồng Trả ngay và gạch nợ tự động.
 34. **Rà Soát Toàn Diện Codebase, Sửa Lỗi Crash Navigation, Đồng Bộ "Tiền Nước" Vào Expert System & Khắc Phục CI/CD Pipeline (System Audit, Bug Fixes & CI/CD Green Build):** Rà soát toàn bộ hệ thống phát hiện và khắc phục 2 lỗi quan trọng: sửa lỗi crash runtime `useNavigation` khi tap vào Avatar trên `DashboardScreen.tsx`, bổ sung `"Tiền nước"` vào `NEEDS_CATEGORIES` trong `FinancialAdvisorService.java` giúp chuẩn hóa phân tích 50/30/20. Sửa lỗi `Exit code 126` trên GitHub Actions bằng cách cấp quyền thực thi `chmod +x ./mvnw` giúp pipeline CI/CD chạy xanh 100% (Passed), biên dịch Docker và triển khai trực tuyến thành công lên máy chủ AWS EC2 Singapore (`18.142.90.90:8080`) kết nối PostgreSQL Supabase.
 
+### Session [2026-08-25] - Chuẩn Hóa Thuật Toán Tự Động Phân Bổ Tiết Kiệm (50% Idle Money Reserve Rule) & Đặc Tả 11 Thuật Toán Hệ Thống
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Chuẩn Hóa Thuật Toán Tự Động Phân Bổ Tiết Kiệm (`SavingsGoalService.java`):**
+   - **Thực thi:** Đồng bộ quy tắc vàng của Cố vấn tài chính vào hàm `autoAllocateSavingsGoals`. Khi người dùng kích hoạt phân bổ tự động, hệ thống trích tối đa **50% Tiền nhàn rỗi** (`idleMoney * 0.5`) phân bổ tỷ lệ thuận theo mức độ thiếu hụt của các mục tiêu tiết kiệm, bảo lưu 50% tiền nhàn rỗi còn lại làm đệm an toàn linh hoạt chi tiêu cá nhân.
+   - **Bảo toàn Invariant:** Bảo vệ nguyên vẹn 100% Quỹ dự trữ bắt buộc (`unpaidBudgets + debtOwing`) trước khi tính toán phân bổ.
+
+2. **Khảo Sát, Mô Hình Hóa & Báo Cáo Toàn Diện 11 Thuật Toán Cốt Lõi:**
+   - Hoàn thành tài liệu đặc tả toàn diện 11 thuật toán: Greedy Min Cash Flow, Equal/Itemized Expense Split, Z-Score Anomaly Detection, Financial Health Score, Safe-to-Spend, Proportional Auto-Allocation, Financial Advisor Expert Engine, Fixed Window Rate Limiter, Cryptographic Security (BCrypt, HMAC-SHA512 VNPay, HMAC-SHA256 PayOS, JWT), OCR Mindee & SSRF DNS Defense, Cashflow 4-Week Dynamic Slicing.
+
 ### Session [2026-08-24] - Rà Soát Toàn Diện Hệ Thống, Khắc Phục Lỗi Crash Navigation, Đồng Bộ "Tiền Nước" Vào Expert System & Sửa Lỗi CI/CD Pipeline
 
 **✅ Đã hoàn thành (Compact Procedure):**

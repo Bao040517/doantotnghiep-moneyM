@@ -45,18 +45,16 @@ public class SavingsGoalService {
 
     @Transactional
     public SavingsGoalResponse createSavingsGoal(UUID userId, SavingsGoalRequest request) {
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository
+                .findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        SavingsGoal goal =
-                SavingsGoal.builder()
-                        .user(user)
-                        .name(request.getName())
-                        .targetAmount(request.getTargetAmount())
-                        .deadlineDate(request.getDeadlineDate())
-                        .build();
+        SavingsGoal goal = SavingsGoal.builder()
+                .user(user)
+                .name(request.getName())
+                .targetAmount(request.getTargetAmount())
+                .deadlineDate(request.getDeadlineDate())
+                .build();
 
         return toResponse(savingsGoalRepository.save(goal));
     }
@@ -64,10 +62,9 @@ public class SavingsGoalService {
     @Transactional
     public SavingsGoalResponse fundSavingsGoal(
             UUID userId, UUID goalId, FundSavingsGoalRequest request) {
-        SavingsGoal goal =
-                savingsGoalRepository
-                        .findById(goalId)
-                        .orElseThrow(() -> new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND));
+        SavingsGoal goal = savingsGoalRepository
+                .findById(goalId)
+                .orElseThrow(() -> new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND));
 
         if (!goal.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND); // Avoid exposing info
@@ -80,7 +77,8 @@ public class SavingsGoalService {
             throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
         }
 
-        // Tính toán Tiền nhàn rỗi (Safe to Spend) hiện tại để kiểm tra cảnh báo tiết kiệm quá mức
+        // Tính toán Tiền nhàn rỗi (Safe to Spend) hiện tại để kiểm tra cảnh báo tiết
+        // kiệm quá mức
         java.time.LocalDate today = java.time.LocalDate.now();
         var currentBudgets = budgetService.getBudgetSummary(userId, today.getYear(), today.getMonthValue());
         BigDecimal unpaidBudgets = BigDecimal.ZERO;
@@ -91,19 +89,21 @@ public class SavingsGoalService {
             }
         }
         BigDecimal walletBalance = walletRepository.sumBalanceByUserId(userId);
-        if (walletBalance == null) walletBalance = BigDecimal.ZERO;
+        if (walletBalance == null)
+            walletBalance = BigDecimal.ZERO;
         BigDecimal totalOwing = debtService.getUserDebtSummary(userId).getTotalOwing();
-        if (totalOwing == null) totalOwing = BigDecimal.ZERO;
+        if (totalOwing == null)
+            totalOwing = BigDecimal.ZERO;
 
         BigDecimal idleMoney = walletBalance.subtract(unpaidBudgets).subtract(totalOwing);
-        if (idleMoney.compareTo(BigDecimal.ZERO) < 0) idleMoney = BigDecimal.ZERO;
+        if (idleMoney.compareTo(BigDecimal.ZERO) < 0)
+            idleMoney = BigDecimal.ZERO;
 
         String warningMessage = null;
         if (fundAmount.compareTo(idleMoney) > 0) {
             warningMessage = String.format(
-                "⚠️ Cảnh báo Tiết kiệm Quá mức: Khoản nạp %,.0fđ vào quỹ '%s' đã ăn lấn vào Quỹ dự trữ & Ngân sách bắt buộc của bạn (Tiền nhàn rỗi khả dụng chỉ còn %,.0fđ)!",
-                fundAmount.doubleValue(), goal.getName(), idleMoney.doubleValue()
-            );
+                    "⚠️ Cảnh báo Tiết kiệm Quá mức: Khoản nạp %,.0fđ vào quỹ '%s' đã ăn lấn vào Quỹ dự trữ & Ngân sách bắt buộc của bạn (Tiền nhàn rỗi khả dụng chỉ còn %,.0fđ)!",
+                    fundAmount.doubleValue(), goal.getName(), idleMoney.doubleValue());
             notificationService.sendNotification(userId, warningMessage, "WARNING");
         }
 
@@ -119,19 +119,17 @@ public class SavingsGoalService {
         savingsGoalRepository.save(goal);
 
         // 3. Create Transaction
-        Category savingsCategory =
-                categoryService.getOrCreateCategory(
-                        userId, "Mục tiêu tiết kiệm", TransactionType.EXPENSE, "🎯");
+        Category savingsCategory = categoryService.getOrCreateCategory(
+                userId, "Mục tiêu tiết kiệm", TransactionType.EXPENSE, "🎯");
 
-        Transaction transaction =
-                Transaction.builder()
-                        .wallet(wallet)
-                        .amount(fundAmount)
-                        .type(TransactionType.EXPENSE)
-                        .category(savingsCategory)
-                        .note("Nạp tiền vào mục tiêu: " + goal.getName())
-                        .excludeFromBudget(true)
-                        .build();
+        Transaction transaction = Transaction.builder()
+                .wallet(wallet)
+                .amount(fundAmount)
+                .type(TransactionType.EXPENSE)
+                .category(savingsCategory)
+                .note("Nạp tiền vào mục tiêu: " + goal.getName())
+                .excludeFromBudget(true)
+                .build();
 
         transactionRepository.save(transaction);
 
@@ -140,14 +138,12 @@ public class SavingsGoalService {
         return response;
     }
 
-
     @Transactional
     public SavingsGoalResponse updateSavingsGoal(
             UUID userId, UUID goalId, SavingsGoalRequest request) {
-        SavingsGoal goal =
-                savingsGoalRepository
-                        .findById(goalId)
-                        .orElseThrow(() -> new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND));
+        SavingsGoal goal = savingsGoalRepository
+                .findById(goalId)
+                .orElseThrow(() -> new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND));
 
         if (!goal.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND);
@@ -169,10 +165,9 @@ public class SavingsGoalService {
     @Transactional
     public SavingsGoalResponse withdrawSavingsGoal(
             UUID userId, UUID goalId, WithdrawSavingsGoalRequest request) {
-        SavingsGoal goal =
-                savingsGoalRepository
-                        .findById(goalId)
-                        .orElseThrow(() -> new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND));
+        SavingsGoal goal = savingsGoalRepository
+                .findById(goalId)
+                .orElseThrow(() -> new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND));
 
         if (!goal.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND);
@@ -198,19 +193,17 @@ public class SavingsGoalService {
         savingsGoalRepository.save(goal);
 
         // 3. Create Transaction
-        Category savingsIncomeCategory =
-                categoryService.getOrCreateCategory(
-                        userId, "Hoàn tiền tiết kiệm", TransactionType.INCOME, "🏦");
+        Category savingsIncomeCategory = categoryService.getOrCreateCategory(
+                userId, "Hoàn tiền tiết kiệm", TransactionType.INCOME, "🏦");
 
-        Transaction transaction =
-                Transaction.builder()
-                        .wallet(wallet)
-                        .amount(withdrawAmount)
-                        .type(TransactionType.INCOME)
-                        .category(savingsIncomeCategory)
-                        .note("Rút tiền từ mục tiêu: " + goal.getName())
-                        .excludeFromBudget(true)
-                        .build();
+        Transaction transaction = Transaction.builder()
+                .wallet(wallet)
+                .amount(withdrawAmount)
+                .type(TransactionType.INCOME)
+                .category(savingsIncomeCategory)
+                .note("Rút tiền từ mục tiêu: " + goal.getName())
+                .excludeFromBudget(true)
+                .build();
 
         transactionRepository.save(transaction);
 
@@ -218,13 +211,16 @@ public class SavingsGoalService {
     }
 
     /**
-     * Tự động phân bổ tiền nhàn rỗi (idle money) vào các mục tiêu tiết kiệm đang hoạt động,
+     * Tự động phân bổ tiền nhàn rỗi (idle money) vào các mục tiêu tiết kiệm đang
+     * hoạt động,
      * theo tỷ lệ (remaining / totalRemaining) cho mỗi goal.
-     * Tuân thủ nguyên tắc tài chính: KHÔNG được lấn vào quỹ dự trữ cho ngân sách & nợ phải trả.
+     * Tuân thủ nguyên tắc tài chính: KHÔNG được lấn vào quỹ dự trữ cho ngân sách &
+     * nợ phải trả.
      */
     @Transactional
     public AutoAllocateResponse autoAllocateSavingsGoals(UUID userId) {
-        // 1. Tính toán quỹ dự trữ bắt buộc (required reserve = unpaid budgets + debt owing)
+        // 1. Tính toán quỹ dự trữ bắt buộc (required reserve = unpaid budgets + debt
+        // owing)
         java.time.LocalDate today = java.time.LocalDate.now();
         var currentBudgets = budgetService.getBudgetSummary(userId, today.getYear(), today.getMonthValue());
         BigDecimal unpaidBudgets = BigDecimal.ZERO;
@@ -235,12 +231,14 @@ public class SavingsGoalService {
             }
         }
         BigDecimal totalOwing = debtService.getUserDebtSummary(userId).getTotalOwing();
-        if (totalOwing == null) totalOwing = BigDecimal.ZERO;
+        if (totalOwing == null)
+            totalOwing = BigDecimal.ZERO;
         BigDecimal requiredReserve = unpaidBudgets.add(totalOwing);
 
         // 2. Tổng số dư ví
         BigDecimal walletBalance = walletRepository.sumBalanceByUserId(userId);
-        if (walletBalance == null) walletBalance = BigDecimal.ZERO;
+        if (walletBalance == null)
+            walletBalance = BigDecimal.ZERO;
 
         // 3. Tiền nhàn rỗi khả dụng = walletBalance - requiredReserve
         BigDecimal idleMoney = walletBalance.subtract(requiredReserve);
@@ -252,7 +250,8 @@ public class SavingsGoalService {
         List<SavingsGoal> activeGoals = savingsGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId)
                 .stream()
                 .filter(g -> g.getStatus() == null || g.getStatus() != SavingsGoalStatus.COMPLETED)
-                .filter(g -> g.getCurrentAmount() != null && g.getTargetAmount() != null && g.getCurrentAmount().compareTo(g.getTargetAmount()) < 0)
+                .filter(g -> g.getCurrentAmount() != null && g.getTargetAmount() != null
+                        && g.getCurrentAmount().compareTo(g.getTargetAmount()) < 0)
                 .collect(Collectors.toList());
 
         if (activeGoals.isEmpty()) {
@@ -290,11 +289,13 @@ public class SavingsGoalService {
         if (userWallets == null || userWallets.isEmpty()) {
             userWallets = walletRepository.findByUser_Id(userId);
         }
-        List<Wallet> availableWallets = userWallets == null ? Collections.emptyList() : userWallets
-                .stream()
-                .filter(w -> !w.isLiability() && w.getBalance() != null && w.getBalance().compareTo(BigDecimal.ZERO) > 0)
-                .sorted((w1, w2) -> w2.getBalance().compareTo(w1.getBalance()))
-                .collect(Collectors.toList());
+        List<Wallet> availableWallets = userWallets == null ? Collections.emptyList()
+                : userWallets
+                        .stream()
+                        .filter(w -> !w.isLiability() && w.getBalance() != null
+                                && w.getBalance().compareTo(BigDecimal.ZERO) > 0)
+                        .sorted((w1, w2) -> w2.getBalance().compareTo(w1.getBalance()))
+                        .collect(Collectors.toList());
 
         if (availableWallets.isEmpty()) {
             return AutoAllocateResponse.builder()
@@ -312,7 +313,9 @@ public class SavingsGoalService {
                 .map(Wallet::getBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal allocatableMoney = idleMoney.min(totalAvailableWalletBalance);
+        // Quy tắc vàng Cố vấn tài chính: Chỉ trích tối đa 50% tiền nhàn rỗi (idleMoney * 0.5) để giữ lại 50% đệm an toàn linh hoạt
+        BigDecimal idleMoney50Percent = idleMoney.multiply(BigDecimal.valueOf(0.5)).setScale(0, java.math.RoundingMode.HALF_UP);
+        BigDecimal allocatableMoney = idleMoney50Percent.min(totalAvailableWalletBalance);
         if (allocatableMoney.compareTo(BigDecimal.ZERO) <= 0) {
             return AutoAllocateResponse.builder()
                     .totalAllocated(BigDecimal.ZERO)
@@ -333,7 +336,8 @@ public class SavingsGoalService {
 
         for (SavingsGoal g : activeGoals) {
             BigDecimal goalRemaining = g.getTargetAmount().subtract(g.getCurrentAmount());
-            if (goalRemaining.compareTo(BigDecimal.ZERO) <= 0) continue;
+            if (goalRemaining.compareTo(BigDecimal.ZERO) <= 0)
+                continue;
 
             // Tỷ lệ phân bổ = goalRemaining / totalRemaining * allocatableMoney
             BigDecimal targetAllocation = goalRemaining.multiply(allocatableMoney)
@@ -345,13 +349,16 @@ public class SavingsGoalService {
             if (targetAllocation.compareTo(BigDecimal.ZERO) <= 0 && allocatableMoney.compareTo(BigDecimal.ZERO) > 0) {
                 targetAllocation = allocatableMoney.min(goalRemaining).min(new BigDecimal("50000"));
             }
-            if (targetAllocation.compareTo(BigDecimal.ZERO) <= 0) continue;
+            if (targetAllocation.compareTo(BigDecimal.ZERO) <= 0)
+                continue;
 
             // Trích lũy tiến từ các ví khả dụng
             BigDecimal remainingToFund = targetAllocation;
             for (Wallet w : availableWallets) {
-                if (remainingToFund.compareTo(BigDecimal.ZERO) <= 0) break;
-                if (w.getBalance().compareTo(BigDecimal.ZERO) <= 0) continue;
+                if (remainingToFund.compareTo(BigDecimal.ZERO) <= 0)
+                    break;
+                if (w.getBalance().compareTo(BigDecimal.ZERO) <= 0)
+                    continue;
 
                 BigDecimal fundFromWallet = w.getBalance().min(remainingToFund);
                 w.setBalance(w.getBalance().subtract(fundFromWallet));
@@ -406,10 +413,9 @@ public class SavingsGoalService {
 
     @Transactional
     public void deleteSavingsGoal(UUID userId, UUID goalId) {
-        SavingsGoal goal =
-                savingsGoalRepository
-                        .findById(goalId)
-                        .orElseThrow(() -> new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND));
+        SavingsGoal goal = savingsGoalRepository
+                .findById(goalId)
+                .orElseThrow(() -> new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND));
 
         if (!goal.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.SAVINGS_GOAL_NOT_FOUND);
@@ -423,19 +429,17 @@ public class SavingsGoalService {
                 walletRepository.save(wallet);
 
                 // We might also want to create an INCOME transaction to log the refund
-                Category savingsIncomeCategory =
-                        categoryService.getOrCreateCategory(
-                                userId, "Hoàn tiền tiết kiệm", TransactionType.INCOME, "🏦");
+                Category savingsIncomeCategory = categoryService.getOrCreateCategory(
+                        userId, "Hoàn tiền tiết kiệm", TransactionType.INCOME, "🏦");
 
-                Transaction refundTx =
-                        Transaction.builder()
-                                .wallet(wallet)
-                                .amount(goal.getCurrentAmount())
-                                .type(TransactionType.INCOME)
-                                .category(savingsIncomeCategory)
-                                .note("Hoàn tiền từ mục tiêu đã xóa: " + goal.getName())
-                                .excludeFromBudget(true)
-                                .build();
+                Transaction refundTx = Transaction.builder()
+                        .wallet(wallet)
+                        .amount(goal.getCurrentAmount())
+                        .type(TransactionType.INCOME)
+                        .category(savingsIncomeCategory)
+                        .note("Hoàn tiền từ mục tiêu đã xóa: " + goal.getName())
+                        .excludeFromBudget(true)
+                        .build();
                 transactionRepository.save(refundTx);
             }
         }
@@ -459,10 +463,9 @@ public class SavingsGoalService {
     private Wallet getWalletForSavings(
             UUID userId, UUID requestedWalletId, BigDecimal requiredBalance) {
         if (requestedWalletId != null) {
-            Wallet wallet =
-                    walletRepository
-                            .findById(requestedWalletId)
-                            .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
+            Wallet wallet = walletRepository
+                    .findById(requestedWalletId)
+                    .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_FOUND));
             if (!wallet.getUser().getId().equals(userId) || wallet.isLiability()) {
                 throw new AppException(ErrorCode.WALLET_NOT_FOUND);
             }

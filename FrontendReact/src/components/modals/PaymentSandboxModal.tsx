@@ -162,7 +162,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
 
   // ─── PAYMENT SCREEN ───
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Thanh toán chuyển khoản VietQR 💳">
+    <BottomSheet visible={visible} onClose={onClose} title="Thanh toán khoản nợ 💳">
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -234,7 +234,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
           ) : (
             <>
               <Text style={styles.confirmBtnText}>
-                ✓ Tôi đã chuyển khoản ({debtInfo.amount.toLocaleString("vi-VN")} ₫)
+                ✓ Xác nhận chuyển khoản ({debtInfo.amount.toLocaleString("vi-VN")} ₫)
               </Text>
               <Text style={styles.confirmBtnSub}>Chạm để xác nhận số tiền thực chuyển & gạch nợ</Text>
             </>
@@ -247,7 +247,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
           onPress={debtInfo.groupId && debtInfo.toUserId ? handleCashNotify : handleOpenConfirmDialog}
           activeOpacity={0.75}
         >
-          <Text style={styles.cashBtnText}>💵 Báo trả bằng tiền mặt</Text>
+          <Text style={styles.cashBtnText}>💵 Xác nhận thanh toán tiền mặt</Text>
         </TouchableOpacity>
       </ScrollView>
 

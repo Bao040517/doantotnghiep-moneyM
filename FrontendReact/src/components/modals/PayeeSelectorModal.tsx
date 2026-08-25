@@ -14,6 +14,7 @@ import {
   Dimensions,
   Image,
   Animated,
+  Alert,
 } from "react-native";
 import { colors } from "../../constants/colors";
 import { VIETQR_BANKS, BankInfo } from "../../constants/banks";
@@ -67,8 +68,8 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
   // ─── Form Thêm mới State ───
   const [newName, setNewName]               = useState("");
   const [newAccNo, setNewAccNo]             = useState("");
-  const [newBankBin, setNewBankBin]         = useState("970422");
-  const [newBankName, setNewBankName]       = useState("MBBank");
+  const [newBankBin, setNewBankBin]         = useState("");
+  const [newBankName, setNewBankName]       = useState("");
   const [newNote, setNewNote]               = useState("");
   const [newSaveDefault, setNewSaveDefault] = useState(true);
 
@@ -85,7 +86,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
   // Animation
   const slideAnim = useRef(new Animated.Value(SCREEN_H)).current;
 
-  const selectedNewBank = VIETQR_BANKS.find((b) => b.bin === newBankBin) || VIETQR_BANKS[0];
+  const selectedNewBank = newBankBin ? VIETQR_BANKS.find((b) => b.bin === newBankBin) : null;
 
   const filteredBanks = VIETQR_BANKS.filter(
     (b) =>
@@ -167,6 +168,8 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
       setSearchQuery("");
       setNewName("");
       setNewAccNo("");
+      setNewBankBin("");
+      setNewBankName("");
       setNewNote("");
       setSelectedPayee(null);
       setBankPickerVisible(false);
@@ -209,7 +212,14 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
         onClose();
       }
     } else if (activeTab === "new") {
-      if (!newAccNo.trim()) return;
+      if (!newBankBin) {
+        Alert.alert("Chưa chọn ngân hàng", "Vui lòng chọn ngân hàng thụ hưởng trước khi tiếp tục.");
+        return;
+      }
+      if (!newAccNo.trim()) {
+        Alert.alert("Chưa nhập số tài khoản", "Vui lòng nhập số tài khoản người nhận.");
+        return;
+      }
       setIsSubmittingQR(true);
       const bankObj = VIETQR_BANKS.find((b) => b.bin === newBankBin);
       const bName = bankObj?.shortName || newBankName || "Ngân hàng";
@@ -581,30 +591,53 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
                         {/* 1. CHỌN NGÂN HÀNG THỤ HƯỞNG */}
                         <Text style={styles.drawerLabel}>Ngân hàng thụ hưởng *</Text>
                         <TouchableOpacity
-                          style={styles.bankSelectCardBtn}
+                          style={[styles.bankSelectCardBtn, !selectedNewBank && { borderColor: "#CBD5E1", backgroundColor: "#F8FAFC" }]}
                           onPress={() => setBankPickerVisible(true)}
                           activeOpacity={0.8}
                         >
-                          <View style={styles.bankSelectCardLeft}>
-                            <View style={styles.bankSelectCardLogoBox}>
-                              <Image
-                                source={{ uri: selectedNewBank.logo }}
-                                style={styles.bankSelectCardLogo}
-                                resizeMode="contain"
-                              />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.bankSelectCardShortName}>
-                                {selectedNewBank.shortName}
-                              </Text>
-                              <Text style={styles.bankSelectCardFullName} numberOfLines={1}>
-                                {selectedNewBank.name}
-                              </Text>
-                            </View>
-                          </View>
-                          <View style={styles.bankSelectCardChangeBadge}>
-                            <Text style={styles.bankSelectCardChangeText}>Thay đổi ▼</Text>
-                          </View>
+                          {selectedNewBank ? (
+                            <>
+                              <View style={styles.bankSelectCardLeft}>
+                                <View style={styles.bankSelectCardLogoBox}>
+                                  <Image
+                                    source={{ uri: selectedNewBank.logo }}
+                                    style={styles.bankSelectCardLogo}
+                                    resizeMode="contain"
+                                  />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.bankSelectCardShortName}>
+                                    {selectedNewBank.shortName}
+                                  </Text>
+                                  <Text style={styles.bankSelectCardFullName} numberOfLines={1}>
+                                    {selectedNewBank.name}
+                                  </Text>
+                                </View>
+                              </View>
+                              <View style={styles.bankSelectCardChangeBadge}>
+                                <Text style={styles.bankSelectCardChangeText}>Thay đổi ▼</Text>
+                              </View>
+                            </>
+                          ) : (
+                            <>
+                              <View style={styles.bankSelectCardLeft}>
+                                <View style={[styles.bankSelectCardLogoBox, { backgroundColor: "#F1F5F9" }]}>
+                                  <Text style={{ fontSize: 20 }}>🏦</Text>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={[styles.bankSelectCardShortName, { color: "#64748B", fontWeight: "700" }]}>
+                                    Chọn ngân hàng
+                                  </Text>
+                                  <Text style={[styles.bankSelectCardFullName, { color: "#94A3B8" }]} numberOfLines={1}>
+                                    Chạm để chọn ngân hàng thụ hưởng
+                                  </Text>
+                                </View>
+                              </View>
+                              <View style={[styles.bankSelectCardChangeBadge, { backgroundColor: "#EEF2FF", borderColor: "#C7D2FE" }]}>
+                                <Text style={[styles.bankSelectCardChangeText, { color: "#4F46E5", fontWeight: "800" }]}>Chọn ▼</Text>
+                              </View>
+                            </>
+                          )}
                         </TouchableOpacity>
 
                         {/* 2. SỐ TÀI KHOẢN */}
@@ -648,7 +681,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
                         {lookupVerified && (
                           <View style={styles.lookupVerifiedRow}>
                             <Text style={styles.lookupVerifiedText}>
-                              ✓ Đã xác thực: {newName} ({selectedNewBank.shortName})
+                              ✓ Đã xác thực: {newName} ({selectedNewBank?.shortName || "Ngân hàng"})
                             </Text>
                           </View>
                         )}

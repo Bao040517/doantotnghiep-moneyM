@@ -150,7 +150,7 @@ export const BudgetScreen: React.FC = () => {
   // Create Budget Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [budgetName, setBudgetName] = useState("");
-  const [payeeBankBin, setPayeeBankBin] = useState("970422");
+  const [payeeBankBin, setPayeeBankBin] = useState("");
   const [payeeBankAccount, setPayeeBankAccount] = useState("");
   const [payeeAccountName, setPayeeAccountName] = useState("");
   const [showPayeeSetup, setShowPayeeSetup] = useState(false);
@@ -195,8 +195,7 @@ export const BudgetScreen: React.FC = () => {
   useEffect(() => {
     if (!modalVisible) {
       setBudgetName("");
-      setLimitAmount("");
-      setPayeeBankBin("970422");
+      setPayeeBankBin("");
       setPayeeBankAccount("");
       setPayeeAccountName("");
       setShowPayeeSetup(false);
@@ -1030,32 +1029,60 @@ export const BudgetScreen: React.FC = () => {
                 <View style={styles.payeeAccordionBody}>
                   {/* 1. Chọn Ngân Hàng */}
                   <Text style={styles.payeeFieldLabel}>Ngân hàng nhận tiền *</Text>
-                  <TouchableOpacity
-                    style={styles.budgetBankSelectBtn}
-                    onPress={() => setBudgetBankPickerVisible(true)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.budgetBankSelectLeft}>
-                      <View style={styles.budgetBankLogoBox}>
-                        <Image
-                          source={{ uri: (VIETQR_BANKS.find(b => b.bin === payeeBankBin) || VIETQR_BANKS[0]).logo }}
-                          style={styles.budgetBankLogo}
-                          resizeMode="contain"
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.budgetBankShortName}>
-                          {(VIETQR_BANKS.find(b => b.bin === payeeBankBin) || VIETQR_BANKS[0]).shortName}
-                        </Text>
-                        <Text style={styles.budgetBankFullName} numberOfLines={1}>
-                          {(VIETQR_BANKS.find(b => b.bin === payeeBankBin) || VIETQR_BANKS[0]).name}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.budgetBankChangeBadge}>
-                      <Text style={styles.budgetBankChangeText}>Đổi ▼</Text>
-                    </View>
-                  </TouchableOpacity>
+                  {(() => {
+                    const selBank = payeeBankBin ? VIETQR_BANKS.find(b => b.bin === payeeBankBin) : null;
+                    return (
+                      <TouchableOpacity
+                        style={[styles.budgetBankSelectBtn, !selBank && { borderColor: "#CBD5E1", backgroundColor: "#F8FAFC" }]}
+                        onPress={() => setBudgetBankPickerVisible(true)}
+                        activeOpacity={0.8}
+                      >
+                        {selBank ? (
+                          <>
+                            <View style={styles.budgetBankSelectLeft}>
+                              <View style={styles.budgetBankLogoBox}>
+                                <Image
+                                  source={{ uri: selBank.logo }}
+                                  style={styles.budgetBankLogo}
+                                  resizeMode="contain"
+                                />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.budgetBankShortName}>
+                                  {selBank.shortName}
+                                </Text>
+                                <Text style={styles.budgetBankFullName} numberOfLines={1}>
+                                  {selBank.name}
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={styles.budgetBankChangeBadge}>
+                              <Text style={styles.budgetBankChangeText}>Đổi ▼</Text>
+                            </View>
+                          </>
+                        ) : (
+                          <>
+                            <View style={styles.budgetBankSelectLeft}>
+                              <View style={[styles.budgetBankLogoBox, { backgroundColor: "#F1F5F9" }]}>
+                                <Text style={{ fontSize: 20 }}>🏦</Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.budgetBankShortName, { color: "#64748B", fontWeight: "700" }]}>
+                                  Chọn ngân hàng
+                                </Text>
+                                <Text style={[styles.budgetBankFullName, { color: "#94A3B8" }]} numberOfLines={1}>
+                                  Chạm để chọn ngân hàng nhận tiền
+                                </Text>
+                              </View>
+                            </View>
+                            <View style={[styles.budgetBankChangeBadge, { backgroundColor: "#EEF2FF", borderColor: "#C7D2FE" }]}>
+                              <Text style={[styles.budgetBankChangeText, { color: "#4F46E5", fontWeight: "800" }]}>Chọn ▼</Text>
+                            </View>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })()}
 
                   {/* 2. Số tài khoản */}
                   <Text style={styles.payeeFieldLabel}>Số tài khoản nhận</Text>

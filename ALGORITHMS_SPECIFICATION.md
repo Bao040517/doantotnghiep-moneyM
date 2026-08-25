@@ -120,19 +120,26 @@ $$\text{HealthScore} = \text{Score}_{\text{Savings}} + \text{Score}_{\text{Budge
 ## 5. Thuật toán Tiền Nhàn Rỗi & Hạn Mức Chi Tiêu An Toàn (Safe-to-Spend & Idle Money)
 
 ### 5.1 Công thức Tính Hạn mức Chi tiêu Mỗi ngày
-1. $\text{TotalIncome}$: Tổng thu nhập trong kỳ.
-2. $\text{TotalBills} = \sum \max(\text{Limit}_{\text{Bill}}, \text{Spent}_{\text{Bill}})$ (khoản cố định).
-3. $\text{FlexibleSpent} = \max(0, \text{TotalExpense} - \text{TotalBillSpent})$.
-4. $\text{RawSafeBalance} = \max(0, \text{TotalIncome} - \text{TotalBills} - \text{FlexibleSpent})$.
-5. $\text{TotalSavings} = 40\% \times \text{RawSafeBalance}$ (trích dự phòng tích lũy).
-6. $\text{SafeBalanceTotal} = \text{RawSafeBalance} - \text{TotalSavings}$.
+1. **Tổng thu nhập**: Toàn bộ thu nhập đã ghi nhận trong kỳ.
+2. **Tổng hóa đơn cố định**: Tổng hạn mức của các ngân sách bắt buộc (tiền nhà, điện nước, internet...):
+   $$\text{Tổng hóa đơn cố định} = \sum \max(\text{Hạn mức hóa đơn}, \text{Thực chi hóa đơn})$$
+3. **Chi tiêu linh hoạt đã tiêu**: Các khoản ăn uống, mua sắm hàng ngày đã phát sinh ngoài hóa đơn:
+   $$\text{Chi tiêu linh hoạt} = \max(0, \text{Tổng chi tiêu} - \text{Hóa đơn đã chi})$$
+4. **Số dư an toàn thô**: Số tiền còn lại sau khi đảm bảo hóa đơn và chi tiêu linh hoạt:
+   $$\text{Số dư an toàn thô} = \max(0, \text{Tổng thu nhập} - \text{Tổng hóa đơn cố định} - \text{Chi tiêu linh hoạt})$$
+5. **Tiền trích dự phòng tích lũy**: Hệ thống tự động trích 40% số dư an toàn thô để tích lũy:
+   $$\text{Tiền trích tiết kiệm} = 40\% \times \text{Số dư an toàn thô}$$
+6. **Tổng số dư an toàn có thể chi tiêu**:
+   $$\text{Tổng tiền an toàn để tiêu} = \text{Số dư an toàn thô} - \text{Tiền trích tiết kiệm}$$
 7. **Hạn mức an toàn mỗi ngày**:
-   $$\text{SafeBalanceDaily} = \frac{\text{SafeBalanceTotal}}{\text{DaysLeft}}$$
+   $$\text{Hạn mức chi tiêu mỗi ngày} = \frac{\text{Tổng tiền an toàn để tiêu}}{\text{Số ngày còn lại trong tháng}}$$
 
-### 5.2 Quy tắc Bảo vệ Quỹ Dự trữ (Safety Reserve Invariant)
-$$\text{RequiredReserve} = \text{UnpaidBudgets} + \text{DebtOwing}$$
-$$\text{IdleMoney} = \max(0, \text{WalletBalance} - \text{RequiredReserve})$$
-*Nếu nạp tiền vào quỹ tiết kiệm vượt quá $\text{IdleMoney}$, hệ thống sẽ phát cảnh báo **Over-savings (Tiết kiệm quá mức làm cạn quỹ trả nợ)**.*
+### 5.2 Quy tắc Bảo vệ Quỹ Dự trữ (Điểm Dừng An Toàn)
+1. **Yêu cầu dự trữ tối thiểu**:
+   $$\text{Yêu cầu dự trữ} = \text{Tổng ngân sách chưa chi hết} + \text{Tổng nợ cần trả tháng này}$$
+2. **Tiền nhàn rỗi thực sự**:
+   $$\text{Tiền nhàn rỗi} = \max(0, \text{Tổng số dư ví hiện tại} - \text{Yêu cầu dự trữ})$$
+*Nếu nạp tiền vào quỹ tiết kiệm vượt quá Tiền nhàn rỗi, hệ thống sẽ phát cảnh báo **Tiết kiệm quá mức làm cạn quỹ trả nợ**.*
 
 * **Mã nguồn tham chiếu**: [BudgetService.java](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/src/main/java/com/example/sharemoney/service/BudgetService.java#L318-L387) và [SavingsGoalService.java](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/src/main/java/com/example/sharemoney/service/SavingsGoalService.java#L83-L108)
 

@@ -553,43 +553,60 @@ export const AdvisorScreen: React.FC = () => {
                             </Text>
                           </View>
                           <View style={{ flex: 1, marginLeft: 12 }}>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                              <Text style={[styles.cutItemName, styles.textMutedDark]} numberOfLines={1}>
+                            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                              <Text style={[styles.cutItemName, styles.textMutedDark, { flex: 1, marginRight: 8 }]} numberOfLines={1}>
                                 {item.categoryName}
                               </Text>
                               <View style={styles.balancedTag}>
                                 <Text style={styles.balancedTagText}>✓ Đã cân bằng</Text>
                               </View>
                             </View>
-                            <Text style={[styles.cutItemSub, styles.textMutedLight]}>
+                            <Text style={[styles.cutItemSub, styles.textMutedLight, { marginTop: 3 }]}>
                               Hạn mức: {fmt(limit)} • Chi TB: {fmt(avgSpent)}
                             </Text>
                           </View>
                         </View>
 
-                        {/* Banner trạng thái an toàn */}
-                        <View style={[styles.cutHighlightBanner, styles.cutHighlightBannerBalanced]}>
-                          <Text style={[styles.cutHighlightLabel, styles.cutHighlightLabelBalanced]}>
-                            TRẠNG THÁI DANH MỤC
-                          </Text>
-                          <Text style={[styles.cutHighlightValue, styles.cutHighlightValueBalanced]}>
-                            ✓ Đang An Toàn (Còn dư {fmt(remaining)})
-                          </Text>
-                        </View>
-
-                        {/* Limits Row */}
-                        <View style={[styles.cutLimitsRow, styles.cutLimitsRowBalanced]}>
-                          <View style={styles.cutLimitCol}>
-                            <Text style={styles.cutLimitLabel}>HẠN MỨC THÁNG NÀY</Text>
-                            <Text style={[styles.cutLimitOld, { textDecorationLine: "none", color: colors.indigo600, fontWeight: "800" }]}>
-                              {fmt(limit)}
+                        {/* Progress Bar & Status Pill */}
+                        <View style={styles.balancedProgressBox}>
+                          <View style={styles.balancedProgressLabelRow}>
+                            <Text style={styles.balancedProgressText}>
+                              Mức độ sử dụng:{" "}
+                              <Text style={{ fontWeight: "800", color: percentSpent >= 90 ? colors.amber600 : colors.emerald600 }}>
+                                {percentSpent}%
+                              </Text>
+                            </Text>
+                            <Text style={styles.balancedRemainingText}>
+                              Còn dư:{" "}
+                              <Text style={{ fontWeight: "900", color: colors.emerald600 }}>
+                                {fmt(remaining)}
+                              </Text>
                             </Text>
                           </View>
-                          <Text style={[styles.cutArrowText, styles.cutArrowTextBalanced]}>•</Text>
-                          <View style={styles.cutLimitCol}>
-                            <Text style={styles.cutLimitLabel}>MỨC ĐỘ SỬ DỤNG</Text>
-                            <Text style={[styles.cutLimitNew, styles.cutLimitNewBalanced]}>
-                              {percentSpent}% hạn mức
+                          <View style={styles.balancedTrack}>
+                            <View
+                              style={[
+                                styles.balancedFill,
+                                {
+                                  width: `${Math.min(100, percentSpent)}%`,
+                                  backgroundColor: percentSpent >= 90 ? colors.amber500 : colors.emerald500,
+                                },
+                              ]}
+                            />
+                          </View>
+                        </View>
+
+                        {/* 2 Stats Column (Hạn mức & Trạng thái) */}
+                        <View style={styles.balancedStatsRow}>
+                          <View style={styles.balancedStatCol}>
+                            <Text style={styles.balancedStatLabel}>HẠN MỨC THÁNG</Text>
+                            <Text style={[styles.balancedStatVal, { color: colors.indigo600 }]}>{fmt(limit)}</Text>
+                          </View>
+                          <View style={styles.balancedStatDivider} />
+                          <View style={styles.balancedStatCol}>
+                            <Text style={styles.balancedStatLabel}>TRẠNG THÁI</Text>
+                            <Text style={[styles.balancedStatVal, { color: colors.emerald600 }]}>
+                              ✓ An Toàn
                             </Text>
                           </View>
                         </View>
@@ -2136,6 +2153,72 @@ const styles = StyleSheet.create({
   },
   cutHighlightValueBalanced: {
     color: "#475569",
+  },
+  balancedProgressBox: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  balancedProgressLabelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  balancedProgressText: {
+    fontSize: 12,
+    color: colors.slate600,
+    fontWeight: "600",
+  },
+  balancedRemainingText: {
+    fontSize: 12,
+    color: colors.slate600,
+    fontWeight: "600",
+  },
+  balancedTrack: {
+    height: 6,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  balancedFill: {
+    height: "100%",
+    borderRadius: 3,
+  },
+  balancedStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  balancedStatCol: {
+    flex: 1,
+    alignItems: "center",
+  },
+  balancedStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: "#CBD5E1",
+  },
+  balancedStatLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.slate500,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  balancedStatVal: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: colors.slate900,
   },
   cutLimitsRow: {
     flexDirection: "row",

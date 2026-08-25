@@ -84,15 +84,15 @@ Cảnh báo thời gian thực khi người dùng phát sinh một khoản chi �
 ```
 
 ### 3.2 Các bước tính toán
-1. Thu thập dữ liệu $N$ giao dịch trong $90$ ngày gần nhất cùng danh mục ($N \ge 3$, số tiền $\ge 100.000$đ).
-2. **Tính Trung bình mẫu (Sample Mean $\mu$)**:
+1. Thu thập dữ liệu $N$ giao dịch trong 90 ngày gần nhất cùng danh mục (Điều kiện: $N \ge 3$ giao dịch, số tiền từ 100.000 ₫ trở lên).
+2. **Tính Trung bình mẫu (Trung bình $\mu$)**:
    $$\mu = \frac{1}{N} \sum_{i=1}^{N} x_i$$
 3. **Tính Phương sai ($\sigma^2$) và Độ lệch chuẩn ($\sigma$)**:
    $$\sigma^2 = \frac{1}{N} \sum_{i=1}^{N} (x_i - \mu)^2 \quad \Longrightarrow \quad \sigma = \sqrt{\sigma^2}$$
 4. **Tính điểm Z-Score**:
    $$Z = \frac{x_{\text{mới}} - \mu}{\sigma}$$
 5. **Đánh giá và phát cảnh báo**:
-   * Nếu $Z > 2.0$ (vùng ngoại lai xác suất $< 2.5\%$): Gửi WebSocket Push Notification cảnh báo `SPENDING_ANOMALY`.
+   * Nếu $Z > 2.0$ (vùng ngoại lai xác suất dưới $2.5\%$): Gửi thông báo đẩy cảnh báo chi tiêu bất thường `SPENDING_ANOMALY`.
    * Fallback khi $\sigma = 0$: Cảnh báo nếu $x_{\text{mới}} > 3 \times \mu$.
 
 * **Mã nguồn tham chiếu**: [AnomalyDetectionService.java](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/src/main/java/com/example/sharemoney/service/AnomalyDetectionService.java#L33-L123)
@@ -102,17 +102,17 @@ Cảnh báo thời gian thực khi người dùng phát sinh một khoản chi �
 ## 4. Thuật toán Đánh giá Sức khỏe Tài chính Đa nhân tố (Financial Health Score)
 
 ### 4.1 Mô hình 4 Trụ cột Đánh giá
-Điểm sức khỏe tài chính tổng hợp từ $0$ đến $100$ điểm:
+Điểm sức khỏe tài chính tổng hợp từ 0 đến 100 điểm:
 $$\text{HealthScore} = \text{Score}_{\text{Savings}} + \text{Score}_{\text{Budget}} + \text{Score}_{\text{DTI}} + \text{Score}_{\text{Emergency}}$$
 
 | Trụ cột | Điểm tối đa | Công thức & Điều kiện tính |
 | :--- | :---: | :--- |
-| **1. Tỷ lệ Tiết kiệm (Savings Ratio)** | **25đ** | $\text{SavingsRatio} = \frac{\text{Income} - \text{Expense}}{\text{Income}} \times 100\%$<br>• $\ge 20\% \rightarrow 25$đ<br>• $10\% - 19\% \rightarrow 15$đ<br>• $> 0\% \rightarrow 5$đ |
-| **2. Tuân thủ Ngân sách (Budget Adherence)** | **25đ** | $\text{ExpenseRatio} = \frac{\text{Expense}}{\text{Income}} \times 100\%$<br>• $\le 50\% \rightarrow 25$đ<br>• $51\% - 80\% \rightarrow 15$đ<br>• $81\% - 99\% \rightarrow 5$đ |
-| **3. Nợ trên Thu nhập (DTI - Debt to Income)** | **25đ** | $\text{TotalDebt} = \text{Group Debt} + \text{External Loan}$<br>$\text{DebtRatio} = \frac{\text{TotalDebt}}{\text{Income 3M}} \times 100\%$<br>• Không nợ / $\le 20\% \rightarrow 25$đ<br>• $21\% - 50\% \rightarrow 15$đ<br>• $51\% - 100\% \rightarrow 5$đ |
-| **4. Quỹ Khẩn cấp (Emergency Reserve)** | **25đ** | Đánh giá mức độ tích lũy dòng tiền dự phòng ($\ge 15\% \rightarrow 25$đ). |
+| **1. Tỷ lệ Tiết kiệm (Savings Ratio)** | **25đ** | $\text{Tỷ lệ tiết kiệm} = \frac{\text{Thu nhập} - \text{Chi tiêu}}{\text{Thu nhập}} \times 100\%$<br>• Từ 20% trở lên ($\ge 20\%$) ➔ 25đ<br>• Từ 10% đến 19% ➔ 15đ<br>• Trên 0% ➔ 5đ |
+| **2. Tuân thủ Ngân sách (Budget Adherence)** | **25đ** | $\text{Tỷ lệ chi tiêu} = \frac{\text{Chi tiêu}}{\text{Thu nhập}} \times 100\%$<br>• Không quá 50% ($\le 50\%$) ➔ 25đ<br>• Từ 51% đến 80% ➔ 15đ<br>• Từ 81% đến 99% ➔ 5đ |
+| **3. Nợ trên Thu nhập (DTI - Debt to Income)** | **25đ** | $\text{Tổng nợ} = \text{Nợ nhóm} + \text{Khoản vay ngoài}$<br>$\text{Tỷ lệ nợ} = \frac{\text{Tổng nợ}}{\text{Thu nhập 3 tháng}} \times 100\%$<br>• Không nợ hoặc $\le 20\%$ ➔ 25đ<br>• Từ 21% đến 50% ➔ 15đ<br>• Từ 51% đến 100% ➔ 5đ |
+| **4. Quỹ Khẩn cấp (Emergency Reserve)** | **25đ** | Đánh giá mức độ tích lũy dòng tiền dự phòng (từ 15% trở lên ➔ 25đ). |
 
-* **Xếp loại**: $\ge 80$: Tuyệt vời | $60 - 79$: Khá | $40 - 59$: Trung bình | $< 40$: Cảnh báo nguy cơ thâm hụt.
+* **Xếp loại**: Từ 80 điểm trở lên: Tuyệt vời | 60 - 79 điểm: Khá | 40 - 59 điểm: Trung bình | Dưới 40 điểm: Cảnh báo nguy cơ thâm hụt.
 * **Mã nguồn tham chiếu**: [FinancialHealthService.java](file:///c:/Users/DELL/Downloads/sharemoney/sharemoney/src/main/java/com/example/sharemoney/service/FinancialHealthService.java#L34-L206)
 
 ---

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,12 +18,15 @@ import { AddTransactionModal } from "../components/modals/AddTransactionModal";
 import { TransferBottomSheet } from "../components/modals/TransferBottomSheet";
 import { ExternalLoanManagerBottomSheet } from "../components/modals/ExternalLoanManagerBottomSheet";
 import { NotificationsBottomSheet } from "../components/modals/NotificationsBottomSheet";
+import { QuickBankTransactionModal } from "../components/modals/QuickBankTransactionModal";
+import { BankNotificationDetectorModal } from "../components/modals/BankNotificationDetectorModal";
+import { ParsedBankNotification } from "../utils/bankNotificationParser";
 import { FinancialHealthCard } from "../components/features/FinancialHealthCard";
 import { colors } from "../constants/colors";
 import { useAppData } from "../hooks/useAppData";
 import { useAuth } from "../hooks/useAuth";
 import { useNotifications } from "../hooks/useNotifications";
-import { financialServices } from "../services/financialServices";
+import { financialServices, Category } from "../services/financialServices";
 import { WalletPayload, TransactionPayload } from "../types";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
 
@@ -58,6 +61,20 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const [defaultTxType, setDefaultTxType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
   const [loanSheetVisible, setLoanSheetVisible] = useState(false);
   const [notifSheetVisible, setNotifSheetVisible] = useState(false);
+
+  // ⚡ Zero-Latency Bank Notification States
+  const [detectorVisible, setDetectorVisible] = useState(false);
+  const [quickBankTxVisible, setQuickBankTxVisible] = useState(false);
+  const [detectedBankData, setDetectedBankData] = useState<ParsedBankNotification | null>(null);
+  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
+
+  useEffect(() => {
+    financialServices.getCategories().then((cats) => {
+      if (cats && cats.length > 0) {
+        setCategoriesList(cats);
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleAddWallet = async (payload: WalletPayload) => {
     await financialServices.createWallet(payload);
@@ -342,6 +359,31 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           </TouchableOpacity>
         </View>
 
+        {/* ─── ZERO-LATENCY BANK SYNC BANNER (0ms Offline Smart Classifier) ─── */}
+        <TouchableOpacity
+          style={styles.bankSyncBanner}
+          onPress={() => setDetectorVisible(true)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.bankSyncBannerLeft}>
+            <View style={styles.bankSyncIconGlow}>
+              <Text style={{ fontSize: 20 }}>⚡</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={styles.bankSyncTitle}>Bắt Biến Động Ngân Hàng</Text>
+                <View style={styles.zeroLatencyBadge}>
+                  <Text style={styles.zeroLatencyText}>0ms Không Độ Trễ</Text>
+                </View>
+              </View>
+              <Text style={styles.bankSyncDesc} numberOfLines={2}>
+                Tự động bóc tách số tiền & phân loại 1-chạm khi bạn chuyển khoản ngoài app
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.bankSyncArrow}>→</Text>
+        </TouchableOpacity>
+
         {/* ─── BUDGET PROGRESS SECTION ─── */}
         <Text style={styles.sectionHeaderTitle}>Ngân sách Tháng này</Text>
         <Card style={styles.budgetCard}>
@@ -451,6 +493,28 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         onClose={() => setNotifSheetVisible(false)}
         onReadAction={() => {}} // Could refresh unread count if needed
       />
+
+      {/* ⚡ Bank Notification Detector Modal (Input / Simulation) */}
+      <BankNotificationDetectorModal
+        visible={detectorVisible}
+        onClose={() => setDetectorVisible(false)}
+        onParsedResult={(result) => {
+          setDetectedBankData(result);
+          setQuickBankTxVisible(true);
+        }}
+      />
+
+      {/* ⚡ Quick Bank Transaction Confirmation & Category Switcher Modal */}
+      <QuickBankTransactionModal
+        visible={quickBankTxVisible}
+        onClose={() => setQuickBankTxVisible(false)}
+        parsedData={detectedBankData}
+        wallets={wallets}
+        categories={categoriesList}
+        onSuccess={() => {
+          refresh();
+        }}
+      />
     </View>
   );
 };
@@ -459,6 +523,68 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  bankSyncBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: "#DBEAFE",
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  bankSyncBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  bankSyncIconGlow: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  bankSyncTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  zeroLatencyBadge: {
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+  },
+  zeroLatencyText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#16A34A",
+  },
+  bankSyncDesc: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  bankSyncArrow: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2563EB",
+    marginLeft: 8,
   },
   scrollContent: {
     paddingBottom: 40,

@@ -95,6 +95,27 @@ jobs:
           push: false
           tags: sharemoney-backend:latest
 
+      # Tự động kết nối SSH và Deploy lên máy chủ AWS EC2 (Singapore)
+      - name: 🚀 Auto Deploy to AWS EC2 (Singapore)
+        if: env.EC2_HOST != '' && env.EC2_SSH_KEY != ''
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script: |
+            echo "🚀 [AWS CD] Pulling latest code on EC2..."
+            cd ~/doantotnghiep-moneyM
+            git pull origin main
+            echo "🐳 [AWS CD] Rebuilding and restarting Docker container..."
+            docker rm -f sharemoney_backend || true
+            docker compose up -d --build backend
+            echo "✅ [AWS CD] Deployment to AWS EC2 completed successfully!"
+
       # Trigger Render.com Webhook Auto-Deploy (nếu có Secret RENDER_DEPLOY_HOOK)
       - name: 🌐 Trigger Cloud Deploy (Render.com)
         if: env.RENDER_DEPLOY_HOOK != ''
@@ -103,3 +124,4 @@ jobs:
         run: |
           echo "Triggering deployment on Render..."
           curl -X POST "$RENDER_DEPLOY_HOOK"
+

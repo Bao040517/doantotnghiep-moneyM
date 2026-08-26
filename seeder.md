@@ -210,19 +210,29 @@ Bộ dữ liệu **Seed V17 (`seed_v17.sql` & `generate_seed_v17.js`)** là phi�
 
 ---
 
-## 16. Tóm tắt các Script đang sử dụng
-*   `generate_seed_v17.js`: **Kịch bản thế hệ mới nhất V17**, tích hợp `push_token`, 5 năm lịch sử, thông báo chưa đọc cho quả chuông 🔔, biểu đồ mốc 0 hai chiều và mốc thời gian 26/08/2026.
-*   `seed_v17.sql`: **File SQL thành phẩm V17** sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / Render / AWS RDS / pgAdmin / DataGrip / DBeaver).
+## 16. Đặc tả Bộ dữ liệu mẫu V18 (Seed V18 Data Specs)
+
+Bộ dữ liệu **Seed V18 (`seed_v18.sql` & `generate_seed_v18.js`)** là phiên bản sửa lỗi nghiêm trọng từ V17:
+*   **✅ CRITICAL FIX: BudgetType.DYNAMIC → FLEXIBLE:**
+    *   **Nguyên nhân lỗi V17:** Schema `CREATE TABLE budgets` khai báo `DEFAULT 'DYNAMIC'` (dòng 319). Khi JPA (Hibernate) đọc các dòng `budgets` có `type = 'DYNAMIC'` từ Supabase, enum `BudgetType.java` ném `IllegalArgumentException: No enum constant ... BudgetType.DYNAMIC` → crash 500 toàn bộ API `/api/budgets/summary` và `/api/advisor/insights`.
+    *   **Giải pháp V18:**
+        1. Schema `CREATE TABLE budgets ... type VARCHAR(50) NOT NULL DEFAULT 'FLEXIBLE'` (sửa từ `DYNAMIC` → `FLEXIBLE`).
+        2. Migration: `ALTER TABLE IF EXISTS budgets ALTER COLUMN type SET DEFAULT 'FLEXIBLE'` (sửa default cho bảng đã tồn tại).
+        3. Data fix: `UPDATE budgets SET type = 'FLEXIBLE' WHERE type = 'DYNAMIC'` (chuyển đổi toàn bộ dòng cũ).
+*   **Kế thừa toàn bộ tính năng V17:**
+    *   Push Notification Native & Quả Chuông 🔔 (4 thông báo chưa đọc cho User A).
+    *   Động Cơ Dòng Tiền 3 Chu Kỳ (6 Tuần, 6 Tháng, 5 Năm).
+    *   Hóa đơn Sawaco, Tiền nhà P2P, Ngân hàng A-B-C.
+    *   Mốc thời gian 26/08/2026.
+
+---
+
+## 17. Tóm tắt các Script đang sử dụng
+*   `generate_seed_v18.js`: **Kịch bản thế hệ mới nhất V18**, sửa lỗi `DYNAMIC` → `FLEXIBLE`, kế thừa toàn bộ V17.
+*   `seed_v18.sql`: **File SQL thành phẩm V18** sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / AWS).
+*   `seed_v17.sql` / `generate_seed_v17.js`: Bản lưu trữ thế hệ V17 (có lỗi DEFAULT DYNAMIC).
 *   `seed_v16.sql` / `generate_seed_v16.js`: Bản lưu trữ thế hệ V16.
 *   `seed_v15.sql` / `generate_seed_v15.js`: Bản lưu trữ thế hệ V15.
-*   `seed_v14.sql` / `generate_seed_v14.js`: Bản lưu trữ thế hệ V14.
-*   `seed_v13.sql` / `generate_seed_v13.js`: Bản lưu trữ thế hệ V13.
 *   `check_entities.js`: Tool nội bộ quét file `.java` và validate cấu trúc cột `NOT NULL`.
-*   `seed_v12.sql` / `generate_seed_v12.js`: Bản lưu trữ thế hệ V12.
-*   `seed_v11.sql` / `generate_seed_v11.js`: Bản lưu trữ thế hệ V11.
-
-
-
-
 
 

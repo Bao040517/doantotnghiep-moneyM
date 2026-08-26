@@ -255,7 +255,7 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                       {(item.categoryName || (item as any).category?.name) && (
                         <View style={styles.categoryBadge}>
-                          <Text style={styles.categoryBadgeText}>🧾 {item.categoryName || (item as any).category?.name}</Text>
+                          <Text style={styles.categoryBadgeText}>{item.categoryName || (item as any).category?.name}</Text>
                         </View>
                       )}
                       {(item.paymentMethod === "CASH" || (item.note && (item.note.includes("tiền mặt") || item.note.includes("Tiền mặt")))) && (

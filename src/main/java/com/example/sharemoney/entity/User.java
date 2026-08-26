@@ -71,6 +71,10 @@ public class User {
     @Column(name = "savings_bank_account_name", length = 100)
     private String savingsBankAccountName;
 
+    /** Expo Push Token để nhận thông báo đẩy Native ra màn hình khóa (APNs / FCM) */
+    @Column(name = "push_token", length = 255)
+    private String pushToken;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

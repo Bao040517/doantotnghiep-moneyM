@@ -59,6 +59,7 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
     try {
       await notificationService.markAsRead(id);
       setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+      DeviceEventEmitter.emit("notif_count_updated");
       onReadAction();
     } catch (e) {
       console.error(e);
@@ -70,8 +71,9 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
     if (unread.length === 0) return;
     
     try {
-      await Promise.all(unread.map(n => notificationService.markAsRead(n.id)));
+      await notificationService.markAllAsRead();
       setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      DeviceEventEmitter.emit("notif_count_updated");
       onReadAction();
     } catch (e) {
       console.error(e);

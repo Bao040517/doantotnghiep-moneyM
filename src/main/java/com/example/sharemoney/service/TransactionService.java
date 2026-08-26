@@ -672,9 +672,9 @@ public class TransactionService {
                     .build());
         }
 
-        // 3. Phân bổ thực tế các năm (3 năm gần nhất: year - 2, year - 1, year)
+        // 3. Phân bổ thực tế các năm (5 năm gần nhất: year - 4 đến year)
         List<CashflowSummaryResponse.CashflowPoint> years = new ArrayList<>();
-        for (int y = year - 2; y <= year; y++) {
+        for (int y = year - 4; y <= year; y++) {
             LocalDateTime from = LocalDate.of(y, 1, 1).atStartOfDay();
             LocalDateTime to = LocalDate.of(y + 1, 1, 1).atStartOfDay();
 
@@ -692,7 +692,7 @@ public class TransactionService {
 
             BigDecimal net = income.subtract(expense);
             years.add(CashflowSummaryResponse.CashflowPoint.builder()
-                    .period(String.valueOf(y))
+                    .period("Năm " + y)
                     .label(String.valueOf(y))
                     .income(income)
                     .expense(expense)

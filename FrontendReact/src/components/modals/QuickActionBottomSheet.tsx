@@ -7,6 +7,7 @@ import {
   Modal,
   Platform,
 } from "react-native";
+import { QrCode } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 
 export type QuickActionType = "expense" | "group" | "income" | "scan_receipt";
@@ -52,7 +53,7 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
 
           {/* Quick Action Cards */}
           <View style={styles.actionList}>
-            {/* 1. Quét Hoá Đơn / QR Bill (AI) - Nổi Bật Nhất */}
+            {/* 1. Quét Hoá Đơn / QR Bill - Nổi Bật Nhất */}
             <TouchableOpacity
               style={[styles.actionCard, styles.scanCard]}
               onPress={() => {
@@ -62,14 +63,11 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               activeOpacity={0.8}
             >
               <View style={[styles.iconBox, { backgroundColor: "#ede9fe" }]}>
-                <Text style={{ fontSize: 26 }}>📸</Text>
+                <QrCode size={26} color="#6366f1" />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
                   <Text style={[styles.cardTitle, { color: "#6366f1" }]}>Quét hoá đơn / QR Bill</Text>
-                  <View style={[styles.badge, { backgroundColor: "#e0e7ff" }]}>
-                    <Text style={[styles.badgeText, { color: "#4338ca" }]}>✨ AI Thông Minh</Text>
-                  </View>
                 </View>
                 <Text style={styles.cardSub}>Chụp ảnh bill hoặc dán link QR hoá đơn điện tử để tự động nhập</Text>
               </View>
@@ -91,9 +89,6 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
                   <Text style={[styles.cardTitle, { color: "#e11d48" }]}>Tạo chi tiêu</Text>
-                  <View style={[styles.badge, { backgroundColor: "#fecdd3" }]}>
-                    <Text style={[styles.badgeText, { color: "#be123c" }]}>Chi tiêu</Text>
-                  </View>
                 </View>
                 <Text style={styles.cardSub}>Thêm 1 bản ghi vào lịch sử chi tiêu & trừ số dư ví</Text>
               </View>
@@ -115,9 +110,6 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
                   <Text style={[styles.cardTitle, { color: "#059669" }]}>Tạo nhóm mới</Text>
-                  <View style={[styles.badge, { backgroundColor: "#a7f3d0" }]}>
-                    <Text style={[styles.badgeText, { color: "#047857" }]}>Nhóm chung</Text>
-                  </View>
                 </View>
                 <Text style={styles.cardSub}>Bắt đầu chia sẻ chi tiêu chung với bạn bè</Text>
               </View>
@@ -139,9 +131,6 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
                   <Text style={[styles.cardTitle, { color: "#d97706" }]}>Nạp tiền vào ví</Text>
-                  <View style={[styles.badge, { backgroundColor: "#fde68a" }]}>
-                    <Text style={[styles.badgeText, { color: "#92400e" }]}>Thu nhập</Text>
-                  </View>
                 </View>
                 <Text style={styles.cardSub}>Thêm tiền trực tiếp vào số dư khả dụng (Lương, nạp ví)</Text>
               </View>

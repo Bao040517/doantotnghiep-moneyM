@@ -19,6 +19,7 @@ import { api } from "../services/api";
 import { financialServices } from "../services/financialServices";
 import { Toast } from "../components/ui/Toast";
 import { NotificationBottomSheet } from "../components/modals/NotificationBottomSheet";
+import { useNotifications } from "../hooks/useNotifications";
 import { getCategoryEmoji } from "../constants/categories";
 
 interface AdviceData {
@@ -90,6 +91,7 @@ interface AdviceData {
 export const AdvisorScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const { unreadCount } = useNotifications();
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -409,6 +411,13 @@ export const AdvisorScreen: React.FC = () => {
           <View style={styles.headerRightActions}>
             <TouchableOpacity style={styles.iconCircle} onPress={() => setNotifVisible(true)}>
               <Text style={{ fontSize: 15 }}>🔔</Text>
+              {unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.avatarCircle}
@@ -1304,6 +1313,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
+    position: "relative",
+  },
+  notifBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 8.5,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "900",
+    textAlign: "center",
+    lineHeight: 11,
   },
   avatarCircle: {
     width: 36,

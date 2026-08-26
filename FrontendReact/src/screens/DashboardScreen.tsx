@@ -22,6 +22,7 @@ import { FinancialHealthCard } from "../components/features/FinancialHealthCard"
 import { colors } from "../constants/colors";
 import { useAppData } from "../hooks/useAppData";
 import { useAuth } from "../hooks/useAuth";
+import { useNotifications } from "../hooks/useNotifications";
 import { financialServices } from "../services/financialServices";
 import { WalletPayload, TransactionPayload } from "../types";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
@@ -33,6 +34,7 @@ interface DashboardScreenProps {
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const { unreadCount } = useNotifications();
   const {
     wallets,
     budgets,
@@ -122,6 +124,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             <View style={{ flexDirection: "row", gap: 12 }}>
               <TouchableOpacity onPress={() => setNotifSheetVisible(true)} style={styles.eyeBtn}>
                 <Text style={{ fontSize: 18 }}>🔔</Text>
+                {unreadCount > 0 && (
+                  <View style={styles.notifBadge}>
+                    <Text style={styles.notifBadgeText}>
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowBalance(!showBalance)} style={styles.eyeBtn}>
                 <Text style={{ fontSize: 18 }}>{showBalance ? "👁️" : "🙈"}</Text>
@@ -505,6 +514,28 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.12)",
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+  },
+  notifBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: "#1E293B",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9.5,
+    fontWeight: "900",
+    textAlign: "center",
+    lineHeight: 12,
   },
   heroSection: {
     marginBottom: 20,

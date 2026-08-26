@@ -186,9 +186,34 @@ Bộ dữ liệu **Seed V16 (`seed_v16.sql` & `generate_seed_v16.js`)** là phi�
 
 ---
 
-## 15. Tóm tắt các Script đang sử dụng
-*   `generate_seed_v16.js`: **Kịch bản thế hệ mới nhất V16**, cấu hình chuẩn hóa danh mục có "Tiền nước", ngân sách BILL Sawaco, 3 tài khoản ngân hàng chỉ định (MBBank, Techcombank, MSB) và nợ nhóm chéo.
-*   `seed_v16.sql`: **File SQL thành phẩm V16** sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / Render / AWS RDS / pgAdmin / DataGrip / DBeaver).
+## 15. Đặc tả Bộ dữ liệu mẫu V17 (Seed V17 Data Specs)
+
+Bộ dữ liệu **Seed V17 (`seed_v17.sql` & `generate_seed_v17.js`)** là phiên bản tối ưu hóa toàn diện cho **Kiến Trúc Thông Báo Realtime, Push Notification Màn Hình Khóa, Động Cơ Dòng Tiền 3 Chu Kỳ & Mốc Thời Gian 26/08/2026**:
+*   **Kiến Trúc Push Notification Native & Quả Chuông 🔔 Thông Báo Realtime:**
+    *   **Cột `push_token` trong bảng `users`:** Đầy đủ Expo Push Token mẫu (`ExponentPushToken[...]`) cho toàn bộ 5 User personas.
+    *   **Phân bổ thông báo thực tế (`notifications`):**
+        *   User A sở hữu **4 thông báo chưa đọc (`is_read = false`)** vào các ngày gần nhất (24/08, 25/08, 26/08/2026) $\rightarrow$ Khi vừa đăng nhập vào app, icon quả chuông 🔔 trên Dashboard và Advisor **tự động nhảy huy hiệu đỏ số `4`** phục vụ kiểm thử UI/UX tức thì.
+        *   Đa dạng hóa các loại thông báo: `PAYMENT_RECEIVED` (tiền về), `PAYMENT_APPROVED` (hóa đơn thanh toán), `REMIND_DEBT` (nhắc nợ), `BUDGET_WARNING` (cảnh báo hạn mức 85%), `Z_SCORE_ANOMALY` (bất thường chi tiêu 2.1x).
+*   **Động Cơ Dòng Tiền 3 Chu Kỳ (Cashflow Engine: 6 Tuần, 6 Tháng, 5 Năm):**
+    *   **Chu kỳ 6 Tuần gần nhất (Tháng 7 -> 26/08/2026):** Dữ liệu phân bổ đều khắp 6 tuần, khớp chuẩn nhãn 2 dòng ngày (`DD/MM - DD/MM`), cột biểu đồ luôn vươn cao đầy đặn 75% - 85% chiều cao khung vẽ với thước OY siêu thích ứng.
+    *   **Chu kỳ 6 Tháng gần nhất (T3/2026 -> T8/2026):** Thiết lập tháng 4 và tháng 7 thâm hụt nhẹ (Chi > Thu) đan xen các tháng thặng dư (Thu > Chi) để demo hoàn hảo **Biểu đồ mốc 0 hai chiều (Bi-directional Zero-Baseline Bar Chart)**: cột dương mọc lên trên (Xanh `#2563EB`), cột âm tụt xuống dưới (HotPink `#FF69B4`).
+    *   **Chu kỳ 5 Năm Lịch Sử (2022 -> 2026):** Khởi tạo dữ liệu giao dịch 5 năm liên tiếp cho User A giúp tab **Theo năm** hiển thị đủ 5 cột năm (`Năm 2022` $\rightarrow$ `Năm 2026`).
+*   **Mốc Thời Gian Thực Tế (Strict Real-time Cutoff):**
+    *   Chốt sổ dữ liệu chính xác đến ngày hôm nay: **`2026-08-26 23:59:59`** (không có dữ liệu tương lai).
+*   **Duy trì toàn vẹn ràng buộc PFM, Hóa đơn Sawaco & Tài khoản Ngân hàng A-B-C:**
+    *   **User A:** MBBank (`970422` - `6617052004888` - `DUONG DUC BAO`).
+    *   **User B:** Techcombank (`970407` - `6617052004` - `NGUYEN VAN B`).
+    *   **User C:** MSB (`970426` - `4517052004` - `NGUYEN VAN C`).
+    *   6 khoản BILL mỗi user (Tiền nhà, Tiền điện EVN, Tiền nước Sawaco, Internet Viettel, Học phí, Y tế CarePlus) sẵn sàng nút `✓ Trả ngay`.
+    *   Nợ chéo nhóm "Hội Bạn Thân (A - B - C)" đầy đủ 3 khoản nợ.
+    *   Quy mô ấn tượng: **3.016 giao dịch**, **1.344 ngân sách**, **23 thông báo mẫu**, **8 chi tiêu nhóm**.
+
+---
+
+## 16. Tóm tắt các Script đang sử dụng
+*   `generate_seed_v17.js`: **Kịch bản thế hệ mới nhất V17**, tích hợp `push_token`, 5 năm lịch sử, thông báo chưa đọc cho quả chuông 🔔, biểu đồ mốc 0 hai chiều và mốc thời gian 26/08/2026.
+*   `seed_v17.sql`: **File SQL thành phẩm V17** sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / Render / AWS RDS / pgAdmin / DataGrip / DBeaver).
+*   `seed_v16.sql` / `generate_seed_v16.js`: Bản lưu trữ thế hệ V16.
 *   `seed_v15.sql` / `generate_seed_v15.js`: Bản lưu trữ thế hệ V15.
 *   `seed_v14.sql` / `generate_seed_v14.js`: Bản lưu trữ thế hệ V14.
 *   `seed_v13.sql` / `generate_seed_v13.js`: Bản lưu trữ thế hệ V13.

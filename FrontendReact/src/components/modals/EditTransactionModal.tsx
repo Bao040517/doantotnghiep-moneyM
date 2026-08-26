@@ -133,7 +133,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
             <Text style={styles.detailLabel}>Danh mục</Text>
             <View style={styles.detailValueRow}>
               <View style={styles.categoryBadge}>
-                <Text style={styles.categoryBadgeText}>🧾 {catName}</Text>
+                <Text style={styles.categoryBadgeText}>{catName}</Text>
               </View>
             </View>
           </View>

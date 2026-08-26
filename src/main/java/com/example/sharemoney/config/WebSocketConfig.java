@@ -21,10 +21,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Client sẽ kết nối tới ws://domain/ws
-        // Chỉ cho phép origins cụ thể (bảo mật hơn so với "*")
+        // Client kết nối tới ws://domain/ws (Hỗ trợ cả WebSocket thuần và SockJS fallback)
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("http://localhost:3000", "http://localhost:3001")
-                .withSockJS(); // SockJS là fallback nếu browser không support WebSocket nguyên thuỷ
+                .setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
 }

@@ -56,6 +56,7 @@ public class VNPayController {
     private final BudgetRepository budgetRepository;
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final NotificationService notificationService;
 
     @Value("${vnpay.frontendUrl:http://localhost:19006}")
     private String frontendUrl;
@@ -286,6 +287,13 @@ public class VNPayController {
 
                     transactionService.createTransaction(order.getUserId(), order.getWalletId(), txReq);
                     log.info("[VNPay IPN] Successfully created transaction for BUDGET order. txnRef={}", vnp_TxnRef);
+
+                    java.text.NumberFormat formatter =
+                            java.text.NumberFormat.getCurrencyInstance(
+                                    java.util.Locale.forLanguageTag("vi-VN"));
+                    String amountString = formatter.format(order.getAmount());
+                    String billMsg = String.format("🎉 Hóa đơn sinh hoạt (%s) đã được thanh toán thành công qua VNPay!", amountString);
+                    notificationService.sendNotification(order.getUserId(), billMsg, "PAYMENT_APPROVED");
                 } else if (order.getType() == PaymentOrderType.DEBT) {
                     ApproveSettleRequest settleReq = new ApproveSettleRequest();
                     settleReq.setDebtorId(order.getUserId());

@@ -29,11 +29,26 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.getUserNotifications(userId));
     }
 
+    /** GET /api/notifications/unread-count Lấy số lượng thông báo chưa đọc */
+    @GetMapping("/unread-count")
+    public ResponseEntity<java.util.Map<String, Long>> getUnreadCount() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(java.util.Map.of("unreadCount", notificationService.getUnreadCount(userId)));
+    }
+
     /** POST /api/notifications/{id}/read Đánh dấu 1 thông báo là đã đọc */
     @PostMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(@PathVariable UUID id) {
         UUID userId = SecurityUtils.getCurrentUserId();
         notificationService.markAsRead(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** POST /api/notifications/read-all Đánh dấu tất cả thông báo là đã đọc */
+    @PostMapping("/read-all")
+    public ResponseEntity<Void> markAllAsRead() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        notificationService.markAllAsRead(userId);
         return ResponseEntity.noContent().build();
     }
 }

@@ -7,25 +7,66 @@ import { BottomTabNavigator } from "./BottomTabNavigator";
 import { useAuth } from "../hooks/useAuth";
 import { colors } from "../constants/colors";
 import { socketService } from "../services/socketService";
-import { Alert, DeviceEventEmitter } from "react-native";
+import { pushNotificationService } from "../services/pushNotificationService";
+import { DeviceEventEmitter } from "react-native";
 
 const Stack = createNativeStackNavigator();
+
+const resolvePushTitle = (type?: string) => {
+  switch (type) {
+    case "PAYMENT_RECEIVED":
+    case "PAYMENT_SENT":
+    case "PAYMENT_APPROVED":
+    case "PAYMENT_NOTIFY":
+      return "💰 Tiền về! ShareMoney";
+    case "REMIND_DEBT":
+    case "DEBT_REMINDER":
+      return "🔔 Lời nhắc nợ từ bạn bè";
+    case "EXPENSE_CREATED":
+    case "EXPENSE_UPDATED":
+      return "🧾 Chi tiêu nhóm ShareMoney";
+    case "WARNING":
+    case "Z_SCORE_ANOMALY":
+    case "BUDGET_OVER":
+    case "BUDGET_WARNING":
+      return "⚠️ Cảnh báo tài chính";
+    default:
+      return "🔔 Thông báo ShareMoney";
+  }
+};
 
 export const AppNavigator: React.FC = () => {
   const { user, isAuthenticated, isLoading, login, register, logout, refreshProfile } = useAuth();
 
   React.useEffect(() => {
     if (isAuthenticated && user?.id) {
+      // 1. Đăng ký Push Notification Native & Xin quyền
+      pushNotificationService.registerForPushNotifications();
+
+      // 2. Kết nối WebSocket STOMP Realtime
       socketService.connect(() => {
         socketService.subscribe(`/topic/user/${user.id}`, (message) => {
           console.log("[SOCKET USER TOPIC]", message);
           DeviceEventEmitter.emit('new_notification', message);
           DeviceEventEmitter.emit('pfm_event_updated', message);
+          
+          // Phát chuông "ting ting" và hiện Banner nổi ngay trên điện thoại
+          pushNotificationService.triggerLocalNotification(
+            resolvePushTitle(message?.type),
+            message?.message || "Bạn có thông báo mới.",
+            message
+          );
         });
+
         socketService.subscribe(`/user/queue/notifications`, (message) => {
           console.log("[SOCKET NOTIFICATION]", message);
           DeviceEventEmitter.emit('new_notification', message);
-          Alert.alert("Thông báo mới 🔔", message.message || "Bạn có thông báo mới.");
+
+          pushNotificationService.triggerLocalNotification(
+            resolvePushTitle(message?.type),
+            message?.message || "Bạn có thông báo mới.",
+            message
+          );
         });
       });
     } else {

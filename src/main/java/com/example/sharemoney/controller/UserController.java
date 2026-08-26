@@ -106,6 +106,22 @@ public class UserController {
         return ResponseEntity.ok(toUserSummary(user));
     }
 
+    @org.springframework.web.bind.annotation.PostMapping("/me/push-token")
+    public ResponseEntity<Void> updateMyPushToken(
+            @RequestBody java.util.Map<String, String> request) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String pushToken = request.get("pushToken");
+        user.setPushToken(pushToken);
+        userRepository.save(user);
+
+        return ResponseEntity.noContent().build();
+    }
+
     private UserSummaryResponse toUserSummary(User user) {
         return UserSummaryResponse.builder()
                 .id(user.getId())

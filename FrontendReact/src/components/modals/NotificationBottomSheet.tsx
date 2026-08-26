@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, DeviceEventEmitter } from "react-native";
 import { BottomSheet } from "../ui/BottomSheet";
 import { notificationService, AppNotification } from "../../services/notificationService";
 import { colors } from "../../constants/colors";
@@ -38,8 +38,19 @@ export const NotificationBottomSheet: React.FC<NotificationBottomSheetProps> = (
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
+      DeviceEventEmitter.emit("notif_count_updated");
     } catch (e) {
       console.log("Failed to mark notification as read:", e);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      DeviceEventEmitter.emit("notif_count_updated");
+    } catch (e) {
+      console.log("Failed to mark all as read:", e);
     }
   };
 
@@ -58,8 +69,20 @@ export const NotificationBottomSheet: React.FC<NotificationBottomSheetProps> = (
     }
   };
 
+  const hasUnread = notifications.some((n) => !n.isRead);
+  const headerRight = hasUnread ? (
+    <TouchableOpacity onPress={handleMarkAllRead}>
+      <Text style={{ fontSize: 12, color: colors.indigo600, fontWeight: "700" }}>Đã đọc tất cả</Text>
+    </TouchableOpacity>
+  ) : null;
+
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Thông Báo Hướng Dẫn & Nhắc Nhở 🔔">
+    <BottomSheet 
+      visible={visible} 
+      onClose={onClose} 
+      title="Thông Báo Hướng Dẫn & Nhắc Nhở 🔔"
+      headerRight={headerRight}
+    >
       <View style={styles.container}>
         {loading ? (
           <View style={styles.loadingBox}>

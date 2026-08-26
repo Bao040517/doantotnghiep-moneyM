@@ -11,6 +11,8 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
     List<Notification> findByUser_IdAndIsReadFalseOrderByCreatedAtDesc(UUID userId);
 
+    long countByUser_IdAndIsReadFalse(UUID userId);
+
     /** Kiểm tra trùng notification cùng type trong ngày (cho smart budget alert) */
     boolean existsByUser_IdAndTypeAndCreatedAtAfter(
             UUID userId, String type, java.time.LocalDateTime after);

@@ -37,6 +37,45 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 32. **Triển Khai Trực Tuyến Thành Công Lên AWS Cloud EC2 & Supabase Cloud (Live Production Deployment):** Cấu hình và đồng bộ toàn diện Backend Spring Boot chạy trên máy chủ ảo **AWS EC2 `t3.small` Singapore (`18.142.90.90:8080`)** kết nối trực tiếp PostgreSQL Supabase Cloud (Seed V15). Mở thành công Inbound Rule Port 8080 trên AWS Security Group, kiểm thử End-to-End đạt 100% (200 OK), đồng bộ `FrontendReact/.env` & `eas.json` sẵn sàng xuất bản Mobile APK.
 33. **Chuẩn Hóa Danh Mục Toàn Diện Hệ Thống & Bộ Dữ Liệu Mẫu Seed V16 (Unified Categories & Seed V16 with Dedicated Water Bill):** Bổ sung category `"Tiền nước"` (`droplets`, 🚿) trên toàn bộ hệ thống (Database, Backend default categories, Frontend design system `constants/categories.ts`, `CategoryIcon.tsx` SVG icon, `BudgetScreen`, `AdvisorScreen`, `ExpenseChart`, `ReportScreen`). Sinh thành công bộ dữ liệu mẫu **Seed V16** (`generate_seed_v16.js` & `seed_v16.sql`) với 1.436 giao dịch, 540 ngân sách (có ngân sách BILL Tiền nước Sawaco) phục vụ kiểm thử luồng Trả ngay và gạch nợ tự động.
 34. **Rà Soát Toàn Diện Codebase, Sửa Lỗi Crash Navigation, Đồng Bộ "Tiền Nước" Vào Expert System & Khắc Phục CI/CD Pipeline (System Audit, Bug Fixes & CI/CD Green Build):** Rà soát toàn bộ hệ thống phát hiện và khắc phục 2 lỗi quan trọng: sửa lỗi crash runtime `useNavigation` khi tap vào Avatar trên `DashboardScreen.tsx`, bổ sung `"Tiền nước"` vào `NEEDS_CATEGORIES` trong `FinancialAdvisorService.java` giúp chuẩn hóa phân tích 50/30/20. Sửa lỗi `Exit code 126` trên GitHub Actions bằng cách cấp quyền thực thi `chmod +x ./mvnw` giúp pipeline CI/CD chạy xanh 100% (Passed), biên dịch Docker và triển khai trực tuyến thành công lên máy chủ AWS EC2 Singapore (`18.142.90.90:8080`) kết nối PostgreSQL Supabase.
+35. **Nâng Cấp Toàn Diện Biến Động Thu Chi & Động Cơ Biểu Đồ 2 Chiều Mốc 0 Siêu Thích Ứng (Bi-directional Zero-Baseline & Ultra-Adaptive Cashflow Engine):** Chuẩn hóa dòng tiền theo 6 tuần, 6 tháng và 5 năm; phân bổ 2 màu Blue (`#2563EB`) cho Thu nhập và HotPink (`#FF69B4`) cho Chi tiêu; tách khung ngày tuần 2 dòng; trục OY tự động co giãn nấc vi mô từ 50k đến 500M+ giúp cột luôn vươn cao 75%-85%; biểu đồ đối xứng 2 chiều qua mốc 0 cho tab Chênh lệch (cột âm tụt xuống dưới, cột dương mọc lên trên); nút tròn `!` tóm tắt biến động Thu - Chi; tinh chỉnh thẻ tác vụ nhanh với mã QR tối giản và làm sạch danh mục hóa đơn.
+
+### Session [2026-08-26] - Nâng Cấp Toàn Diện Biến Động Thu Chi, Biểu Đồ Chênh Lệch 2 Chiều Mốc 0 Siêu Thích Ứng & Tối Ưu Tác Vụ Nhanh, Hóa Đơn
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Nâng Cấp Động Cơ Dòng Tiền & Biểu Đồ Biến Động Thu Chi (`CashflowComparisonBottomSheet.tsx` & `TransactionService.java`):**
+   - **Thống Kê Đa Chu Kỳ Chuẩn Mực (6 Tuần - 6 Tháng - 5 Năm):** 
+     - Tab **Theo tuần**: Cố định đúng 6 tuần gần nhất tính từ tuần hiện tại trở lại, lưu trữ và hiển thị rõ ràng ngày bắt đầu và ngày kết thúc (`startDateStr` - `endDateStr`).
+     - Tab **Theo tháng**: Cố định 6 tháng gần nhất tính lùi từ tháng đang chọn (`targetMonth`).
+     - Tab **Theo năm**: `TransactionService.java` (`getCashflowSummary`) truy vấn dữ liệu thực tế 5 năm gần nhất (`year - 4` đến `year`) gắn nhãn chuẩn `Năm YYYY`.
+   - **Hệ Thống Thiết Kế 2 Màu Độc Quyền (Blue & HotPink):**
+     - Tab **Thu nhập**: Sử dụng sắc Xanh dương `#2563EB` (Active bar `#2563EB`, Inactive `#BFDBFE`, Tooltip `#2563EB`, gạch chân active `#2563EB`, thẻ danh sách `#EFF6FF`).
+     - Tab **Chi tiêu**: Sử dụng sắc HotPink `#FF69B4` (RGB 255, 105, 180) & LightPink `#FFB6C1` (RGB 255, 182, 193) cho cột active/inactive, tooltip, gạch chân tab và chữ Chi trong danh sách.
+   - **Khung Ngày Tuần 2 Dòng Thẳng Hàng Hoàn Hảo:**
+     - Tách khung ngày của từng tuần thành 2 dòng: Dòng 1 (`DD/MM -`) thẳng hàng với hàng chữ "Thu", Dòng 2 (`DD/MM`) thẳng hàng với hàng chữ "Chi".
+   - **Biểu Đồ Trục Mốc 0 Hai Chiều Cho Tab Chênh Lệch (Bi-directional Zero-Baseline Bar Chart):**
+     - Khi có kỳ chi nhiều hơn thu (thâm hụt âm), trục mốc 0 nằm ngang chính giữa biểu đồ (`yBaseline = PAD_TOP + chartH / 2`).
+     - Cột thặng dư (Thu > Chi) mọc **HƯỚNG LÊN TRÊN** mức 0 với sắc Xanh dương `#2563EB`.
+     - Cột thâm hụt (Chi > Thu) mọc **HƯỚNG XUỐNG DƯỚI** mức 0 với sắc HotPink `#FF69B4`.
+     - Tooltip và Hero Amount hiển thị dấu `+` / `-` kèm màu tương ứng; đường nét đứt kết nối chính xác vào đầu mút cột âm hoặc dương.
+   - **Thước Đo Trục OY Siêu Thích Ứng (Ultra-Adaptive OY Scaling):**
+     - Xóa bỏ mức chặn tối thiểu 1 triệu khiến cột bị lùn khi số tiền nhỏ.
+     - Tự động co giãn theo từng nấc vi mô (50k, 100k, 200k, 350k, 500k, 800k, 1.2M, 2M, 3M, 5M, 8M, 12M, 20M, 50M, 100M+).
+     - Cột biểu đồ luôn vươn cao đầy đặn, chiếm **75% – 85%** chiều cao khung vẽ trong mọi chế độ xem (Tuần / Tháng / Năm).
+   - **Nút Tròn `!` & Modal Chi Tiết Biến Động Chênh Lệch:**
+     - Thêm nút tròn `!` nhỏ ở cuối dòng so sánh (chỉ hiển thị riêng ở tab Chênh lệch).
+     - Bấm vào `!` mở modal popup hiển thị trực quan biến động của 🔵 **Thu nhập** (`↑ Tăng ...` hoặc `↓ Giảm ...` từ `X` ➔ `Y`) và 💖 **Chi tiêu** (`↑ Tăng ...` hoặc `↓ Giảm ...` từ `X` ➔ `Y`).
+   - **Khóa Chiều Cao Hero Box (Anti-Layout Shifting):**
+     - Cố định chiều cao `heroBox` và `compPillSlot` chống hoàn toàn hiện tượng co giật/biến dạng vị trí popup khi đổi tab hoặc chọn kỳ đầu tiên.
+
+2. **Tinh Gọn & Chuẩn Hóa Popup Tạo Tác Vụ Nhanh (`QuickActionBottomSheet.tsx`):**
+   - Xóa bỏ huy hiệu `"✨ AI Thông Minh"`.
+   - Thay thế icon máy ảnh 📸 thành icon mã QR `QrCode` (`lucide-react-native`) màu tím `#6366f1` trên nền `#ede9fe`.
+   - Xóa bỏ tất cả các chữ badge nhỏ ("Chi tiêu", "Nhóm chung", "Thu nhập") giúp giao diện thông thoáng, tối giản và chuyên nghiệp.
+
+3. **Làm Sạch Danh Mục Popup Chi Tiết Hóa Đơn (`EditTransactionModal.tsx` & `HistoryScreen.tsx`):**
+   - Xóa bỏ icon `🧾 ` cứng ở mục Danh mục trên popup Chi Tiết Hóa Đơn và danh sách lịch sử.
+   - Chỉ hiển thị tên danh mục dạng chữ thuần túy sạch sẽ (ví dụ: `[ Tiền nhà ]` thay vì `[ 🧾 Tiền nhà ]`).
 
 ### Session [2026-08-25] - Chuẩn Hóa Thuật Toán Tự Động Phân Bổ Tiết Kiệm (50% Idle Money Reserve Rule), Ràng Buộc 1 Lần/Tháng & Tinh Chỉnh Giao Diện Mobile
 

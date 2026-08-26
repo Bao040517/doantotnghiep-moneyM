@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   cameraOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15, 23, 42, 0.35)",
     alignItems: "center",
     justifyContent: "center",
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   cameraLoadingOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15, 23, 42, 0.85)",
     alignItems: "center",
     justifyContent: "center",

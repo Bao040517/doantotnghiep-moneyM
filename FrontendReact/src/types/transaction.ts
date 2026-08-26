@@ -63,6 +63,10 @@ export interface CashflowPoint {
   income: number;
   expense: number;
   net: number;
+  fullEndDateStr?: string;
+  startDateStr?: string;
+  endDateStr?: string;
+  isCurrent?: boolean;
 }
 
 export interface CashflowSummaryResponse {

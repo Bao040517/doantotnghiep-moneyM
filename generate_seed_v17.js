@@ -29,7 +29,7 @@ function generateTxnRef(year, month, day, hour, minute, second = 0, prefix = 'SM
     return `${prefix}${vnpTime}${randomHex}`;
 }
 
-// 5 User Personas with Special Banking Credentials for A, B, C
+// 5 User Personas with Special Banking Credentials for A, B, C & Push Tokens
 const users = [
     { 
         id: '1a111111-1111-4111-a111-111111111111', 
@@ -39,14 +39,15 @@ const users = [
         baseSalary: 18000000, 
         rentAmt: 1800000, 
         persona: 'SAVER', 
-        years: [2025, 2026], 
-        startYear: 2025, 
+        years: [2022, 2023, 2024, 2025, 2026], 
+        startYear: 2022, 
         sAmt1: 3500000, 
         sAmt2: 1500000, 
         bankBin: '970422', // MBBank
         bankAcc: '6617052004888', 
         bankAccName: 'DUONG DUC BAO',
-        bankName: 'MBBank'
+        bankName: 'MBBank',
+        pushToken: 'ExponentPushToken[mock_user_a_mbbank_01]'
     },
     { 
         id: '1b111111-1111-4111-a111-111111111111', 
@@ -63,7 +64,8 @@ const users = [
         bankBin: '970407', // Techcombank
         bankAcc: '6617052004', 
         bankAccName: 'NGUYEN VAN B',
-        bankName: 'Techcombank'
+        bankName: 'Techcombank',
+        pushToken: 'ExponentPushToken[mock_user_b_tcb_02]'
     },
     { 
         id: '1c111111-1111-4111-a111-111111111111', 
@@ -80,7 +82,8 @@ const users = [
         bankBin: '970426', // MSB
         bankAcc: '4517052004', 
         bankAccName: 'NGUYEN VAN C',
-        bankName: 'MSB'
+        bankName: 'MSB',
+        pushToken: 'ExponentPushToken[mock_user_c_msb_03]'
     },
     { 
         id: '1d111111-1111-4111-a111-111111111111', 
@@ -97,7 +100,8 @@ const users = [
         bankBin: '970418', // BIDV
         bankAcc: '10938888999', 
         bankAccName: 'PHAM VAN D',
-        bankName: 'BIDV'
+        bankName: 'BIDV',
+        pushToken: 'ExponentPushToken[mock_user_d_bidv_04]'
     },
     { 
         id: '1e111111-1111-4111-a111-111111111111', 
@@ -114,7 +118,8 @@ const users = [
         bankBin: '970423', // TPBank
         bankAcc: '10948888999', 
         bankAccName: 'HOANG THI E',
-        bankName: 'TPBank'
+        bankName: 'TPBank',
+        pushToken: 'ExponentPushToken[mock_user_e_tpb_05]'
     }
 ];
 
@@ -207,20 +212,17 @@ const categoryConfigs = [
 ];
 
 let sql = `-- ============================================================================
--- SHAREMONEY DATABASE SEED SCRIPT - VERSION 16 (SEED_V16.SQL)
--- Dữ liệu 20 tháng (01/2025 -> 20/08/2026), Mốc thời gian thực tế cắt tại 20/08/2026
--- ĐẶC BIỆT THẾ HỆ V16:
---   1. Chuẩn hóa toàn bộ hệ thống danh mục có đầy đủ "Tiền nước" (droplets, 🚿)
---   2. Cung cấp Payee Cấp nước Sawaco HCMC và ngân sách BILL Tiền nước riêng biệt
---   3. 3 User Đặc Biệt:
---      - nguyenvana@gmail.com -> MBBank (970422) - STK: 6617052004888 - DUONG DUC BAO
---      - nguyenvanb@gmail.com -> Techcombank (970407) - STK: 6617052004 - NGUYEN VAN B
---      - nguyenvanc@gmail.com -> MSB (970426) - STK: 4517052004 - NGUYEN VAN C
---   4. Đầy đủ ngân sách BILL (Tiền nhà, Tiền điện, Tiền nước, Internet 4G, Học phí, Bảo hiểm)
---      kèm thông tin STK thụ hưởng phục vụ test trọn vẹn luồng Trả ngay VietQR P2P & PayOS
+-- SHAREMONEY DATABASE SEED SCRIPT - GENERATION V17 (PRODUCTION LIVE SEED)
+-- Generated Date: 2026-08-26
+-- Parity: 100% Entity Parity with Spring Boot 3 (PostgreSQL Supabase / AWS EC2)
+-- Features:
+--   1. Realtime Native Push Notifications (push_token in users + is_read unread badge)
+--   2. Multi-Cycle Cashflow Engine (6 Weeks, 6 Months with Bi-directional Zero Baseline, 5 Years)
+--   3. Dedicated Water Bill (Tiền nước Sawaco, droplets)
+--   4. Designated Banks for A (MBBank 6617052004888), B (Techcombank), C (MSB)
+--   5. Strict Real-time Cutoff at 26/08/2026
 -- ============================================================================
 
--- ============================================================================
 -- 0. SCHEMA DEFINITIONS (CREATE TABLE IF NOT EXISTS)
 -- ============================================================================
 
@@ -253,16 +255,11 @@ CREATE TABLE IF NOT EXISTS wallets (
 
 CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL,
-    icon_name VARCHAR(50)
-);
-
-CREATE TABLE IF NOT EXISTS tags (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL
+    icon_name VARCHAR(100),
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS payees (
@@ -270,30 +267,33 @@ CREATE TABLE IF NOT EXISTS payees (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     bank_bin VARCHAR(20),
-    bank_name VARCHAR(255),
+    bank_name VARCHAR(100),
     bank_account VARCHAR(50),
     account_name VARCHAR(255),
     phone VARCHAR(50),
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS budgets (
+CREATE TABLE IF NOT EXISTS tags (
     id UUID PRIMARY KEY,
-    name VARCHAR(255),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-    limit_amount NUMERIC(19, 4) NOT NULL,
-    month INT NOT NULL,
-    year INT NOT NULL,
-    type VARCHAR(50) NOT NULL,
-    is_recurring BOOLEAN NOT NULL DEFAULT FALSE,
-    due_day_of_month INT,
-    is_mandatory BOOLEAN NOT NULL DEFAULT TRUE,
-    payee_id UUID,
-    payee_bank_bin VARCHAR(20),
-    payee_bank_account VARCHAR(50),
-    payee_account_name VARCHAR(255),
+    name VARCHAR(100) NOT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS external_loans (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    counterparty_name VARCHAR(255) NOT NULL,
+    principal_amount NUMERIC(19, 4) NOT NULL,
+    interest_rate NUMERIC(5, 2) DEFAULT 0,
+    start_date DATE NOT NULL,
+    due_date DATE,
+    description TEXT,
+    is_settled BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS savings_goals (
@@ -303,24 +303,53 @@ CREATE TABLE IF NOT EXISTS savings_goals (
     target_amount NUMERIC(19, 4) NOT NULL,
     current_amount NUMERIC(19, 4) NOT NULL DEFAULT 0,
     deadline_date DATE,
-    status VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'IN_PROGRESS',
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS external_loans (
+CREATE TABLE IF NOT EXISTS budgets (
     id UUID PRIMARY KEY,
+    name VARCHAR(255),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    limit_amount NUMERIC(19, 4) NOT NULL,
+    month INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    type VARCHAR(50) NOT NULL DEFAULT 'DYNAMIC',
+    is_recurring BOOLEAN NOT NULL DEFAULT FALSE,
+    due_day_of_month INTEGER,
+    is_mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+    payee_bank_bin VARCHAR(20),
+    payee_bank_account VARCHAR(50),
+    payee_account_name VARCHAR(255),
+    payee_id UUID REFERENCES payees(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS transactions (
+    id UUID PRIMARY KEY,
+    wallet_id UUID NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+    amount NUMERIC(19, 4) NOT NULL,
     type VARCHAR(50) NOT NULL,
-    counterparty_name VARCHAR(255) NOT NULL,
-    principal_amount NUMERIC(19, 4) NOT NULL,
-    interest_rate NUMERIC(5, 2),
-    start_date DATE,
-    due_date DATE,
-    description TEXT,
-    is_settled BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    linked_budget_id UUID REFERENCES budgets(id) ON DELETE SET NULL,
+    payee_id UUID REFERENCES payees(id) ON DELETE SET NULL,
+    transaction_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    note TEXT,
+    is_split BOOLEAN NOT NULL DEFAULT FALSE,
+    exclude_from_budget BOOLEAN NOT NULL DEFAULT FALSE,
+    is_auto_generated BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS transaction_splits (
+    id UUID PRIMARY KEY,
+    transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    amount NUMERIC(19, 4) NOT NULL,
+    note TEXT,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS groups (
@@ -336,18 +365,8 @@ CREATE TABLE IF NOT EXISTS group_members (
     id UUID PRIMARY KEY,
     group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role VARCHAR(50) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'member',
     joined_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS payments (
-    id UUID PRIMARY KEY,
-    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    payer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    receiver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    amount NUMERIC(19, 4) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS expenses (
@@ -356,7 +375,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     paid_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     amount NUMERIC(19, 4) NOT NULL,
-    category VARCHAR(100),
+    category VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -368,29 +387,14 @@ CREATE TABLE IF NOT EXISTS expense_splits (
     is_settled BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE TABLE IF NOT EXISTS transactions (
+CREATE TABLE IF NOT EXISTS payments (
     id UUID PRIMARY KEY,
-    wallet_id UUID NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
-    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    payer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    receiver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     amount NUMERIC(19, 4) NOT NULL,
-    type VARCHAR(50) NOT NULL,
-    note TEXT,
-    transaction_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    linked_expense_id UUID,
-    linked_budget_id UUID,
-    payee_id UUID,
-    is_split BOOLEAN NOT NULL DEFAULT FALSE,
-    exclude_from_budget BOOLEAN DEFAULT FALSE,
-    is_auto_generated BOOLEAN NOT NULL DEFAULT FALSE,
+    status VARCHAR(50) NOT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS transaction_splits (
-    id UUID PRIMARY KEY,
-    parent_transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
-    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-    amount NUMERIC(19, 4) NOT NULL,
-    note TEXT
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -434,6 +438,23 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tự động đồng bộ các cột mới nếu bảng đã tồn tại sẵn
+ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS push_token TEXT;
+ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS bank_bin VARCHAR(20);
+ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS bank_account_no VARCHAR(50);
+ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS bank_qr_url TEXT;
+
+ALTER TABLE IF EXISTS wallets ADD COLUMN IF NOT EXISTS bank_bin VARCHAR(20);
+ALTER TABLE IF EXISTS wallets ADD COLUMN IF NOT EXISTS bank_account_no VARCHAR(50);
+ALTER TABLE IF EXISTS wallets ADD COLUMN IF NOT EXISTS bank_account_name VARCHAR(255);
+
+ALTER TABLE IF EXISTS budgets ADD COLUMN IF NOT EXISTS payee_bank_bin VARCHAR(20);
+ALTER TABLE IF EXISTS budgets ADD COLUMN IF NOT EXISTS payee_bank_account VARCHAR(50);
+ALTER TABLE IF EXISTS budgets ADD COLUMN IF NOT EXISTS payee_account_name VARCHAR(255);
+ALTER TABLE IF EXISTS budgets ADD COLUMN IF NOT EXISTS payee_id UUID;
+ALTER TABLE IF EXISTS budgets ADD COLUMN IF NOT EXISTS is_mandatory BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE IF EXISTS budgets ADD COLUMN IF NOT EXISTS due_day_of_month INTEGER;
+
 -- Dọn dẹp dữ liệu cũ an toàn
 DO $$ 
 DECLARE 
@@ -447,10 +468,10 @@ BEGIN
     END LOOP;
 END $$;\n\n`;
 
-// Insert Users
+// Insert Users with push_token
 sql += `-- ========================= USERS =========================\n`;
-sql += `INSERT INTO users (id, email, password_hash, name, phone, avatar_url, bank_bin, bank_account_no, created_at) VALUES\n`;
-sql += users.map((u, i) => `('${u.id}', '${u.email}', '$2a$10$GK1LUpu5xnOCQt1I4V5zz.A4crOZWPjtcC3CHmaaZoqJitEgxpFXm', '${u.name}', '090${i}123456', '${u.avatar}', '${u.bankBin}', '${u.bankAcc}', '2025-01-01 08:00:00')`).join(',\n') + ';\n\n';
+sql += `INSERT INTO users (id, email, password_hash, name, phone, avatar_url, bank_bin, bank_account_no, push_token, created_at) VALUES\n`;
+sql += users.map((u, i) => `('${u.id}', '${u.email}', '$2a$10$GK1LUpu5xnOCQt1I4V5zz.A4crOZWPjtcC3CHmaaZoqJitEgxpFXm', '${u.name}', '090${i}123456', '${u.avatar}', '${u.bankBin}', '${u.bankAcc}', '${u.pushToken}', '2022-01-01 08:00:00')`).join(',\n') + ';\n\n';
 
 const state = {
     wallets: [],
@@ -512,7 +533,7 @@ users.forEach(u => {
     state.groupMembers.push(`('${uuid()}', '${groupDinnerId}', '${u.id}', '${u.id === users[2].id ? 'owner' : 'member'}', '2026-01-05 12:00:00')`);
 });
 
-// Periodic group activities across months up to 20/08/2026
+// Periodic group activities across months up to 26/08/2026
 const groupActivityMonths = [
     { year: 2026, month: 2, day: 18, title: 'Ăn trưa đầu năm đồng nghiệp', amount: 750000 },
     { year: 2026, month: 4, day: 22, title: 'Buffet lẩu nướng nhóm IT', amount: 900000 },
@@ -535,7 +556,7 @@ groupActivityMonths.forEach(act => {
         state.expenseSplits.push(`('${uuid()}', '${expId}', '${mem.id}', ${perPerson}, ${isPayer})`);
 
         if (!isPayer) {
-            const payDay = Math.min(20, act.day + 1);
+            const payDay = Math.min(26, act.day + 1);
             const payDStr = payDay.toString().padStart(2, '0');
             const payDate = `${act.year}-${mStr}-${payDStr} 10:15:00`;
             state.payments.push(`('${uuid()}', '${groupDinnerId}', '${mem.id}', '${users[2].id}', ${perPerson}, 'COMPLETED', '${payDate}')`);
@@ -543,11 +564,39 @@ groupActivityMonths.forEach(act => {
     });
 });
 
+const userWalletMap = {
+    '1a111111-1111-4111-a111-111111111111': {
+        main: '2a111111-1111-4111-a111-111111111111',
+        savings: '2a222222-2222-4222-a222-222222222222',
+        credit: '2a333333-3333-4333-a333-333333333333'
+    },
+    '1b111111-1111-4111-a111-111111111111': {
+        main: '2b111111-1111-4111-a111-111111111111',
+        savings: '2b222222-2222-4222-a222-222222222222',
+        credit: '2b333333-3333-4333-a333-333333333333'
+    },
+    '1c111111-1111-4111-a111-111111111111': {
+        main: '2c111111-1111-4111-a111-111111111111',
+        savings: '2c222222-2222-4222-a222-222222222222',
+        credit: '2c333333-3333-4333-a333-333333333333'
+    },
+    '1d111111-1111-4111-a111-111111111111': {
+        main: '2d111111-1111-4111-a111-111111111111',
+        savings: '2d222222-2222-4222-a222-222222222222',
+        credit: '2d333333-3333-4333-a333-333333333333'
+    },
+    '1e111111-1111-4111-a111-111111111111': {
+        main: '2e111111-1111-4111-a111-111111111111',
+        savings: '2e222222-2222-4222-a222-222222222222',
+        credit: '2e333333-3333-4333-a333-333333333333'
+    }
+};
+
 users.forEach(u => {
     const createdAt = `${u.startYear}-01-01 08:00:00`;
-    const wMain = uuid();
-    const wSavings = uuid();
-    const wCredit = uuid();
+    const wMain = userWalletMap[u.id].main;
+    const wSavings = userWalletMap[u.id].savings;
+    const wCredit = userWalletMap[u.id].credit;
 
     const categoryMap = {};
     categoryConfigs.forEach(c => {
@@ -557,66 +606,32 @@ users.forEach(u => {
     });
 
     // Custom payees per user tailored for testing VietQR P2P and Bill settlements
-    // Strictly UNIQUE bank_account per user_id
-    const userPayeeList = [];
-    if (u.id === users[0].id) {
-        // User A's Payees (Include User B Techcombank, User C MSB, EVN, Sawaco Water, Viettel, FPT, Bảo Việt)
-        userPayeeList.push(
-            { name: 'Nguyễn Văn B (Chủ nhà / Bạn thân)', bankBin: '970407', bankName: 'Techcombank', bankAccount: '6617052004', accountName: 'NGUYEN VAN B', phone: '0901234567' },
-            { name: 'Nguyễn Văn C (Trưởng nhóm)', bankBin: '970426', bankName: 'MSB', bankAccount: '4517052004', accountName: 'NGUYEN VAN C', phone: '0902234567' },
-            { name: 'Công ty Điện lực EVN HCMC', bankBin: '970436', bankName: 'VCB', bankAccount: '1012345678', accountName: 'EVN HCMC', phone: '1900545454' },
-            { name: 'Công ty Cấp nước Sawaco HCMC', bankBin: '970418', bankName: 'BIDV', bankAccount: '110022334455', accountName: 'SAWACO HCMC', phone: '19001589' },
-            { name: 'Tập đoàn Viễn thông Viettel', bankBin: '970407', bankName: 'Techcombank', bankAccount: '19033338888', accountName: 'VIETTEL TELECOM', phone: '18008098' },
-            { name: 'Trường Đại Học FPT (Học phí)', bankBin: '970423', bankName: 'TPBank', bankAccount: '00001928374', accountName: 'DAI HOC FPT', phone: '02873005588' },
-            { name: 'Bảo Hiểm Y Tế Bảo Việt', bankBin: '970418', bankName: 'BIDV', bankAccount: '21510001234567', accountName: 'BAO VIET INSURANCE', phone: '1900558899' }
-        );
-    } else if (u.id === users[1].id) {
-        // User B's Payees (Include User A MBBank, User C MSB, EVN, Sawaco Water, Viettel, FPT Telecom, Hoàn Mỹ)
-        userPayeeList.push(
-            { name: 'Nguyễn Văn A (Chủ phòng)', bankBin: '970422', bankName: 'MBBank', bankAccount: '6617052004888', accountName: 'DUONG DUC BAO', phone: '0900123456' },
-            { name: 'Nguyễn Văn C (Chủ nhà trọ)', bankBin: '970426', bankName: 'MSB', bankAccount: '4517052004', accountName: 'NGUYEN VAN C', phone: '0902234567' },
-            { name: 'Công ty Điện lực EVN HCMC', bankBin: '970436', bankName: 'VCB', bankAccount: '1012345678', accountName: 'EVN HCMC', phone: '1900545454' },
-            { name: 'Công ty Cấp nước Sawaco HCMC', bankBin: '970418', bankName: 'BIDV', bankAccount: '110022334455', accountName: 'SAWACO HCMC', phone: '19001589' },
-            { name: 'Tập đoàn Viễn thông Viettel', bankBin: '970407', bankName: 'Techcombank', bankAccount: '19033338888', accountName: 'VIETTEL TELECOM', phone: '18008098' },
-            { name: 'Dịch vụ Internet FPT Telecom', bankBin: '970423', bankName: 'TPBank', bankAccount: '00001928374', accountName: 'FPT TELECOM', phone: '19006600' },
-            { name: 'Bệnh Viện Đa Khoa Hoàn Mỹ', bankBin: '970418', bankName: 'BIDV', bankAccount: '21510001234567', accountName: 'BENH VIEN HOAN MY', phone: '02839902468' }
-        );
-    } else if (u.id === users[2].id) {
-        // User C's Payees (Include User A MBBank, User B Techcombank, EVN, Sawaco Water, Viettel, VUS, CarePlus)
-        userPayeeList.push(
-            { name: 'Nguyễn Văn A (Nhận tiền thuê nhà)', bankBin: '970422', bankName: 'MBBank', bankAccount: '6617052004888', accountName: 'DUONG DUC BAO', phone: '0900123456' },
-            { name: 'Nguyễn Văn B (Thủ quỹ nhóm)', bankBin: '970407', bankName: 'Techcombank', bankAccount: '6617052004', accountName: 'NGUYEN VAN B', phone: '0901234567' },
-            { name: 'Công ty Điện lực EVN HCMC', bankBin: '970436', bankName: 'VCB', bankAccount: '1012345678', accountName: 'EVN HCMC', phone: '1900545454' },
-            { name: 'Công ty Cấp nước Sawaco HCMC', bankBin: '970418', bankName: 'BIDV', bankAccount: '110022334455', accountName: 'SAWACO HCMC', phone: '19001589' },
-            { name: 'Tập đoàn Viễn thông Viettel', bankBin: '970407', bankName: 'Techcombank', bankAccount: '19033338888', accountName: 'VIETTEL TELECOM', phone: '18008098' },
-            { name: 'Trung Tâm Anh Ngữ VUS (Học phí)', bankBin: '970423', bankName: 'TPBank', bankAccount: '00001928374', accountName: 'ANH VAN HOI VIET MY', phone: '02873083333' },
-            { name: 'Phòng Khám Đa Khoa CarePlus', bankBin: '970418', bankName: 'BIDV', bankAccount: '21510001234567', accountName: 'CAREPLUS CLINIC', phone: '18006116' }
-        );
-    } else {
-        // Default templates for D and E
-        userPayeeList.push(
-            { name: 'Chủ nhà trọ Nguyễn Văn Bính', bankBin: '970422', bankName: 'MBBank', bankAccount: '6617052004888', accountName: 'DUONG DUC BAO', phone: '0901888999' },
-            { name: 'Công ty Điện lực EVN HCMC', bankBin: '970436', bankName: 'VCB', bankAccount: '1012345678', accountName: 'EVN HCMC', phone: '1900545454' },
-            { name: 'Công ty Cấp nước Sawaco HCMC', bankBin: '970418', bankName: 'BIDV', bankAccount: '110022334455', accountName: 'SAWACO HCMC', phone: '19001589' },
-            { name: 'Tập đoàn Viễn thông Viettel', bankBin: '970407', bankName: 'Techcombank', bankAccount: '19033338888', accountName: 'VIETTEL TELECOM', phone: '18008098' },
-            { name: 'WinMart Vincom Mega', bankBin: '970418', bankName: 'BIDV', bankAccount: '21510001234567', accountName: 'WINCOMMERCE JSC', phone: '02471066866' }
-        );
-    }
-
     const payeeMap = {};
     const pArr = [];
-    userPayeeList.forEach(p => {
+
+    const customPayeeConfigs = [
+        { name: 'Chủ nhà Trọ Hoàng Cầu', bin: '970422', bank: 'MBBank', acc: '0988776655', accName: 'NGUYEN VAN CHU NHA', phone: '0988776655' },
+        { name: 'Công ty Điện lực EVN HCMC', bin: '970436', bank: 'Vietcombank', acc: '1012345678', accName: 'EVN HCMC', phone: '19001006' },
+        { name: 'Công ty Cấp nước Sawaco HCMC', bin: '970418', bank: 'BIDV', acc: '110022334455', accName: 'SAWACO HCMC', phone: '19001122' },
+        { name: 'Viettel Telecom', bin: '970407', bank: 'Techcombank', acc: '19033338888', accName: 'VIETTEL TELECOM', phone: '18008098' },
+        { name: 'Siêu thị WinMart+ Vincom', bin: '970415', bank: 'VietinBank', acc: '113000998877', accName: 'WINMART VINCOM', phone: '02471066866' },
+        { name: 'Đại Học FPT / Aptech', bin: '970423', bank: 'TPBank', acc: '00008888123', accName: 'FPT EDUCATION', phone: '02873005588' },
+        { name: 'Phòng khám Đa khoa CarePlus', bin: '970432', bank: 'VPBank', acc: '888899990000', accName: 'CAREPLUS CLINIC', phone: '18006116' }
+    ];
+
+    customPayeeConfigs.forEach((cfg, idx) => {
         const pId = uuid();
+        const accNo = `${cfg.acc}_${u.email.split('@')[0]}`;
+        payeeMap[cfg.name] = { id: pId, bin: cfg.bin, acc: accNo, accName: cfg.accName };
         pArr.push(pId);
-        payeeMap[p.name] = { id: pId, ...p };
-        state.payees.push(`('${pId}', '${u.id}', '${p.name}', '${p.bankBin}', '${p.bankName}', '${p.bankAccount}', '${p.accountName}', '${p.phone}', '${createdAt}')`);
+        state.payees.push(`('${pId}', '${u.id}', '${cfg.name}', '${cfg.bin}', '${cfg.bank}', '${accNo}', '${cfg.accName}', '${cfg.phone}', '${createdAt}')`);
     });
 
-    ['#an_uong', '#mua_sam', '#cong_viec', '#du_lich'].forEach(tag => {
-        state.tags.push(`('${uuid()}', '${u.id}', '${tag}')`);
+    ['Cá nhân', 'Gia đình', 'Công việc', 'Học tập', 'Du lịch'].forEach(t => {
+        state.tags.push(`('${uuid()}', '${u.id}', '${t}')`);
     });
 
-    // External Loans
+    // Loans
     state.loans.push(`('${uuid()}', '${u.id}', 'BORROWED', '${u.bankName}', 15000000, 7.5, '${u.startYear}-01-15', '${u.startYear + 2}-01-15', 'Vay mua laptop trả góp', false, '${createdAt}', '${createdAt}')`);
     state.loans.push(`('${uuid()}', '${u.id}', 'LENT', 'Trần Văn Hưng (Đồng nghiệp)', 3000000, 0.0, '${u.startYear}-03-10', '${u.startYear + 1}-03-10', 'Cho bạn mượn tiền đóng học', false, '${createdAt}', '${createdAt}')`);
 
@@ -624,16 +639,27 @@ users.forEach(u => {
     state.savings.push(`('${uuid()}', '${u.id}', 'Quỹ Khẩn Cấp 3 Tháng Chi Tiêu', 15000000, ${u.sAmt1}, '2026-12-31', 'IN_PROGRESS', '${createdAt}', '${createdAt}')`);
     state.savings.push(`('${uuid()}', '${u.id}', 'Đổi Điện Thoại Mới', 10000000, ${u.sAmt2}, '2026-11-30', 'IN_PROGRESS', '${createdAt}', '${createdAt}')`);
 
-    // Notifications
-    state.notifs.push(`('${uuid()}', '${u.id}', 'Chào mừng bạn đến với ShareMoney! Hãy thiết lập ngân sách đầu tiên.', 'SYSTEM', true, '${createdAt}')`);
-    state.notifs.push(`('${uuid()}', '${u.id}', 'Ngân sách Ăn uống tháng 08/2026 của bạn đã chi tiêu đạt 107.5% hạn mức. Đề xuất tái cân bằng!', 'BUDGET_WARNING', false, '2026-08-14 10:00:00')`);
-    state.notifs.push(`('${uuid()}', '${u.id}', 'Giao dịch thanh toán PayOS thành công: 350.000 ₫ (Mã ĐH: POS17867291)', 'PAYMENT_SUCCESS', false, '2026-08-15 14:00:00')`);
-    state.notifs.push(`('${uuid()}', '${u.id}', 'Lời khuyên tài chính: Bạn đã hoàn thành 70% mục tiêu quỹ khẩn cấp ngày 20/08/2026.', 'SYSTEM', false, '2026-08-20 09:00:00')`);
+    // Notifications (V17 Realtime Push & Dynamic Bell Badge)
+    if (u.id === users[0].id) {
+        // User A (4 unread notifications on Aug 24, 25, 26 -> Badge shows '4' on bell)
+        state.notifs.push(`('${uuid()}', '${u.id}', 'Chào mừng bạn đến với ShareMoney! Hãy thiết lập ngân sách đầu tiên.', 'SYSTEM', true, '2026-01-01 08:00:00')`);
+        state.notifs.push(`('${uuid()}', '${u.id}', 'Hóa đơn tiền điện EVN T7/2026 (620.000 ₫) đã thanh toán thành công qua VNPay.', 'PAYMENT_APPROVED', true, '2026-07-15 14:30:00')`);
+        state.notifs.push(`('${uuid()}', '${u.id}', 'Nguyễn Văn B đã thanh toán 300.000 ₫ tiền nợ thuê xe cho bạn.', 'PAYMENT_RECEIVED', true, '2026-08-16 10:00:00')`);
+        state.notifs.push(`('${uuid()}', '${u.id}', 'Ngân sách Ăn uống tháng 08/2026 của bạn đã đạt 85% hạn mức. Hãy chú ý chi tiêu!', 'BUDGET_WARNING', false, '2026-08-24 09:15:00')`);
+        state.notifs.push(`('${uuid()}', '${u.id}', '🔔 Nguyễn Văn C vừa nhắc bạn trả 500.000 ₫ tiền Homestay nghỉ dưỡng cuối tuần.', 'REMIND_DEBT', false, '2026-08-24 18:45:00')`);
+        state.notifs.push(`('${uuid()}', '${u.id}', '🎉 Hóa đơn Tiền nước sinh hoạt Sawaco (135.000 ₫) đã được thanh toán thành công!', 'PAYMENT_APPROVED', false, '2026-08-25 11:20:00')`);
+        state.notifs.push(`('${uuid()}', '${u.id}', '⚠️ Phát hiện khoản chi bất thường: 1.850.000 ₫ tại Tiền nhà vượt 2.1x trung bình 3 tháng!', 'Z_SCORE_ANOMALY', false, '2026-08-26 08:30:00')`);
+    } else {
+        state.notifs.push(`('${uuid()}', '${u.id}', 'Chào mừng bạn đến với ShareMoney! Hãy thiết lập ngân sách đầu tiên.', 'SYSTEM', true, '${createdAt}')`);
+        state.notifs.push(`('${uuid()}', '${u.id}', 'Ngân sách Ăn uống tháng 08/2026 của bạn đã chi tiêu vượt hạn mức. Đề xuất tái cân bằng!', 'BUDGET_WARNING', false, '2026-08-24 10:00:00')`);
+        state.notifs.push(`('${uuid()}', '${u.id}', '🔔 Bạn có khoản nợ 400.000 ₫ từ Nguyễn Văn A chưa thanh toán.', 'REMIND_DEBT', false, '2026-08-25 15:30:00')`);
+        state.notifs.push(`('${uuid()}', '${u.id}', 'Giao dịch thanh toán hóa đơn thành công: 450.000 ₫ qua VNPay.', 'PAYMENT_APPROVED', false, '2026-08-26 09:00:00')`);
+    }
 
     let netMainBalance = 0;
 
     u.years.forEach(year => {
-        const startM = (year === 2025) ? 1 : 1;
+        const startM = 1;
         const endM = (year === 2026) ? 8 : 12;
 
         for (let m = startM; m <= endM; m++) {
@@ -641,126 +667,128 @@ users.forEach(u => {
             const salaryDate = `${year}-${mStr}-05 08:30:00`;
             const bonusDate = `${year}-${mStr}-25 17:00:00`;
 
-            // 1. Income: Salary (every month on day 5)
-            state.txs.push(`('${uuid()}', '${wMain}', ${u.baseSalary}, 'INCOME', '${categoryMap['Tiền lương']}', NULL, '${pArr[0]}', '${salaryDate}', 'Nhận lương tháng ${mStr}/${year}', false, false, false, '${salaryDate}')`);
-            netMainBalance += u.baseSalary;
+            // Adjust historical salary for inflation/progression
+            let effectiveSalary = u.baseSalary;
+            if (year === 2022) effectiveSalary = Math.round(u.baseSalary * 0.8 / 100000) * 100000;
+            else if (year === 2023) effectiveSalary = Math.round(u.baseSalary * 0.85 / 100000) * 100000;
+            else if (year === 2024) effectiveSalary = Math.round(u.baseSalary * 0.9 / 100000) * 100000;
+            else if (year === 2025) effectiveSalary = Math.round(u.baseSalary * 0.95 / 100000) * 100000;
 
-            // 2. Income: Bonus (past months T3, T6; not T8 because day 25 > 20)
+            // 1. Income: Salary (every month on day 5)
+            state.txs.push(`('${uuid()}', '${wMain}', ${effectiveSalary}, 'INCOME', '${categoryMap['Tiền lương']}', NULL, '${pArr[0]}', '${salaryDate}', 'Nhận lương tháng ${mStr}/${year}', false, false, false, '${salaryDate}')`);
+            netMainBalance += effectiveSalary;
+
+            // 2. Income: Bonus (past months T3, T6; not T8 because day 25 is close to cutoff)
             if (m % 3 === 0 && (year < 2026 || m < 8)) {
                 const bonusAmt = 1500000;
-                state.txs.push(`('${uuid()}', '${wMain}', ${bonusAmt}, 'INCOME', '${categoryMap['Thưởng']}', NULL, '${pArr[0]}', '${bonusDate}', 'Thưởng chuyên cần Quý ${m/3}', false, false, false, '${bonusDate}')`);
+                state.txs.push(`('${uuid()}', '${wMain}', ${bonusAmt}, 'INCOME', '${categoryMap['Thưởng']}', NULL, '${pArr[0]}', '${bonusDate}', 'Thưởng hiệu suất Quý tháng ${mStr}/${year}', false, false, false, '${bonusDate}')`);
                 netMainBalance += bonusAmt;
             }
 
-            // 3. Budgets for this month - BILL BUDGETS WITH DEDICATED WATER BILL (TIỀN NƯỚC)
+            // 3. Budgets creation per month (Active from 2025 onwards)
             const budgetIdMap = {};
-            const bConfigs = [];
+            if (year >= 2025) {
+                const budgetLimits = {
+                    'Ăn uống': { limit: 2000000, type: 'FLEXIBLE', isRec: true, dueDay: 28, isMand: false, payee: null },
+                    'Chi tiêu hàng ngày': { limit: 1500000, type: 'FLEXIBLE', isRec: true, dueDay: 28, isMand: false, payee: null },
+                    'Quần áo': { limit: 1000000, type: 'FLEXIBLE', isRec: true, dueDay: 28, isMand: false, payee: null },
+                    'Mỹ phẩm': { limit: 500000, type: 'FLEXIBLE', isRec: true, dueDay: 28, isMand: false, payee: null },
+                    'Phí giao lưu': { limit: 1500000, type: 'FLEXIBLE', isRec: true, dueDay: 28, isMand: false, payee: null },
+                    'Y tế': { limit: 500000, type: 'BILL', isRec: true, dueDay: 20, isMand: true, payee: 'Phòng khám Đa khoa CarePlus' },
+                    'Giáo dục': { limit: 1000000, type: 'BILL', isRec: true, dueDay: 15, isMand: true, payee: 'Đại Học FPT / Aptech' },
+                    'Tiền điện': { limit: 750000, type: 'BILL', isRec: true, dueDay: 10, isMand: true, payee: 'Công ty Điện lực EVN HCMC' },
+                    'Tiền nước': { limit: 165000, type: 'BILL', isRec: true, dueDay: 14, isMand: true, payee: 'Công ty Cấp nước Sawaco HCMC' },
+                    'Đi lại': { limit: 800000, type: 'FLEXIBLE', isRec: true, dueDay: 28, isMand: false, payee: null },
+                    'Phí liên lạc': { limit: 200000, type: 'BILL', isRec: true, dueDay: 12, isMand: true, payee: 'Viettel Telecom' },
+                    'Tiền nhà': { limit: u.rentAmt, type: 'BILL', isRec: true, dueDay: 5, isMand: true, payee: 'Chủ nhà Trọ Hoàng Cầu' }
+                };
 
-            if (u.id === users[0].id) {
-                // USER A: BILL BUDGETS (Tiền nhà -> B Techcombank, Tiền điện -> EVN, Tiền nước -> Sawaco, Phí liên lạc -> Viettel, Học phí -> FPT, Y tế -> Bảo Việt)
-                bConfigs.push(
-                    { name: 'Tiền nhà', limit: 1800000, due: 5, payee: payeeMap['Nguyễn Văn B (Chủ nhà / Bạn thân)'], type: 'BILL', mand: true },
-                    { name: 'Tiền điện', limit: 750000, due: 10, payee: payeeMap['Công ty Điện lực EVN HCMC'], type: 'BILL', mand: true },
-                    { name: 'Tiền nước', limit: 180000, due: 12, payee: payeeMap['Công ty Cấp nước Sawaco HCMC'], type: 'BILL', mand: true },
-                    { name: 'Phí liên lạc', limit: 250000, due: 20, payee: payeeMap['Tập đoàn Viễn thông Viettel'], type: 'BILL', mand: true },
-                    { name: 'Giáo dục', limit: 1200000, due: 25, payee: payeeMap['Trường Đại Học FPT (Học phí)'], type: 'BILL', mand: true },
-                    { name: 'Y tế', limit: 500000, due: 15, payee: payeeMap['Bảo Hiểm Y Tế Bảo Việt'], type: 'BILL', mand: true },
-                    { name: 'Ăn uống', limit: 2000000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Chi tiêu hàng ngày', limit: 1500000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Phí giao lưu', limit: 1500000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Quần áo', limit: 1000000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Đi lại', limit: 800000, due: null, payee: null, type: 'FLEXIBLE', mand: false }
-                );
-            } else if (u.id === users[1].id) {
-                // USER B: BILL BUDGETS (Tiền nhà -> C MSB, Tiền điện -> EVN, Tiền nước -> Sawaco, Phí liên lạc -> Viettel, Học phí, Y tế)
-                bConfigs.push(
-                    { name: 'Tiền nhà', limit: 1500000, due: 5, payee: payeeMap['Nguyễn Văn C (Chủ nhà trọ)'], type: 'BILL', mand: true },
-                    { name: 'Tiền điện', limit: 650000, due: 10, payee: payeeMap['Công ty Điện lực EVN HCMC'], type: 'BILL', mand: true },
-                    { name: 'Tiền nước', limit: 150000, due: 12, payee: payeeMap['Công ty Cấp nước Sawaco HCMC'], type: 'BILL', mand: true },
-                    { name: 'Phí liên lạc', limit: 200000, due: 20, payee: payeeMap['Tập đoàn Viễn thông Viettel'], type: 'BILL', mand: true },
-                    { name: 'Giáo dục', limit: 800000, due: 25, payee: payeeMap['Dịch vụ Internet FPT Telecom'], type: 'BILL', mand: true },
-                    { name: 'Y tế', limit: 400000, due: 15, payee: payeeMap['Bệnh Viện Đa Khoa Hoàn Mỹ'], type: 'BILL', mand: true },
-                    { name: 'Ăn uống', limit: 2000000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Chi tiêu hàng ngày', limit: 1500000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Phí giao lưu', limit: 1200000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Quần áo', limit: 800000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Đi lại', limit: 700000, due: null, payee: null, type: 'FLEXIBLE', mand: false }
-                );
-            } else if (u.id === users[2].id) {
-                // USER C: BILL BUDGETS (Tiền nhà -> A MBBank, Tiền điện -> EVN, Tiền nước -> Sawaco, Phí liên lạc -> Viettel, Học phí -> VUS, Y tế -> CarePlus)
-                bConfigs.push(
-                    { name: 'Tiền nhà', limit: 1600000, due: 5, payee: payeeMap['Nguyễn Văn A (Nhận tiền thuê nhà)'], type: 'BILL', mand: true },
-                    { name: 'Tiền điện', limit: 700000, due: 10, payee: payeeMap['Công ty Điện lực EVN HCMC'], type: 'BILL', mand: true },
-                    { name: 'Tiền nước', limit: 160000, due: 12, payee: payeeMap['Công ty Cấp nước Sawaco HCMC'], type: 'BILL', mand: true },
-                    { name: 'Phí liên lạc', limit: 220000, due: 20, payee: payeeMap['Tập đoàn Viễn thông Viettel'], type: 'BILL', mand: true },
-                    { name: 'Giáo dục', limit: 1000000, due: 25, payee: payeeMap['Trung Tâm Anh Ngữ VUS (Học phí)'], type: 'BILL', mand: true },
-                    { name: 'Y tế', limit: 450000, due: 15, payee: payeeMap['Phòng Khám Đa Khoa CarePlus'], type: 'BILL', mand: true },
-                    { name: 'Ăn uống', limit: 2000000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Chi tiêu hàng ngày', limit: 1500000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Phí giao lưu', limit: 1400000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Quần áo', limit: 900000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Đi lại', limit: 750000, due: null, payee: null, type: 'FLEXIBLE', mand: false }
-                );
-            } else {
-                // Users D & E
-                bConfigs.push(
-                    { name: 'Ăn uống', limit: 2000000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Tiền nhà', limit: Math.min(2000000, u.rentAmt), due: 5, payee: payeeMap['Chủ nhà trọ Nguyễn Văn Bính'], type: 'BILL', mand: true },
-                    { name: 'Chi tiêu hàng ngày', limit: 1500000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Phí giao lưu', limit: 1500000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Quần áo', limit: 1000000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Đi lại', limit: 800000, due: null, payee: null, type: 'FLEXIBLE', mand: false },
-                    { name: 'Tiền điện', limit: 750000, due: 15, payee: payeeMap['Công ty Điện lực EVN HCMC'], type: 'BILL', mand: true },
-                    { name: 'Tiền nước', limit: 150000, due: 18, payee: payeeMap['Công ty Cấp nước Sawaco HCMC'], type: 'BILL', mand: true },
-                    { name: 'Phí liên lạc', limit: 200000, due: 20, payee: payeeMap['Tập đoàn Viễn thông Viettel'], type: 'BILL', mand: true }
-                );
+                Object.entries(budgetLimits).forEach(([catName, bCfg]) => {
+                    const bId = uuid();
+                    budgetIdMap[catName] = bId;
+                    let bName = `Ngân sách ${catName}`;
+                    let payeeBin = 'NULL';
+                    let payeeAcc = 'NULL';
+                    let payeeAccName = 'NULL';
+                    let pIdVal = 'NULL';
+
+                    if (bCfg.type === 'BILL' && bCfg.payee && payeeMap[bCfg.payee]) {
+                        const pInfo = payeeMap[bCfg.payee];
+                        payeeBin = `'${pInfo.bin}'`;
+                        payeeAcc = `'${pInfo.acc}'`;
+                        payeeAccName = `'${pInfo.accName}'`;
+                        pIdVal = `'${pInfo.id}'`;
+                    }
+
+                    // Special P2P rent payment link between A -> B -> C
+                    if (catName === 'Tiền nhà') {
+                        if (u.id === users[0].id) {
+                            bName = 'Tiền nhà phòng trọ (B Techcombank)';
+                            payeeBin = `'${users[1].bankBin}'`;
+                            payeeAcc = `'${users[1].bankAcc}'`;
+                            payeeAccName = `'${users[1].bankAccName}'`;
+                        } else if (u.id === users[1].id) {
+                            bName = 'Tiền nhà phòng trọ (C MSB)';
+                            payeeBin = `'${users[2].bankBin}'`;
+                            payeeAcc = `'${users[2].bankAcc}'`;
+                            payeeAccName = `'${users[2].bankAccName}'`;
+                        } else if (u.id === users[2].id) {
+                            bName = 'Tiền nhà phòng trọ (A MBBank)';
+                            payeeBin = `'${users[0].bankBin}'`;
+                            payeeAcc = `'${users[0].bankAcc}'`;
+                            payeeAccName = `'${users[0].bankAccName}'`;
+                        }
+                    }
+
+                    state.budgets.push(`('${bId}', '${bName}', '${u.id}', '${categoryMap[catName]}', ${bCfg.limit}, ${m}, ${year}, '${bCfg.type}', ${bCfg.isRec}, ${bCfg.dueDay}, ${bCfg.isMand}, ${payeeBin}, ${payeeAcc}, ${payeeAccName}, ${pIdVal}, '${createdAt}')`);
+                });
             }
 
-            bConfigs.forEach(bc => {
-                const bId = uuid();
-                budgetIdMap[bc.name] = bId;
-                const pObj = bc.payee;
-                const pIdVal = pObj ? `'${pObj.id}'` : 'NULL';
-                const binVal = pObj ? `'${pObj.bankBin}'` : 'NULL';
-                const accVal = pObj ? `'${pObj.bankAccount}'` : 'NULL';
-                const nameVal = pObj ? `'${pObj.accountName}'` : 'NULL';
-                const dueVal = bc.due ? bc.due : 'NULL';
-                state.budgets.push(`('${bId}', '${bc.name}', '${u.id}', '${categoryMap[bc.name]}', ${bc.limit}, ${m}, ${year}, '${bc.type}', true, ${dueVal}, ${bc.mand}, ${binVal}, ${accVal}, ${nameVal}, ${pIdVal}, '${year}-${mStr}-01 08:00:00')`);
-            });
-
-            // 4. Fixed Monthly Expenses & Daily Expenses
-            if (year < 2026 || m <= 7) {
-                // Past months: settle all fixed bills
+            // 4. Past months transactions (All months before August 2026)
+            if (year < 2026 || m < 8) {
                 // Rent
-                const rentDate = `${year}-${mStr}-05 10:00:00`;
-                state.txs.push(`('${uuid()}', '${wMain}', ${u.rentAmt}, 'EXPENSE', '${categoryMap['Tiền nhà']}', '${budgetIdMap['Tiền nhà']}', '${pArr[0]}', '${rentDate}', 'Thanh toán tiền nhà tháng ${mStr}/${year}', false, false, false, '${rentDate}')`);
+                const rentTxDate = `${year}-${mStr}-05 10:00:00`;
+                const rentBId = budgetIdMap['Tiền nhà'] ? `'${budgetIdMap['Tiền nhà']}'` : 'NULL';
+                state.txs.push(`('${uuid()}', '${wMain}', ${u.rentAmt}, 'EXPENSE', '${categoryMap['Tiền nhà']}', ${rentBId}, '${pArr[0]}', '${rentTxDate}', 'Thanh toán tiền phòng trọ tháng ${mStr}', false, false, false, '${rentTxDate}')`);
                 netMainBalance -= u.rentAmt;
 
                 // Electricity
                 const elecDate = `${year}-${mStr}-10 14:00:00`;
-                const elecAmt = randomInt(350000, 650000);
-                state.txs.push(`('${uuid()}', '${wMain}', ${elecAmt}, 'EXPENSE', '${categoryMap['Tiền điện']}', '${budgetIdMap['Tiền điện']}', '${pArr[2] || pArr[1]}', '${elecDate}', 'Thanh toán tiền điện EVN T${mStr}', false, false, false, '${elecDate}')`);
+                const elecAmt = randomInt(420000, 680000);
+                const elecBId = budgetIdMap['Tiền điện'] ? `'${budgetIdMap['Tiền điện']}'` : 'NULL';
+                state.txs.push(`('${uuid()}', '${wMain}', ${elecAmt}, 'EXPENSE', '${categoryMap['Tiền điện']}', ${elecBId}, '${pArr[1]}', '${elecDate}', 'Thanh toán tiền điện EVN T${mStr}', false, false, false, '${elecDate}')`);
                 netMainBalance -= elecAmt;
 
-                // Water
+                // Water bill
                 const waterDate = `${year}-${mStr}-12 11:30:00`;
                 const waterAmt = randomInt(75000, 135000);
-                state.txs.push(`('${uuid()}', '${wMain}', ${waterAmt}, 'EXPENSE', '${categoryMap['Tiền nước']}', '${budgetIdMap['Tiền nước']}', '${payeeMap['Công ty Cấp nước Sawaco HCMC']?.id || pArr[3]}', '${waterDate}', 'Thanh toán tiền nước sinh hoạt Sawaco T${mStr}', false, false, false, '${waterDate}')`);
+                const waterBId = budgetIdMap['Tiền nước'] ? `'${budgetIdMap['Tiền nước']}'` : 'NULL';
+                state.txs.push(`('${uuid()}', '${wMain}', ${waterAmt}, 'EXPENSE', '${categoryMap['Tiền nước']}', ${waterBId}, '${payeeMap['Công ty Cấp nước Sawaco HCMC']?.id || pArr[2]}', '${waterDate}', 'Thanh toán tiền nước Sawaco T${mStr}', false, false, false, '${waterDate}')`);
                 netMainBalance -= waterAmt;
 
-                // Phone/Internet
-                const phoneDate = `${year}-${mStr}-20 09:30:00`;
-                const phoneAmt = 90000;
-                state.txs.push(`('${uuid()}', '${wMain}', ${phoneAmt}, 'EXPENSE', '${categoryMap['Phí liên lạc']}', '${budgetIdMap['Phí liên lạc']}', '${payeeMap['Tập đoàn Viễn thông Viettel']?.id || pArr[4]}', '${phoneDate}', 'Nạp tiền 4G Viettel tháng ${mStr}', false, false, false, '${phoneDate}')`);
+                // Phone/4G
+                const phoneDate = `${year}-${mStr}-11 09:30:00`;
+                const phoneAmt = randomInt(70000, 120000);
+                const phoneBId = budgetIdMap['Phí liên lạc'] ? `'${budgetIdMap['Phí liên lạc']}'` : 'NULL';
+                state.txs.push(`('${uuid()}', '${wMain}', ${phoneAmt}, 'EXPENSE', '${categoryMap['Phí liên lạc']}', ${phoneBId}, '${pArr[3]}', '${phoneDate}', 'Cước 4G Viettel tháng ${mStr}', false, false, false, '${phoneDate}')`);
                 netMainBalance -= phoneAmt;
 
-                // Rich Flexible Daily Expenses for past months (20-26 transactions/month)
+                // Daily spending categories
                 const expenseCategories = ['Ăn uống', 'Chi tiêu hàng ngày', 'Quần áo', 'Mỹ phẩm', 'Phí giao lưu', 'Y tế', 'Giáo dục', 'Đi lại'];
-                const txCount = randomInt(20, 26);
+                const daysInM = (m === 2) ? 28 : (([4, 6, 9, 11].includes(m)) ? 30 : 31);
+                
+                // For past years 2022-2024: 3 representative transactions per month to keep file slim & fast
+                // For 2025-2026: 10-14 granular transactions
+                let txCount = (year < 2025) ? 3 : randomInt(10, 14);
+
+                // In 2026: Intentionally configure April & July as deficit months (expense > income) for User A to demonstrate bi-directional chart!
+                if (year === 2026 && (m === 4 || m === 7) && u.id === users[0].id) {
+                    txCount = 18; // Generates ~19M expense, exceeding 18M income!
+                }
 
                 for (let i = 0; i < txCount; i++) {
-                    const day = randomInt(1, 28);
-                    const hour = randomInt(7, 21);
+                    const day = randomInt(1, daysInM);
+                    const hour = randomInt(7, 22);
                     const minute = randomInt(0, 59);
                     const txDate = formatDate(year, m, day, hour, minute);
 
@@ -768,7 +796,7 @@ users.forEach(u => {
                     const catId = categoryMap[catName];
                     const items = categoryItemsMap[catName] || [{ name: `Chi phí ${catName}`, min: 30000, max: 90000 }];
                     const chosenItem = randomElement(items);
-                    const rawAmt = randomInt(chosenItem.min, chosenItem.max);
+                    const rawAmt = (year < 2025) ? randomInt(chosenItem.min * 2, chosenItem.max * 2) : randomInt(chosenItem.min, chosenItem.max);
                     const amt = Math.round(rawAmt / 1000) * 1000;
 
                     const chosenPayee = randomElement(pArr);
@@ -777,77 +805,88 @@ users.forEach(u => {
                     state.txs.push(`('${uuid()}', '${wMain}', ${amt}, 'EXPENSE', '${catId}', ${linkedBId}, '${chosenPayee}', '${txDate}', '${chosenItem.name}', false, false, false, '${txDate}')`);
                     netMainBalance -= amt;
                 }
-            } else if (year === 2026 && m === 8) {
-                // ══════════════════════════════════════════════════════════════════
-                // CURRENT MONTH (AUGUST 2026) - LEAVE BILL BUDGETS UNPAID OR PARTIALLY PAID
-                // TO ALLOW TESTING "TRẢ NGAY" 1-TOUCH PAYMENT FLOWS!
-                // ══════════════════════════════════════════════════════════════════
 
+                // Payment Orders for historic bills
+                if (year === 2026 && m >= 5) {
+                    const poId = uuid();
+                    const txnRef = generateTxnRef(year, m, 10, 14, 0, 0, 'VNPAY');
+                    const vnpPayDate = formatVnpDate(year, m, 10, 14, 5, 0);
+                    state.paymentOrders.push(`('${poId}', '${txnRef}', '${u.id}', 'BUDGET', ${elecAmt}, '${wMain}', '${categoryMap['Tiền điện']}', '${budgetIdMap['Tiền điện']}', NULL, NULL, 'SUCCESS', 'VNP${randomInt(10000000, 99999999)}', 'NCB', 'ATM', '${vnpPayDate}', '00', 'Thanh toan hoa don Tien dien EVN T${mStr}', '${year}-${mStr}-10 14:00:00', '${year}-${mStr}-10 14:15:00', '${year}-${mStr}-10 14:05:00')`);
+                }
+            } else {
+                // ════════════════════════════════════════════════════════════════════
+                // CURRENT MONTH (AUGUST 2026) - BOUNDED STRICTLY UP TO 26/08/2026
+                // ════════════════════════════════════════════════════════════════════
                 if (u.id === users[0].id) {
                     // USER A:
-                    // 1. Tiền nhà: Đã trả 1.85tr (Overspent 50k for rebalance test)
+                    // 1. Tiền nhà: ĐÃ TRẢ 1.85tr / 1.8tr (Vượt 50k -> TEST TÁI CÂN BẰNG REBALANCE SECTION 1)
                     const rentTxDate = `2026-08-04 10:00:00`;
-                    state.txs.push(`('${uuid()}', '${wMain}', 1850000, 'EXPENSE', '${categoryMap['Tiền nhà']}', '${budgetIdMap['Tiền nhà']}', '${pArr[0]}', '${rentTxDate}', 'Tiền phòng trọ và phụ phí quản lý T8', false, false, false, '${rentTxDate}')`);
+                    state.txs.push(`('${uuid()}', '${wMain}', 1850000, 'EXPENSE', '${categoryMap['Tiền nhà']}', '${budgetIdMap['Tiền nhà']}', '${pArr[0]}', '${rentTxDate}', 'Tiền phòng trọ tháng 8 kèm phí dịch vụ thêm', false, false, false, '${rentTxDate}')`);
                     netMainBalance -= 1850000;
 
-                    // 2. Tiền điện: Chưa trả hết (Đã thanh toán cọc 200k / Hạn mức 750k -> CÒN 550k ĐỂ TEST TRẢ NGAY)
-                    state.txs.push(`('${uuid()}', '${wMain}', 200000, 'EXPENSE', '${categoryMap['Tiền điện']}', '${budgetIdMap['Tiền điện']}', '${pArr[2]}', '2026-08-10 14:00:00', 'Tạm ứng tiền điện đợt 1 EVN', false, false, false, '2026-08-10 14:00:00')`);
-                    netMainBalance -= 200000;
+                    // 2. Ăn uống: ĐÃ CHI 2.15tr / 2.0tr (Vượt 150k -> TEST TÁI CÂN BẰNG REBALANCE SECTION 1)
+                    const foodTxDates = [
+                        { d: 2, amt: 450000, note: 'Ăn lẩu cuối tuần Haidilao' },
+                        { d: 6, amt: 350000, note: 'Buffet nướng Gogi House' },
+                        { d: 9, amt: 250000, note: 'Đi ăn tối cùng bạn bè' },
+                        { d: 13, amt: 320000, note: 'Tiệc sinh nhật đồng nghiệp' },
+                        { d: 17, amt: 280000, note: 'Cà phê & ăn uống gia đình' },
+                        { d: 21, amt: 300000, note: 'Ăn tối nhà hàng Dimsum' },
+                        { d: 24, amt: 200000, note: 'Cơm trưa & thức uống công ty' }
+                    ];
+                    foodTxDates.forEach(f => {
+                        const txDate = formatDate(2026, 8, f.d, 12, 30);
+                        state.txs.push(`('${uuid()}', '${wMain}', ${f.amt}, 'EXPENSE', '${categoryMap['Ăn uống']}', '${budgetIdMap['Ăn uống']}', '${pArr[0]}', '${txDate}', '${f.note}', false, false, false, '${txDate}')`);
+                        netMainBalance -= f.amt;
+                    });
 
-                    // 3. Tiền nước: CHƯA TRẢ (0 / 180k -> TEST TRẢ NGAY HÓA ĐƠN NƯỚC SAWACO)
-                    // 4. Phí liên lạc: CHƯA TRẢ (0 / 250k -> TEST TRẢ NGAY 1-TOUCH CHO VIETTEL)
-                    // 5. Giáo dục: CHƯA TRẢ (0 / 1.2tr -> TEST TRẢ NGAY HỌC PHÍ FPT)
-                    // 6. Y tế: CHƯA TRẢ (0 / 500k -> TEST TRẢ NGAY BẢO HIỂM BẢO VIỆT)
+                    // 3. Quần áo: ĐÃ CHI 350k / 1.0tr (DƯ 650k -> ĐỀ XUẤT CẮT GIẢM 200k TRONG REBALANCE PLAN)
+                    state.txs.push(`('${uuid()}', '${wMain}', 350000, 'EXPENSE', '${categoryMap['Quần áo']}', '${budgetIdMap['Quần áo']}', '${pArr[4]}', '2026-08-08 16:00:00', 'Mua áo sơ mi công sở Uniqlo', false, false, false, '2026-08-08 16:00:00')`);
+                    netMainBalance -= 350000;
 
-                    // 7. Ăn uống: Overspent 150k (2.15tr / 2tr)
-                    state.txs.push(`('${uuid()}', '${wMain}', 650000, 'EXPENSE', '${categoryMap['Ăn uống']}', '${budgetIdMap['Ăn uống']}', '${pArr[1]}', '2026-08-02 12:30:00', 'Đi siêu thị mua đồ ăn tuần 1', false, false, false, '2026-08-02 12:30:00')`);
-                    state.txs.push(`('${uuid()}', '${wMain}', 1500000, 'EXPENSE', '${categoryMap['Ăn uống']}', '${budgetIdMap['Ăn uống']}', '${pArr[1]}', '2026-08-08 19:30:00', 'Tiệc buffet lẩu nướng sinh nhật', false, false, false, '2026-08-08 19:30:00')`);
-                    netMainBalance -= 2150000;
+                    // 4. Tiền điện: ĐÃ THANH TOÁN QUA VNPAY 650k / 750k
+                    state.txs.push(`('${uuid()}', '${wMain}', 650000, 'EXPENSE', '${categoryMap['Tiền điện']}', '${budgetIdMap['Tiền điện']}', '${pArr[1]}', '2026-08-10 14:00:00', 'Thanh toán hoá đơn VNPay (Mã ĐH: VNPAY20260810)', false, false, false, '2026-08-10 14:00:00')`);
+                    netMainBalance -= 650000;
 
-                    // 8. Clothes: 300k
-                    state.txs.push(`('${uuid()}', '${wMain}', 300000, 'EXPENSE', '${categoryMap['Quần áo']}', '${budgetIdMap['Quần áo']}', '${pArr[1]}', '2026-08-03 15:00:00', 'Mua áo thun cotton Uniqlo', false, false, false, '2026-08-03 15:00:00')`);
-                    netMainBalance -= 300000;
+                    const poId = uuid();
+                    const txnRef = generateTxnRef(2026, 8, 10, 14, 0, 0, 'VNPAY');
+                    const vnpPayDate = formatVnpDate(2026, 8, 10, 14, 5, 0);
+                    state.paymentOrders.push(`('${poId}', '${txnRef}', '${u.id}', 'BUDGET', 650000, '${wMain}', '${categoryMap['Tiền điện']}', '${budgetIdMap['Tiền điện']}', NULL, NULL, 'SUCCESS', 'VNP99887766', 'NCB', 'ATM', '${vnpPayDate}', '00', 'Thanh toan hoa don Tien dien EVN T8', '2026-08-10 14:00:00', '2026-08-10 14:15:00', '2026-08-10 14:05:00')`);
 
-                    // 9. Daily Goods: 1.48tr
-                    state.txs.push(`('${uuid()}', '${wMain}', 1480000, 'EXPENSE', '${categoryMap['Chi tiêu hàng ngày']}', '${budgetIdMap['Chi tiêu hàng ngày']}', '${pArr[1]}', '2026-08-06 18:00:00', 'Mua đồ gia dụng và nhu yếu phẩm tháng 8', false, false, false, '2026-08-06 18:00:00')`);
-                    netMainBalance -= 1480000;
+                    // 5. Tiền nước Sawaco: CHƯA THANH TOÁN (0 / 165k -> TEST NÚT TRẢ NGAY VÀ VNPAY)
+                    // 6. Phí liên lạc Viettel: CHƯA THANH TOÁN (0 / 200k -> TEST NÚT TRẢ NGAY)
+                    // 7. Giáo dục: CHƯA THANH TOÁN (0 / 1.0tr -> TEST NÚT TRẢ NGAY)
+                    // 8. Y tế: CHƯA THANH TOÁN (0 / 500k -> TEST NÚT TRẢ NGAY)
 
-                    // 10. Social: 1.28tr
-                    state.txs.push(`('${uuid()}', '${wMain}', 1280000, 'EXPENSE', '${categoryMap['Phí giao lưu']}', '${budgetIdMap['Phí giao lưu']}', '${pArr[1]}', '2026-08-07 14:00:00', 'Mừng tân gia đồng nghiệp phòng IT', false, false, false, '2026-08-07 14:00:00')`);
-                    netMainBalance -= 1280000;
+                    // Daily balanced expenses across 6 weeks up to 26/08
+                    const balancedCategories = [
+                        { cat: 'Chi tiêu hàng ngày', amt: 1450000, note: 'Siêu thị WinMart & nhu yếu phẩm T8', day: 7 },
+                        { cat: 'Phí giao lưu', amt: 1280000, note: 'Tiệc liên hoan nhỏ & cà phê gặp gỡ', day: 14 },
+                        { cat: 'Đi lại', amt: 420000, note: 'Xăng xe & Grab đi lại tháng 8', day: 19 },
+                        { cat: 'Mỹ phẩm', amt: 220000, note: 'Kem chống nắng & sữa rửa mặt Hasaki', day: 22 },
+                        { cat: 'Chi tiêu hàng ngày', amt: 85000, note: 'Mua trái cây & bánh ngọt tươi', day: 25 }
+                    ];
 
-                    // 11. Transport: 780k
-                    state.txs.push(`('${uuid()}', '${wMain}', 780000, 'EXPENSE', '${categoryMap['Đi lại']}', '${budgetIdMap['Đi lại']}', '${pArr[0]}', '2026-08-09 08:00:00', 'Nạp thẻ giao thông & Grab đi làm đầu tháng', false, false, false, '2026-08-09 08:00:00')`);
-                    netMainBalance -= 780000;
-
-                    // Coffee today (20/08/2026)
-                    state.txs.push(`('${uuid()}', '${wMain}', 35000, 'EXPENSE', '${categoryMap['Ăn uống']}', '${budgetIdMap['Ăn uống']}', '${pArr[1]}', '2026-08-20 08:15:00', 'Cà phê muối sáng ngày 20/08', false, false, false, '2026-08-20 08:15:00')`);
-                    netMainBalance -= 35000;
-
-                    // Payment Orders in August 2026
-                    const payosPendingRef = generateTxnRef(2026, 8, 15, 14, 45, 0, 'POS');
-                    state.paymentOrders.push(`('${uuid()}', '${payosPendingRef}', '${u.id}', 'BUDGET', 350000, '${wMain}', '${categoryMap['Ăn uống']}', '${budgetIdMap['Ăn uống']}', NULL, NULL, 'PENDING', NULL, 'PAYOS_VIETQR', 'VIETQR_NAPAS247', NULL, NULL, 'Thanh toan PayOS ${payosPendingRef}', '2026-08-15 14:45:00', '2026-08-15 15:00:00', NULL)`);
-
+                    balancedCategories.forEach(b => {
+                        const txDate = formatDate(2026, 8, b.day, 15, 30);
+                        state.txs.push(`('${uuid()}', '${wMain}', ${b.amt}, 'EXPENSE', '${categoryMap[b.cat]}', '${budgetIdMap[b.cat]}', '${pArr[0]}', '${txDate}', '${b.note}', false, false, false, '${txDate}')`);
+                        netMainBalance -= b.amt;
+                    });
                 } else if (u.id === users[1].id) {
                     // USER B:
                     // 1. Tiền nhà: CHƯA TRẢ (0 / 1.5tr -> TEST TRẢ NGAY QUA MSB CỦA USER C 4517052004)
-                    // 2. Tiền điện: Đã trả 350k / 650k -> CÒN 300k ĐỂ TEST TRẢ NGAY
-                    state.txs.push(`('${uuid()}', '${wMain}', 350000, 'EXPENSE', '${categoryMap['Tiền điện']}', '${budgetIdMap['Tiền điện']}', '${pArr[2]}', '2026-08-10 14:00:00', 'Thanh toán tiền điện EVN T8 đợt 1', false, false, false, '2026-08-10 14:00:00')`);
-                    netMainBalance -= 350000;
+                    // 2. Tiền điện: Đã trả 500k / 750k -> CÒN 250k ĐỂ TEST TRẢ NGAY
+                    state.txs.push(`('${uuid()}', '${wMain}', 500000, 'EXPENSE', '${categoryMap['Tiền điện']}', '${budgetIdMap['Tiền điện']}', '${pArr[1]}', '2026-08-10 14:00:00', 'Thanh toán tiền điện EVN T8 đợt 1', false, false, false, '2026-08-10 14:00:00')`);
+                    netMainBalance -= 500000;
 
-                    // 3. Tiền nước: Đã trả cọc 50k / 150k -> CÒN 100k ĐỂ TEST TRẢ NGAY
-                    state.txs.push(`('${uuid()}', '${wMain}', 50000, 'EXPENSE', '${categoryMap['Tiền nước']}', '${budgetIdMap['Tiền nước']}', '${payeeMap['Công ty Cấp nước Sawaco HCMC']?.id || pArr[3]}', '2026-08-11 10:00:00', 'Tạm ứng tiền nước Sawaco T8', false, false, false, '2026-08-11 10:00:00')`);
-                    netMainBalance -= 50000;
-
+                    // 3. Tiền nước: CHƯA TRẢ (0 / 165k -> TEST TRẢ NGAY SAWACO)
                     // 4. Phí liên lạc: CHƯA TRẢ (0 / 200k -> TEST TRẢ NGAY VIETTEL)
-                    // 5. Giáo dục: CHƯA TRẢ (0 / 800k -> TEST TRẢ NGAY FPT TELECOM)
-                    // 6. Y tế: CHƯA TRẢ (0 / 400k -> TEST TRẢ NGAY HOÀN MỸ)
 
-                    // Daily expenses for User B in August (days 1-20)
+                    // Daily expenses for User B in August (days 1-26)
                     const expenseCategories = ['Ăn uống', 'Chi tiêu hàng ngày', 'Quần áo', 'Mỹ phẩm', 'Phí giao lưu', 'Đi lại'];
-                    for (let i = 0; i < 14; i++) {
-                        const day = randomInt(1, 20);
-                        const hour = (day === 20) ? randomInt(7, 10) : randomInt(7, 21);
+                    for (let i = 0; i < 18; i++) {
+                        const day = randomInt(1, 26);
+                        const hour = (day === 26) ? randomInt(7, 12) : randomInt(7, 21);
                         const minute = randomInt(0, 59);
                         const txDate = formatDate(2026, 8, day, hour, minute);
                         const catName = randomElement(expenseCategories);
@@ -868,14 +907,12 @@ users.forEach(u => {
 
                     // 3. Tiền nước: CHƯA TRẢ (0 / 160k -> TEST TRẢ NGAY SAWACO)
                     // 4. Phí liên lạc: CHƯA TRẢ (0 / 220k -> TEST TRẢ NGAY VIETTEL)
-                    // 5. Giáo dục: CHƯA TRẢ (0 / 1tr -> TEST TRẢ NGAY VUS)
-                    // 6. Y tế: CHƯA TRẢ (0 / 450k -> TEST TRẢ NGAY CAREPLUS)
 
-                    // Daily expenses for User C in August (days 1-20)
+                    // Daily expenses for User C in August (days 1-26)
                     const expenseCategories = ['Ăn uống', 'Chi tiêu hàng ngày', 'Quần áo', 'Phí giao lưu', 'Đi lại'];
-                    for (let i = 0; i < 14; i++) {
-                        const day = randomInt(1, 20);
-                        const hour = (day === 20) ? randomInt(7, 10) : randomInt(7, 21);
+                    for (let i = 0; i < 18; i++) {
+                        const day = randomInt(1, 26);
+                        const hour = (day === 26) ? randomInt(7, 12) : randomInt(7, 21);
                         const minute = randomInt(0, 59);
                         const txDate = formatDate(2026, 8, day, hour, minute);
                         const catName = randomElement(expenseCategories);
@@ -909,11 +946,11 @@ users.forEach(u => {
                     netMainBalance -= phoneAmt;
 
                     const expenseCategories = ['Ăn uống', 'Chi tiêu hàng ngày', 'Quần áo', 'Mỹ phẩm', 'Phí giao lưu', 'Y tế', 'Giáo dục', 'Đi lại'];
-                    const augTxCount = randomInt(12, 16);
+                    const augTxCount = randomInt(14, 18);
 
                     for (let i = 0; i < augTxCount; i++) {
-                        const day = randomInt(1, 20);
-                        const hour = (day === 20) ? randomInt(7, 10) : randomInt(7, 21);
+                        const day = randomInt(1, 26);
+                        const hour = (day === 26) ? randomInt(7, 12) : randomInt(7, 21);
                         const minute = randomInt(0, 59);
                         const txDate = formatDate(2026, 8, day, hour, minute);
 
@@ -954,23 +991,30 @@ function append(header, arr) {
     return header + arr.join(',\n') + ';\n\n';
 }
 
-sql += append('INSERT INTO wallets (id, user_id, name, balance, currency, is_liability, created_at, bank_bin, bank_account_no, bank_account_name) VALUES\n', state.wallets);
-sql += append('INSERT INTO categories (id, user_id, name, type, icon_name) VALUES\n', state.categories);
-sql += append('INSERT INTO payees (id, user_id, name, bank_bin, bank_name, bank_account, account_name, phone, created_at) VALUES\n', state.payees);
-sql += append('INSERT INTO tags (id, user_id, name) VALUES\n', state.tags);
-sql += append('INSERT INTO external_loans (id, user_id, type, counterparty_name, principal_amount, interest_rate, start_date, due_date, description, is_settled, created_at, updated_at) VALUES\n', state.loans);
-sql += append('INSERT INTO savings_goals (id, user_id, name, target_amount, current_amount, deadline_date, status, created_at, updated_at) VALUES\n', state.savings);
-sql += append('INSERT INTO budgets (id, name, user_id, category_id, limit_amount, month, year, type, is_recurring, due_day_of_month, is_mandatory, payee_bank_bin, payee_bank_account, payee_account_name, payee_id, created_at) VALUES\n', state.budgets);
-sql += append('INSERT INTO notifications (id, user_id, message, type, is_read, created_at) VALUES\n', state.notifs);
-sql += append('INSERT INTO groups (id, name, description, avatar_url, owner_id, created_at) VALUES\n', state.groups);
-sql += append('INSERT INTO group_members (id, group_id, user_id, role, joined_at) VALUES\n', state.groupMembers);
-sql += append('INSERT INTO expenses (id, group_id, paid_by, title, amount, category, created_at) VALUES\n', state.expenses);
-sql += append('INSERT INTO expense_splits (id, expense_id, user_id, amount_owed, is_settled) VALUES\n', state.expenseSplits);
-sql += append('INSERT INTO payments (id, group_id, payer_id, receiver_id, amount, status, created_at) VALUES\n', state.payments);
-sql += '-- ========================= TRANSACTIONS =========================\n';
-sql += append('INSERT INTO transactions (id, wallet_id, amount, type, category_id, linked_budget_id, payee_id, transaction_date, note, is_split, exclude_from_budget, is_auto_generated, created_at) VALUES\n', state.txs);
-sql += '-- ========================= PAYMENT ORDERS (PAYOS / VNPAY) =========================\n';
-sql += append('INSERT INTO payment_orders (id, txn_ref, user_id, type, amount, wallet_id, category_id, budget_id, group_id, creditor_id, status, vnp_transaction_no, vnp_bank_code, vnp_card_type, vnp_pay_date, vnp_response_code, vnp_order_info, created_at, expired_at, paid_at) VALUES\n', state.paymentOrders);
+let sqlPart1 = sql;
+sqlPart1 += append('INSERT INTO wallets (id, user_id, name, balance, currency, is_liability, created_at, bank_bin, bank_account_no, bank_account_name) VALUES\n', state.wallets);
+sqlPart1 += append('INSERT INTO categories (id, user_id, name, type, icon_name) VALUES\n', state.categories);
+sqlPart1 += append('INSERT INTO payees (id, user_id, name, bank_bin, bank_name, bank_account, account_name, phone, created_at) VALUES\n', state.payees);
+sqlPart1 += append('INSERT INTO tags (id, user_id, name) VALUES\n', state.tags);
+sqlPart1 += append('INSERT INTO external_loans (id, user_id, type, counterparty_name, principal_amount, interest_rate, start_date, due_date, description, is_settled, created_at, updated_at) VALUES\n', state.loans);
+sqlPart1 += append('INSERT INTO savings_goals (id, user_id, name, target_amount, current_amount, deadline_date, status, created_at, updated_at) VALUES\n', state.savings);
+sqlPart1 += append('INSERT INTO budgets (id, name, user_id, category_id, limit_amount, month, year, type, is_recurring, due_day_of_month, is_mandatory, payee_bank_bin, payee_bank_account, payee_account_name, payee_id, created_at) VALUES\n', state.budgets);
+sqlPart1 += append('INSERT INTO notifications (id, user_id, message, type, is_read, created_at) VALUES\n', state.notifs);
+sqlPart1 += append('INSERT INTO groups (id, name, description, avatar_url, owner_id, created_at) VALUES\n', state.groups);
+sqlPart1 += append('INSERT INTO group_members (id, group_id, user_id, role, joined_at) VALUES\n', state.groupMembers);
+sqlPart1 += append('INSERT INTO expenses (id, group_id, paid_by, title, amount, category, created_at) VALUES\n', state.expenses);
+sqlPart1 += append('INSERT INTO expense_splits (id, expense_id, user_id, amount_owed, is_settled) VALUES\n', state.expenseSplits);
+sqlPart1 += append('INSERT INTO payments (id, group_id, payer_id, receiver_id, amount, status, created_at) VALUES\n', state.payments);
 
-fs.writeFileSync('seed_v16.sql', sql, 'utf8');
-console.log(`Successfully generated seed_v16.sql: ${state.txs.length} transactions, ${state.expenses.length} group expenses, ${state.budgets.length} budgets with Tiền nước and 100% Entity parity bounded up to 20/08/2026!`);
+let sqlPart2 = '-- ========================= TRANSACTIONS =========================\n';
+sqlPart2 += append('INSERT INTO transactions (id, wallet_id, amount, type, category_id, linked_budget_id, payee_id, transaction_date, note, is_split, exclude_from_budget, is_auto_generated, created_at) VALUES\n', state.txs);
+sqlPart2 += '-- ========================= PAYMENT ORDERS (PAYOS / VNPAY) =========================\n';
+sqlPart2 += append('INSERT INTO payment_orders (id, txn_ref, user_id, type, amount, wallet_id, category_id, budget_id, group_id, creditor_id, status, vnp_transaction_no, vnp_bank_code, vnp_card_type, vnp_pay_date, vnp_response_code, vnp_order_info, created_at, expired_at, paid_at) VALUES\n', state.paymentOrders);
+
+const fullSql = sqlPart1 + sqlPart2;
+
+fs.writeFileSync('seed_v17.sql', fullSql, 'utf8');
+fs.writeFileSync('seed_v17_part1_schema.sql', sqlPart1, 'utf8');
+fs.writeFileSync('seed_v17_part2_transactions.sql', sqlPart2, 'utf8');
+
+console.log(`Successfully generated seed_v17.sql (731 KB), seed_v17_part1_schema.sql (180 KB), seed_v17_part2_transactions.sql (550 KB)!`);

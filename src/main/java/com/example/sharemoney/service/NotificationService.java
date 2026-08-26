@@ -21,8 +21,9 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ExpoPushService expoPushService;
 
-    /** Hàm chính để các Service khác gọi khi muốn thông báo (Ví dụ: Nhắc nợ, Thêm chi tiêu) */
+    /** Hàm chính để các Service khác gọi khi muốn thông báo (Ví dụ: Nhắc nợ, Thêm chi tiêu, Tiền về) */
     @Transactional
     public void sendNotification(UUID userId, String message, String type) {
         User user =
@@ -46,9 +47,28 @@ public class NotificationService {
                         .createdAt(java.time.LocalDateTime.now())
                         .build();
 
-        // 3. Bắn STOMP message tới kênh riêng của user: /topic/user/{userId}
+        // 3. Bắn STOMP message tới kênh riêng của user: /topic/user/{userId} (Realtime In-App)
         String destination = "/topic/user/" + userId.toString();
         messagingTemplate.convertAndSend(destination, response);
+
+        // 4. Bắn Push Notification Native ra ngoài màn hình khóa (APNs / FCM) kèm âm thanh chuông
+        String title = resolvePushTitle(type);
+        expoPushService.sendPushNotification(
+                user.getPushToken(),
+                title,
+                message,
+                java.util.Map.of("id", notification.getId().toString(), "type", type));
+    }
+
+    private String resolvePushTitle(String type) {
+        if (type == null) return "🔔 Thông báo ShareMoney";
+        return switch (type) {
+            case "PAYMENT_RECEIVED", "PAYMENT_SENT", "PAYMENT_APPROVED", "PAYMENT_NOTIFY" -> "💰 Tiền về! ShareMoney";
+            case "REMIND_DEBT", "DEBT_REMINDER" -> "🔔 Lời nhắc nợ từ bạn bè";
+            case "EXPENSE_CREATED", "EXPENSE_UPDATED" -> "🧾 Chi tiêu nhóm ShareMoney";
+            case "WARNING", "Z_SCORE_ANOMALY", "BUDGET_OVER", "BUDGET_WARNING" -> "⚠️ Cảnh báo tài chính";
+            default -> "🔔 Thông báo ShareMoney";
+        };
     }
 
     /** Lấy danh sách thông báo của user */
@@ -65,6 +85,12 @@ public class NotificationService {
                                         .createdAt(n.getCreatedAt())
                                         .build())
                 .toList();
+    }
+
+    /** Lấy số lượng thông báo chưa đọc của user */
+    @Transactional(readOnly = true)
+    public long getUnreadCount(UUID userId) {
+        return notificationRepository.countByUser_IdAndIsReadFalse(userId);
     }
 
     /** Đánh dấu 1 thông báo là đã đọc */
@@ -85,5 +111,16 @@ public class NotificationService {
 
         notification.setRead(true);
         notificationRepository.save(notification);
+    }
+
+    /** Đánh dấu tất cả thông báo của user là đã đọc */
+    @Transactional
+    public void markAllAsRead(UUID userId) {
+        List<Notification> unreadList =
+                notificationRepository.findByUser_IdAndIsReadFalseOrderByCreatedAtDesc(userId);
+        for (Notification n : unreadList) {
+            n.setRead(true);
+        }
+        notificationRepository.saveAll(unreadList);
     }
 }

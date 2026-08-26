@@ -24,8 +24,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser",
-      "expo-sharing"
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

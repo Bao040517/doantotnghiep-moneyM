@@ -38,6 +38,46 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 33. **Chuẩn Hóa Danh Mục Toàn Diện Hệ Thống & Bộ Dữ Liệu Mẫu Seed V16 (Unified Categories & Seed V16 with Dedicated Water Bill):** Bổ sung category `"Tiền nước"` (`droplets`, 🚿) trên toàn bộ hệ thống (Database, Backend default categories, Frontend design system `constants/categories.ts`, `CategoryIcon.tsx` SVG icon, `BudgetScreen`, `AdvisorScreen`, `ExpenseChart`, `ReportScreen`). Sinh thành công bộ dữ liệu mẫu **Seed V16** (`generate_seed_v16.js` & `seed_v16.sql`) với 1.436 giao dịch, 540 ngân sách (có ngân sách BILL Tiền nước Sawaco) phục vụ kiểm thử luồng Trả ngay và gạch nợ tự động.
 34. **Rà Soát Toàn Diện Codebase, Sửa Lỗi Crash Navigation, Đồng Bộ "Tiền Nước" Vào Expert System & Khắc Phục CI/CD Pipeline (System Audit, Bug Fixes & CI/CD Green Build):** Rà soát toàn bộ hệ thống phát hiện và khắc phục 2 lỗi quan trọng: sửa lỗi crash runtime `useNavigation` khi tap vào Avatar trên `DashboardScreen.tsx`, bổ sung `"Tiền nước"` vào `NEEDS_CATEGORIES` trong `FinancialAdvisorService.java` giúp chuẩn hóa phân tích 50/30/20. Sửa lỗi `Exit code 126` trên GitHub Actions bằng cách cấp quyền thực thi `chmod +x ./mvnw` giúp pipeline CI/CD chạy xanh 100% (Passed), biên dịch Docker và triển khai trực tuyến thành công lên máy chủ AWS EC2 Singapore (`18.142.90.90:8080`) kết nối PostgreSQL Supabase.
 35. **Nâng Cấp Toàn Diện Biến Động Thu Chi & Động Cơ Biểu Đồ 2 Chiều Mốc 0 Siêu Thích Ứng (Bi-directional Zero-Baseline & Ultra-Adaptive Cashflow Engine):** Chuẩn hóa dòng tiền theo 6 tuần, 6 tháng và 5 năm; phân bổ 2 màu Blue (`#2563EB`) cho Thu nhập và HotPink (`#FF69B4`) cho Chi tiêu; tách khung ngày tuần 2 dòng; trục OY tự động co giãn nấc vi mô từ 50k đến 500M+ giúp cột luôn vươn cao 75%-85%; biểu đồ đối xứng 2 chiều qua mốc 0 cho tab Chênh lệch (cột âm tụt xuống dưới, cột dương mọc lên trên); nút tròn `!` tóm tắt biến động Thu - Chi; tinh chỉnh thẻ tác vụ nhanh với mã QR tối giản và làm sạch danh mục hóa đơn.
+36. **Hệ Thống Bắt Biến Động Ngân Hàng 0ms & Phân Loại Thông Minh Không Dùng AI (Zero-Latency Bank Notification & Instant 1-Tap Classifier):** Bóc tách số tiền, chiều biến động, ngân hàng nguồn và nội dung chuyển khoản trong < 1ms bằng Regex Engine và từ điển từ khóa tiếng Việt; popup xác nhận 1-chạm tự động chọn ví, đề xuất danh mục và hỗ trợ chip đổi nhanh tức thì.
+37. **Kiến Trúc Thông Báo Realtime Đa Tầng & Native Push Notifications (WebSocket STOMP + Expo Push Token & Unread Count Badge):** Quả chuông 🔔 hiển thị số đếm chưa đọc theo thời gian thực, tự động đăng ký push token khi đăng nhập, phát banner nổi kèm âm thanh chuông báo native khi có biến động tài chính.
+38. **Chuẩn Hóa Bộ Dữ Liệu Mẫu Seed V18 & Triển Khai Docker AWS Cloud EC2 (Definitive Seed V18 & Live Production EC2):** Khắc phục triệt để lỗi crash JPA `BudgetType.DYNAMIC`, chuyển toàn bộ sang `FLEXIBLE`, tích hợp migration `ALTER/UPDATE` an toàn, sửa lỗi import `VNPayController`, và khép kín quy trình build Docker container tự động chạy mượt mà trên AWS EC2 Singapore (`18.142.90.90:8080`).
+
+### Session [2026-08-27] - Kiến Trúc Bắt Biến Động Ngân Hàng 0ms (Zero-Latency Rule Parser), Native Push Notifications & Đồng Bộ Triển Khai Docker AWS Cloud EC2 (Seed V18)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Kiến Trúc Bắt Biến Động Số Dư Ngân Hàng & Phân Loại Siêu Tốc 0ms Không Dùng AI (`bankNotificationParser.ts`, `QuickBankTransactionModal.tsx`, `BankNotificationDetectorModal.tsx`):**
+   - **Bài toán thực tế:** Người dùng chuyển khoản trên app ngân hàng (MBBank, Techcombank, VCB, Momo...) trước khi mở ShareMoney hoặc muốn ghi chép lại sau. Yêu cầu hệ thống phải bóc tách ngay lập tức, không có độ trễ mạng (Zero-Latency) và không phụ thuộc vào chi phí/kết nối AI.
+   - **Động Cơ Bóc Tách Bằng Regex (Regex Rule Engine):** Xây dựng module `bankNotificationParser.ts` chạy trực tiếp trên client trong $< 1\text{ms}$:
+     - Bóc tách số tiền dạng số nguyên chuẩn xác từ mọi định dạng (`-350,000VND`, `So tien: -1.850.000đ`, `+18,000,000 VND`...).
+     - Xác định chiều biến động tài chính: `EXPENSE` (Chi tiền) hoặc `INCOME` (Nhận tiền).
+     - Nhận diện ngân hàng nguồn (MBBank, Techcombank, Vietcombank, BIDV, VPBank, TPBank, MSB, MoMo, ZaloPay...) và số tài khoản/thẻ liên kết.
+     - Bóc tách nội dung chuyển khoản (`ND: ...`, `Noi dung: ...`) loại bỏ mã giao dịch rác.
+   - **Từ Điển Khớp Từ Khóa Tiếng Việt (Dictionary Matcher):** Chuẩn hóa xóa dấu tiếng Việt, ánh xạ tức thì từ khóa chuyển khoản sang 16 danh mục chuẩn (Ăn uống, Tiền nhà, Tiền điện, Tiền nước Sawaco, Quần áo, Đi lại, Y tế, Giáo dục, Tiền lương...).
+   - **Giao Diện Xác Nhận & Đổi Danh Mục 1 Chạm (`QuickBankTransactionModal.tsx`):**
+     - Header hiển thị thẻ ngân hàng và số tiền biến động to rõ ràng (Màu Đỏ cho Chi tiền, Màu Xanh cho Nhận tiền).
+     - Tự động chọn đúng Ví ngân hàng tương ứng (hoặc ví chính).
+     - Hiển thị danh mục được tự động đề xuất kèm huy hiệu **⚡ Khớp Rule 0ms**.
+     - Hàng chip đổi nhanh 1-chạm (Ăn uống, Hàng ngày, Tiền nhà, Quần áo, Xăng xe...) cho phép đổi danh mục trong 1 giây mà không cần gõ phím.
+     - Nút **`[✓ Lưu Ngay]`**: Tự động trừ số dư ví, cập nhật ngân sách và lưu vào lịch sử.
+   - **Banner Kích Hoạt Nhanh Trên Dashboard (`DashboardScreen.tsx`):** Tích hợp banner nổi *"⚡ Bắt Biến Động Ngân Hàng (0ms Không Độ Trễ)"* hỗ trợ dán clipboard và 6 mẫu thông báo thực tế phục vụ kiểm thử và demo tức thì.
+
+2. **Kiến Trúc Native Push Notification & Quả Chuông 🔔 Realtime Unread Badge:**
+   - **Backend (`ExpoPushService.java`, `NotificationController.java`, `NotificationService.java`, `UserController.java`):** Tích hợp dịch vụ phát Native Push Notification qua Expo API (`https://exp.host/--/api/v2/push/send`) kèm âm thanh ting ting, bổ sung API `GET /api/notifications/unread-count`, `POST /api/notifications/read-all`, và quản lý `push_token` cho người dùng.
+   - **Frontend (`pushNotificationService.ts`, `useNotifications.ts`, `DashboardScreen.tsx`, `AdvisorScreen.tsx`):** Thiết lập Android Notification Channel High-Importance, tự động đăng ký push token khi đăng nhập, lắng nghe thông báo WebSocket STOMP và hiển thị huy hiệu đỏ số thông báo chưa đọc trên quả chuông 🔔.
+
+3. **Khắc Phục Lỗi Crash JPA `BudgetType.DYNAMIC` & Sinh Bộ Dữ Liệu Chuẩn Seed V18 (`seed_v18.sql` & `generate_seed_v18.js`):**
+   - **Nguyên nhân lỗi 500:** Bảng `budgets` trong schema cũ có default `'DYNAMIC'`, trong khi enum Java chỉ định nghĩa `FLEXIBLE` và `BILL`, gây ra `IllegalArgumentException: No enum constant ... BudgetType.DYNAMIC` khi Hibernate load dữ liệu.
+   - **Khắc phục triệt để:** Bổ sung `DYNAMIC` vào `BudgetType.java`, chuẩn hóa toàn bộ ngân sách sang `FLEXIBLE` trong `generate_seed_v18.js` & `seed_v18.sql`, thêm lệnh migration `ALTER COLUMN type SET DEFAULT 'FLEXIBLE'` và `UPDATE budgets SET type = 'FLEXIBLE' WHERE type = 'DYNAMIC'`.
+
+4. **Khắc Phục Lỗi Biên Dịch & Quy Trình Triển Khai Docker Lên AWS EC2 Singapore:**
+   - **Sửa lỗi thiếu import:** Bổ sung `import com.example.sharemoney.service.NotificationService;` vào `VNPayController.java`, đảm bảo `mvn clean package` chạy `BUILD SUCCESS` 100%.
+   - **Quy trình Git Commit - Push - Docker AWS EC2:**
+     - Commit `a41c33e`: Sửa import `NotificationService` trong `VNPayController`.
+     - Commit `da1b099`: Sinh bộ dữ liệu `seed_v18.sql` và cập nhật `seeder.md`.
+     - Commit `1ccee82`: Tích hợp tính năng bắt biến động ngân hàng 0ms.
+     - Lệnh deploy chuẩn trên AWS: `git pull origin main` $\rightarrow$ `docker rm -f sharemoney_backend && docker compose up -d --build backend`.
+     - Kết quả: Spring Boot 4.0.6 khởi động thành công trong 19s trên AWS EC2 Singapore (`18.142.90.90:8080`), nạp đủ 18 JPA Repositories và kết nối ổn định với Supabase PostgreSQL.
 
 ### Session [2026-08-26] - Nâng Cấp Toàn Diện Biến Động Thu Chi, Biểu Đồ Chênh Lệch 2 Chiều Mốc 0 Siêu Thích Ứng & Tối Ưu Tác Vụ Nhanh, Hóa Đơn
 

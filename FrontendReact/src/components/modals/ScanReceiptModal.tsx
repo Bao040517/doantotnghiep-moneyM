@@ -9,8 +9,8 @@ import {
   Image,
   Alert,
   ScrollView,
-  Clipboard,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import {
@@ -129,7 +129,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
 
   const handlePasteClipboard = async () => {
     try {
-      const content = await Clipboard.getString();
+      const content = await Clipboard.getStringAsync();
       if (content && (content.startsWith("http://") || content.startsWith("https://"))) {
         setQrUrl(content.trim());
       } else if (content) {

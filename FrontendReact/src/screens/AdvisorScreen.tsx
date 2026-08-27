@@ -137,7 +137,7 @@ export const AdvisorScreen: React.FC = () => {
     setToastVisible(true);
   };
 
-  const fmt = (n?: number) => new Intl.NumberFormat("vi-VN").format(Math.abs(Math.round(Number(n) || 0))) + "đ";
+  const fmt = (n?: number) => Math.abs(Math.round(Number(n) || 0)).toLocaleString("vi-VN") + "đ";
   const userName = user?.name ? user.name.split(" ").pop() : "Bạn";
 
   const handleApplySingleCut = async (item: any) => {

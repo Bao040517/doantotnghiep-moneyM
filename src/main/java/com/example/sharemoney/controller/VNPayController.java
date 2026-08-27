@@ -284,6 +284,7 @@ public class VNPayController {
                     txReq.setAmount(order.getAmount());
                     txReq.setCategoryId(order.getCategoryId());
                     txReq.setLinkedBudgetId(order.getBudgetId());
+                    txReq.setPaymentMethod("VNPAY");
                     txReq.setNote("Thanh toán hoá đơn VNPay (Mã ĐH: " + vnp_TxnRef + ")");
 
                     transactionService.createTransaction(order.getUserId(), order.getWalletId(), txReq);
@@ -504,6 +505,7 @@ public class VNPayController {
             txReq.setAmount(order.getAmount());
             txReq.setCategoryId(order.getCategoryId());
             txReq.setLinkedBudgetId(order.getBudgetId());
+            txReq.setPaymentMethod("VNPAY");
             txReq.setNote("Thanh toán Cổng VNPay Gateway (" + txnRef + ")");
             transactionService.createTransaction(order.getUserId(), order.getWalletId(), txReq);
             log.info("[VNPay Portal] Successfully created transaction for BUDGET order: {}", txnRef);

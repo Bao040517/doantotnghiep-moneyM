@@ -41,8 +41,35 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 36. **Hệ Thống Bắt Biến Động Ngân Hàng 0ms & Phân Loại Thông Minh Không Dùng AI (Zero-Latency Bank Notification & Instant 1-Tap Classifier):** Bóc tách số tiền, chiều biến động, ngân hàng nguồn và nội dung chuyển khoản trong < 1ms bằng Regex Engine và từ điển từ khóa tiếng Việt; popup xác nhận 1-chạm tự động chọn ví, đề xuất danh mục và hỗ trợ chip đổi nhanh tức thì.
 37. **Kiến Trúc Thông Báo Realtime Đa Tầng & Native Push Notifications (WebSocket STOMP + Expo Push Token & Unread Count Badge):** Quả chuông 🔔 hiển thị số đếm chưa đọc theo thời gian thực, tự động đăng ký push token khi đăng nhập, phát banner nổi kèm âm thanh chuông báo native khi có biến động tài chính.
 38. **Chuẩn Hóa Bộ Dữ Liệu Mẫu Seed V18 & Triển Khai Docker AWS Cloud EC2 (Definitive Seed V18 & Live Production EC2):** Khắc phục triệt để lỗi crash JPA `BudgetType.DYNAMIC`, chuyển toàn bộ sang `FLEXIBLE`, tích hợp migration `ALTER/UPDATE` an toàn, sửa lỗi import `VNPayController`, và khép kín quy trình build Docker container tự động chạy mượt mà trên AWS EC2 Singapore (`18.142.90.90:8080`).
+39. **Chế Độ Tối Toàn Diện (Dark Mode System) & Tối Ưu Hóa Ràng Buộc Cơ Sở Dữ Liệu & UI Polish:** Tích hợp Dark Mode toàn cục (`ThemeContext`, `theme.ts`), gạt chuyển đổi giao diện sáng/tối trong Profile, Skeleton Loading mượt mà, bọc ngoặc kép từ khóa SQL PostgreSQL (`"month"`, `"year"`, `"groups"`), tối ưu hóa kiểm tra số dư ví theo phương thức thanh toán ngoại vi (VietQR, VNPay, PayOS, Cash) và bổ sung tra cứu ngân sách theo tên.
 
-### Session [2026-08-27] - Kiến Trúc Bắt Biến Động Ngân Hàng 0ms (Zero-Latency Rule Parser), Native Push Notifications & Đồng Bộ Triển Khai Docker AWS Cloud EC2 (Seed V18)
+### Session [2026-08-27] (Phần 2) - Hệ Thống Dark Mode Toàn Diện, Chuẩn Hóa Ràng Buộc Entity JPA & Đồng Bộ Triển Khai Git + AWS EC2
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Hệ Thống Chế Độ Tối Toàn Diện (Dark Mode Context & Design Tokens):**
+   - **Design Tokens (`theme.ts`):** Xây dựng bộ màu chuẩn tối/sáng với độ tương phản cao (Background `#0F172A` / `#F8FAFC`, Card `#1E293B` / `#FFFFFF`, Border `#334155` / `#E2E8F0`, Text Primary `#F8FAFC` / `#0F172A`).
+   - **Theme Provider (`ThemeContext.tsx`, `App.tsx`):** Cung cấp `useTheme()` toàn cục với cơ chế lưu trữ trạng thái người dùng (Persistent state), chuyển đổi mượt mà không reload app.
+   - **UI Switch Trên Profile (`ProfileScreen.tsx`):** Thêm thẻ chuyển đổi Dark Mode nổi bật với icon sinh động (🌙/☀️), công tắc `Switch` tương tác tức thì và đồng bộ màu sắc toàn bộ thẻ người dùng.
+   - **Skeleton Loader (`SkeletonLoader.tsx`):** Hiệu ứng skeleton loading mượt mà thích ứng tự động với theme đang chọn.
+
+2. **Chuẩn Hóa Thực Thể JPA & Tránh Xung Đột Từ Khóa PostgreSQL (`Budget.java`, `Group.java`, `PaymentOrder.java`):**
+   - **Quoted Column & Table Names:** Bọc ngoặc kép `@Column(name = "\"month\"")`, `@Column(name = "\"year\"")` trong `Budget.java` và `@Table(name = "\"groups\"")` trong `Group.java` để tương thích tuyệt đối với cả PostgreSQL Supabase và H2 In-Memory DB.
+   - **Optimistic Locking:** Bổ sung `@jakarta.persistence.Version` trong `PaymentOrder.java` chống xung đột đơn hàng đồng thời.
+
+3. **Tối Ưu Hóa Nghiệp Vụ Ngân Sách & Thanh Toán Ngoại Vi (`BudgetService.java`, `BudgetRepository.java`, `TransactionService.java`):**
+   - **Quản lý Bill Đa Tên:** Bổ sung `findByUser_IdAndCategory_IdAndMonthAndYearAndName` giúp tạo nhiều hóa đơn/ngân sách khác tên trong cùng 1 danh mục mà không ghi đè nhầm lẫn.
+   - **Linh hoạt Số Dư Ví:** `TransactionService` cho phép ghi nhận chi tiêu qua cổng ngoại vi (`CASH`, `VNPAY`, `PAYOS`, `VIETQR`, `BANK_GATEWAY`) ngay cả khi số dư ví ShareMoney chưa nạp đủ, đảm bảo sổ thu chi phản ánh chính xác 100% dòng tiền thực tế.
+
+4. **Tối Ưu Modal Popup & Điều Hướng Chi Tiết Nhóm (`GroupDetailScreen.tsx`, `ScanReceiptModal.tsx`):**
+   - Bố trí độc lập các modal cấp cao (`PaymentSandboxModal`, `PayeeSelectorModal`, `ScanReceiptModal`) ở root layout của `GroupDetailScreen.tsx` loại bỏ hoàn toàn lỗi lồng Modal gây đè nền / che khuất giao diện.
+
+5. **Kiểm Thử & Đồng Bộ Triển Khai Tự Động (CI/CD Git + AWS EC2 Singapore):**
+   - Toàn bộ 59/59 Backend Unit & Integration Tests vượt qua 100% (`BUILD SUCCESS`).
+   - Frontend TypeScript Typecheck chạy không lỗi (`npx tsc --noEmit` exit code 0).
+   - Sẵn sàng kích hoạt pipeline GitHub Actions tự động kiểm thử và SSH deploy container lên máy chủ AWS EC2 (`18.142.90.90:8080`).
+
+### Session [2026-08-27] (Phần 1) - Kiến Trúc Bắt Biến Động Ngân Hàng 0ms (Zero-Latency Rule Parser), Native Push Notifications & Đồng Bộ Triển Khai Docker AWS Cloud EC2 (Seed V18)
 
 **✅ Đã hoàn thành (Compact Procedure):**
 

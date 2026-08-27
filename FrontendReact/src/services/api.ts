@@ -35,7 +35,7 @@ export const getBaseUrl = () => {
   }
 
   // 3. Fallback for Web / Local
-  return "http://192.168.10.106:8080/api";
+  return "http://localhost:8080/api";
 };
 
 export const api = axios.create({

@@ -70,10 +70,17 @@ public class BudgetService {
             budget.setMonth(month);
             budget.setYear(year);
         } else {
-            // Kiểm tra xem đã có ngân sách cho category + month + year chưa (tránh vi phạm Unique Constraint)
-            List<Budget> existingList =
-                    budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
-                            userId, category.getId(), month, year);
+            // Kiểm tra xem đã có ngân sách cho category + month + year + name chưa (tránh vi phạm Unique Constraint và không ghi đè nhầm các bill khác tên)
+            List<Budget> existingList;
+            if (req.getName() != null && !req.getName().trim().isEmpty()) {
+                existingList =
+                        budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYearAndName(
+                                userId, category.getId(), month, year, req.getName().trim());
+            } else {
+                existingList =
+                        budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
+                                userId, category.getId(), month, year);
+            }
             if (existingList != null && !existingList.isEmpty()) {
                 budget = existingList.get(0);
             } else {

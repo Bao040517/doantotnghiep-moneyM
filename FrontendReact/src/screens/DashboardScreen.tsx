@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTheme } from "../context/ThemeContext";
 import {
   View,
   Text,
@@ -23,6 +24,7 @@ import { BankNotificationDetectorModal } from "../components/modals/BankNotifica
 import { ParsedBankNotification } from "../utils/bankNotificationParser";
 import { FinancialHealthCard } from "../components/features/FinancialHealthCard";
 import { colors } from "../constants/colors";
+import { DashboardSkeleton } from "../components/ui/SkeletonLoader";
 import { useAppData } from "../hooks/useAppData";
 import { useAuth } from "../hooks/useAuth";
 import { useNotifications } from "../hooks/useNotifications";
@@ -37,6 +39,7 @@ interface DashboardScreenProps {
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const { isDark, colors: themeColors } = useTheme();
   const { unreadCount } = useNotifications();
   const {
     wallets,
@@ -111,13 +114,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const totalWarningCount = overLimitBudgets.length + approachingBudgets.length;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      {isLoading && !wallets.length ? (
+        <DashboardSkeleton />
+      ) : (
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} colors={[colors.indigo600]} />}
       >
         {/* ─── DARK HEADER HERO CARD ─── */}
-        <View style={styles.headerHeroContainer}>
+        <View style={[styles.headerHeroContainer, { backgroundColor: themeColors.headerBg }]}>
           {/* Top User Bar */}
           <View style={styles.topBar}>
             <TouchableOpacity
@@ -212,7 +218,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
         {/* ─── AT-RISK BUDGET WARNING / ALL GOOD CARD ─── */}
         {totalWarningCount > 0 ? (
-          <View style={styles.warningCard}>
+          <View style={[styles.warningCard, { backgroundColor: isDark ? '#2A1215' : '#FFF5F5' }]}>
             <View style={styles.warningHeaderRow}>
               <View style={styles.warningTitleGroup}>
                 <View style={styles.redDot} />
@@ -300,7 +306,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             </ScrollView>
           </View>
         ) : (
-          <View style={styles.successCard}>
+          <View style={[styles.successCard, { backgroundColor: isDark ? '#0A2118' : '#F0FDF4' }]}>
             <View style={styles.warningHeaderRow}>
               <View style={styles.warningTitleGroup}>
                 <View style={styles.greenDot} />
@@ -334,34 +340,34 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             <View style={[styles.quickActionIconCircle, { backgroundColor: "#FEF3C7" }]}>
               <Text style={{ fontSize: 22 }}>🪙</Text>
             </View>
-            <Text style={styles.quickActionText} numberOfLines={1}>Ngân sách</Text>
+            <Text style={[styles.quickActionText, { color: themeColors.textPrimary }]} numberOfLines={1}>Ngân sách</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("groups")} activeOpacity={0.7}>
             <View style={[styles.quickActionIconCircle, { backgroundColor: "#E0F2FE" }]}>
               <Text style={{ fontSize: 22 }}>👥</Text>
             </View>
-            <Text style={styles.quickActionText} numberOfLines={1}>Nhóm</Text>
+            <Text style={[styles.quickActionText, { color: themeColors.textPrimary }]} numberOfLines={1}>Nhóm</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("savings")} activeOpacity={0.7}>
             <View style={[styles.quickActionIconCircle, { backgroundColor: "#DCFCE7" }]}>
               <Text style={{ fontSize: 22 }}>🌱</Text>
             </View>
-            <Text style={styles.quickActionText} numberOfLines={1}>Tiết kiệm</Text>
+            <Text style={[styles.quickActionText, { color: themeColors.textPrimary }]} numberOfLines={1}>Tiết kiệm</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("history")} activeOpacity={0.7}>
             <View style={[styles.quickActionIconCircle, { backgroundColor: "#EDE9FE" }]}>
               <Text style={{ fontSize: 22 }}>🕒</Text>
             </View>
-            <Text style={styles.quickActionText} numberOfLines={1}>Lịch sử</Text>
+            <Text style={[styles.quickActionText, { color: themeColors.textPrimary }]} numberOfLines={1}>Lịch sử</Text>
           </TouchableOpacity>
         </View>
 
         {/* ─── ZERO-LATENCY BANK SYNC BANNER (0ms Offline Smart Classifier) ─── */}
         <TouchableOpacity
-          style={styles.bankSyncBanner}
+          style={[styles.bankSyncBanner, { backgroundColor: themeColors.card, borderColor: isDark ? '#1E3A5F' : '#DBEAFE' }]}
           onPress={() => setDetectorVisible(true)}
           activeOpacity={0.85}
         >
@@ -385,8 +391,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         </TouchableOpacity>
 
         {/* ─── BUDGET PROGRESS SECTION ─── */}
-        <Text style={styles.sectionHeaderTitle}>Ngân sách Tháng này</Text>
-        <Card style={styles.budgetCard}>
+        <Text style={[styles.sectionHeaderTitle, { color: themeColors.textPrimary }]}>Ngân sách Tháng này</Text>
+        <Card style={[styles.budgetCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <TouchableOpacity onPress={() => onNavigate?.("budget")} activeOpacity={0.7}>
             <View style={styles.budgetHeaderRow}>
               <View>
@@ -456,6 +462,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         {/* ─── FINANCIAL HEALTH SECTION ─── */}
         <FinancialHealthCard />
       </ScrollView>
+      )}
 
       {/* Wallet Bottom Sheet */}
       <WalletManagerBottomSheet
@@ -522,7 +529,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
   },
   bankSyncBanner: {
     flexDirection: "row",

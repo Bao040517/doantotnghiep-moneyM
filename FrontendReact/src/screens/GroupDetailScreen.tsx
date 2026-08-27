@@ -759,22 +759,6 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         onClose={() => setIsAddingExpense(false)}
         title="Thêm Hóa Đơn Chi Tiêu Mới"
       >
-        <ScanReceiptModal
-          visible={scanModalVisible}
-          onClose={() => setScanModalVisible(false)}
-          onScanSuccess={(data) => {
-            const rawAmount = data.amount ?? (data as any).totalAmount;
-            if (rawAmount !== undefined && rawAmount !== null) {
-              setAmount(Number(rawAmount).toLocaleString("vi-VN"));
-            }
-            const rawNote = data.note ?? (data as any).merchantName;
-            if (rawNote) {
-              const formattedTitle = rawNote.startsWith("Hoá đơn") ? rawNote : `Hoá đơn ${rawNote}`;
-              setTitle(formattedTitle);
-            }
-            showToast("✅ Đã nhận diện hoá đơn thành công", "success");
-          }}
-        />
         <View style={styles.modalBodyWrapper}>
           <ScrollView
             style={styles.formScrollArea}
@@ -1048,6 +1032,58 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
           }}
         />
       )}
+
+      {/* VietQR Settlement Payment Sandbox Modal */}
+      <PaymentSandboxModal
+        visible={sandboxVisible}
+        debtInfo={qrSettleDebt}
+        onClose={() => setSandboxVisible(false)}
+        onPaymentSuccess={async (amount, toUserId) => {
+          const targetUserId = toUserId || qrSettleDebt?.toUserId;
+          const creditorName = qrSettleDebt?.toName || "người nhận";
+          if (targetUserId && groupId) {
+            await handleNotifyPayment(targetUserId, amount, creditorName);
+          }
+          setSandboxVisible(false);
+          fetchGroupDetails();
+        }}
+        onChangePayee={() => {
+          setSandboxVisible(false);
+          setPendingSettleDebt({
+            amount: qrSettleDebt?.amount || 0,
+            to: {
+              id: qrSettleDebt?.toUserId,
+              name: qrSettleDebt?.toName,
+            },
+          });
+          setPayeeSelectorVisible(true);
+        }}
+      />
+
+      {/* Payee Selector Modal */}
+      <PayeeSelectorModal
+        visible={payeeSelectorVisible}
+        onClose={() => setPayeeSelectorVisible(false)}
+        onSelectPayee={handleSelectPayeeForDebt}
+      />
+
+      {/* AI Scan Receipt Modal */}
+      <ScanReceiptModal
+        visible={scanModalVisible}
+        onClose={() => setScanModalVisible(false)}
+        onScanSuccess={(data) => {
+          const rawAmount = data.amount ?? (data as any).totalAmount;
+          if (rawAmount !== undefined && rawAmount !== null) {
+            setAmount(Number(rawAmount).toLocaleString("vi-VN"));
+          }
+          const rawNote = data.note ?? (data as any).merchantName;
+          if (rawNote) {
+            const formattedTitle = rawNote.startsWith("Hoá đơn") ? rawNote : `Hoá đơn ${rawNote}`;
+            setTitle(formattedTitle);
+          }
+          showToast("✅ Đã nhận diện hoá đơn thành công", "success");
+        }}
+      />
 
       <Toast
         visible={toastVisible}

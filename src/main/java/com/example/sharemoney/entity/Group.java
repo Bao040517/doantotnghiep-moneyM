@@ -23,7 +23,7 @@ import org.hibernate.annotations.CreationTimestamp;
  * phải "groups").
  */
 @Entity
-@Table(name = "groups")
+@Table(name = "\"groups\"")
 @Getter
 @Setter
 @NoArgsConstructor

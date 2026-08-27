@@ -46,7 +46,7 @@ public class ReceiptScanService {
      * total_amount, supplier_name.
      */
     public ScanReceiptResponse scanReceipt(MultipartFile file) {
-        if (mindeeApiKey == null || mindeeApiKey.contains("YOUR_MINDEE_API_KEY_HERE")) {
+        if (mindeeApiKey == null || mindeeApiKey.trim().isEmpty() || mindeeApiKey.contains("YOUR_MINDEE_API_KEY_HERE")) {
             throw new AppException(ErrorCode.RECEIPT_SCAN_CONFIG_ERROR);
         }
 

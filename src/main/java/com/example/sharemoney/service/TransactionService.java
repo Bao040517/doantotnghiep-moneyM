@@ -177,8 +177,12 @@ public class TransactionService {
         if (category.getType() == TransactionType.INCOME) {
             wallet.setBalance(wallet.getBalance().add(req.getAmount()));
         } else if (category.getType() == TransactionType.EXPENSE) {
-            if ("CASH".equalsIgnoreCase(paymentMethod)) {
-                // Tiền mặt: nếu số dư ví đủ thì trừ, nếu không đủ thì ghi nhận chi tiêu bình thường mà không chặn lỗi ví
+            if ("CASH".equalsIgnoreCase(paymentMethod)
+                    || "VNPAY".equalsIgnoreCase(paymentMethod)
+                    || "PAYOS".equalsIgnoreCase(paymentMethod)
+                    || "VIETQR".equalsIgnoreCase(paymentMethod)
+                    || "BANK_GATEWAY".equalsIgnoreCase(paymentMethod)) {
+                // Tiền mặt hoặc Cổng thanh toán ngoại vi: nếu số dư ví đủ thì trừ, nếu không đủ thì ghi nhận chi tiêu bình thường mà không chặn lỗi ví
                 if (wallet.getBalance().compareTo(req.getAmount()) >= 0) {
                     wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
                 }
@@ -396,10 +400,21 @@ public class TransactionService {
         if (newCategory.getType() == TransactionType.INCOME) {
             wallet.setBalance(wallet.getBalance().add(req.getAmount()));
         } else if (newCategory.getType() == TransactionType.EXPENSE) {
-            if (wallet.getBalance().compareTo(req.getAmount()) < 0) {
-                throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
+            String pMethod = tx.getPaymentMethod();
+            if ("CASH".equalsIgnoreCase(pMethod)
+                    || "VNPAY".equalsIgnoreCase(pMethod)
+                    || "PAYOS".equalsIgnoreCase(pMethod)
+                    || "VIETQR".equalsIgnoreCase(pMethod)
+                    || "BANK_GATEWAY".equalsIgnoreCase(pMethod)) {
+                if (wallet.getBalance().compareTo(req.getAmount()) >= 0) {
+                    wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
+                }
+            } else {
+                if (wallet.getBalance().compareTo(req.getAmount()) < 0) {
+                    throw new AppException(ErrorCode.INSUFFICIENT_WALLET_BALANCE);
+                }
+                wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
             }
-            wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
         }
         // TRANSFER: không thay đổi số dư ví
 

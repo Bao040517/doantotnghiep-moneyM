@@ -42,6 +42,9 @@ public class PaymentOrder {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @jakarta.persistence.Version
+    private Long version;
+
     /**
      * Mã tham chiếu đơn hàng gửi sang VNPay (vnp_TxnRef), duy nhất 100%.
      */

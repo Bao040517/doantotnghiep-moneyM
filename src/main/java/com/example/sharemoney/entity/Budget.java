@@ -10,7 +10,7 @@ import lombok.*;
 @Table(
         name = "budgets",
         uniqueConstraints = {
-            @UniqueConstraint(columnNames = {"user_id", "category_id", "month", "year", "name"})
+            @UniqueConstraint(columnNames = {"user_id", "category_id", "\"month\"", "\"year\"", "name"})
         })
 @Getter
 @Setter
@@ -38,10 +38,10 @@ public class Budget {
     @Column(name = "limit_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal limitAmount;
 
-    @Column(nullable = false)
+    @Column(name = "\"month\"", nullable = false)
     private int month;
 
-    @Column(nullable = false)
+    @Column(name = "\"year\"", nullable = false)
     private int year;
 
     @Column(name = "created_at", updatable = false)

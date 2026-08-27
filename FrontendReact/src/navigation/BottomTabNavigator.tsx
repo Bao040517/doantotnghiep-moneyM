@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTheme } from "../context/ThemeContext";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Text, View, StyleSheet, TouchableOpacity, Platform } from "react-native";
 import { DashboardScreen } from "../screens/DashboardScreen";
@@ -117,24 +118,27 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
   return (
     <>
       <Tab.Navigator
-        screenOptions={({ route }) => ({
+        screenOptions={({ route }) => {
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          const { colors: themeColors } = useTheme();
+          return {
           headerShown: false,
           headerStyle: {
-            backgroundColor: colors.white,
+            backgroundColor: themeColors.card,
             elevation: 0,
             shadowOpacity: 0,
             borderBottomWidth: 1,
-            borderBottomColor: colors.slate100,
+            borderBottomColor: themeColors.border,
           },
           headerTitleStyle: {
             fontWeight: "800",
             fontSize: 18,
-            color: colors.slate900,
+            color: themeColors.textPrimary,
           },
           tabBarStyle: {
-            backgroundColor: colors.white,
+            backgroundColor: themeColors.tabBarBg,
             borderTopWidth: 1,
-            borderTopColor: colors.slate100,
+            borderTopColor: themeColors.tabBarBorder,
             height: Platform.OS === "android" ? 82 : 86,
             paddingBottom: Platform.OS === "android" ? 20 : 28,
             paddingTop: 8,
@@ -180,7 +184,7 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
             }
             return null;
           },
-        })}
+        };}}
       >
         <Tab.Screen
           name="Dashboard"

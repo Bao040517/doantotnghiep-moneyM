@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTheme } from "../context/ThemeContext";
 import {
   View,
   Text,
@@ -11,6 +12,8 @@ import {
   TouchableOpacity,
   Modal,
   ActivityIndicator,
+  Switch,
+  Animated,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Card } from "../components/ui/Card";
@@ -50,6 +53,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onRefreshUser: propRefreshUser,
 }) => {
   const { user: contextUser, logout: contextLogout, refreshProfile: contextRefreshProfile } = useAuth();
+  const { isDark, toggleTheme, colors: themeColors } = useTheme();
   const user = propUser !== undefined ? propUser : contextUser;
   const onLogout = propLogout || contextLogout;
   const onRefreshUser = propRefreshUser || contextRefreshProfile;
@@ -321,10 +325,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* User Card with Interactive Avatar */}
-        <Card style={styles.userCard}>
+        <Card style={[styles.userCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <TouchableOpacity
             style={styles.avatarContainer}
             onPress={() => setAvatarModalVisible(true)}
@@ -350,8 +354,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <Text style={styles.changeAvatarText}>Đổi ảnh đại diện</Text>
           </TouchableOpacity>
 
-          <Text style={styles.userName}>{user?.name || "Người dùng"}</Text>
-          <Text style={styles.userEmail}>{user?.email || "Chưa thiết lập email"}</Text>
+          <Text style={[styles.userName, { color: themeColors.textPrimary }]}>{user?.name || "Người dùng"}</Text>
+          <Text style={[styles.userEmail, { color: themeColors.textSecondary }]}>{user?.email || "Chưa thiết lập email"}</Text>
         </Card>
 
         {/* Phone Update Card */}
@@ -647,6 +651,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             </Text>
           </Card>
         )}
+
+        {/* ─── DARK MODE TOGGLE ─── */}
+        <View style={[styles.darkModeCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <View style={styles.darkModeLeft}>
+            <View style={[styles.darkModeIconCircle, { backgroundColor: isDark ? '#312E81' : '#EEF2FF' }]}>
+              <Text style={{ fontSize: 22 }}>{isDark ? '🌙' : '☀️'}</Text>
+            </View>
+            <View>
+              <Text style={[styles.darkModeTitle, { color: themeColors.textPrimary }]}>Chế độ tối</Text>
+              <Text style={[styles.darkModeSub, { color: themeColors.textSecondary }]}>
+                {isDark ? 'Đang bật — Bảo vệ mắt' : 'Đang tắt — Chế độ sáng'}
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={isDark}
+            onValueChange={toggleTheme}
+            trackColor={{ false: '#CBD5E1', true: '#6366F1' }}
+            thumbColor={isDark ? '#E0E7FF' : '#FFFFFF'}
+            ios_backgroundColor="#CBD5E1"
+          />
+        </View>
 
         {/* Logout Button */}
         <Button
@@ -1233,5 +1259,40 @@ const styles = StyleSheet.create({
   lookupNoticeText: {
     fontSize: 12,
     color: "#B45309",
+  },
+  /* ─── Dark Mode Toggle Card ─── */
+  darkModeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  darkModeLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  darkModeIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  darkModeTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  darkModeSub: {
+    fontSize: 12,
+    marginTop: 2,
   },
 });

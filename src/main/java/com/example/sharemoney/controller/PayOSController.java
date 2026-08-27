@@ -216,6 +216,7 @@ public class PayOSController {
                 txReq.setAmount(order.getAmount());
                 txReq.setCategoryId(order.getCategoryId());
                 txReq.setLinkedBudgetId(order.getBudgetId());
+                txReq.setPaymentMethod("PAYOS");
                 txReq.setNote(order.getVnpOrderInfo() != null ? order.getVnpOrderInfo() : "Thanh toán Cổng PayOS (" + order.getTxnRef() + ")");
                 transactionService.createTransaction(order.getUserId(), order.getWalletId(), txReq);
                 log.info("[PayOS] Successfully created transaction for BUDGET order: {}", order.getTxnRef());

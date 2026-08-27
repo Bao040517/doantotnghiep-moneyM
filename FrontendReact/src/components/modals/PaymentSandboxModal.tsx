@@ -162,7 +162,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
 
   // ─── PAYMENT SCREEN ───
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Thanh toán khoản nợ 💳">
+    <BottomSheet visible={visible} onClose={onClose} title="Thanh toán khoản nợ">
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}

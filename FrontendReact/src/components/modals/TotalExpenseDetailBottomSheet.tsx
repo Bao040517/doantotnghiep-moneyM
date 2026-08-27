@@ -208,7 +208,6 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.accordionTitle}>1. Chi tiêu Thiết yếu</Text>
-                        <Text style={styles.accordionSubNote}>Ăn uống, thuê nhà, điện nước, di chuyển...</Text>
                       </View>
                       <Text style={styles.accordionAmountBlue}>{fmtShort(essentialAmount)}</Text>
                       <Text style={{ fontSize: 10, color: "#94a3b8", marginLeft: 4 }}>
@@ -251,7 +250,6 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.accordionTitle}>2. Chi tiêu Linh hoạt</Text>
-                        <Text style={styles.accordionSubNote}>Mua sắm, cà phê, du lịch, giải trí...</Text>
                       </View>
                       <Text style={styles.accordionAmountOrange}>{fmtShort(flexibleAmount)}</Text>
                       <Text style={{ fontSize: 10, color: "#94a3b8", marginLeft: 4 }}>
@@ -294,7 +292,6 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.accordionTitle}>3. Trả nợ & Chi phí Nhóm</Text>
-                        <Text style={styles.accordionSubNote}>Nợ nhóm phải trả, nợ cá nhân...</Text>
                       </View>
                       <Text style={styles.accordionAmountRed}>{fmt(debtAmount)}</Text>
                       <Text style={{ fontSize: 10, color: "#94a3b8", marginLeft: 4 }}>
@@ -337,7 +334,6 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.accordionTitle}>4. Tích lũy & Tiết kiệm</Text>
-                        <Text style={styles.accordionSubNote}>Quỹ dự phòng khẩn cấp, tiết kiệm...</Text>
                       </View>
                       <Text style={styles.accordionAmountGreen}>{fmt(savingsAmount)}</Text>
                       <Text style={{ fontSize: 10, color: "#94a3b8", marginLeft: 4 }}>

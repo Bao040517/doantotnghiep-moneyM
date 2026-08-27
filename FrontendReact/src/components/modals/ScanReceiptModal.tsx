@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,28 +9,22 @@ import {
   Image,
   Alert,
   ScrollView,
+  Animated,
 } from "react-native";
-import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import {
   Camera,
   Image as ImageIcon,
   QrCode,
-  Link as LinkIcon,
   CheckCircle2,
-  Receipt,
   RotateCcw,
   Sparkles,
-  ClipboardPaste,
   ShoppingBag,
-  Focus,
-  ScanLine,
 } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { aiService, ScanReceiptResponse } from "../../services/aiService";
 import { Button } from "../ui/Button";
-import { Input } from "../ui/Input";
 
 interface ScanReceiptModalProps {
   visible: boolean;
@@ -43,16 +37,44 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
   onClose,
   onScanSuccess,
 }) => {
-  // Đúng 2 chế độ: Quét mã QR ("qr") và Ảnh từ điện thoại ("image")
+  // 2 chế độ: Quét mã QR ("qr") và Ảnh từ điện thoại ("image")
   const [scanMode, setScanMode] = useState<"qr" | "image">("qr");
-  const [showManualUrl, setShowManualUrl] = useState(false);
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [qrUrl, setQrUrl] = useState("");
   const [scannedResult, setScannedResult] = useState<ScanReceiptResponse | null>(null);
   const [scannedQrCode, setScannedQrCode] = useState(false);
 
+  // Mức Zoom 1.5x mặc định để bắt mã QR nhỏ trên bill từ xa cực nhạy mà không cần dí sát máy
+  const [zoom, setZoom] = useState(0.08);
+
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
+  // Laser Scan Animation
+  const scanAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let animLoop: Animated.CompositeAnimation | null = null;
+    if (visible && scanMode === "qr") {
+      animLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanAnim, {
+            toValue: 1,
+            duration: 1800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scanAnim, {
+            toValue: 0,
+            duration: 1800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animLoop.start();
+    }
+    return () => {
+      animLoop?.stop();
+    };
+  }, [visible, scanMode]);
 
   useEffect(() => {
     if (visible && scanMode === "qr" && !cameraPermission?.granted) {
@@ -67,7 +89,10 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
     setLoading(true);
 
     try {
-      const cleanUrl = data.trim();
+      const rawData = data.trim();
+      const urlMatch = rawData.match(/https?:\/\/[^\s"'<>]+/i);
+      const cleanUrl = urlMatch ? urlMatch[0] : rawData;
+
       const result = await aiService.scanQrReceipt(cleanUrl);
       if (!result || (!result.amount && !result.note)) {
         Alert.alert(
@@ -127,21 +152,6 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
     }
   };
 
-  const handlePasteClipboard = async () => {
-    try {
-      const content = await Clipboard.getStringAsync();
-      if (content && (content.startsWith("http://") || content.startsWith("https://"))) {
-        setQrUrl(content.trim());
-      } else if (content) {
-        setQrUrl(content.trim());
-      } else {
-        Alert.alert("Thông báo", "Clipboard trống.");
-      }
-    } catch (e) {
-      console.error("Paste clipboard error:", e);
-    }
-  };
-
   const handleScanImage = async () => {
     if (!imageUri) return;
     setLoading(true);
@@ -154,7 +164,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
       if (!data || (!data.amount && !data.note)) {
         Alert.alert(
           "Thông báo",
-          "Tính năng đọc ảnh hoá đơn đang được phát triển & nâng cấp AI. Bạn có thể thử lại với ảnh rõ nét hơn hoặc nhập thủ công."
+          "Không thể nhận diện được hóa đơn từ ảnh này. Bạn có thể thử lại với ảnh rõ nét hơn hoặc nhập thủ công."
         );
         return;
       }
@@ -170,39 +180,6 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
     }
   };
 
-  const handleScanQrUrl = async () => {
-    if (!qrUrl || !qrUrl.trim()) {
-      Alert.alert("Thông báo", "Vui lòng nhập hoặc dán link hoá đơn từ mã QR");
-      return;
-    }
-    const cleanUrl = qrUrl.trim();
-    if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
-      Alert.alert("Thông báo", "Đường dẫn hoá đơn phải bắt đầu bằng http:// hoặc https://");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const data = await aiService.scanQrReceipt(cleanUrl);
-      if (!data || (!data.amount && !data.note)) {
-        Alert.alert(
-          "Thông báo",
-          "Hệ thống hoá đơn này đang trong quá trình tích hợp & phát triển. Vui lòng thử lại sau."
-        );
-        return;
-      }
-      setScannedResult(data);
-    } catch (e: any) {
-      console.error("[ScanReceipt] QR url error:", e);
-      Alert.alert(
-        "Thông báo",
-        "Tính năng đọc QR hoá đơn từ nguồn này đang được hoàn thiện & phát triển. Vui lòng thử lại sau."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleApplyResult = () => {
     if (scannedResult) {
       onScanSuccess(scannedResult);
@@ -212,8 +189,6 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
 
   const handleClose = () => {
     setImageUri(null);
-    setQrUrl("");
-    setShowManualUrl(false);
     setScannedResult(null);
     setScannedQrCode(false);
     setLoading(false);
@@ -233,7 +208,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                 <QrCode size={22} color="#4F46E5" />
               </View>
               <View>
-                <Text style={styles.title}>Quét Hoá Đơn Mua Sắm (AI)</Text>
+                <Text style={styles.title}>Quét Hoá Đơn Mua Sắm</Text>
                 <Text style={styles.subtitle}>Tự động nhận diện hoá đơn & bóc tách món hàng</Text>
               </View>
             </View>
@@ -319,119 +294,128 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                 )}
               </View>
             ) : scanMode === "qr" ? (
-              /* 2. TAB 1: LIVE CAMERA QR SCANNER */
+              /* 2. TAB 1: ULTRA-RESPONSIVE LIVE CAMERA QR SCANNER */
               <View style={styles.modeBody}>
-                {!showManualUrl ? (
-                  <>
-                    <View style={styles.cameraBoxContainer}>
-                      {cameraPermission?.granted ? (
-                        <View style={styles.cameraFrame}>
-                          <CameraView
-                            style={StyleSheet.absoluteFill}
-                            facing="back"
-                            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-                            onBarcodeScanned={scannedQrCode || loading ? undefined : handleBarcodeScanned}
-                          />
-                          {/* Viewfinder Target Overlay */}
-                          <View style={styles.cameraOverlay}>
-                            <View style={styles.scanTargetBox}>
-                              <View style={[styles.corner, styles.cornerTL]} />
-                              <View style={[styles.corner, styles.cornerTR]} />
-                              <View style={[styles.corner, styles.cornerBL]} />
-                              <View style={[styles.corner, styles.cornerBR]} />
-                              <ScanLine size={32} color="#818CF8" style={{ opacity: 0.8 }} />
-                            </View>
-                            <Text style={styles.scanTargetHint}>
-                              Hướng khung ngắm vào mã QR trên bill mua sắm
-                            </Text>
-                          </View>
+                <View style={styles.cameraBoxContainer}>
+                  {cameraPermission?.granted ? (
+                    <View style={styles.cameraFrame}>
+                      <CameraView
+                        style={StyleSheet.absoluteFill}
+                        facing="back"
+                        autofocus="on"
+                        zoom={zoom}
+                        barcodeScannerSettings={{
+                          barcodeTypes: [
+                            "qr",
+                            "aztec",
+                            "datamatrix",
+                            "pdf417",
+                            "code128",
+                            "code39",
+                            "ean13",
+                            "ean8",
+                            "upc_a",
+                            "upc_e",
+                          ],
+                        }}
+                        onBarcodeScanned={scannedQrCode || loading ? undefined : handleBarcodeScanned}
+                      />
 
-                          {loading && (
-                            <View style={styles.cameraLoadingOverlay}>
-                              <ActivityIndicator size="large" color="#FFFFFF" />
-                              <Text style={styles.cameraLoadingText}>Đang đọc hoá đơn điện tử...</Text>
-                            </View>
-                          )}
-                        </View>
-                      ) : (
-                        <View style={styles.permissionBox}>
-                          <View style={styles.permissionIconBg}>
-                            <QrCode size={36} color="#4F46E5" />
+                      {/* Viewfinder Target Overlay */}
+                      <View style={styles.cameraOverlay}>
+                        {/* Top Tools Bar inside Camera */}
+                        <View style={styles.cameraTopBar}>
+                          <View style={styles.badgeAutoDetect}>
+                            <Text style={styles.badgeAutoDetectText}>⚡ Quét siêu nhạy 0ms</Text>
                           </View>
-                          <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
-                          <Text style={styles.permissionSub}>
-                            Cho phép ShareMoney sử dụng camera để quét mã QR hoá đơn thanh toán.
-                          </Text>
-                          <Button
-                            title="Cấp quyền Camera"
-                            variant="primary"
-                            onPress={requestCameraPermission}
-                            style={{ marginTop: 8 }}
+                        </View>
+
+                        {/* Center Active Scanning Frame with Moving Laser Line */}
+                        <View style={styles.scanTargetBox}>
+                          <View style={[styles.corner, styles.cornerTL]} />
+                          <View style={[styles.corner, styles.cornerTR]} />
+                          <View style={[styles.corner, styles.cornerBL]} />
+                          <View style={[styles.corner, styles.cornerBR]} />
+
+                          {/* Animated Sweeping Laser Bar */}
+                          <Animated.View
+                            style={[
+                              styles.laserLine,
+                              {
+                                transform: [
+                                  {
+                                    translateY: scanAnim.interpolate({
+                                      inputRange: [0, 1],
+                                      outputRange: [10, 190],
+                                    }),
+                                  },
+                                ],
+                              },
+                            ]}
                           />
+                        </View>
+
+                        {/* Zoom Selection Bar */}
+                        <View style={styles.zoomContainer}>
+                          <TouchableOpacity
+                            style={[styles.zoomPill, zoom === 0 && styles.zoomPillActive]}
+                            onPress={() => setZoom(0)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.zoomPillText, zoom === 0 && styles.zoomPillTextActive]}>
+                              1x
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.zoomPill, zoom === 0.08 && styles.zoomPillActive]}
+                            onPress={() => setZoom(0.08)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.zoomPillText, zoom === 0.08 && styles.zoomPillTextActive]}>
+                              1.5x (Chuẩn)
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.zoomPill, zoom === 0.16 && styles.zoomPillActive]}
+                            onPress={() => setZoom(0.16)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.zoomPillText, zoom === 0.16 && styles.zoomPillTextActive]}>
+                              2x (Bill nhỏ)
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.scanTargetHint}>
+                          ⚡ Lia camera tự do quanh bill — Tự động nhận diện mọi vị trí
+                        </Text>
+                      </View>
+
+                      {loading && (
+                        <View style={styles.cameraLoadingOverlay}>
+                          <ActivityIndicator size="large" color="#FFFFFF" />
+                          <Text style={styles.cameraLoadingText}>Đang đọc hoá đơn điện tử...</Text>
                         </View>
                       )}
                     </View>
-
-                    {/* Quick Link Toggle */}
-                    <TouchableOpacity
-                      style={styles.toggleManualLink}
-                      onPress={() => setShowManualUrl(true)}
-                      activeOpacity={0.7}
-                    >
-                      <LinkIcon size={14} color="#4F46E5" />
-                      <Text style={styles.toggleManualLinkText}>Hoặc dán đường dẫn link E-Bill</Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  /* Manual URL Input Fallback */
-                  <View style={styles.urlInputBox}>
-                    <View style={styles.qrInfoBanner}>
-                      <QrCode size={18} color="#4F46E5" style={{ marginTop: 2 }} />
-                      <Text style={styles.qrInfoText}>
-                        Dán đường dẫn Hóa Đơn Điện Tử từ mã QR trên bill mua sắm (WinMart, Co.opmart, Shopee, VNPT...).
+                  ) : (
+                    <View style={styles.permissionBox}>
+                      <View style={styles.permissionIconBg}>
+                        <QrCode size={36} color="#4F46E5" />
+                      </View>
+                      <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
+                      <Text style={styles.permissionSub}>
+                        Cho phép ShareMoney sử dụng camera để quét mã QR hoá đơn thanh toán.
                       </Text>
+                      <Button
+                        title="Cấp quyền Camera"
+                        variant="primary"
+                        onPress={requestCameraPermission}
+                        style={{ marginTop: 8 }}
+                      />
                     </View>
-
-                    <Input
-                      label="Đường dẫn Hoá Đơn Điện Tử (URL) *"
-                      placeholder="https://hoadon.winmart.vn/..."
-                      value={qrUrl}
-                      onChangeText={setQrUrl}
-                      autoCapitalize="none"
-                      keyboardType="url"
-                    />
-
-                    <View style={{ flexDirection: "row", gap: 10 }}>
-                      <TouchableOpacity
-                        style={styles.pasteButton}
-                        onPress={handlePasteClipboard}
-                        activeOpacity={0.7}
-                      >
-                        <ClipboardPaste size={15} color="#4F46E5" />
-                        <Text style={styles.pasteButtonText}>Dán từ Clipboard</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.backToCameraBtn}
-                        onPress={() => setShowManualUrl(false)}
-                        activeOpacity={0.7}
-                      >
-                        <Camera size={15} color="#334155" />
-                        <Text style={styles.backToCameraText}>Mở lại Camera</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <Button
-                      title={loading ? "Đang xử lý..." : "Bóc tách hoá đơn từ link"}
-                      variant="primary"
-                      onPress={handleScanQrUrl}
-                      style={{ marginTop: 10 }}
-                      disabled={loading || !qrUrl.trim()}
-                      loading={loading}
-                      icon={!loading ? <Sparkles size={16} color={colors.white} /> : undefined}
-                    />
-                  </View>
-                )}
+                  )}
+                </View>
               </View>
             ) : (
               /* 3. TAB 2: ẢNH TỪ ĐIỆN THOẠI (OCR) */
@@ -496,14 +480,6 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                   icon={<CheckCircle2 size={16} color={colors.white} />}
                 />
               </>
-            ) : scanMode === "qr" && !showManualUrl ? (
-              <Button
-                title="Hủy bỏ"
-                variant="cancel"
-                onPress={handleClose}
-                style={{ flex: 1 }}
-                disabled={loading}
-              />
             ) : (
               <>
                 <Button
@@ -543,7 +519,7 @@ const styles = StyleSheet.create({
   },
   container: {
     width: "100%",
-    maxHeight: "90%",
+    maxHeight: "92%",
     backgroundColor: colors.white,
     borderRadius: 24,
     padding: 20,
@@ -557,7 +533,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 14,
   },
   headerLeft: {
     flexDirection: "row",
@@ -573,7 +549,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "900",
     color: colors.slate900,
   },
@@ -587,7 +563,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1F5F9",
     borderRadius: 14,
     padding: 4,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   tabButton: {
     flex: 1,
@@ -616,12 +592,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   scrollArea: {
-    maxHeight: 380,
+    maxHeight: 420,
   },
   cameraBoxContainer: {
     width: "100%",
-    height: 270,
-    borderRadius: 20,
+    height: 330,
+    borderRadius: 22,
     overflow: "hidden",
     backgroundColor: "#0F172A",
     marginBottom: 8,
@@ -633,64 +609,128 @@ const styles = StyleSheet.create({
   },
   cameraOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(15, 23, 42, 0.35)",
+    backgroundColor: "rgba(15, 23, 42, 0.25)",
     alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  cameraTopBar: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+  },
+  badgeAutoDetect: {
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  badgeAutoDetectText: {
+    color: "#38BDF8",
+    fontSize: 11,
+    fontWeight: "800",
   },
   scanTargetBox: {
-    width: 180,
-    height: 180,
+    width: 240,
+    height: 200,
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
-    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(99, 102, 241, 0.3)",
+    overflow: "hidden",
+  },
+  laserLine: {
+    position: "absolute",
+    top: 0,
+    left: 8,
+    right: 8,
+    height: 3,
+    backgroundColor: "#6366F1",
+    borderRadius: 2,
+    shadowColor: "#818CF8",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 4,
   },
   corner: {
     position: "absolute",
-    width: 24,
-    height: 24,
-    borderColor: "#4F46E5",
+    width: 26,
+    height: 26,
+    borderColor: "#6366F1",
   },
   cornerTL: {
     top: 0,
     left: 0,
     borderTopWidth: 4,
     borderLeftWidth: 4,
-    borderTopLeftRadius: 12,
+    borderTopLeftRadius: 14,
   },
   cornerTR: {
     top: 0,
     right: 0,
     borderTopWidth: 4,
     borderRightWidth: 4,
-    borderTopRightRadius: 12,
+    borderTopRightRadius: 14,
   },
   cornerBL: {
     bottom: 0,
     left: 0,
     borderBottomWidth: 4,
     borderLeftWidth: 4,
-    borderBottomLeftRadius: 12,
+    borderBottomLeftRadius: 14,
   },
   cornerBR: {
     bottom: 0,
     right: 0,
     borderBottomWidth: 4,
     borderRightWidth: 4,
-    borderBottomRightRadius: 12,
+    borderBottomRightRadius: 14,
+  },
+  zoomContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+  },
+  zoomPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  zoomPillActive: {
+    backgroundColor: "#4F46E5",
+  },
+  zoomPillText: {
+    color: "#94A3B8",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  zoomPillTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "900",
   },
   scanTargetHint: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    marginTop: 14,
     textAlign: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 5,
+    borderRadius: 16,
   },
   cameraLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -703,18 +743,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
-  },
-  toggleManualLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-    gap: 6,
-  },
-  toggleManualLinkText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#4F46E5",
   },
   permissionBox: {
     flex: 1,
@@ -811,57 +839,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: "#DC2626",
-  },
-  qrInfoBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "#EEF2FF",
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
-    borderRadius: 14,
-    padding: 12,
-    gap: 10,
-    marginBottom: 12,
-  },
-  qrInfoText: {
-    flex: 1,
-    fontSize: 12,
-    color: "#3730A3",
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-  urlInputBox: {
-    gap: 8,
-  },
-  pasteButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#EEF2FF",
-    paddingVertical: 10,
-    borderRadius: 12,
-    gap: 6,
-  },
-  pasteButtonText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#4F46E5",
-  },
-  backToCameraBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F1F5F9",
-    paddingVertical: 10,
-    borderRadius: 12,
-    gap: 6,
-  },
-  backToCameraText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#334155",
   },
   resultContainer: {
     gap: 12,

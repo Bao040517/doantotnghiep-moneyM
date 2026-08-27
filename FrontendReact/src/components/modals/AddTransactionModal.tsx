@@ -156,15 +156,15 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         }} 
       />
       <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-        {/* AI Scan Button for Expense */}
+        {/* Scan Button for Expense */}
         {type === "EXPENSE" && (
           <TouchableOpacity style={styles.scanBtn} onPress={() => setScanModalVisible(true)}>
             <View style={styles.scanIconBg}>
               <Text style={{ fontSize: 18 }}>📸</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.scanTitle}>Quét hoá đơn / QR Bill bằng AI</Text>
-              <Text style={styles.scanSub}>Tự động điền số tiền từ ảnh hoặc link QR</Text>
+              <Text style={styles.scanTitle}>Quét hoá đơn / Mã QR Bill</Text>
+              <Text style={styles.scanSub}>Tự động điền số tiền từ ảnh hoặc mã QR</Text>
             </View>
           </TouchableOpacity>
         )}

@@ -704,7 +704,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
 
             <View style={{ marginTop: 16 }}>
               <Button
-                title="Thanh toán ngay 💳"
+                title="Thanh toán ngay"
                 variant="primary"
                 onPress={() => {
                   setSandboxVisible(true);
@@ -767,7 +767,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled={true}
           >
-            {/* AI / QR Scan Button for Group Expense */}
+            {/* QR Scan Button for Group Expense */}
             <TouchableOpacity
               style={styles.scanBtn}
               onPress={() => setScanModalVisible(true)}
@@ -777,8 +777,8 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                 <Text style={{ fontSize: 18 }}>📸</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.scanTitle}>Quét hoá đơn / QR Bill bằng AI</Text>
-                <Text style={styles.scanSub}>Tự động điền tên & số tiền từ ảnh hoặc link QR</Text>
+                <Text style={styles.scanTitle}>Quét hoá đơn / Mã QR Bill</Text>
+                <Text style={styles.scanSub}>Tự động điền tên & số tiền từ ảnh hoặc mã QR</Text>
               </View>
             </TouchableOpacity>
 

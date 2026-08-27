@@ -69,19 +69,11 @@ export const NotificationBottomSheet: React.FC<NotificationBottomSheetProps> = (
     }
   };
 
-  const hasUnread = notifications.some((n) => !n.isRead);
-  const headerRight = hasUnread ? (
-    <TouchableOpacity onPress={handleMarkAllRead}>
-      <Text style={{ fontSize: 12, color: colors.indigo600, fontWeight: "700" }}>Đã đọc tất cả</Text>
-    </TouchableOpacity>
-  ) : null;
-
   return (
     <BottomSheet 
       visible={visible} 
       onClose={onClose} 
-      title="Thông Báo Hướng Dẫn & Nhắc Nhở 🔔"
-      headerRight={headerRight}
+      title="Thông Báo"
     >
       <View style={styles.container}>
         {loading ? (

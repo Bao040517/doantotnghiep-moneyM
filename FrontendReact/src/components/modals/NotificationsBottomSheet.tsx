@@ -104,20 +104,11 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
 
   if (!visible) return null;
 
-  const hasUnread = notifications.some(n => !n.isRead);
-
-  const headerRight = hasUnread ? (
-    <TouchableOpacity onPress={handleMarkAllRead}>
-      <Text style={styles.markAllText}>Đánh dấu đã đọc hết</Text>
-    </TouchableOpacity>
-  ) : null;
-
   return (
     <BottomSheet 
       visible={visible} 
       onClose={onClose} 
-      title="Thông báo" 
-      headerRight={headerRight}
+      title="Thông Báo"
     >
       {loading && notifications.length === 0 ? (
         <View style={styles.emptyContainer}>

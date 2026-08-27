@@ -13,6 +13,7 @@ import {
   Modal,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Bell } from "lucide-react-native";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { VietQRCard } from "../components/features/VietQRCard";
@@ -307,7 +308,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
           <View style={styles.headerRightActions}>
             <TouchableOpacity style={styles.iconCircle}>
-              <Text style={{ fontSize: 15 }}>🔔</Text>
+              <Bell size={18} color="#0F172A" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconCircle}>
               <Text style={{ fontSize: 15 }}>⚙️</Text>

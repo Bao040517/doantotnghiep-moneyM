@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
+import * as MediaLibrary from "expo-media-library";
 import {
   Smartphone,
   Download,
@@ -144,6 +144,18 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
     if (!qrSvgRef.current) return;
     setSavingQr(true);
     try {
+      // 1. Kiểm tra và yêu cầu quyền truy cập Thư viện ảnh
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Cần cấp quyền",
+          "Vui lòng cấp quyền truy cập Bộ sưu tập ảnh trong Cài đặt của máy để lưu mã QR."
+        );
+        setSavingQr(false);
+        return;
+      }
+
+      // 2. Chuyển đổi SVG thành tệp hình ảnh PNG
       qrSvgRef.current.toDataURL(async (dataURL: string) => {
         try {
           const filePath = `${FileSystem.cacheDirectory}vietqr_${Date.now()}.png`;
@@ -151,27 +163,24 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
             encoding: FileSystem.EncodingType.Base64,
           });
 
-          if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(filePath, {
-              mimeType: "image/png",
-              dialogTitle: "Lưu ảnh mã QR hoặc gửi",
-              UTI: "public.png",
-            });
-            if (onCopySuccess) {
-              onCopySuccess("Đã xuất ảnh mã QR thành công! 📸");
-            }
+          // 3. Lưu trực tiếp vào Thư viện / Bộ sưu tập ảnh
+          await MediaLibrary.saveToLibraryAsync(filePath);
+
+          if (onCopySuccess) {
+            onCopySuccess("Đã lưu mã QR vào Bộ sưu tập ảnh thành công!");
           } else {
-            Alert.alert("Thông báo", "Tính năng lưu ảnh không khả dụng trên môi trường này.");
+            Alert.alert("Thành công", "Đã lưu mã QR vào Bộ sưu tập ảnh của bạn!");
           }
         } catch (innerErr: any) {
           console.error("Lỗi khi lưu ảnh QR:", innerErr);
-          Alert.alert("Lỗi", "Không thể tạo file ảnh mã QR. Vui lòng thử lại!");
+          Alert.alert("Lỗi", "Không thể lưu ảnh mã QR vào Bộ sưu tập. Vui lòng thử lại!");
         } finally {
           setSavingQr(false);
         }
       });
     } catch (err: any) {
       console.error("Lỗi get dataURL QR:", err);
+      Alert.alert("Lỗi", "Không thể xuất mã QR. Vui lòng thử lại!");
       setSavingQr(false);
     }
   };
@@ -231,11 +240,11 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
           activeOpacity={0.75}
         >
           {savingQr ? (
-            <ActivityIndicator size="small" color="#334155" />
+            <ActivityIndicator size="small" color="#0F172A" />
           ) : (
             <>
-              <Download size={16} color="#334155" />
-              <Text style={styles.downloadQrBtnText}>📥 Lưu mã QR vào Bộ sưu tập</Text>
+              <Download size={16} color="#0F172A" />
+              <Text style={styles.downloadQrBtnText}>Lưu mã QR</Text>
             </>
           )}
         </TouchableOpacity>

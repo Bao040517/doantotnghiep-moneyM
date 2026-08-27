@@ -43,6 +43,40 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 38. **Chuẩn Hóa Bộ Dữ Liệu Mẫu Seed V18 & Triển Khai Docker AWS Cloud EC2 (Definitive Seed V18 & Live Production EC2):** Khắc phục triệt để lỗi crash JPA `BudgetType.DYNAMIC`, chuyển toàn bộ sang `FLEXIBLE`, tích hợp migration `ALTER/UPDATE` an toàn, sửa lỗi import `VNPayController`, và khép kín quy trình build Docker container tự động chạy mượt mà trên AWS EC2 Singapore (`18.142.90.90:8080`).
 39. **Chế Độ Tối Toàn Diện (Dark Mode System) & Tối Ưu Hóa Ràng Buộc Cơ Sở Dữ Liệu & UI Polish:** Tích hợp Dark Mode toàn cục (`ThemeContext`, `theme.ts`), gạt chuyển đổi giao diện sáng/tối trong Profile, Skeleton Loading mượt mà, bọc ngoặc kép từ khóa SQL PostgreSQL (`"month"`, `"year"`, `"groups"`), tối ưu hóa kiểm tra số dư ví theo phương thức thanh toán ngoại vi (VietQR, VNPay, PayOS, Cash) và bổ sung tra cứu ngân sách theo tên.
 
+### Session [2026-08-27] (Phần 3) - Tối Ưu Hóa Giao Diện Toàn Diện (Dashboard Grid, Icon Vector, MediaLibrary Save QR, Auto Bank Sniffer & Camera QR Refinements)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Lưu Trực Tiếp Mã QR Vào Bộ Sưu Tập Thiết Bị (`VietQRCard.tsx`):**
+   - **Tích Hợp `expo-media-library`:** Cài đặt module `expo-media-library`, yêu cầu quyền truy cập thư viện và gọi trực tiếp `MediaLibrary.saveToLibraryAsync(filePath)`.
+   - **Loại Bỏ Hộp Thoại Share Sheet:** Loại bỏ `Sharing.shareAsync` (không còn bật bảng hỏi gửi Zalo/Facebook/Messenger), chuyển hoàn toàn sang lưu trực tiếp vào Photos/Gallery của điện thoại.
+   - **UI Tối Giản:** Đổi nhãn nút thành `Lưu mã QR` ngắn gọn, thay emoji màu bằng vector icon `Download` đơn sắc `#0F172A`.
+
+2. **Chuẩn Hóa Bộ Tứ Chỉ Số Tài Chính Trên Dashboard (`DashboardScreen.tsx`):**
+   - **Ô 1: `TỔNG ĐÃ CHI`:** Bỏ chữ *(TẤT CẢ)*, dẫn tới Lịch sử thu chi.
+   - **Ô 2: `NGÂN SÁCH`:** Bổ sung ô ngân sách mới vào lưới 4 ô, dẫn tới màn hình Ngân sách.
+   - **Ô 3: `TIẾT KIỆM`:** Bỏ chữ *TỔNG TIỀN*, dẫn tới màn hình Tiết kiệm.
+   - **Ô 4: `SỔ NỢ`:** Thiết kế 2 dòng cân đối rõ ràng: 🟢 `Người khác nợ: +...` (màu xanh lá) và 🔴 `Mình nợ: -...` (màu đỏ hồng), dẫn tới màn hình Nhóm chia tiền.
+
+3. **Chuyển Đổi Đồng Bộ Vector Icon Quả Chuông (`DashboardScreen.tsx`, `AdvisorScreen.tsx`, `GroupsScreen.tsx`):**
+   - Thay thế toàn bộ emoji `🔔` bằng vector icon `Bell` từ `lucide-react-native` màu đen `#0F172A` / trắng `#FFFFFF` sắc nét, đồng nhất trên toàn hệ điều hành iOS & Android.
+   - Làm sạch tiêu đề Popup thông báo thành `Thông Báo` và gỡ bỏ nút `Đã đọc hết` / `Đã đọc tất cả` giúp giao diện tối giản.
+
+4. **Tự Động Bắt Biến Động Ngân Hàng Từ Clipboard Khi Mở App (Auto AppState Sniffer):**
+   - Lắng nghe sự kiện `AppState.addEventListener('change', ...)`: Ngay khi người dùng chuyển khoản ngoài app ngân hàng và mở lại ShareMoney, hệ thống tự động kiểm tra clipboard, bóc tách số tiền (+/-), ngân hàng và danh mục trong < 1ms, bật ngay Popup xác nhận 1-chạm `[✓ Lưu Ngay]`.
+   - Gỡ bỏ banner thừa trên Dashboard để giao diện thoáng đãng, liền mạch.
+
+5. **Camera Quét Hóa Đơn & Mã QR Siêu Nhạy (`ScanReceiptModal.tsx`):**
+   - Loại bỏ chữ *(AI)* trên tiêu đề và các nút bấm mở quét hóa đơn.
+   - Cấu hình camera với độ phóng đại mặc định 1.5x (`zoom=0.08`), tự động lấy nét liên tục (`autofocus="on"`), khung quét $240\times 200\text{px}$ và thanh laser quét chuyển động, hỗ trợ quét QR hóa đơn từ khoảng cách 30–50cm.
+   - Gỡ bỏ công tắc đèn pin và ô nhập link thủ công theo yêu cầu.
+
+6. **Làm Sạch Accordion Popup Tổng Chi Dự Kiến (`TotalExpenseDetailBottomSheet.tsx`):**
+   - Gỡ bỏ các dòng chú thích phụ bên dưới 4 đề mục chính (*Ăn uống..., Mua sắm..., Nợ nhóm..., Quỹ dự phòng...*), chỉ giữ lại tiêu đề rõ ràng, thanh thoát.
+
+7. **Chuẩn Hóa Nút Thanh Toán Nợ (`GroupDetailScreen.tsx`, `PaymentSandboxModal.tsx`):**
+   - Gỡ bỏ icon `💳` trên nút `Thanh toán ngay` và trên tiêu đề modal `Thanh toán khoản nợ`.
+
 ### Session [2026-08-27] (Phần 2) - Hệ Thống Dark Mode Toàn Diện, Chuẩn Hóa Ràng Buộc Entity JPA & Đồng Bộ Triển Khai Git + AWS EC2
 
 **✅ Đã hoàn thành (Compact Procedure):**

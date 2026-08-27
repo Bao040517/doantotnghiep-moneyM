@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import {
   View,
@@ -11,8 +11,11 @@ import {
   Platform,
   StatusBar,
   Image,
+  AppState,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { useNavigation } from "@react-navigation/native";
+import { Bell } from "lucide-react-native";
 import { Card } from "../components/ui/Card";
 import { WalletManagerBottomSheet } from "../components/modals/WalletManagerBottomSheet";
 import { AddTransactionModal } from "../components/modals/AddTransactionModal";
@@ -21,7 +24,7 @@ import { ExternalLoanManagerBottomSheet } from "../components/modals/ExternalLoa
 import { NotificationsBottomSheet } from "../components/modals/NotificationsBottomSheet";
 import { QuickBankTransactionModal } from "../components/modals/QuickBankTransactionModal";
 import { BankNotificationDetectorModal } from "../components/modals/BankNotificationDetectorModal";
-import { ParsedBankNotification } from "../utils/bankNotificationParser";
+import { ParsedBankNotification, parseBankNotificationText } from "../utils/bankNotificationParser";
 import { FinancialHealthCard } from "../components/features/FinancialHealthCard";
 import { colors } from "../constants/colors";
 import { DashboardSkeleton } from "../components/ui/SkeletonLoader";
@@ -77,6 +80,40 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         setCategoriesList(cats);
       }
     }).catch(() => {});
+  }, []);
+
+  // ⚡ Tự động bắt biến động ngân hàng từ Clipboard khi người dùng quay lại ShareMoney
+  const lastProcessedClipboard = useRef<string>("");
+  useEffect(() => {
+    const checkClipboardForBankTx = async () => {
+      try {
+        const text = await Clipboard.getStringAsync();
+        if (text && text.trim() && text !== lastProcessedClipboard.current) {
+          const parsed = parseBankNotificationText(text.trim());
+          if (parsed && parsed.isValid && parsed.amount > 0) {
+            lastProcessedClipboard.current = text;
+            setDetectedBankData(parsed);
+            setQuickBankTxVisible(true);
+          }
+        }
+      } catch (e) {
+        // Ignore clipboard errors
+      }
+    };
+
+    // Kiểm tra ngay khi mở màn hình
+    checkClipboardForBankTx();
+
+    // Lắng nghe khi người dùng chuyển từ app ngân hàng quay lại ShareMoney
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        checkClipboardForBankTx();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const handleAddWallet = async (payload: WalletPayload) => {
@@ -146,7 +183,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
             <View style={{ flexDirection: "row", gap: 12 }}>
               <TouchableOpacity onPress={() => setNotifSheetVisible(true)} style={styles.eyeBtn}>
-                <Text style={{ fontSize: 18 }}>🔔</Text>
+                <Bell size={20} color="#FFFFFF" />
                 {unreadCount > 0 && (
                   <View style={styles.notifBadge}>
                     <Text style={styles.notifBadgeText}>
@@ -184,32 +221,49 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
           {/* 4 Metric Grid (2x2) */}
           <View style={styles.grid4}>
+            {/* Ô 1: Tổng đã chi */}
             <TouchableOpacity style={styles.metricCard} onPress={() => onNavigate?.("history")}>
               <View style={styles.metricLabelRow}>
-                <Text style={styles.metricTitle}>TỔNG ĐÃ CHI (TẤT CẢ)</Text>
+                <Text style={styles.metricTitle}>TỔNG ĐÃ CHI</Text>
               </View>
               <Text style={styles.metricVal}>{showBalance ? fmt(totalActualExpense) : "••••••"}</Text>
             </TouchableOpacity>
 
+            {/* Ô 2: Ngân sách */}
+            <TouchableOpacity style={styles.metricCard} onPress={() => onNavigate?.("budget")}>
+              <View style={styles.metricLabelRow}>
+                <Text style={styles.metricTitle}>NGÂN SÁCH</Text>
+              </View>
+              <Text style={styles.metricVal}>{showBalance ? fmt(totalBudgetLimit) : "••••••"}</Text>
+            </TouchableOpacity>
+
+            {/* Ô 3: Tiết kiệm */}
             <TouchableOpacity style={styles.metricCard} onPress={() => onNavigate?.("savings")}>
               <View style={styles.metricLabelRow}>
-                <Text style={styles.metricTitle}>TỔNG TIỀN TIẾT KIỆM</Text>
+                <Text style={styles.metricTitle}>TIẾT KIỆM</Text>
               </View>
               <Text style={styles.metricVal}>{showBalance ? fmt(totalSavings) : "••••••"}</Text>
             </TouchableOpacity>
 
+            {/* Ô 4: Sổ nợ (Người khác nợ & Mình nợ) */}
             <TouchableOpacity style={styles.metricCard} onPress={() => onNavigate?.("groups")}>
               <View style={styles.metricLabelRow}>
-                <Text style={styles.metricTitle}>NỢ CẦN THU</Text>
+                <Text style={styles.metricTitle}>SỔ NỢ</Text>
               </View>
-              <Text style={styles.metricVal}>{showBalance ? fmt(debtSummary.totalOwed) : "••••••"}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.metricCard} onPress={() => onNavigate?.("groups")}>
-              <View style={styles.metricLabelRow}>
-                <Text style={styles.metricTitle}>NỢ PHẢI TRẢ</Text>
-              </View>
-              <Text style={styles.metricVal}>{showBalance ? fmt(debtSummary.totalOwing) : "••••••"}</Text>
+              {showBalance ? (
+                <View style={styles.debtCompactContainer}>
+                  <View style={styles.debtCompactRow}>
+                    <Text style={styles.debtCompactLabel}>Người khác nợ:</Text>
+                    <Text style={[styles.debtCompactVal, { color: "#4ADE80" }]}>+{fmt(debtSummary.totalOwed)}</Text>
+                  </View>
+                  <View style={styles.debtCompactRow}>
+                    <Text style={styles.debtCompactLabel}>Mình nợ:</Text>
+                    <Text style={[styles.debtCompactVal, { color: "#FB7185" }]}>-{fmt(debtSummary.totalOwing)}</Text>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.metricVal}>••••••</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -364,31 +418,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             <Text style={[styles.quickActionText, { color: themeColors.textPrimary }]} numberOfLines={1}>Lịch sử</Text>
           </TouchableOpacity>
         </View>
-
-        {/* ─── ZERO-LATENCY BANK SYNC BANNER (0ms Offline Smart Classifier) ─── */}
-        <TouchableOpacity
-          style={[styles.bankSyncBanner, { backgroundColor: themeColors.card, borderColor: isDark ? '#1E3A5F' : '#DBEAFE' }]}
-          onPress={() => setDetectorVisible(true)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.bankSyncBannerLeft}>
-            <View style={styles.bankSyncIconGlow}>
-              <Text style={{ fontSize: 20 }}>⚡</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={styles.bankSyncTitle}>Bắt Biến Động Ngân Hàng</Text>
-                <View style={styles.zeroLatencyBadge}>
-                  <Text style={styles.zeroLatencyText}>0ms Không Độ Trễ</Text>
-                </View>
-              </View>
-              <Text style={styles.bankSyncDesc} numberOfLines={2}>
-                Tự động bóc tách số tiền & phân loại 1-chạm khi bạn chuyển khoản ngoài app
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.bankSyncArrow}>→</Text>
-        </TouchableOpacity>
 
         {/* ─── BUDGET PROGRESS SECTION ─── */}
         <Text style={[styles.sectionHeaderTitle, { color: themeColors.textPrimary }]}>Ngân sách Tháng này</Text>
@@ -749,6 +778,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
     color: colors.white,
+  },
+  debtCompactContainer: {
+    gap: 1,
+  },
+  debtCompactRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  debtCompactLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.6)",
+  },
+  debtCompactVal: {
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   /* Breakdown Card */

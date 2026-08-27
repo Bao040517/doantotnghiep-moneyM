@@ -13,6 +13,7 @@ import {
   DeviceEventEmitter,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { Bell } from "lucide-react-native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
@@ -410,7 +411,7 @@ export const AdvisorScreen: React.FC = () => {
 
           <View style={styles.headerRightActions}>
             <TouchableOpacity style={styles.iconCircle} onPress={() => setNotifVisible(true)}>
-              <Text style={{ fontSize: 15 }}>🔔</Text>
+              <Bell size={18} color="#0F172A" />
               {unreadCount > 0 && (
                 <View style={styles.notifBadge}>
                   <Text style={styles.notifBadgeText}>

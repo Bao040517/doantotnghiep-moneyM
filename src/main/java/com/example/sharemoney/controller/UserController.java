@@ -12,7 +12,6 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-
 public class UserController {
 
     private final UserRepository userRepository;
@@ -57,11 +55,14 @@ public class UserController {
                         .findById(userId)
                         .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        userRepository.findByPhone(request.getPhone()).ifPresent(existingUser -> {
-            if (!existingUser.getId().equals(userId)) {
-                throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS);
-            }
-        });
+        userRepository
+                .findByPhone(request.getPhone())
+                .ifPresent(
+                        existingUser -> {
+                            if (!existingUser.getId().equals(userId)) {
+                                throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS);
+                            }
+                        });
 
         user.setPhone(request.getPhone());
         userRepository.save(user);
@@ -96,10 +97,14 @@ public class UserController {
         user.setBankQrUrl(request.getBankQrUrl());
         if (request.getBankBin() != null) user.setBankBin(request.getBankBin());
         if (request.getBankAccountNo() != null) user.setBankAccountNo(request.getBankAccountNo());
-        if (request.getBankAccountName() != null) user.setBankAccountName(request.getBankAccountName());
-        if (request.getSavingsBankBin() != null) user.setSavingsBankBin(request.getSavingsBankBin());
-        if (request.getSavingsBankAccountNo() != null) user.setSavingsBankAccountNo(request.getSavingsBankAccountNo());
-        if (request.getSavingsBankAccountName() != null) user.setSavingsBankAccountName(request.getSavingsBankAccountName());
+        if (request.getBankAccountName() != null)
+            user.setBankAccountName(request.getBankAccountName());
+        if (request.getSavingsBankBin() != null)
+            user.setSavingsBankBin(request.getSavingsBankBin());
+        if (request.getSavingsBankAccountNo() != null)
+            user.setSavingsBankAccountNo(request.getSavingsBankAccountNo());
+        if (request.getSavingsBankAccountName() != null)
+            user.setSavingsBankAccountName(request.getSavingsBankAccountName());
 
         userRepository.save(user);
 

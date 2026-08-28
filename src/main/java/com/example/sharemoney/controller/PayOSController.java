@@ -5,7 +5,6 @@ import com.example.sharemoney.dto.request.CreateTransactionRequest;
 import com.example.sharemoney.entity.PaymentOrder;
 import com.example.sharemoney.entity.PaymentOrderStatus;
 import com.example.sharemoney.entity.PaymentOrderType;
-import com.example.sharemoney.entity.Wallet;
 import com.example.sharemoney.repository.PaymentOrderRepository;
 import com.example.sharemoney.repository.WalletRepository;
 import com.example.sharemoney.security.SecurityUtils;
@@ -41,9 +40,7 @@ public class PayOSController {
     private final TransactionService transactionService;
     private final WalletRepository walletRepository;
 
-    /**
-     * POST /api/payos/create-payment-link
-     */
+    /** POST /api/payos/create-payment-link */
     @PostMapping("/create-payment-link")
     @Transactional
     public ResponseEntity<Map<String, Object>> createPaymentLink(
@@ -67,28 +64,34 @@ public class PayOSController {
         long orderCode = System.currentTimeMillis() % 1000000000L + (long) (Math.random() * 1000L);
         String txnRef = "POS" + orderCode;
 
-        PaymentOrderType orderType = (groupId != null && creditorId != null) ? PaymentOrderType.DEBT : PaymentOrderType.BUDGET;
+        PaymentOrderType orderType =
+                (groupId != null && creditorId != null)
+                        ? PaymentOrderType.DEBT
+                        : PaymentOrderType.BUDGET;
 
         // Lưu đơn hàng PENDING vào Database
-        PaymentOrder order = PaymentOrder.builder()
-                .txnRef(txnRef)
-                .userId(currentUserId)
-                .type(orderType)
-                .amount(BigDecimal.valueOf(finalAmount))
-                .groupId(groupId)
-                .creditorId(creditorId)
-                .walletId(walletId)
-                .categoryId(categoryId)
-                .budgetId(budgetId)
-                .status(PaymentOrderStatus.PENDING)
-                .vnpOrderInfo(description != null ? description : "Thanh toan PayOS " + txnRef)
-                .expiredAt(LocalDateTime.now().plusMinutes(15))
-                .build();
+        PaymentOrder order =
+                PaymentOrder.builder()
+                        .txnRef(txnRef)
+                        .userId(currentUserId)
+                        .type(orderType)
+                        .amount(BigDecimal.valueOf(finalAmount))
+                        .groupId(groupId)
+                        .creditorId(creditorId)
+                        .walletId(walletId)
+                        .categoryId(categoryId)
+                        .budgetId(budgetId)
+                        .status(PaymentOrderStatus.PENDING)
+                        .vnpOrderInfo(
+                                description != null ? description : "Thanh toan PayOS " + txnRef)
+                        .expiredAt(LocalDateTime.now().plusMinutes(15))
+                        .build();
 
         paymentOrderRepository.save(order);
 
         // Gọi PayOS API tạo Link thanh toán chuẩn
-        Map<String, Object> payosResult = payOSService.createPaymentLink(orderCode, finalAmount, description, null, null);
+        Map<String, Object> payosResult =
+                payOSService.createPaymentLink(orderCode, finalAmount, description, null, null);
         payosResult.put("txnRef", txnRef);
 
         if (payosResult.containsKey("description") && payosResult.get("description") != null) {
@@ -99,18 +102,18 @@ public class PayOSController {
         return ResponseEntity.ok(payosResult);
     }
 
-    /**
-     * GET /api/payos/order/{orderCode}
-     */
+    /** GET /api/payos/order/{orderCode} */
     @GetMapping("/order/{orderCode}")
     @Transactional
     public ResponseEntity<Map<String, Object>> getOrderStatus(@PathVariable String orderCode) {
         String safeTxn = orderCode.startsWith("POS") ? orderCode : "POS" + orderCode;
         String rawOrderCode = orderCode.startsWith("POS") ? orderCode.substring(3) : orderCode;
 
-        PaymentOrder order = paymentOrderRepository.findByTxnRef(safeTxn)
-                .or(() -> paymentOrderRepository.findByTxnRef(orderCode))
-                .orElse(null);
+        PaymentOrder order =
+                paymentOrderRepository
+                        .findByTxnRef(safeTxn)
+                        .or(() -> paymentOrderRepository.findByTxnRef(orderCode))
+                        .orElse(null);
 
         if (order != null) {
             // Nếu đơn hàng đang PENDING, chủ động hỏi PayOS Server xem giao dịch đã PAID chưa
@@ -124,10 +127,15 @@ public class PayOSController {
                         order.setPaidAt(LocalDateTime.now());
                         paymentOrderRepository.save(order);
                         processPaymentOrderSuccess(order);
-                        log.info("[PayOS Polling Check] Order {} detected as PAID from PayOS Cloud! Settled and updated DB.", order.getTxnRef());
+                        log.info(
+                                "[PayOS Polling Check] Order {} detected as PAID from PayOS Cloud! Settled and updated DB.",
+                                order.getTxnRef());
                     }
                 } catch (Exception e) {
-                    log.warn("[PayOS Polling Check] Error querying PayOS API for order {}: {}", rawOrderCode, e.getMessage());
+                    log.warn(
+                            "[PayOS Polling Check] Error querying PayOS API for order {}: {}",
+                            rawOrderCode,
+                            e.getMessage());
                 }
             }
 
@@ -147,12 +155,11 @@ public class PayOSController {
         return ResponseEntity.ok(notFound);
     }
 
-    /**
-     * POST /api/payos/webhook (Webhook nhận kết quả tức thời từ PayOS Server)
-     */
+    /** POST /api/payos/webhook (Webhook nhận kết quả tức thời từ PayOS Server) */
     @PostMapping("/webhook")
     @Transactional
-    public ResponseEntity<Map<String, Object>> handlePayOSWebhook(@RequestBody Map<String, Object> webhookPayload) {
+    public ResponseEntity<Map<String, Object>> handlePayOSWebhook(
+            @RequestBody Map<String, Object> webhookPayload) {
         log.info("[PayOS Webhook] Received notification: {}", webhookPayload);
 
         Map<String, Object> response = new HashMap<>();
@@ -175,9 +182,11 @@ public class PayOSController {
                 String orderCodeStr = String.valueOf(orderCodeObj);
                 String txnRef = "POS" + orderCodeStr;
 
-                PaymentOrder order = paymentOrderRepository.findByTxnRef(txnRef)
-                        .or(() -> paymentOrderRepository.findByTxnRef(orderCodeStr))
-                        .orElse(null);
+                PaymentOrder order =
+                        paymentOrderRepository
+                                .findByTxnRef(txnRef)
+                                .or(() -> paymentOrderRepository.findByTxnRef(orderCodeStr))
+                                .orElse(null);
 
                 if (order != null && order.getStatus() == PaymentOrderStatus.PENDING) {
                     order.setStatus(PaymentOrderStatus.SUCCESS);
@@ -186,7 +195,9 @@ public class PayOSController {
 
                     // Xử lý ghi nhận chi tiêu hoặc trả nợ nhóm
                     processPaymentOrderSuccess(order);
-                    log.info("[PayOS Webhook] Order {} successfully marked as PAID!", order.getTxnRef());
+                    log.info(
+                            "[PayOS Webhook] Order {} successfully marked as PAID!",
+                            order.getTxnRef());
                 }
             }
 
@@ -208,7 +219,11 @@ public class PayOSController {
                     ApproveSettleRequest settleReq = new ApproveSettleRequest();
                     settleReq.setDebtorId(order.getUserId());
                     settleReq.setAmount(order.getAmount());
-                    debtService.approveSettle(order.getGroupId(), order.getCreditorId(), settleReq, order.getTxnRef());
+                    debtService.approveSettle(
+                            order.getGroupId(),
+                            order.getCreditorId(),
+                            settleReq,
+                            order.getTxnRef());
                     log.info("[PayOS] Successfully settled DEBT order: {}", order.getTxnRef());
                 }
             } else if (order.getType() == PaymentOrderType.BUDGET) {
@@ -217,9 +232,14 @@ public class PayOSController {
                 txReq.setCategoryId(order.getCategoryId());
                 txReq.setLinkedBudgetId(order.getBudgetId());
                 txReq.setPaymentMethod("PAYOS");
-                txReq.setNote(order.getVnpOrderInfo() != null ? order.getVnpOrderInfo() : "Thanh toán Cổng PayOS (" + order.getTxnRef() + ")");
+                txReq.setNote(
+                        order.getVnpOrderInfo() != null
+                                ? order.getVnpOrderInfo()
+                                : "Thanh toán Cổng PayOS (" + order.getTxnRef() + ")");
                 transactionService.createTransaction(order.getUserId(), order.getWalletId(), txReq);
-                log.info("[PayOS] Successfully created transaction for BUDGET order: {}", order.getTxnRef());
+                log.info(
+                        "[PayOS] Successfully created transaction for BUDGET order: {}",
+                        order.getTxnRef());
             }
         } catch (Exception e) {
             log.error("[PayOS] Error auto-settling order: {}", order.getTxnRef(), e);

@@ -55,7 +55,9 @@ public class FinancialAdvisorService {
     private static final Set<String> WANTS_CATEGORIES =
             Set.of("Quần áo", "Mỹ phẩm", "Phí giao lưu");
 
-    /** Entry point: Trả về toàn bộ kết quả phân tích cho một người dùng (mặc định tháng hiện tại). */
+    /**
+     * Entry point: Trả về toàn bộ kết quả phân tích cho một người dùng (mặc định tháng hiện tại).
+     */
     @Transactional
     public FinancialAdviceResponse analyze(UUID userId) {
         return analyze(userId, null, null);
@@ -66,7 +68,8 @@ public class FinancialAdvisorService {
     public FinancialAdviceResponse analyze(UUID userId, Integer year, Integer month) {
         LocalDate today = LocalDate.now();
         int targetYear = (year != null && year > 0) ? year : today.getYear();
-        int targetMonth = (month != null && month >= 1 && month <= 12) ? month : today.getMonthValue();
+        int targetMonth =
+                (month != null && month >= 1 && month <= 12) ? month : today.getMonthValue();
 
         // Thu thập dữ liệu 3 tháng trước (không tính tháng target)
         Map<String, List<BigDecimal>> categoryHistory =
@@ -131,7 +134,8 @@ public class FinancialAdvisorService {
         int evalDayOfMonth;
         if (targetYear == today.getYear() && targetMonth == today.getMonthValue()) {
             evalDayOfMonth = today.getDayOfMonth();
-        } else if (targetYear < today.getYear() || (targetYear == today.getYear() && targetMonth < today.getMonthValue())) {
+        } else if (targetYear < today.getYear()
+                || (targetYear == today.getYear() && targetMonth < today.getMonthValue())) {
             evalDayOfMonth = targetYM.lengthOfMonth();
         } else {
             evalDayOfMonth = 1;
@@ -144,7 +148,11 @@ public class FinancialAdvisorService {
 
         return FinancialAdviceResponse.builder()
                 .budgetPlan(
-                        generateBudgetPlan(categoryHistory, currentBudgets, lastMonthBudgets, currentMonthSpending))
+                        generateBudgetPlan(
+                                categoryHistory,
+                                currentBudgets,
+                                lastMonthBudgets,
+                                currentMonthSpending))
                 .warnings(
                         generateWarnings(
                                 categoryHistory,
@@ -154,12 +162,16 @@ public class FinancialAdvisorService {
                                 evalDayOfMonth))
                 .habitAnalysis(
                         generateHabitAnalysis(
-                                totalIncome, totalExpense, currentMonthSpending, avgIncome3Months, targetYear, targetMonth))
+                                totalIncome,
+                                totalExpense,
+                                currentMonthSpending,
+                                avgIncome3Months,
+                                targetYear,
+                                targetMonth))
                 .savingsSuggestion(
                         generateSavingsSuggestion(
                                 safeToSpend, categoryHistory, currentMonthSpending))
-                .rebalancePlan(
-                        generateRebalancePlan(currentBudgets))
+                .rebalancePlan(generateRebalancePlan(currentBudgets))
                 .build();
     }
 
@@ -211,7 +223,13 @@ public class FinancialAdvisorService {
             BigDecimal rawAvg = average(monthlyAmounts);
             List<BigDecimal> filtered =
                     monthlyAmounts.stream()
-                            .filter(a -> a != null && a.compareTo(rawAvg.multiply(BigDecimal.valueOf(2))) <= 0)
+                            .filter(
+                                    a ->
+                                            a != null
+                                                    && a.compareTo(
+                                                                    rawAvg.multiply(
+                                                                            BigDecimal.valueOf(2)))
+                                                            <= 0)
                             .collect(Collectors.toList());
 
             BigDecimal cleanAvg = filtered.isEmpty() ? rawAvg : average(filtered);
@@ -260,11 +278,16 @@ public class FinancialAdvisorService {
                             .categoryIcon(
                                     existingBudget != null
                                             ? existingBudget.getCategoryIcon()
-                                            : (lastBudget != null ? lastBudget.getCategoryIcon() : null))
+                                            : (lastBudget != null
+                                                    ? lastBudget.getCategoryIcon()
+                                                    : null))
                             .categoryId(
                                     existingBudget != null && existingBudget.getCategoryId() != null
                                             ? existingBudget.getCategoryId().toString()
-                                            : (lastBudget != null && lastBudget.getCategoryId() != null ? lastBudget.getCategoryId().toString() : null))
+                                            : (lastBudget != null
+                                                            && lastBudget.getCategoryId() != null
+                                                    ? lastBudget.getCategoryId().toString()
+                                                    : null))
                             .suggestedAmount(suggested)
                             .currentBudget(currentBudgetAmt)
                             .lastMonthBudget(lastMonthBudgetAmt)
@@ -318,15 +341,42 @@ public class FinancialAdvisorService {
             BigDecimal avg3Month = average(history);
             if (avg3Month.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-            // Danh sách các từ khóa thường dùng cho chi phí cố định (không đưa vào Cảnh báo chi tiêu bất thường)
-            List<String> fixedKeywords = Arrays.asList(
-                "điện", "tiền điện", "nước", "tiền nước", "nhà", "tiền nhà", "thuê nhà",
-                "mạng", "internet", "wifi", "truyền hình", "rác", "tiền rác", "trả góp",
-                "lãi vay", "vay", "bảo hiểm", "học phí", "viễn thông", "cố định", "định kỳ",
-                "bill", "hóa đơn", "phí liên lạc", "phí quản lý", "phí giữ xe", "gửi xe", "chung cư"
-            );
-            boolean isFixed = fixedKeywords.stream().anyMatch(k -> catName.toLowerCase().contains(k));
-            if (isFixed) continue; // Bỏ qua hoàn toàn các khoản cố định/hóa đơn hàng tháng khỏi tab cảnh báo
+            // Danh sách các từ khóa thường dùng cho chi phí cố định (không đưa vào Cảnh báo chi
+            // tiêu bất thường)
+            List<String> fixedKeywords =
+                    Arrays.asList(
+                            "điện",
+                            "tiền điện",
+                            "nước",
+                            "tiền nước",
+                            "nhà",
+                            "tiền nhà",
+                            "thuê nhà",
+                            "mạng",
+                            "internet",
+                            "wifi",
+                            "truyền hình",
+                            "rác",
+                            "tiền rác",
+                            "trả góp",
+                            "lãi vay",
+                            "vay",
+                            "bảo hiểm",
+                            "học phí",
+                            "viễn thông",
+                            "cố định",
+                            "định kỳ",
+                            "bill",
+                            "hóa đơn",
+                            "phí liên lạc",
+                            "phí quản lý",
+                            "phí giữ xe",
+                            "gửi xe",
+                            "chung cư");
+            boolean isFixed =
+                    fixedKeywords.stream().anyMatch(k -> catName.toLowerCase().contains(k));
+            if (isFixed)
+                continue; // Bỏ qua hoàn toàn các khoản cố định/hóa đơn hàng tháng khỏi tab cảnh báo
 
             // Dự báo chi tiêu cả tháng dựa trên tốc độ hiện tại (cho chi phí linh hoạt)
             BigDecimal projectedSpend =
@@ -349,7 +399,8 @@ public class FinancialAdvisorService {
 
             // 1. Tính tốc độ đốt tiền (dailyBurnRate) và ngày còn lại
             int effectiveDay = Math.max(1, dayOfMonth);
-            BigDecimal dailyBurnRate = currentSpent.divide(BigDecimal.valueOf(effectiveDay), 0, RoundingMode.HALF_UP);
+            BigDecimal dailyBurnRate =
+                    currentSpent.divide(BigDecimal.valueOf(effectiveDay), 0, RoundingMode.HALF_UP);
             int remainingDays = Math.max(1, daysInMonth - effectiveDay);
 
             // 2. Tính số tiền dự kiến vượt mức trung bình 3 tháng
@@ -358,10 +409,15 @@ public class FinancialAdvisorService {
             // 3. Tính hạn mức chi tiêu tối đa mỗi ngày còn lại để không bị thâm hụt
             BigDecimal recommendedDailyLimit;
             if (avg3Month.compareTo(currentSpent) > 0) {
-                recommendedDailyLimit = avg3Month.subtract(currentSpent)
-                        .divide(BigDecimal.valueOf(remainingDays), 0, RoundingMode.HALF_UP);
+                recommendedDailyLimit =
+                        avg3Month
+                                .subtract(currentSpent)
+                                .divide(BigDecimal.valueOf(remainingDays), 0, RoundingMode.HALF_UP);
             } else {
-                recommendedDailyLimit = dailyBurnRate.multiply(BigDecimal.valueOf(0.3)).setScale(0, RoundingMode.HALF_UP);
+                recommendedDailyLimit =
+                        dailyBurnRate
+                                .multiply(BigDecimal.valueOf(0.3))
+                                .setScale(0, RoundingMode.HALF_UP);
             }
 
             // 4. Lời khuyên hành động cụ thể (Actionable tip & Impact summary)
@@ -371,31 +427,34 @@ public class FinancialAdvisorService {
             String impactSummary;
 
             if (severity.equals("HIGH")) {
-                message = String.format(
-                        "🔴 Đốt tiền quá nhanh! Đang chi trung bình %s/ngày (gấp %.1f lần bình thường).",
-                        formatVND(dailyBurnRate),
-                        projectedSpend.doubleValue() / avg3Month.doubleValue());
-                impactSummary = String.format(
-                        "Dự kiến cả tháng lên tới %s (thâm hụt +%s so với mức chuẩn %s).",
-                        formatVND(projectedSpend),
-                        formatVND(projectedOver),
-                        formatVND(avg3Month));
-                actionableTip = String.format(
-                        "💡 Hành động ngay: Hạn chế chi tối đa %s/ngày trong %d ngày còn lại hoặc thực hiện Tái cân bằng ngân sách để bù đắp.",
-                        formatVND(recommendedDailyLimit),
-                        remainingDays);
+                message =
+                        String.format(
+                                "🔴 Đốt tiền quá nhanh! Đang chi trung bình %s/ngày (gấp %.1f lần bình thường).",
+                                formatVND(dailyBurnRate),
+                                projectedSpend.doubleValue() / avg3Month.doubleValue());
+                impactSummary =
+                        String.format(
+                                "Dự kiến cả tháng lên tới %s (thâm hụt +%s so với mức chuẩn %s).",
+                                formatVND(projectedSpend),
+                                formatVND(projectedOver),
+                                formatVND(avg3Month));
+                actionableTip =
+                        String.format(
+                                "💡 Hành động ngay: Hạn chế chi tối đa %s/ngày trong %d ngày còn lại hoặc thực hiện Tái cân bằng ngân sách để bù đắp.",
+                                formatVND(recommendedDailyLimit), remainingDays);
             } else {
-                message = String.format(
-                        "⚠️ Tốc độ chi tiêu tăng %d%% so với trung bình 3 tháng.",
-                        increasePercent);
-                impactSummary = String.format(
-                        "Dự kiến cuối tháng sẽ chạm mốc %s (cao hơn bình thường %s).",
-                        formatVND(projectedSpend),
-                        formatVND(projectedOver));
-                actionableTip = String.format(
-                        "💡 Khuyến nghị: Giới hạn chi tối đa %s/ngày trong %d ngày tới để giữ an toàn ngân sách.",
-                        formatVND(recommendedDailyLimit),
-                        remainingDays);
+                message =
+                        String.format(
+                                "⚠️ Tốc độ chi tiêu tăng %d%% so với trung bình 3 tháng.",
+                                increasePercent);
+                impactSummary =
+                        String.format(
+                                "Dự kiến cuối tháng sẽ chạm mốc %s (cao hơn bình thường %s).",
+                                formatVND(projectedSpend), formatVND(projectedOver));
+                actionableTip =
+                        String.format(
+                                "💡 Khuyến nghị: Giới hạn chi tối đa %s/ngày trong %d ngày tới để giữ an toàn ngân sách.",
+                                formatVND(recommendedDailyLimit), remainingDays);
             }
 
             warnings.add(
@@ -489,12 +548,19 @@ public class FinancialAdvisorService {
         List<String> recommendations = new ArrayList<>();
 
         LocalDate today = LocalDate.now();
-        boolean isFuture = targetYear > today.getYear() || (targetYear == today.getYear() && targetMonth > today.getMonthValue());
+        boolean isFuture =
+                targetYear > today.getYear()
+                        || (targetYear == today.getYear() && targetMonth > today.getMonthValue());
 
         if (isFuture) {
-            verdict = String.format("🗓️ Tháng %d/%d là tháng trong tương lai (Chưa có dữ liệu chi tiêu thực tế).", targetMonth, targetYear);
+            verdict =
+                    String.format(
+                            "🗓️ Tháng %d/%d là tháng trong tương lai (Chưa có dữ liệu chi tiêu thực tế).",
+                            targetMonth, targetYear);
             recommendations.add(
-                    String.format("Bạn đang xem gợi ý cho Tháng %d/%d. Hãy tạo trước các thẻ Ngân sách ở mục Kế hoạch bên dưới!", targetMonth, targetYear));
+                    String.format(
+                            "Bạn đang xem gợi ý cho Tháng %d/%d. Hãy tạo trước các thẻ Ngân sách ở mục Kế hoạch bên dưới!",
+                            targetMonth, targetYear));
         } else if (refIncome.compareTo(BigDecimal.ZERO) <= 0) {
             verdict = "Chưa đủ dữ liệu thu nhập để phân tích.";
             recommendations.add(
@@ -502,8 +568,12 @@ public class FinancialAdvisorService {
         } else {
             // Đánh giá Needs
             if (needsPct > 50) {
-                verdict = String.format("⚠️ Chi tiêu thiết yếu chiếm %.0f%% thu nhập (vượt chuẩn 50%%)", needsPct);
-                BigDecimal overNeeds = needsAmount.subtract(refIncome.multiply(BigDecimal.valueOf(0.5)));
+                verdict =
+                        String.format(
+                                "⚠️ Chi tiêu thiết yếu chiếm %.0f%% thu nhập (vượt chuẩn 50%%)",
+                                needsPct);
+                BigDecimal overNeeds =
+                        needsAmount.subtract(refIncome.multiply(BigDecimal.valueOf(0.5)));
                 recommendations.add(
                         String.format(
                                 "📌 Chi phí thiết yếu đang chiếm %.0f%% thu nhập (vượt %s so với mức khuyến nghị 50%%). Việc này làm giảm không gian tích lũy. Gợi ý: Hãy rà soát tiền điện nước, gói cước viễn thông hoặc tối ưu chi phí đi lại.",
@@ -516,13 +586,19 @@ public class FinancialAdvisorService {
             }
 
             if (wantsPct > 30) {
-                verdict = String.format("🚨 Chi tiêu linh hoạt chiếm %.0f%% thu nhập (vượt chuẩn 30%%)", wantsPct);
-                BigDecimal overWants = wantsAmount.subtract(refIncome.multiply(BigDecimal.valueOf(0.3)));
+                verdict =
+                        String.format(
+                                "🚨 Chi tiêu linh hoạt chiếm %.0f%% thu nhập (vượt chuẩn 30%%)",
+                                wantsPct);
+                BigDecimal overWants =
+                        wantsAmount.subtract(refIncome.multiply(BigDecimal.valueOf(0.3)));
                 recommendations.add(
                         String.format(
                                 "🎯 Chi tiêu linh hoạt (ăn ngoài, mua sắm, giải trí) đang vượt %s so với chuẩn 30%%. Gợi ý: Hãy cắt giảm khoảng %s/ngày từ các khoản mua sắm tùy hứng.",
                                 formatVND(overWants),
-                                formatVND(overWants.divide(BigDecimal.valueOf(30), 0, RoundingMode.HALF_UP))));
+                                formatVND(
+                                        overWants.divide(
+                                                BigDecimal.valueOf(30), 0, RoundingMode.HALF_UP))));
             } else if (wantsPct > 0) {
                 recommendations.add(
                         String.format(
@@ -531,13 +607,17 @@ public class FinancialAdvisorService {
             }
 
             if (savingsPct < 20) {
-                BigDecimal lackSave = refIncome.multiply(BigDecimal.valueOf(0.2)).subtract(savingsAmount);
+                BigDecimal lackSave =
+                        refIncome.multiply(BigDecimal.valueOf(0.2)).subtract(savingsAmount);
                 if (savingsPct <= 0) {
                     verdict = "⚠️ Dòng tiền thâm hụt — Chưa có khoản tích lũy";
                     recommendations.add(
-                        "💰 Bạn chưa có khoản tích lũy nào trong tháng này. Hãy áp dụng nguyên tắc 'Pay yourself first' — trích nạp quỹ tích lũy ngay khi nhận thu nhập.");
+                            "💰 Bạn chưa có khoản tích lũy nào trong tháng này. Hãy áp dụng nguyên tắc 'Pay yourself first' — trích nạp quỹ tích lũy ngay khi nhận thu nhập.");
                 } else {
-                    verdict = String.format("💡 Tỷ lệ tích lũy đạt %.0f%% (chưa đạt mục tiêu 20%%)", savingsPct);
+                    verdict =
+                            String.format(
+                                    "💡 Tỷ lệ tích lũy đạt %.0f%% (chưa đạt mục tiêu 20%%)",
+                                    savingsPct);
                     recommendations.add(
                             String.format(
                                     "💰 Tỷ lệ tích lũy hiện đạt %.0f%% (thiếu %s để đạt chuẩn 20%%). Bạn nên duy trì trích lập cố định vào Ví Tiết Kiệm đầu mỗi tháng.",
@@ -659,7 +739,8 @@ public class FinancialAdvisorService {
 
     // ═══════════════════════════════════════════════════════════════
     // FEATURE 5: Dynamic Budget Rebalance & Overspending Compensation V2
-    // (Tái cân bằng phân tầng ưu tiên: Cắt giảm Hưởng thụ trước -> Sinh hoạt sau -> Vét sai số làm tròn)
+    // (Tái cân bằng phân tầng ưu tiên: Cắt giảm Hưởng thụ trước -> Sinh hoạt sau -> Vét sai số làm
+    // tròn)
     // ═══════════════════════════════════════════════════════════════
 
     public RebalancePlan generateRebalancePlan(List<BudgetSummaryResponse> currentBudgets) {
@@ -669,7 +750,8 @@ public class FinancialAdvisorService {
                     .totalOverspent(BigDecimal.ZERO)
                     .totalCompensated(BigDecimal.ZERO)
                     .remainingDeficit(BigDecimal.ZERO)
-                    .statusMessage("Chưa có dữ liệu ngân sách trong tháng này để phân tích tái cân bằng.")
+                    .statusMessage(
+                            "Chưa có dữ liệu ngân sách trong tháng này để phân tích tái cân bằng.")
                     .overspentItems(Collections.emptyList())
                     .compensationCuts(Collections.emptyList())
                     .build();
@@ -693,23 +775,35 @@ public class FinancialAdvisorService {
                 // Tiêu lố ngân sách (cả khoản Cố định lẫn Linh hoạt)
                 BigDecimal overspent = spent.subtract(limit);
                 totalOverspent = totalOverspent.add(overspent);
-                int overPct = limit.compareTo(BigDecimal.ZERO) > 0
-                        ? overspent.multiply(BigDecimal.valueOf(100)).divide(limit, 0, RoundingMode.HALF_UP).intValue()
-                        : 100;
+                int overPct =
+                        limit.compareTo(BigDecimal.ZERO) > 0
+                                ? overspent
+                                        .multiply(BigDecimal.valueOf(100))
+                                        .divide(limit, 0, RoundingMode.HALF_UP)
+                                        .intValue()
+                                : 100;
 
-                overspentItems.add(OverspentItem.builder()
-                        .categoryId(b.getCategoryId() != null ? b.getCategoryId().toString() : null)
-                        .categoryName(b.getCategoryName() != null ? b.getCategoryName() : b.getName())
-                        .categoryIcon(b.getCategoryIcon())
-                        .limitAmount(limit)
-                        .spentAmount(spent)
-                        .overspentAmount(overspent)
-                        .overspentPercent(overPct)
-                        .isFixed(isFixed)
-                        .categoryType(isFixed ? "FIXED" : "FLEXIBLE")
-                        .build());
+                overspentItems.add(
+                        OverspentItem.builder()
+                                .categoryId(
+                                        b.getCategoryId() != null
+                                                ? b.getCategoryId().toString()
+                                                : null)
+                                .categoryName(
+                                        b.getCategoryName() != null
+                                                ? b.getCategoryName()
+                                                : b.getName())
+                                .categoryIcon(b.getCategoryIcon())
+                                .limitAmount(limit)
+                                .spentAmount(spent)
+                                .overspentAmount(overspent)
+                                .overspentPercent(overPct)
+                                .isFixed(isFixed)
+                                .categoryType(isFixed ? "FIXED" : "FLEXIBLE")
+                                .build());
             } else if (limit.compareTo(spent) > 0) {
-                // Chưa chi hết: TUYỆT ĐỐI CHỈ xem xét cắt giảm nếu là danh mục LINH HOẠT (không phải Cố định/Bill)
+                // Chưa chi hết: TUYỆT ĐỐI CHỈ xem xét cắt giảm nếu là danh mục LINH HOẠT (không
+                // phải Cố định/Bill)
                 if (!isFixed) {
                     BigDecimal remaining = limit.subtract(spent);
                     // Chỉ cắt giảm nếu số tiền còn dư >= 10.000đ
@@ -732,7 +826,8 @@ public class FinancialAdvisorService {
                     .totalOverspent(BigDecimal.ZERO)
                     .totalCompensated(BigDecimal.ZERO)
                     .remainingDeficit(BigDecimal.ZERO)
-                    .statusMessage("🎉 Tuyệt vời! Tất cả các khoản chi tiêu tháng này đều đang trong tầm kiểm soát.")
+                    .statusMessage(
+                            "🎉 Tuyệt vời! Tất cả các khoản chi tiêu tháng này đều đang trong tầm kiểm soát.")
                     .overspentItems(Collections.emptyList())
                     .compensationCuts(Collections.emptyList())
                     .build();
@@ -745,13 +840,14 @@ public class FinancialAdvisorService {
         BigDecimal remainingNeed = totalOverspent;
 
         // ─── TẦNG 1: Cắt giảm từ nhóm Siêu linh hoạt / Hưởng thụ (Tier 1 Luxury) ───
-        // Quy tắc: Chỉ thay đổi với những khoản flexible có phần ngân sách còn dư lớn hơn phần bù trừ
+        // Quy tắc: Chỉ thay đổi với những khoản flexible có phần ngân sách còn dư lớn hơn phần bù
+        // trừ
         // Đảm bảo sau khi cắt, ngân sách còn lại luôn > 0 (giữ lại tối thiểu 20.000đ vùng an toàn)
         if (!tier1Luxury.isEmpty() && remainingNeed.compareTo(BigDecimal.ZERO) > 0) {
             for (BudgetSummaryResponse b : tier1Luxury) {
                 if (remainingNeed.compareTo(BigDecimal.ZERO) <= 0) break;
                 BigDecimal remaining = b.getLimitAmount().subtract(b.getSpentAmount());
-                
+
                 // Chỉ cắt nếu ngân sách còn dư > 20.000đ
                 if (remaining.compareTo(BigDecimal.valueOf(20000)) <= 0) continue;
 
@@ -763,38 +859,51 @@ public class FinancialAdvisorService {
                 // Làm tròn về số nguyên đồng (không ép về 0 nếu < 10k)
                 cutAmount = cutAmount.setScale(0, RoundingMode.HALF_UP);
 
-                if (cutAmount.compareTo(BigDecimal.ZERO) > 0 && cutAmount.compareTo(remaining) < 0) {
+                if (cutAmount.compareTo(BigDecimal.ZERO) > 0
+                        && cutAmount.compareTo(remaining) < 0) {
                     BigDecimal newLimit = b.getLimitAmount().subtract(cutAmount);
                     remainingNeed = remainingNeed.subtract(cutAmount);
 
-                    String reason = String.format("Cắt giảm %s từ ngân sách hưởng thụ (còn dư %s > mức bù %s).",
-                            formatVND(cutAmount), formatVND(remaining), formatVND(cutAmount));
+                    String reason =
+                            String.format(
+                                    "Cắt giảm %s từ ngân sách hưởng thụ (còn dư %s > mức bù %s).",
+                                    formatVND(cutAmount),
+                                    formatVND(remaining),
+                                    formatVND(cutAmount));
 
-                    compensationCuts.add(CompensateCutItem.builder()
-                            .categoryId(b.getCategoryId() != null ? b.getCategoryId().toString() : null)
-                            .categoryName(b.getCategoryName() != null ? b.getCategoryName() : b.getName())
-                            .categoryIcon(b.getCategoryIcon())
-                            .currentLimit(b.getLimitAmount())
-                            .currentSpent(b.getSpentAmount())
-                            .availableRemaining(remaining)
-                            .suggestedCutAmount(cutAmount)
-                            .newSuggestedLimit(newLimit)
-                            .tier("TIER_1_LUXURY")
-                            .tierLabel("Ưu tiên cắt giảm (Hưởng thụ)")
-                            .reason(reason)
-                            .build());
+                    compensationCuts.add(
+                            CompensateCutItem.builder()
+                                    .categoryId(
+                                            b.getCategoryId() != null
+                                                    ? b.getCategoryId().toString()
+                                                    : null)
+                                    .categoryName(
+                                            b.getCategoryName() != null
+                                                    ? b.getCategoryName()
+                                                    : b.getName())
+                                    .categoryIcon(b.getCategoryIcon())
+                                    .currentLimit(b.getLimitAmount())
+                                    .currentSpent(b.getSpentAmount())
+                                    .availableRemaining(remaining)
+                                    .suggestedCutAmount(cutAmount)
+                                    .newSuggestedLimit(newLimit)
+                                    .tier("TIER_1_LUXURY")
+                                    .tierLabel("Ưu tiên cắt giảm (Hưởng thụ)")
+                                    .reason(reason)
+                                    .build());
                 }
             }
         }
 
         // ─── TẦNG 2: Cắt giảm từ nhóm Linh hoạt cơ bản / Sinh hoạt (Tier 2 Basic) ───
         // (Chỉ kích hoạt nếu Tier 1 chưa đủ bù đắp và remainingNeed vẫn > 0)
-        // Quy tắc: Chỉ thay đổi với những khoản flexible có phần ngân sách còn dư lớn hơn phần bù trừ
+        // Quy tắc: Chỉ thay đổi với những khoản flexible có phần ngân sách còn dư lớn hơn phần bù
+        // trừ
         if (!tier2Basic.isEmpty() && remainingNeed.compareTo(BigDecimal.ZERO) > 0) {
             for (BudgetSummaryResponse b : tier2Basic) {
                 if (remainingNeed.compareTo(BigDecimal.ZERO) <= 0) break;
                 BigDecimal remaining = b.getLimitAmount().subtract(b.getSpentAmount());
-                
+
                 // Chỉ cắt nếu ngân sách còn dư > 20.000đ
                 if (remaining.compareTo(BigDecimal.valueOf(20000)) <= 0) continue;
 
@@ -805,31 +914,44 @@ public class FinancialAdvisorService {
                 BigDecimal cutAmount = remainingNeed.min(maxCutAllowed);
                 cutAmount = cutAmount.setScale(0, RoundingMode.HALF_UP);
 
-                if (cutAmount.compareTo(BigDecimal.ZERO) > 0 && cutAmount.compareTo(remaining) < 0) {
+                if (cutAmount.compareTo(BigDecimal.ZERO) > 0
+                        && cutAmount.compareTo(remaining) < 0) {
                     BigDecimal newLimit = b.getLimitAmount().subtract(cutAmount);
                     remainingNeed = remainingNeed.subtract(cutAmount);
 
-                    String reason = String.format("Cắt giảm bổ sung %s từ khoản sinh hoạt (còn dư %s > mức bù %s).",
-                            formatVND(cutAmount), formatVND(remaining), formatVND(cutAmount));
+                    String reason =
+                            String.format(
+                                    "Cắt giảm bổ sung %s từ khoản sinh hoạt (còn dư %s > mức bù %s).",
+                                    formatVND(cutAmount),
+                                    formatVND(remaining),
+                                    formatVND(cutAmount));
 
-                    compensationCuts.add(CompensateCutItem.builder()
-                            .categoryId(b.getCategoryId() != null ? b.getCategoryId().toString() : null)
-                            .categoryName(b.getCategoryName() != null ? b.getCategoryName() : b.getName())
-                            .categoryIcon(b.getCategoryIcon())
-                            .currentLimit(b.getLimitAmount())
-                            .currentSpent(b.getSpentAmount())
-                            .availableRemaining(remaining)
-                            .suggestedCutAmount(cutAmount)
-                            .newSuggestedLimit(newLimit)
-                            .tier("TIER_2_BASIC")
-                            .tierLabel("Cắt giảm bổ sung (Sinh hoạt)")
-                            .reason(reason)
-                            .build());
+                    compensationCuts.add(
+                            CompensateCutItem.builder()
+                                    .categoryId(
+                                            b.getCategoryId() != null
+                                                    ? b.getCategoryId().toString()
+                                                    : null)
+                                    .categoryName(
+                                            b.getCategoryName() != null
+                                                    ? b.getCategoryName()
+                                                    : b.getName())
+                                    .categoryIcon(b.getCategoryIcon())
+                                    .currentLimit(b.getLimitAmount())
+                                    .currentSpent(b.getSpentAmount())
+                                    .availableRemaining(remaining)
+                                    .suggestedCutAmount(cutAmount)
+                                    .newSuggestedLimit(newLimit)
+                                    .tier("TIER_2_BASIC")
+                                    .tierLabel("Cắt giảm bổ sung (Sinh hoạt)")
+                                    .reason(reason)
+                                    .build());
                 }
             }
         }
 
-        // Bổ sung tất cả các danh mục linh hoạt khác (chưa bị tiêu lố, đã chi hết hoặc không cần cắt thêm) vào danh sách với trạng thái ĐÃ CÂN BẰNG
+        // Bổ sung tất cả các danh mục linh hoạt khác (chưa bị tiêu lố, đã chi hết hoặc không cần
+        // cắt thêm) vào danh sách với trạng thái ĐÃ CÂN BẰNG
         Set<String> cutCategoryNames = new HashSet<>();
         for (CompensateCutItem cut : compensationCuts) {
             if (cut.getCategoryName() != null) {
@@ -847,55 +969,86 @@ public class FinancialAdvisorService {
         for (BudgetSummaryResponse b : currentBudgets) {
             if (b == null || isFixedBudget(b)) continue;
             String catName = b.getCategoryName() != null ? b.getCategoryName() : b.getName();
-            if (catName != null 
+            if (catName != null
                     && !cutCategoryNames.contains(catName.toLowerCase())
                     && !overspentCategoryNames.contains(catName.toLowerCase())) {
-                BigDecimal limit = b.getLimitAmount() != null ? b.getLimitAmount() : BigDecimal.ZERO;
-                BigDecimal spent = b.getSpentAmount() != null ? b.getSpentAmount() : BigDecimal.ZERO;
-                BigDecimal remaining = limit.compareTo(spent) > 0 ? limit.subtract(spent) : BigDecimal.ZERO;
+                BigDecimal limit =
+                        b.getLimitAmount() != null ? b.getLimitAmount() : BigDecimal.ZERO;
+                BigDecimal spent =
+                        b.getSpentAmount() != null ? b.getSpentAmount() : BigDecimal.ZERO;
+                BigDecimal remaining =
+                        limit.compareTo(spent) > 0 ? limit.subtract(spent) : BigDecimal.ZERO;
                 boolean isLuxury = isLuxuryCategory(b);
 
-                compensationCuts.add(CompensateCutItem.builder()
-                        .categoryId(b.getCategoryId() != null ? b.getCategoryId().toString() : null)
-                        .categoryName(catName)
-                        .categoryIcon(b.getCategoryIcon())
-                        .currentLimit(limit)
-                        .currentSpent(spent)
-                        .availableRemaining(remaining)
-                        .suggestedCutAmount(BigDecimal.ZERO)
-                        .newSuggestedLimit(limit)
-                        .tier(isLuxury ? "TIER_1_LUXURY" : "TIER_2_BASIC")
-                        .tierLabel(isLuxury ? "✨ Hưởng thụ (Đã cân bằng)" : "🛒 Sinh hoạt (Đã cân bằng)")
-                        .reason(remaining.compareTo(BigDecimal.ZERO) > 0
-                                ? String.format("Danh mục đang cân bằng an toàn (còn dư %s trong hạn mức %s).", formatVND(remaining), formatVND(limit))
-                                : String.format("Danh mục đã chi hết hạn mức %s và đang được giữ ổn định.", formatVND(limit)))
-                        .isBalanced(true)
-                        .build());
+                compensationCuts.add(
+                        CompensateCutItem.builder()
+                                .categoryId(
+                                        b.getCategoryId() != null
+                                                ? b.getCategoryId().toString()
+                                                : null)
+                                .categoryName(catName)
+                                .categoryIcon(b.getCategoryIcon())
+                                .currentLimit(limit)
+                                .currentSpent(spent)
+                                .availableRemaining(remaining)
+                                .suggestedCutAmount(BigDecimal.ZERO)
+                                .newSuggestedLimit(limit)
+                                .tier(isLuxury ? "TIER_1_LUXURY" : "TIER_2_BASIC")
+                                .tierLabel(
+                                        isLuxury
+                                                ? "✨ Hưởng thụ (Đã cân bằng)"
+                                                : "🛒 Sinh hoạt (Đã cân bằng)")
+                                .reason(
+                                        remaining.compareTo(BigDecimal.ZERO) > 0
+                                                ? String.format(
+                                                        "Danh mục đang cân bằng an toàn (còn dư %s trong hạn mức %s).",
+                                                        formatVND(remaining), formatVND(limit))
+                                                : String.format(
+                                                        "Danh mục đã chi hết hạn mức %s và đang được giữ ổn định.",
+                                                        formatVND(limit)))
+                                .isBalanced(true)
+                                .build());
             }
         }
 
-        BigDecimal totalCompensated = compensationCuts.stream()
-                .filter(c -> c.getSuggestedCutAmount() != null)
-                .map(CompensateCutItem::getSuggestedCutAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCompensated =
+                compensationCuts.stream()
+                        .filter(c -> c.getSuggestedCutAmount() != null)
+                        .map(CompensateCutItem::getSuggestedCutAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal remainingDeficit = totalOverspent.subtract(totalCompensated);
         if (remainingDeficit.compareTo(BigDecimal.ZERO) < 0) remainingDeficit = BigDecimal.ZERO;
 
-        long activeCutsCount = compensationCuts.stream()
-                .filter(c -> c.getSuggestedCutAmount() != null && c.getSuggestedCutAmount().compareTo(BigDecimal.ZERO) > 0)
-                .count();
+        long activeCutsCount =
+                compensationCuts.stream()
+                        .filter(
+                                c ->
+                                        c.getSuggestedCutAmount() != null
+                                                && c.getSuggestedCutAmount()
+                                                                .compareTo(BigDecimal.ZERO)
+                                                        > 0)
+                        .count();
 
         String statusMessage;
         if (remainingDeficit.compareTo(BigDecimal.ZERO) == 0) {
-            statusMessage = String.format("Bạn đã tiêu lố %s ở %d danh mục. Đã lập phương án ưu tiên cắt giảm %d danh mục linh hoạt để bù đắp 100%%!",
-                    formatVND(totalOverspent), overspentItems.size(), activeCutsCount);
+            statusMessage =
+                    String.format(
+                            "Bạn đã tiêu lố %s ở %d danh mục. Đã lập phương án ưu tiên cắt giảm %d danh mục linh hoạt để bù đắp 100%%!",
+                            formatVND(totalOverspent), overspentItems.size(), activeCutsCount);
         } else if (totalCompensated.compareTo(BigDecimal.ZERO) > 0) {
-            statusMessage = String.format("Bạn đã tiêu lố %s. Đã ưu tiên bù đắp %s từ %d khoản linh hoạt. Phần thâm hụt còn lại %s sẽ được trích từ quỹ dự phòng.",
-                    formatVND(totalOverspent), formatVND(totalCompensated), activeCutsCount, formatVND(remainingDeficit));
+            statusMessage =
+                    String.format(
+                            "Bạn đã tiêu lố %s. Đã ưu tiên bù đắp %s từ %d khoản linh hoạt. Phần thâm hụt còn lại %s sẽ được trích từ quỹ dự phòng.",
+                            formatVND(totalOverspent),
+                            formatVND(totalCompensated),
+                            activeCutsCount,
+                            formatVND(remainingDeficit));
         } else {
-            statusMessage = String.format("Bạn đã tiêu lố %s. Tất cả %d danh mục linh hoạt khác đã ở trạng thái cân bằng hoặc không còn đủ số dư để cắt giảm.",
-                    formatVND(totalOverspent), compensationCuts.size());
+            statusMessage =
+                    String.format(
+                            "Bạn đã tiêu lố %s. Tất cả %d danh mục linh hoạt khác đã ở trạng thái cân bằng hoặc không còn đủ số dư để cắt giảm.",
+                            formatVND(totalOverspent), compensationCuts.size());
         }
 
         return RebalancePlan.builder()
@@ -910,17 +1063,22 @@ public class FinancialAdvisorService {
     }
 
     /**
-     * Thực thi áp dụng kế hoạch Tái cân bằng ngân sách: Cập nhật hạn mức ngân sách mới vào Database.
-     * Hỗ trợ nhận danh sách tùy chỉnh (Override) từ Client hoặc chạy tự động.
+     * Thực thi áp dụng kế hoạch Tái cân bằng ngân sách: Cập nhật hạn mức ngân sách mới vào
+     * Database. Hỗ trợ nhận danh sách tùy chỉnh (Override) từ Client hoặc chạy tự động.
      */
     @Transactional
     public com.example.sharemoney.dto.response.RebalanceApplyResponse applyRebalance(
-            UUID userId, Integer year, Integer month, com.example.sharemoney.dto.request.RebalanceApplyRequest request) {
+            UUID userId,
+            Integer year,
+            Integer month,
+            com.example.sharemoney.dto.request.RebalanceApplyRequest request) {
         LocalDate today = LocalDate.now();
         int targetYear = (year != null && year > 0) ? year : today.getYear();
-        int targetMonth = (month != null && month >= 1 && month <= 12) ? month : today.getMonthValue();
+        int targetMonth =
+                (month != null && month >= 1 && month <= 12) ? month : today.getMonthValue();
 
-        List<BudgetSummaryResponse> currentBudgets = budgetService.getBudgetSummary(userId, targetYear, targetMonth);
+        List<BudgetSummaryResponse> currentBudgets =
+                budgetService.getBudgetSummary(userId, targetYear, targetMonth);
         RebalancePlan plan = generateRebalancePlan(currentBudgets);
 
         if (!plan.isHasOverspending()) {
@@ -938,11 +1096,14 @@ public class FinancialAdvisorService {
         // Trường hợp 1: Có request tùy chỉnh (custom override) từ Client
         if (request != null && request.getCuts() != null && !request.getCuts().isEmpty()) {
             for (var customCut : request.getCuts()) {
-                if (customCut.getCategoryId() == null || (customCut.getNewLimit() == null && customCut.getCutAmount() == null)) continue;
+                if (customCut.getCategoryId() == null
+                        || (customCut.getNewLimit() == null && customCut.getCutAmount() == null))
+                    continue;
                 try {
                     UUID catId = UUID.fromString(customCut.getCategoryId());
                     List<com.example.sharemoney.entity.Budget> budgets =
-                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(userId, catId, targetMonth, targetYear);
+                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
+                                    userId, catId, targetMonth, targetYear);
                     if (budgets != null && !budgets.isEmpty()) {
                         for (var b : budgets) {
                             BigDecimal newLimit = customCut.getNewLimit();
@@ -961,7 +1122,10 @@ public class FinancialAdvisorService {
                         }
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to apply custom override for categoryId: {}", customCut.getCategoryId(), e);
+                    log.warn(
+                            "Failed to apply custom override for categoryId: {}",
+                            customCut.getCategoryId(),
+                            e);
                 }
             }
         } else {
@@ -977,11 +1141,13 @@ public class FinancialAdvisorService {
 
             for (CompensateCutItem cut : plan.getCompensationCuts()) {
                 if (cut.getCategoryId() == null || cut.getNewSuggestedLimit() == null) continue;
-                if (cut.getSuggestedCutAmount() == null || cut.getSuggestedCutAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                if (cut.getSuggestedCutAmount() == null
+                        || cut.getSuggestedCutAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
                 try {
                     UUID catId = UUID.fromString(cut.getCategoryId());
                     List<com.example.sharemoney.entity.Budget> budgets =
-                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(userId, catId, targetMonth, targetYear);
+                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
+                                    userId, catId, targetMonth, targetYear);
                     if (budgets != null && !budgets.isEmpty()) {
                         for (var b : budgets) {
                             b.setLimitAmount(cut.getNewSuggestedLimit());
@@ -996,7 +1162,8 @@ public class FinancialAdvisorService {
             appliedTotal = plan.getTotalCompensated();
         }
 
-        // Bù đắp số tiền đã cắt giảm sang các danh mục bị tiêu lố để đưa ngân sách về trạng thái cân bằng
+        // Bù đắp số tiền đã cắt giảm sang các danh mục bị tiêu lố để đưa ngân sách về trạng thái
+        // cân bằng
         if (appliedTotal.compareTo(BigDecimal.ZERO) > 0 && plan.getOverspentItems() != null) {
             BigDecimal toCompensate = appliedTotal;
             for (OverspentItem item : plan.getOverspentItems()) {
@@ -1005,7 +1172,8 @@ public class FinancialAdvisorService {
                 try {
                     UUID overCatId = UUID.fromString(item.getCategoryId());
                     List<com.example.sharemoney.entity.Budget> overBudgets =
-                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(userId, overCatId, targetMonth, targetYear);
+                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
+                                    userId, overCatId, targetMonth, targetYear);
                     if (overBudgets != null && !overBudgets.isEmpty()) {
                         for (var ob : overBudgets) {
                             BigDecimal overAmt = item.getOverspentAmount();
@@ -1019,15 +1187,20 @@ public class FinancialAdvisorService {
                         }
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to increase overspent budget limit for categoryId: {}", item.getCategoryId(), e);
+                    log.warn(
+                            "Failed to increase overspent budget limit for categoryId: {}",
+                            item.getCategoryId(),
+                            e);
                 }
             }
         }
 
         return com.example.sharemoney.dto.response.RebalanceApplyResponse.builder()
                 .success(true)
-                .message(String.format("Tái cân bằng thành công! Đã điều chỉnh hạn mức %d danh mục để bù đắp %,.0fđ tiêu lố.",
-                        updatedCount, appliedTotal.doubleValue()))
+                .message(
+                        String.format(
+                                "Tái cân bằng thành công! Đã điều chỉnh hạn mức %d danh mục để bù đắp %,.0fđ tiêu lố.",
+                                updatedCount, appliedTotal.doubleValue()))
                 .totalCompensated(appliedTotal)
                 .updatedCategoriesCount(updatedCount)
                 .build();
@@ -1045,42 +1218,92 @@ public class FinancialAdvisorService {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Nhận diện khoản chi Cố định / Hóa đơn / Bắt buộc (Fixed Costs / Bills).
-     * Tuyệt đối không cắt giảm hạn mức của các khoản này.
+     * Nhận diện khoản chi Cố định / Hóa đơn / Bắt buộc (Fixed Costs / Bills). Tuyệt đối không cắt
+     * giảm hạn mức của các khoản này.
      */
     private boolean isFixedBudget(BudgetSummaryResponse b) {
         if (b == null) return false;
         if (b.isMandatory()) return true;
         if ("MANDATORY".equalsIgnoreCase(b.getType())) return true;
 
-        String name = (b.getName() != null ? b.getName() : "") + " " + (b.getCategoryName() != null ? b.getCategoryName() : "");
+        String name =
+                (b.getName() != null ? b.getName() : "")
+                        + " "
+                        + (b.getCategoryName() != null ? b.getCategoryName() : "");
         String lower = name.toLowerCase();
 
-        List<String> fixedKeywords = Arrays.asList(
-            "điện", "tiền điện", "nước", "tiền nước", "nhà", "tiền nhà", "thuê nhà",
-            "mạng", "internet", "wifi", "rác", "tiền rác", "trả góp", "lãi vay", "vay",
-            "bảo hiểm", "học phí", "phí liên lạc", "viễn thông", "cố định", "định kỳ",
-            "bill", "hóa đơn", "phí quản lý", "phí giữ xe", "gửi xe", "chung cư"
-        );
+        List<String> fixedKeywords =
+                Arrays.asList(
+                        "điện",
+                        "tiền điện",
+                        "nước",
+                        "tiền nước",
+                        "nhà",
+                        "tiền nhà",
+                        "thuê nhà",
+                        "mạng",
+                        "internet",
+                        "wifi",
+                        "rác",
+                        "tiền rác",
+                        "trả góp",
+                        "lãi vay",
+                        "vay",
+                        "bảo hiểm",
+                        "học phí",
+                        "phí liên lạc",
+                        "viễn thông",
+                        "cố định",
+                        "định kỳ",
+                        "bill",
+                        "hóa đơn",
+                        "phí quản lý",
+                        "phí giữ xe",
+                        "gửi xe",
+                        "chung cư");
 
         return fixedKeywords.stream().anyMatch(lower::contains);
     }
 
     /**
-     * Nhận diện danh mục Siêu linh hoạt / Hưởng thụ (Tier 1 Luxury / High Elasticity).
-     * Sẽ được ưu tiên cắt giảm TỐI ĐA trước khi đụng đến các khoản sinh hoạt khác.
+     * Nhận diện danh mục Siêu linh hoạt / Hưởng thụ (Tier 1 Luxury / High Elasticity). Sẽ được ưu
+     * tiên cắt giảm TỐI ĐA trước khi đụng đến các khoản sinh hoạt khác.
      */
     private boolean isLuxuryCategory(BudgetSummaryResponse b) {
         if (b == null) return false;
-        String name = (b.getName() != null ? b.getName() : "") + " " + (b.getCategoryName() != null ? b.getCategoryName() : "");
+        String name =
+                (b.getName() != null ? b.getName() : "")
+                        + " "
+                        + (b.getCategoryName() != null ? b.getCategoryName() : "");
         String lower = name.toLowerCase();
 
-        List<String> luxuryKeywords = Arrays.asList(
-            "mua sắm", "shopping", "giải trí", "entertainment", "du lịch", "travel",
-            "làm đẹp", "mỹ phẩm", "beauty", "spa", "thời trang", "quần áo", "clothes",
-            "fashion", "giao lưu", "nhậu", "tiệc tùng", "bar", "pub", "game", "đồ chơi",
-            "sở thích", "hobbies", "trang sức", "quà tặng"
-        );
+        List<String> luxuryKeywords =
+                Arrays.asList(
+                        "mua sắm",
+                        "shopping",
+                        "giải trí",
+                        "entertainment",
+                        "du lịch",
+                        "travel",
+                        "làm đẹp",
+                        "mỹ phẩm",
+                        "beauty",
+                        "spa",
+                        "thời trang",
+                        "quần áo",
+                        "clothes",
+                        "fashion",
+                        "giao lưu",
+                        "nhậu",
+                        "tiệc tùng",
+                        "bar",
+                        "pub",
+                        "game",
+                        "đồ chơi",
+                        "sở thích",
+                        "hobbies",
+                        "trang sức",
+                        "quà tặng");
 
         return luxuryKeywords.stream().anyMatch(lower::contains);
     }
@@ -1099,16 +1322,23 @@ public class FinancialAdvisorService {
 
             Map<String, BigDecimal> monthData = new HashMap<>();
             for (Transaction tx : txs) {
-                if (tx == null || tx.getType() != TransactionType.EXPENSE || tx.isExcludeFromBudget()) continue;
+                if (tx == null
+                        || tx.getType() != TransactionType.EXPENSE
+                        || tx.isExcludeFromBudget()) continue;
 
                 if (tx.isSplit() && tx.getSplits() != null && !tx.getSplits().isEmpty()) {
                     for (var split : tx.getSplits()) {
-                        if (split != null && split.getCategory() != null && split.getCategory().getName() != null && split.getAmount() != null) {
+                        if (split != null
+                                && split.getCategory() != null
+                                && split.getCategory().getName() != null
+                                && split.getAmount() != null) {
                             String catName = split.getCategory().getName();
                             monthData.merge(catName, split.getAmount(), BigDecimal::add);
                         }
                     }
-                } else if (tx.getCategory() != null && tx.getCategory().getName() != null && tx.getAmount() != null) {
+                } else if (tx.getCategory() != null
+                        && tx.getCategory().getName() != null
+                        && tx.getAmount() != null) {
                     String catName = tx.getCategory().getName();
                     monthData.merge(catName, tx.getAmount(), BigDecimal::add);
                 }
@@ -1130,16 +1360,22 @@ public class FinancialAdvisorService {
         if (txs == null) return result;
 
         for (Transaction tx : txs) {
-            if (tx == null || tx.getType() != TransactionType.EXPENSE || tx.isExcludeFromBudget()) continue;
+            if (tx == null || tx.getType() != TransactionType.EXPENSE || tx.isExcludeFromBudget())
+                continue;
 
             if (tx.isSplit() && tx.getSplits() != null && !tx.getSplits().isEmpty()) {
                 for (var split : tx.getSplits()) {
-                    if (split != null && split.getCategory() != null && split.getCategory().getName() != null && split.getAmount() != null) {
+                    if (split != null
+                            && split.getCategory() != null
+                            && split.getCategory().getName() != null
+                            && split.getAmount() != null) {
                         String catName = split.getCategory().getName();
                         result.merge(catName, split.getAmount(), BigDecimal::add);
                     }
                 }
-            } else if (tx.getCategory() != null && tx.getCategory().getName() != null && tx.getAmount() != null) {
+            } else if (tx.getCategory() != null
+                    && tx.getCategory().getName() != null
+                    && tx.getAmount() != null) {
                 String catName = tx.getCategory().getName();
                 result.merge(catName, tx.getAmount(), BigDecimal::add);
             }
@@ -1173,7 +1409,8 @@ public class FinancialAdvisorService {
 
     private BigDecimal average(List<BigDecimal> values) {
         if (values == null || values.isEmpty()) return BigDecimal.ZERO;
-        BigDecimal sum = values.stream().filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal sum =
+                values.stream().filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
         return sum.divide(BigDecimal.valueOf(values.size()), 0, RoundingMode.HALF_UP);
     }
 

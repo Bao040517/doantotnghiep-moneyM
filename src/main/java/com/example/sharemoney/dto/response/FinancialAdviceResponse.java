@@ -21,7 +21,8 @@ public class FinancialAdviceResponse {
     // ─── Feature 4: Idle Money Sweep (Gợi ý gom tiền tiết kiệm) ───
     private SavingsSuggestion savingsSuggestion;
 
-    // ─── Feature 5: Overspending Compensation & Rebalance (Kế hoạch Bù Trừ Ngân Sách Khi Tiêu Lố) ───
+    // ─── Feature 5: Overspending Compensation & Rebalance (Kế hoạch Bù Trừ Ngân Sách Khi Tiêu Lố)
+    // ───
     private RebalancePlan rebalancePlan;
 
     // ─── Sub-DTOs ───
@@ -35,7 +36,8 @@ public class FinancialAdviceResponse {
         private BigDecimal remainingDeficit; // Phần thâm hụt còn lại (nếu cắt giảm không đủ)
         private String statusMessage; // Thông báo tổng quan
         private List<OverspentItem> overspentItems; // Danh sách các khoản tiêu lố
-        private List<CompensateCutItem> compensationCuts; // Danh sách các khoản đề xuất cắt giảm bù vào
+        private List<CompensateCutItem>
+                compensationCuts; // Danh sách các khoản đề xuất cắt giảm bù vào
     }
 
     @Data

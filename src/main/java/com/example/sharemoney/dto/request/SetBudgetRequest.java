@@ -36,6 +36,9 @@ public class SetBudgetRequest {
 
     private String payeeAccountName;
 
-    /** ID người thụ hưởng đã lưu trong danh bạ (từ bảng payees). Nếu gửi kèm, hệ thống sẽ tự fill thông tin ngân hàng. */
+    /**
+     * ID người thụ hưởng đã lưu trong danh bạ (từ bảng payees). Nếu gửi kèm, hệ thống sẽ tự fill
+     * thông tin ngân hàng.
+     */
     private UUID payeeId;
 }

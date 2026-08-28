@@ -71,9 +71,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Lấy IP thật của client.
-     * Không tin tưởng X-Forwarded-For/X-Real-IP vì có thể bị spoof.
-     * Nếu deploy sau reverse proxy, cần cấu hình trusted proxy riêng.
+     * Lấy IP thật của client. Không tin tưởng X-Forwarded-For/X-Real-IP vì có thể bị spoof. Nếu
+     * deploy sau reverse proxy, cần cấu hình trusted proxy riêng.
      */
     private String getClientIp(HttpServletRequest request) {
         return request.getRemoteAddr();

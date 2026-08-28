@@ -47,8 +47,34 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 42. **Tích Hợp Google Gemini 2.0 Flash & Heuristic NLP Engine Fallback:** Nâng cấp API kết nối trực tiếp Google Gemini 2.0 Flash (`gemini-2.0-flash`) với xác thực kép Header `x-goog-api-key` + Query Parameter, kết hợp công cụ phân tích ngôn ngữ tự nhiên Heuristic cục bộ xử lý trích xuất giao dịch siêu tốc và bảo đảm 100% không bao giờ gặp lỗi 500 khi mất mạng hoặc chưa cấu hình API key.
 43. **Tự Động Dò Tìm & Giải Mã Mã QR Trong Bức Ảnh (ZXing Multiformat Engine):** Tích hợp thư viện `zxing` tự động quét ma trận điểm ảnh tìm mã QR ở mọi góc chụp và bóc tách hóa đơn điện tử E-Invoice trực tiếp.
 44. **Tối Ưu Hóa Hồ Chứa Kết Nối HikariCP Cho Giới Hạn 15 Session của Supabase PostgreSQL (`FATAL: EMAXCONNSESSION`):** Giới hạn `maximum-pool-size=5`, `minimum-idle=2`, thiết lập thời gian timeout 20s-30s ngăn chặn triệt để xung đột quá tải kết nối khi chạy đồng thời môi trường Local và AWS EC2.
+45. **Bộ Kiểm Thử Tự Động Toàn Diện Phân Hệ AI (AI Assistant, Goal Planner, ZXing & Controller Test Suite):** Xây dựng bộ 22 unit & integration tests chuyên sâu kiểm thử trọn vẹn Dream Goal Planner, trích xuất giao dịch ngôn ngữ tự nhiên (hiểu từ lóng `k`, `tr`, `củ`, `cành`, `chai`), hỏi đáp dòng tiền `QUERY_INSIGHT`, Heuristic Fallback Engine, parser JSON từ Gemini AI, giải mã QR ZXing và 100% REST endpoints AI Controller.
 
-### Session [2026-08-28] - AI Chatbot Cố Vấn & Lập Kế Hoạch Mua Sắm (Dream Goal Planner), Tích Hợp Gemini 2.0 Flash & Tối Ưu Hóa Kết Nối Cơ Sở Dữ Liệu AWS
+### Session [2026-08-28] (Phần 2) - Kiểm Thử Tự Động Toàn Diện Phân Hệ AI (Dream Goal Planner, NLP Extraction, ZXing Scanner & AI Controller)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Bộ Kiểm Thử Đơn Vị Chuyên Sâu Cho AI Assistant (`AiAssistantServiceTest.java` - 11 Tests):**
+   - **Lập kế hoạch mua sắm mục tiêu (Dream Goal Planner):** Kiểm thử nhận diện câu lệnh đa dạng (*"Muốn mua iPhone 16 Pro Max 30 triệu trong 3 tháng"*, *"Tích lũy 15tr mua laptop trong 2 tháng"*, *"Kế hoạch mua xe máy 25 củ trong 5 tháng"*). Tinh chỉnh regex `extractGoalName` giữ nguyên tên món đồ có số (`iPhone 16 Pro Max`, `PS5`...) và case chữ chuẩn xác của người dùng.
+   - **Ghi chép giao dịch siêu tốc:** Bóc tách chính xác số tiền, danh mục (`Ăn uống`, `Di chuyển`, `Thu nhập`...), phương thức thanh toán (`MoMo`, `Tiền mặt`, `Chuyển khoản`) và loại thu/chi từ câu ngắn (*"Ăn bún bò 55k MoMo"*, *"Đi Grab 35k tiền mặt"*, *"Nhận lương 15tr chuyển khoản"*).
+   - **Hỏi đáp dòng tiền & thống kê:** Kiểm thử hỏi chi tiêu theo danh mục (*"Tháng này tôi tiêu bao nhiêu cafe?"*) và tổng quan dòng tiền (*"Tình hình thu chi tháng này"*).
+   - **Gemini JSON Parser & Markdown Cleaner:** Kiểm thử khả năng bóc tách JSON chuẩn xác ngay cả khi Gemini trả về bọc khối ````json ... ````.
+
+2. **Kiểm Thử Controller & REST Endpoints (`AiControllerTest.java` - 4 Tests):**
+   - Kiểm thử `POST /api/ai/assistant/chat`: Trả về phản hồi AI và intent tương ứng.
+   - Kiểm thử `POST /api/ai/assistant/confirm-goal`: 1-chạm tạo Hũ Tiết Kiệm `SavingsGoal` từ dữ liệu kế hoạch AI đề xuất.
+   - Kiểm thử `POST /api/ai/generate-message`: Sinh tin nhắn nhắc nợ phong cách linh hoạt (`FUNNY`, `POLITE`, `POETIC`, `AGGRESSIVE`).
+   - Kiểm thử `POST /api/ai/scan-qr-receipt`: Bóc tách hóa đơn điện tử E-Invoice từ URL mã QR.
+
+3. **Kiểm Thử Dò Tìm & Giải Mã Mã QR Bằng ZXing (`ReceiptScanServiceTest.java` - 3 Tests):**
+   - Kiểm thử sinh ma trận điểm ảnh QR bitmap trong bộ nhớ và tự động giải mã thành công URL hóa đơn điện tử.
+   - Kiểm thử cơ chế fallback an toàn ném `RECEIPT_SCAN_CONFIG_ERROR` khi ảnh không có QR và chưa cấu hình OCR.
+
+4. **Kiểm Thử Tổng Thể Hệ Thống:**
+   - Frontend: `npx tsc --noEmit` đạt 0 lỗi typecheck.
+   - Backend: Toàn bộ **77/77 Unit & Integration Tests** vượt qua 100% (`BUILD SUCCESS`).
+   - Chuẩn hóa mã nguồn bằng `spotless:apply` tuân thủ nghiêm ngặt Google Java Format (AOSP).
+
+### Session [2026-08-28] (Phần 1) - AI Chatbot Cố Vấn & Lập Kế Hoạch Mua Sắm (Dream Goal Planner), Tích Hợp Gemini 2.0 Flash & Tối Ưu Hóa Kết Nối Cơ Sở Dữ Liệu AWS
 
 **✅ Đã hoàn thành (Compact Procedure):**
 

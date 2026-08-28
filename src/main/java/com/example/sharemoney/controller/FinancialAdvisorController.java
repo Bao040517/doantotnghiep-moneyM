@@ -29,13 +29,13 @@ public class FinancialAdvisorController {
     }
 
     @org.springframework.web.bind.annotation.PostMapping("/rebalance/apply")
-    public ResponseEntity<com.example.sharemoney.dto.response.RebalanceApplyResponse> applyRebalance(
-            @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer month,
-            @org.springframework.web.bind.annotation.RequestBody(required = false) com.example.sharemoney.dto.request.RebalanceApplyRequest request) {
+    public ResponseEntity<com.example.sharemoney.dto.response.RebalanceApplyResponse>
+            applyRebalance(
+                    @RequestParam(required = false) Integer year,
+                    @RequestParam(required = false) Integer month,
+                    @org.springframework.web.bind.annotation.RequestBody(required = false)
+                            com.example.sharemoney.dto.request.RebalanceApplyRequest request) {
         UUID userId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.ok(advisorService.applyRebalance(userId, year, month, request));
     }
 }
-
-

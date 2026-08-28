@@ -10,7 +10,8 @@ import lombok.*;
 @Table(
         name = "budgets",
         uniqueConstraints = {
-            @UniqueConstraint(columnNames = {"user_id", "category_id", "\"month\"", "\"year\"", "name"})
+            @UniqueConstraint(
+                    columnNames = {"user_id", "category_id", "\"month\"", "\"year\"", "name"})
         })
 @Getter
 @Setter
@@ -72,8 +73,8 @@ public class Budget {
     private String payeeAccountName;
 
     /**
-     * FK mềm tới bảng payees.id (nullable).
-     * Nếu được gán, frontend biết bypass PayeeSelector và vào thẳng QR.
+     * FK mềm tới bảng payees.id (nullable). Nếu được gán, frontend biết bypass PayeeSelector và vào
+     * thẳng QR.
      */
     @Column(name = "payee_id")
     private UUID payeeId;

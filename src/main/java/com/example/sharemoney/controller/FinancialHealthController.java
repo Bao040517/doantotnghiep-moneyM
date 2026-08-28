@@ -25,4 +25,3 @@ public class FinancialHealthController {
         return ResponseEntity.ok(financialHealthService.calculateHealthScore(userId));
     }
 }
-

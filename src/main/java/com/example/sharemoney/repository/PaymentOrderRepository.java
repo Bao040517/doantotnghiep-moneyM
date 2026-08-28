@@ -9,5 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, UUID> {
     Optional<PaymentOrder> findByTxnRef(String txnRef);
+
     boolean existsByTxnRef(String txnRef);
 }

@@ -33,4 +33,3 @@ public class AutoAllocateResponse {
         private boolean isCompleted;
     }
 }
-

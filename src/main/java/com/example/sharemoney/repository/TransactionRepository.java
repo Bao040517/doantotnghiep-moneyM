@@ -29,12 +29,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     List<Transaction> findByLinkedExpenseId(UUID expenseId);
 
-    @Query("SELECT COUNT(t) FROM Transaction t WHERE t.wallet.user.id = :userId AND t.category.name = 'Chưa phân loại'")
+    @Query(
+            "SELECT COUNT(t) FROM Transaction t WHERE t.wallet.user.id = :userId AND t.category.name = 'Chưa phân loại'")
     long countUncategorizedTransactions(@Param("userId") UUID userId);
 
-    @Query("SELECT t FROM Transaction t WHERE t.wallet.user.id = :userId AND t.category.name = 'Chưa phân loại' ORDER BY t.transactionDate DESC")
+    @Query(
+            "SELECT t FROM Transaction t WHERE t.wallet.user.id = :userId AND t.category.name = 'Chưa phân loại' ORDER BY t.transactionDate DESC")
     List<Transaction> findUncategorizedTransactions(@Param("userId") UUID userId);
-
 
     @Query(
             "SELECT t FROM Transaction t WHERE t.wallet.user.id = :userId "
@@ -174,8 +175,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     default BigDecimal sumExpenseByCategoryAndMonthSince(
             UUID userId, UUID categoryId, int year, int month, LocalDateTime budgetCreatedAt) {
-        BigDecimal unsplit = sumUnsplitExpenseByCategoryAndMonthSince(userId, categoryId, year, month, budgetCreatedAt);
-        BigDecimal split   = sumSplitExpenseByCategoryAndMonthSince(userId, categoryId, year, month, budgetCreatedAt);
+        BigDecimal unsplit =
+                sumUnsplitExpenseByCategoryAndMonthSince(
+                        userId, categoryId, year, month, budgetCreatedAt);
+        BigDecimal split =
+                sumSplitExpenseByCategoryAndMonthSince(
+                        userId, categoryId, year, month, budgetCreatedAt);
         return unsplit.add(split);
     }
 
@@ -216,8 +221,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     default BigDecimal sumAllExpenseByCategoryAndMonthSince(
             UUID userId, UUID categoryId, int year, int month, LocalDateTime budgetCreatedAt) {
-        BigDecimal unsplit = sumAllUnsplitExpenseByCategoryAndMonthSince(userId, categoryId, year, month, budgetCreatedAt);
-        BigDecimal split   = sumAllSplitExpenseByCategoryAndMonthSince(userId, categoryId, year, month, budgetCreatedAt);
+        BigDecimal unsplit =
+                sumAllUnsplitExpenseByCategoryAndMonthSince(
+                        userId, categoryId, year, month, budgetCreatedAt);
+        BigDecimal split =
+                sumAllSplitExpenseByCategoryAndMonthSince(
+                        userId, categoryId, year, month, budgetCreatedAt);
         return unsplit.add(split);
     }
 

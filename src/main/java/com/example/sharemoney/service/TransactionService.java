@@ -182,7 +182,8 @@ public class TransactionService {
                     || "PAYOS".equalsIgnoreCase(paymentMethod)
                     || "VIETQR".equalsIgnoreCase(paymentMethod)
                     || "BANK_GATEWAY".equalsIgnoreCase(paymentMethod)) {
-                // Tiền mặt hoặc Cổng thanh toán ngoại vi: nếu số dư ví đủ thì trừ, nếu không đủ thì ghi nhận chi tiêu bình thường mà không chặn lỗi ví
+                // Tiền mặt hoặc Cổng thanh toán ngoại vi: nếu số dư ví đủ thì trừ, nếu không đủ thì
+                // ghi nhận chi tiêu bình thường mà không chặn lỗi ví
                 if (wallet.getBalance().compareTo(req.getAmount()) >= 0) {
                     wallet.setBalance(wallet.getBalance().subtract(req.getAmount()));
                 }
@@ -548,15 +549,21 @@ public class TransactionService {
         LocalDateTime selFrom = selectedYM.atDay(1).atStartOfDay();
         LocalDateTime selTo = selectedYM.plusMonths(1).atDay(1).atStartOfDay();
 
-        BigDecimal selIncome = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, selFrom, selTo);
+        BigDecimal selIncome =
+                transactionRepository.sumByTypeAndPeriod(
+                        userId, TransactionType.INCOME, selFrom, selTo);
         if (selIncome == null) selIncome = BigDecimal.ZERO;
-        BigDecimal selDebtRecovery = transactionRepository.sumDebtRecoveryByPeriod(userId, selFrom, selTo);
+        BigDecimal selDebtRecovery =
+                transactionRepository.sumDebtRecoveryByPeriod(userId, selFrom, selTo);
         if (selDebtRecovery == null) selDebtRecovery = BigDecimal.ZERO;
         selIncome = selIncome.add(selDebtRecovery);
 
-        BigDecimal selExpense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, selFrom, selTo);
+        BigDecimal selExpense =
+                transactionRepository.sumByTypeAndPeriod(
+                        userId, TransactionType.EXPENSE, selFrom, selTo);
         if (selExpense == null) selExpense = BigDecimal.ZERO;
-        BigDecimal selDebtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, selFrom, selTo);
+        BigDecimal selDebtPayment =
+                transactionRepository.sumDebtPaymentByPeriod(userId, selFrom, selTo);
         if (selDebtPayment == null) selDebtPayment = BigDecimal.ZERO;
         selExpense = selExpense.add(selDebtPayment);
 
@@ -577,7 +584,9 @@ public class TransactionService {
         LocalDateTime prevFrom = prevYM.atDay(1).atStartOfDay();
         LocalDateTime prevTo = prevYM.plusMonths(1).atDay(1).atStartOfDay();
 
-        BigDecimal prevExpense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, prevFrom, prevTo);
+        BigDecimal prevExpense =
+                transactionRepository.sumByTypeAndPeriod(
+                        userId, TransactionType.EXPENSE, prevFrom, prevTo);
         if (prevExpense == null) prevExpense = BigDecimal.ZERO;
 
         BigDecimal expenseChange = selExpense.subtract(prevExpense);
@@ -606,9 +615,9 @@ public class TransactionService {
     }
 
     /**
-     * Báo cáo biến động dòng tiền thực tế theo Tuần (4 tuần trong tháng), 
-     * Tháng (12 tháng trong năm), và Năm (các năm gần nhất).
-     * Dữ liệu hoàn toàn thực tế 100% từ database, không sử dụng hệ số giả lập.
+     * Báo cáo biến động dòng tiền thực tế theo Tuần (4 tuần trong tháng), Tháng (12 tháng trong
+     * năm), và Năm (các năm gần nhất). Dữ liệu hoàn toàn thực tế 100% từ database, không sử dụng hệ
+     * số giả lập.
      */
     @Transactional(readOnly = true)
     public CashflowSummaryResponse getCashflowSummary(UUID userId, int year, int month) {
@@ -628,33 +637,41 @@ public class TransactionService {
             int startDay = weekRanges[i][0];
             int endDay = weekRanges[i][1];
             LocalDateTime from = selectedYM.atDay(startDay).atStartOfDay();
-            LocalDateTime to = (endDay == daysInMonth)
-                    ? selectedYM.plusMonths(1).atDay(1).atStartOfDay()
-                    : selectedYM.atDay(endDay + 1).atStartOfDay();
+            LocalDateTime to =
+                    (endDay == daysInMonth)
+                            ? selectedYM.plusMonths(1).atDay(1).atStartOfDay()
+                            : selectedYM.atDay(endDay + 1).atStartOfDay();
 
-            BigDecimal income = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, from, to);
+            BigDecimal income =
+                    transactionRepository.sumByTypeAndPeriod(
+                            userId, TransactionType.INCOME, from, to);
             if (income == null) income = BigDecimal.ZERO;
-            BigDecimal debtRecovery = transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
+            BigDecimal debtRecovery =
+                    transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
             if (debtRecovery == null) debtRecovery = BigDecimal.ZERO;
             income = income.add(debtRecovery);
 
-            BigDecimal expense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, from, to);
+            BigDecimal expense =
+                    transactionRepository.sumByTypeAndPeriod(
+                            userId, TransactionType.EXPENSE, from, to);
             if (expense == null) expense = BigDecimal.ZERO;
             BigDecimal debtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, from, to);
             if (debtPayment == null) debtPayment = BigDecimal.ZERO;
             expense = expense.add(debtPayment);
 
             BigDecimal net = income.subtract(expense);
-            weeks.add(CashflowSummaryResponse.CashflowPoint.builder()
-                    .period("Tuần " + (i + 1))
-                    .label("T" + (i + 1))
-                    .income(income)
-                    .expense(expense)
-                    .net(net)
-                    .build());
+            weeks.add(
+                    CashflowSummaryResponse.CashflowPoint.builder()
+                            .period("Tuần " + (i + 1))
+                            .label("T" + (i + 1))
+                            .income(income)
+                            .expense(expense)
+                            .net(net)
+                            .build());
         }
 
-        // 2. Phân bổ thực tế các tháng trong năm được chọn (chỉ hiển thị từ T1 đến tháng hiện tại nếu là năm nay, hoặc 12 tháng nếu là năm cũ)
+        // 2. Phân bổ thực tế các tháng trong năm được chọn (chỉ hiển thị từ T1 đến tháng hiện tại
+        // nếu là năm nay, hoặc 12 tháng nếu là năm cũ)
         int curYear = LocalDate.now().getYear();
         int curMonth = LocalDate.now().getMonthValue();
         int maxMonth = (year == curYear) ? curMonth : (year < curYear ? 12 : 0);
@@ -665,26 +682,32 @@ public class TransactionService {
             LocalDateTime from = ym.atDay(1).atStartOfDay();
             LocalDateTime to = ym.plusMonths(1).atDay(1).atStartOfDay();
 
-            BigDecimal income = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, from, to);
+            BigDecimal income =
+                    transactionRepository.sumByTypeAndPeriod(
+                            userId, TransactionType.INCOME, from, to);
             if (income == null) income = BigDecimal.ZERO;
-            BigDecimal debtRecovery = transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
+            BigDecimal debtRecovery =
+                    transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
             if (debtRecovery == null) debtRecovery = BigDecimal.ZERO;
             income = income.add(debtRecovery);
 
-            BigDecimal expense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, from, to);
+            BigDecimal expense =
+                    transactionRepository.sumByTypeAndPeriod(
+                            userId, TransactionType.EXPENSE, from, to);
             if (expense == null) expense = BigDecimal.ZERO;
             BigDecimal debtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, from, to);
             if (debtPayment == null) debtPayment = BigDecimal.ZERO;
             expense = expense.add(debtPayment);
 
             BigDecimal net = income.subtract(expense);
-            months.add(CashflowSummaryResponse.CashflowPoint.builder()
-                    .period("T" + m)
-                    .label("T" + m)
-                    .income(income)
-                    .expense(expense)
-                    .net(net)
-                    .build());
+            months.add(
+                    CashflowSummaryResponse.CashflowPoint.builder()
+                            .period("T" + m)
+                            .label("T" + m)
+                            .income(income)
+                            .expense(expense)
+                            .net(net)
+                            .build());
         }
 
         // 3. Phân bổ thực tế các năm (5 năm gần nhất: year - 4 đến year)
@@ -693,33 +716,35 @@ public class TransactionService {
             LocalDateTime from = LocalDate.of(y, 1, 1).atStartOfDay();
             LocalDateTime to = LocalDate.of(y + 1, 1, 1).atStartOfDay();
 
-            BigDecimal income = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.INCOME, from, to);
+            BigDecimal income =
+                    transactionRepository.sumByTypeAndPeriod(
+                            userId, TransactionType.INCOME, from, to);
             if (income == null) income = BigDecimal.ZERO;
-            BigDecimal debtRecovery = transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
+            BigDecimal debtRecovery =
+                    transactionRepository.sumDebtRecoveryByPeriod(userId, from, to);
             if (debtRecovery == null) debtRecovery = BigDecimal.ZERO;
             income = income.add(debtRecovery);
 
-            BigDecimal expense = transactionRepository.sumByTypeAndPeriod(userId, TransactionType.EXPENSE, from, to);
+            BigDecimal expense =
+                    transactionRepository.sumByTypeAndPeriod(
+                            userId, TransactionType.EXPENSE, from, to);
             if (expense == null) expense = BigDecimal.ZERO;
             BigDecimal debtPayment = transactionRepository.sumDebtPaymentByPeriod(userId, from, to);
             if (debtPayment == null) debtPayment = BigDecimal.ZERO;
             expense = expense.add(debtPayment);
 
             BigDecimal net = income.subtract(expense);
-            years.add(CashflowSummaryResponse.CashflowPoint.builder()
-                    .period("Năm " + y)
-                    .label(String.valueOf(y))
-                    .income(income)
-                    .expense(expense)
-                    .net(net)
-                    .build());
+            years.add(
+                    CashflowSummaryResponse.CashflowPoint.builder()
+                            .period("Năm " + y)
+                            .label(String.valueOf(y))
+                            .income(income)
+                            .expense(expense)
+                            .net(net)
+                            .build());
         }
 
-        return CashflowSummaryResponse.builder()
-                .weeks(weeks)
-                .months(months)
-                .years(years)
-                .build();
+        return CashflowSummaryResponse.builder().weeks(weeks).months(months).years(years).build();
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -917,7 +942,10 @@ public class TransactionService {
                 .note(transaction.getNote())
                 .linkedExpenseId(transaction.getLinkedExpenseId())
                 .payeeName(transaction.getPayee() != null ? transaction.getPayee().getName() : null)
-                .paymentMethod(transaction.getPaymentMethod() != null ? transaction.getPaymentMethod() : "TRANSFER")
+                .paymentMethod(
+                        transaction.getPaymentMethod() != null
+                                ? transaction.getPaymentMethod()
+                                : "TRANSFER")
                 .tags(
                         transaction.getTags() != null
                                 ? transaction.getTags().stream()

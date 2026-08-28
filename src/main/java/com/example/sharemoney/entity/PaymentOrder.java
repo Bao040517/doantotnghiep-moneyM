@@ -20,17 +20,16 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * Đơn thanh toán trực tuyến qua cổng VNPay.
- * Dùng để đối soát, quản lý trạng thái thanh toán và ngăn ngừa giao dịch trùng lặp (Idempotency).
+ * Đơn thanh toán trực tuyến qua cổng VNPay. Dùng để đối soát, quản lý trạng thái thanh toán và ngăn
+ * ngừa giao dịch trùng lặp (Idempotency).
  */
 @Entity
 @Table(
-    name = "payment_orders",
-    indexes = {
-        @Index(name = "idx_payment_orders_txn_ref", columnList = "txn_ref", unique = true),
-        @Index(name = "idx_payment_orders_user_id", columnList = "user_id")
-    }
-)
+        name = "payment_orders",
+        indexes = {
+            @Index(name = "idx_payment_orders_txn_ref", columnList = "txn_ref", unique = true),
+            @Index(name = "idx_payment_orders_user_id", columnList = "user_id")
+        })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -42,31 +41,22 @@ public class PaymentOrder {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @jakarta.persistence.Version
-    private Long version;
+    @jakarta.persistence.Version private Long version;
 
-    /**
-     * Mã tham chiếu đơn hàng gửi sang VNPay (vnp_TxnRef), duy nhất 100%.
-     */
+    /** Mã tham chiếu đơn hàng gửi sang VNPay (vnp_TxnRef), duy nhất 100%. */
     @Column(name = "txn_ref", nullable = false, unique = true, length = 64)
     private String txnRef;
 
-    /**
-     * Người thực hiện thanh toán.
-     */
+    /** Người thực hiện thanh toán. */
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    /**
-     * Loại giao dịch thanh toán: BUDGET (Chi tiêu ngân sách) hoặc DEBT (Trả nợ nhóm).
-     */
+    /** Loại giao dịch thanh toán: BUDGET (Chi tiêu ngân sách) hoặc DEBT (Trả nợ nhóm). */
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
     private PaymentOrderType type;
 
-    /**
-     * Số tiền thanh toán (VNĐ).
-     */
+    /** Số tiền thanh toán (VNĐ). */
     @Column(name = "amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
@@ -87,17 +77,13 @@ public class PaymentOrder {
     @Column(name = "creditor_id")
     private UUID creditorId;
 
-    /**
-     * Trạng thái thanh toán của đơn hàng.
-     */
+    /** Trạng thái thanh toán của đơn hàng. */
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private PaymentOrderStatus status = PaymentOrderStatus.PENDING;
 
-    /**
-     * Mã giao dịch ghi nhận tại hệ thống VNPay (vnp_TransactionNo).
-     */
+    /** Mã giao dịch ghi nhận tại hệ thống VNPay (vnp_TransactionNo). */
     @Column(name = "vnp_transaction_no", length = 64)
     private String vnpTransactionNo;
 

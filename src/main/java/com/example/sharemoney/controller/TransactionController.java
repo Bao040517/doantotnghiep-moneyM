@@ -119,7 +119,10 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getIncomeCategoryBreakdown(userId, y, m));
     }
 
-    /** GET /api/transactions/summary/cashflow?year=&month= - Báo cáo biến động dòng tiền thực tế (Tuần / Tháng / Năm) */
+    /**
+     * GET /api/transactions/summary/cashflow?year=&month= - Báo cáo biến động dòng tiền thực tế
+     * (Tuần / Tháng / Năm)
+     */
     @GetMapping("/summary/cashflow")
     public ResponseEntity<CashflowSummaryResponse> getCashflowSummary(
             @RequestParam(defaultValue = "0") int year,

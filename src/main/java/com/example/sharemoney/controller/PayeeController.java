@@ -19,10 +19,7 @@ public class PayeeController {
 
     private final PayeeService payeeService;
 
-    /**
-     * GET /api/payees
-     * Lấy toàn bộ danh bạ người nhận đã lưu của user hiện tại.
-     */
+    /** GET /api/payees Lấy toàn bộ danh bạ người nhận đã lưu của user hiện tại. */
     @GetMapping
     public ResponseEntity<List<PayeeResponse>> getPayees() {
         UUID userId = SecurityUtils.getCurrentUserId();
@@ -30,9 +27,8 @@ public class PayeeController {
     }
 
     /**
-     * GET /api/payees/suggestions
-     * Danh sách gợi ý thông minh: Saved Payees + Bạn bè trong nhóm có STK.
-     * Được dedup theo số tài khoản.
+     * GET /api/payees/suggestions Danh sách gợi ý thông minh: Saved Payees + Bạn bè trong nhóm có
+     * STK. Được dedup theo số tài khoản.
      */
     @GetMapping("/suggestions")
     public ResponseEntity<List<PayeeResponse>> getSuggestions() {
@@ -41,9 +37,8 @@ public class PayeeController {
     }
 
     /**
-     * POST /api/payees
-     * Lưu người nhận mới hoặc cập nhật (upsert theo bankAccount).
-     * Trả về thông tin đã lưu.
+     * POST /api/payees Lưu người nhận mới hoặc cập nhật (upsert theo bankAccount). Trả về thông tin
+     * đã lưu.
      */
     @PostMapping
     public ResponseEntity<PayeeResponse> savePayee(@Valid @RequestBody SavePayeeRequest req) {
@@ -52,10 +47,7 @@ public class PayeeController {
                 .body(payeeService.saveOrUpdate(userId, req));
     }
 
-    /**
-     * DELETE /api/payees/{id}
-     * Xóa người nhận khỏi danh bạ (kiểm tra quyền sở hữu).
-     */
+    /** DELETE /api/payees/{id} Xóa người nhận khỏi danh bạ (kiểm tra quyền sở hữu). */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePayee(@PathVariable UUID id) {
         UUID userId = SecurityUtils.getCurrentUserId();

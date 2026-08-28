@@ -115,7 +115,7 @@ public class WalletService {
     public TotalBalanceResponse getTotalBalance(UUID userId) {
         List<Wallet> allWallets = walletRepository.findByUser_Id(userId);
         BigDecimal total = BigDecimal.ZERO;
-        
+
         for (Wallet w : allWallets) {
             if (w.isLiability()) {
                 total = total.subtract(w.getBalance());
@@ -123,7 +123,7 @@ public class WalletService {
                 total = total.add(w.getBalance());
             }
         }
-        
+
         return new TotalBalanceResponse(total);
     }
 

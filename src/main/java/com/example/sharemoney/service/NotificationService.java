@@ -23,7 +23,9 @@ public class NotificationService {
     private final SimpMessagingTemplate messagingTemplate;
     private final ExpoPushService expoPushService;
 
-    /** Hàm chính để các Service khác gọi khi muốn thông báo (Ví dụ: Nhắc nợ, Thêm chi tiêu, Tiền về) */
+    /**
+     * Hàm chính để các Service khác gọi khi muốn thông báo (Ví dụ: Nhắc nợ, Thêm chi tiêu, Tiền về)
+     */
     @Transactional
     public void sendNotification(UUID userId, String message, String type) {
         User user =
@@ -63,10 +65,16 @@ public class NotificationService {
     private String resolvePushTitle(String type) {
         if (type == null) return "🔔 Thông báo ShareMoney";
         return switch (type) {
-            case "PAYMENT_RECEIVED", "PAYMENT_SENT", "PAYMENT_APPROVED", "PAYMENT_NOTIFY" -> "💰 Tiền về! ShareMoney";
+            case "PAYMENT_RECEIVED",
+                    "PAYMENT_SENT",
+                    "PAYMENT_APPROVED",
+                    "PAYMENT_NOTIFY" -> "💰 Tiền về! ShareMoney";
             case "REMIND_DEBT", "DEBT_REMINDER" -> "🔔 Lời nhắc nợ từ bạn bè";
             case "EXPENSE_CREATED", "EXPENSE_UPDATED" -> "🧾 Chi tiêu nhóm ShareMoney";
-            case "WARNING", "Z_SCORE_ANOMALY", "BUDGET_OVER", "BUDGET_WARNING" -> "⚠️ Cảnh báo tài chính";
+            case "WARNING",
+                    "Z_SCORE_ANOMALY",
+                    "BUDGET_OVER",
+                    "BUDGET_WARNING" -> "⚠️ Cảnh báo tài chính";
             default -> "🔔 Thông báo ShareMoney";
         };
     }

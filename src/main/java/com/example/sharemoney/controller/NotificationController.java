@@ -33,7 +33,8 @@ public class NotificationController {
     @GetMapping("/unread-count")
     public ResponseEntity<java.util.Map<String, Long>> getUnreadCount() {
         UUID userId = SecurityUtils.getCurrentUserId();
-        return ResponseEntity.ok(java.util.Map.of("unreadCount", notificationService.getUnreadCount(userId)));
+        return ResponseEntity.ok(
+                java.util.Map.of("unreadCount", notificationService.getUnreadCount(userId)));
     }
 
     /** POST /api/notifications/{id}/read Đánh dấu 1 thông báo là đã đọc */

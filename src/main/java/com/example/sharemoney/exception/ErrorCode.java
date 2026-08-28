@@ -55,9 +55,11 @@ public enum ErrorCode {
 
     // --- Receipt OCR ---
     RECEIPT_SCAN_CONFIG_ERROR(
-            HttpStatus.BAD_REQUEST, "Chưa cấu hình API Key cho dịch vụ quét hóa đơn (Mindee / Gemini Vision). Vui lòng nhập thủ công hoặc cấu hình API Key trên máy chủ."),
+            HttpStatus.BAD_REQUEST,
+            "Chưa cấu hình API Key cho dịch vụ quét hóa đơn (Mindee / Gemini Vision). Vui lòng nhập thủ công hoặc cấu hình API Key trên máy chủ."),
     RECEIPT_SCAN_FAILED(
-            HttpStatus.BAD_REQUEST, "Không thể đọc hóa đơn từ ảnh này. Vui lòng thử lại với ảnh rõ nét hơn hoặc nhập thủ công."),
+            HttpStatus.BAD_REQUEST,
+            "Không thể đọc hóa đơn từ ảnh này. Vui lòng thử lại với ảnh rõ nét hơn hoặc nhập thủ công."),
     CUSTOM_SPLIT_MISMATCH(
             HttpStatus.BAD_REQUEST,
             "Tổng số tiền chia tùy chỉnh không khớp với tổng tiền hóa đơn."),
@@ -65,8 +67,10 @@ public enum ErrorCode {
     // --- Auth ---
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Bạn cần đăng nhập để thực hiện thao tác này."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Email hoặc mật khẩu không đúng."),
-    REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."),
-    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "Mã làm mới (Refresh Token) không hợp lệ hoặc đã bị thu hồi.");
+    REFRESH_TOKEN_EXPIRED(
+            HttpStatus.UNAUTHORIZED, "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."),
+    INVALID_REFRESH_TOKEN(
+            HttpStatus.UNAUTHORIZED, "Mã làm mới (Refresh Token) không hợp lệ hoặc đã bị thu hồi.");
 
     private final HttpStatus status;
     private final String message;

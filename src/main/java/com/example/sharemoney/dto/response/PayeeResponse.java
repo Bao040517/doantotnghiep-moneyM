@@ -32,8 +32,8 @@ public class PayeeResponse {
     private LocalDateTime createdAt;
 
     /**
-     * Nguồn dữ liệu — "saved" (danh bạ đã lưu) hoặc "group_member" (bạn bè trong nhóm).
-     * Chỉ dùng ở endpoint /suggestions, không lưu vào DB.
+     * Nguồn dữ liệu — "saved" (danh bạ đã lưu) hoặc "group_member" (bạn bè trong nhóm). Chỉ dùng ở
+     * endpoint /suggestions, không lưu vào DB.
      */
     private String source;
 }

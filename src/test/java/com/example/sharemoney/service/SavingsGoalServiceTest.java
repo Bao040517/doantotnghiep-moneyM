@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import com.example.sharemoney.dto.request.FundSavingsGoalRequest;
 import com.example.sharemoney.dto.request.SavingsGoalRequest;
 import com.example.sharemoney.dto.response.AutoAllocateResponse;
 import com.example.sharemoney.dto.response.BudgetSummaryResponse;
@@ -50,13 +49,29 @@ class SavingsGoalServiceTest {
     void setUp() {
         userId = UUID.randomUUID();
         user = User.builder().id(userId).name("Test User").email("test@example.com").build();
-        wallet = Wallet.builder().id(UUID.randomUUID()).user(user).name("Ví chính").balance(new BigDecimal("10000000")).isLiability(false).build();
-        goal = SavingsGoal.builder().id(UUID.randomUUID()).user(user).name("Mua Macbook").targetAmount(new BigDecimal("20000000")).currentAmount(new BigDecimal("5000000")).status(SavingsGoalStatus.IN_PROGRESS).build();
+        wallet =
+                Wallet.builder()
+                        .id(UUID.randomUUID())
+                        .user(user)
+                        .name("Ví chính")
+                        .balance(new BigDecimal("10000000"))
+                        .isLiability(false)
+                        .build();
+        goal =
+                SavingsGoal.builder()
+                        .id(UUID.randomUUID())
+                        .user(user)
+                        .name("Mua Macbook")
+                        .targetAmount(new BigDecimal("20000000"))
+                        .currentAmount(new BigDecimal("5000000"))
+                        .status(SavingsGoalStatus.IN_PROGRESS)
+                        .build();
     }
 
     @Test
     void testGetUserSavingsGoals_Success() {
-        when(savingsGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId)).thenReturn(List.of(goal));
+        when(savingsGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId))
+                .thenReturn(List.of(goal));
 
         List<SavingsGoalResponse> responses = savingsGoalService.getUserSavingsGoals(userId);
 
@@ -82,14 +97,27 @@ class SavingsGoalServiceTest {
 
     @Test
     void testAutoAllocateSavingsGoals_Success() {
-        when(budgetService.getBudgetSummary(eq(userId), anyInt(), anyInt())).thenReturn(Collections.emptyList());
-        when(debtService.getUserDebtSummary(userId)).thenReturn(UserDebtSummaryResponse.builder().totalOwing(BigDecimal.ZERO).totalOwed(BigDecimal.ZERO).build());
+        when(budgetService.getBudgetSummary(eq(userId), anyInt(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(debtService.getUserDebtSummary(userId))
+                .thenReturn(
+                        UserDebtSummaryResponse.builder()
+                                .totalOwing(BigDecimal.ZERO)
+                                .totalOwed(BigDecimal.ZERO)
+                                .build());
         when(walletRepository.sumBalanceByUserId(userId)).thenReturn(new BigDecimal("10000000"));
-        when(savingsGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId)).thenReturn(List.of(goal));
-        when(walletRepository.findByUser_IdAndIsLiability(userId, false)).thenReturn(List.of(wallet));
+        when(savingsGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId))
+                .thenReturn(List.of(goal));
+        when(walletRepository.findByUser_IdAndIsLiability(userId, false))
+                .thenReturn(List.of(wallet));
         when(walletRepository.findById(any())).thenReturn(Optional.of(wallet));
         when(categoryService.getOrCreateCategory(any(), anyString(), any(), anyString()))
-                .thenReturn(Category.builder().id(UUID.randomUUID()).name("Mục tiêu tiết kiệm").type(TransactionType.EXPENSE).build());
+                .thenReturn(
+                        Category.builder()
+                                .id(UUID.randomUUID())
+                                .name("Mục tiêu tiết kiệm")
+                                .type(TransactionType.EXPENSE)
+                                .build());
 
         AutoAllocateResponse resp = savingsGoalService.autoAllocateSavingsGoals(userId);
 
@@ -101,12 +129,24 @@ class SavingsGoalServiceTest {
     @Test
     void testAutoAllocateSavingsGoals_SafetyReserveViolation_ThrowsException() {
         // Mock requiredReserve (unpaid budget 12.000.000) > wallet balance (10.000.000)
-        BudgetSummaryResponse b = BudgetSummaryResponse.builder().limitAmount(new BigDecimal("15000000")).spentAmount(new BigDecimal("3000000")).build();
+        BudgetSummaryResponse b =
+                BudgetSummaryResponse.builder()
+                        .limitAmount(new BigDecimal("15000000"))
+                        .spentAmount(new BigDecimal("3000000"))
+                        .build();
         when(budgetService.getBudgetSummary(eq(userId), anyInt(), anyInt())).thenReturn(List.of(b));
-        when(debtService.getUserDebtSummary(userId)).thenReturn(UserDebtSummaryResponse.builder().totalOwing(new BigDecimal("2000000")).totalOwed(BigDecimal.ZERO).build());
+        when(debtService.getUserDebtSummary(userId))
+                .thenReturn(
+                        UserDebtSummaryResponse.builder()
+                                .totalOwing(new BigDecimal("2000000"))
+                                .totalOwed(BigDecimal.ZERO)
+                                .build());
         when(walletRepository.sumBalanceByUserId(userId)).thenReturn(new BigDecimal("10000000"));
 
-        AppException ex = assertThrows(AppException.class, () -> savingsGoalService.autoAllocateSavingsGoals(userId));
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> savingsGoalService.autoAllocateSavingsGoals(userId));
         assertEquals(ErrorCode.SAFETY_RESERVE_VIOLATION, ex.getErrorCode());
     }
 }

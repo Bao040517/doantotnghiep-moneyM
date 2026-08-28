@@ -36,9 +36,9 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Service thông minh quét hóa đơn:
- * 1. Tự động tìm và giải mã mã QR trong ảnh (đọc link / dữ liệu hóa đơn điện tử để bóc tách từng món hàng).
- * 2. Nếu không có mã QR: tự động chuyển sang OCR (Google Gemini Vision / Mindee) để đọc chữ trên hóa đơn giấy.
+ * Service thông minh quét hóa đơn: 1. Tự động tìm và giải mã mã QR trong ảnh (đọc link / dữ liệu
+ * hóa đơn điện tử để bóc tách từng món hàng). 2. Nếu không có mã QR: tự động chuyển sang OCR
+ * (Google Gemini Vision / Mindee) để đọc chữ trên hóa đơn giấy.
  */
 @Slf4j
 @Service
@@ -48,7 +48,8 @@ public class ReceiptScanService {
     @Value("${mindee.api.key:}")
     private String mindeeApiKey;
 
-    @Value("${mindee.api.url:https://api.mindee.net/v1/products/mindee/expense_receipts/v5/predict}")
+    @Value(
+            "${mindee.api.url:https://api.mindee.net/v1/products/mindee/expense_receipts/v5/predict}")
     private String mindeeApiUrl;
 
     private final GeminiService geminiService;
@@ -69,23 +70,38 @@ public class ReceiptScanService {
             if (qrContent != null && !qrContent.isBlank()) {
                 log.info("[ReceiptScanService] Đã phát hiện mã QR trong ảnh: {}", qrContent);
                 try {
-                    // Nếu mã QR là đường link tra cứu hóa đơn điện tử (VNPT, Viettel, MISA, BKAV, v.v.)
-                    if (qrContent.toLowerCase().startsWith("http://") || qrContent.toLowerCase().startsWith("https://")) {
-                        ScanReceiptResponse qrRes = qrReceiptService.scanReceiptFromUrl(qrContent.trim());
-                        if (qrRes != null && (qrRes.getAmount() != null || (qrRes.getItems() != null && !qrRes.getItems().isEmpty()))) {
-                            log.info("[ReceiptScanService] Đọc thành công hóa đơn từ QR URL: amount={}, note={}, items={}",
-                                    qrRes.getAmount(), qrRes.getNote(), qrRes.getItems() != null ? qrRes.getItems().size() : 0);
+                    // Nếu mã QR là đường link tra cứu hóa đơn điện tử (VNPT, Viettel, MISA, BKAV,
+                    // v.v.)
+                    if (qrContent.toLowerCase().startsWith("http://")
+                            || qrContent.toLowerCase().startsWith("https://")) {
+                        ScanReceiptResponse qrRes =
+                                qrReceiptService.scanReceiptFromUrl(qrContent.trim());
+                        if (qrRes != null
+                                && (qrRes.getAmount() != null
+                                        || (qrRes.getItems() != null
+                                                && !qrRes.getItems().isEmpty()))) {
+                            log.info(
+                                    "[ReceiptScanService] Đọc thành công hóa đơn từ QR URL: amount={}, note={}, items={}",
+                                    qrRes.getAmount(),
+                                    qrRes.getNote(),
+                                    qrRes.getItems() != null ? qrRes.getItems().size() : 0);
                             return qrRes;
                         }
                     } else {
                         // Nếu mã QR chứa văn bản / JSON trực tiếp của hóa đơn
-                        ScanReceiptResponse qrTextRes = geminiService.extractReceiptFromHtml(qrContent.trim());
-                        if (qrTextRes != null && (qrTextRes.getAmount() != null || (qrTextRes.getItems() != null && !qrTextRes.getItems().isEmpty()))) {
+                        ScanReceiptResponse qrTextRes =
+                                geminiService.extractReceiptFromHtml(qrContent.trim());
+                        if (qrTextRes != null
+                                && (qrTextRes.getAmount() != null
+                                        || (qrTextRes.getItems() != null
+                                                && !qrTextRes.getItems().isEmpty()))) {
                             return qrTextRes;
                         }
                     }
                 } catch (Exception e) {
-                    log.warn("[ReceiptScanService] Không thể bóc tách từ QR URL: {}. Chuyển tiếp sang OCR hình ảnh...", e.getMessage());
+                    log.warn(
+                            "[ReceiptScanService] Không thể bóc tách từ QR URL: {}. Chuyển tiếp sang OCR hình ảnh...",
+                            e.getMessage());
                 }
             }
 
@@ -95,11 +111,15 @@ public class ReceiptScanService {
                     log.info("[ReceiptScanService] Quét OCR bằng Google Gemini Vision...");
                     return geminiService.scanReceipt(file);
                 } catch (Exception e) {
-                    log.warn("[ReceiptScanService] Gemini Vision OCR gặp lỗi: {}. Thử Mindee...", e.getMessage());
+                    log.warn(
+                            "[ReceiptScanService] Gemini Vision OCR gặp lỗi: {}. Thử Mindee...",
+                            e.getMessage());
                 }
             }
 
-            if (mindeeApiKey != null && !mindeeApiKey.trim().isEmpty() && !mindeeApiKey.contains("YOUR_MINDEE_API_KEY_HERE")) {
+            if (mindeeApiKey != null
+                    && !mindeeApiKey.trim().isEmpty()
+                    && !mindeeApiKey.contains("YOUR_MINDEE_API_KEY_HERE")) {
                 try {
                     log.info("[ReceiptScanService] Quét OCR bằng Mindee API...");
                     return scanViaMindee(fileBytes, file.getOriginalFilename());
@@ -119,9 +139,7 @@ public class ReceiptScanService {
         }
     }
 
-    /**
-     * Tự động dò tìm và giải mã mã QR ở bất kỳ góc nào trong bức ảnh tải lên.
-     */
+    /** Tự động dò tìm và giải mã mã QR ở bất kỳ góc nào trong bức ảnh tải lên. */
     private String tryExtractQrCodeFromImage(byte[] imageBytes) {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes)) {
             BufferedImage bufferedImage = ImageIO.read(bais);

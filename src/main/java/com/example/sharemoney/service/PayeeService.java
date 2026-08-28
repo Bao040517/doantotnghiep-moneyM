@@ -29,9 +29,7 @@ public class PayeeService {
     // ─────────────────────────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<PayeeResponse> getPayees(UUID userId) {
-        return payeeRepository
-                .findByUser_IdOrderByCreatedAtDesc(userId)
-                .stream()
+        return payeeRepository.findByUser_IdOrderByCreatedAtDesc(userId).stream()
                 .map(p -> toResponse(p, "saved"))
                 .collect(Collectors.toList());
     }
@@ -47,11 +45,12 @@ public class PayeeService {
         // Nguồn 1: Danh bạ đã lưu (ưu tiên cao hơn)
         payeeRepository
                 .findByUser_IdOrderByCreatedAtDesc(userId)
-                .forEach(p -> {
-                    if (p.getBankAccount() != null) {
-                        resultMap.put(p.getBankAccount(), toResponse(p, "saved"));
-                    }
-                });
+                .forEach(
+                        p -> {
+                            if (p.getBankAccount() != null) {
+                                resultMap.put(p.getBankAccount(), toResponse(p, "saved"));
+                            }
+                        });
 
         // Nguồn 2: Bạn bè trong nhóm có STK ngân hàng (chỉ thêm nếu chưa có trong Nguồn 1)
         List<GroupMember> myGroups = groupMemberRepository.findByUser_Id(userId);
@@ -66,7 +65,8 @@ public class PayeeService {
             for (GroupMember member : members) {
                 User u = member.getUser();
                 // Bỏ qua chính mình và những người không có STK
-                if (u.getId().equals(userId) || u.getBankAccountNo() == null
+                if (u.getId().equals(userId)
+                        || u.getBankAccountNo() == null
                         || u.getBankAccountNo().isBlank()) {
                     continue;
                 }
@@ -92,14 +92,20 @@ public class PayeeService {
     // ─────────────────────────────────────────────────────────────
     @Transactional
     public PayeeResponse saveOrUpdate(UUID userId, SavePayeeRequest req) {
-        User user = userRepository
-                .findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         // Upsert: nếu STK đã tồn tại → cập nhật tên/ngân hàng; nếu chưa → tạo mới
-        Payee payee = payeeRepository
-                .findByUser_IdAndBankAccount(userId, req.getBankAccount().trim())
-                .orElse(Payee.builder().user(user).bankAccount(req.getBankAccount().trim()).build());
+        Payee payee =
+                payeeRepository
+                        .findByUser_IdAndBankAccount(userId, req.getBankAccount().trim())
+                        .orElse(
+                                Payee.builder()
+                                        .user(user)
+                                        .bankAccount(req.getBankAccount().trim())
+                                        .build());
 
         payee.setName(req.getName().trim());
         payee.setBankBin(req.getBankBin() != null ? req.getBankBin().trim() : null);
@@ -116,9 +122,10 @@ public class PayeeService {
     // ─────────────────────────────────────────────────────────────
     @Transactional
     public void delete(UUID userId, UUID payeeId) {
-        Payee payee = payeeRepository
-                .findById(payeeId)
-                .orElseThrow(() -> new AppException(ErrorCode.PAYEE_NOT_FOUND));
+        Payee payee =
+                payeeRepository
+                        .findById(payeeId)
+                        .orElseThrow(() -> new AppException(ErrorCode.PAYEE_NOT_FOUND));
         if (!payee.getUser().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }

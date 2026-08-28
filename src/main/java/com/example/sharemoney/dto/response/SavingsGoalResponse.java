@@ -25,4 +25,3 @@ public class SavingsGoalResponse {
     private LocalDateTime updatedAt;
     private String warningMessage;
 }
-

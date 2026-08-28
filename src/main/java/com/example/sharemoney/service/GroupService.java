@@ -58,7 +58,12 @@ public class GroupService {
                 if (memberId.equals(owner.getId())) continue;
                 User memberUser = userRepository.findById(memberId).orElse(null);
                 if (memberUser != null) {
-                    GroupMember gm = GroupMember.builder().group(group).user(memberUser).role("member").build();
+                    GroupMember gm =
+                            GroupMember.builder()
+                                    .group(group)
+                                    .user(memberUser)
+                                    .role("member")
+                                    .build();
                     groupMemberRepository.save(gm);
                     count++;
                 }

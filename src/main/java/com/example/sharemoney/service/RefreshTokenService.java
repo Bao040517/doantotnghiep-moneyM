@@ -31,8 +31,9 @@ public class RefreshTokenService {
     @Transactional
     public RefreshToken createRefreshToken(User user) {
         // Sinh token ngẫu nhiên độ an toàn cao
-        String tokenString = UUID.randomUUID().toString().replace("-", "")
-                + UUID.randomUUID().toString().replace("-", "");
+        String tokenString =
+                UUID.randomUUID().toString().replace("-", "")
+                        + UUID.randomUUID().toString().replace("-", "");
 
         RefreshToken refreshToken =
                 RefreshToken.builder()
@@ -48,7 +49,9 @@ public class RefreshTokenService {
     @Transactional
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.isRevoked()) {
-            log.warn("[RefreshToken] Token is already revoked for user: {}", token.getUser().getEmail());
+            log.warn(
+                    "[RefreshToken] Token is already revoked for user: {}",
+                    token.getUser().getEmail());
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
@@ -64,11 +67,16 @@ public class RefreshTokenService {
 
     @Transactional
     public void revokeToken(String tokenString) {
-        refreshTokenRepository.findByToken(tokenString).ifPresent(token -> {
-            token.setRevoked(true);
-            refreshTokenRepository.save(token);
-            log.info("[RefreshToken] Revoked token for user: {}", token.getUser().getEmail());
-        });
+        refreshTokenRepository
+                .findByToken(tokenString)
+                .ifPresent(
+                        token -> {
+                            token.setRevoked(true);
+                            refreshTokenRepository.save(token);
+                            log.info(
+                                    "[RefreshToken] Revoked token for user: {}",
+                                    token.getUser().getEmail());
+                        });
     }
 
     @Transactional

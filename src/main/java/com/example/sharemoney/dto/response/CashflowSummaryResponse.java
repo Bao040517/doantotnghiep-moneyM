@@ -23,7 +23,7 @@ public class CashflowSummaryResponse {
     @AllArgsConstructor
     public static class CashflowPoint {
         private String period; // "Tuần 1", "T1", "2025"
-        private String label;  // "T1", "T2", "2025"
+        private String label; // "T1", "T2", "2025"
         private BigDecimal income;
         private BigDecimal expense;
         private BigDecimal net;

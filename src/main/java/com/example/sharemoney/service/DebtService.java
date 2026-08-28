@@ -45,9 +45,10 @@ public class DebtService {
     // ─────────────────────────────────────────────────────────────
     @Transactional(readOnly = true)
     public DebtSummaryResponse calculateGroupDebts(UUID groupId, UUID userId) {
-        Group group = groupRepository
-                .findById(groupId)
-                .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+        Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
 
         boolean isOwner = group.getOwner() != null && group.getOwner().getId().equals(userId);
         boolean isMember = groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userId);

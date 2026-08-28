@@ -5,8 +5,8 @@ import com.example.sharemoney.dto.request.AiMessageRequest;
 import com.example.sharemoney.dto.request.SavingsGoalRequest;
 import com.example.sharemoney.dto.response.AiAssistantResponse;
 import com.example.sharemoney.dto.response.AiMessageResponse;
-import com.example.sharemoney.dto.response.ScanReceiptResponse;
 import com.example.sharemoney.dto.response.SavingsGoalResponse;
+import com.example.sharemoney.dto.response.ScanReceiptResponse;
 import com.example.sharemoney.security.SecurityUtils;
 import com.example.sharemoney.service.AiAssistantService;
 import com.example.sharemoney.service.GeminiService;
@@ -59,18 +59,14 @@ public class AiController {
         return ResponseEntity.ok(receiptScanService.scanReceipt(image));
     }
 
-    /**
-     * POST /api/ai/scan-qr-receipt Trích xuất hóa đơn từ URL của mã QR.
-     */
+    /** POST /api/ai/scan-qr-receipt Trích xuất hóa đơn từ URL của mã QR. */
     @PostMapping("/scan-qr-receipt")
     public ResponseEntity<ScanReceiptResponse> scanQrReceipt(
             @Valid @RequestBody com.example.sharemoney.dto.request.ScanQrReceiptRequest request) {
         return ResponseEntity.ok(qrReceiptService.scanReceiptFromUrl(request.getUrl()));
     }
 
-    /**
-     * POST /api/ai/assistant/chat — AI Chatbot hội thoại tài chính thông minh.
-     */
+    /** POST /api/ai/assistant/chat — AI Chatbot hội thoại tài chính thông minh. */
     @PostMapping("/assistant/chat")
     public ResponseEntity<AiAssistantResponse> chat(
             @Valid @RequestBody AiAssistantRequest request) {
@@ -78,23 +74,26 @@ public class AiController {
         return ResponseEntity.ok(aiAssistantService.chat(userId, request));
     }
 
-    /**
-     * POST /api/ai/assistant/confirm-goal — 1-chạm tạo Hũ Tiết Kiệm từ kế hoạch AI đề xuất.
-     */
+    /** POST /api/ai/assistant/confirm-goal — 1-chạm tạo Hũ Tiết Kiệm từ kế hoạch AI đề xuất. */
     @PostMapping("/assistant/confirm-goal")
     public ResponseEntity<SavingsGoalResponse> confirmGoal(
             @RequestBody AiAssistantResponse.GoalPlanData goalPlanData) {
         UUID userId = SecurityUtils.getCurrentUserId();
 
-        SavingsGoalRequest req = SavingsGoalRequest.builder()
-                .name(goalPlanData.getGoalName())
-                .targetAmount(goalPlanData.getTargetAmount())
-                .deadlineDate(goalPlanData.getDeadlineDate() != null
-                        ? LocalDate.parse(goalPlanData.getDeadlineDate())
-                        : LocalDate.now().plusMonths(goalPlanData.getTargetMonths() != null ? goalPlanData.getTargetMonths() : 3))
-                .build();
+        SavingsGoalRequest req =
+                SavingsGoalRequest.builder()
+                        .name(goalPlanData.getGoalName())
+                        .targetAmount(goalPlanData.getTargetAmount())
+                        .deadlineDate(
+                                goalPlanData.getDeadlineDate() != null
+                                        ? LocalDate.parse(goalPlanData.getDeadlineDate())
+                                        : LocalDate.now()
+                                                .plusMonths(
+                                                        goalPlanData.getTargetMonths() != null
+                                                                ? goalPlanData.getTargetMonths()
+                                                                : 3))
+                        .build();
 
         return ResponseEntity.ok(savingsGoalService.createSavingsGoal(userId, req));
     }
 }
-

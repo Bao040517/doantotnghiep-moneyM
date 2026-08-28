@@ -20,32 +20,30 @@ import org.springframework.stereotype.Service;
 public class VNPayService {
     private final VNPayConfig vnPayConfig;
 
-    /**
-     * Sinh mã tham chiếu giao dịch (vnp_TxnRef) duy nhất bằng timestamp + random
-     * hex.
-     */
+    /** Sinh mã tham chiếu giao dịch (vnp_TxnRef) duy nhất bằng timestamp + random hex. */
     public String generateTxnRef() {
         TimeZone timeZone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh");
         Calendar cld = Calendar.getInstance(timeZone);
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
         formatter.setTimeZone(timeZone);
         String timePart = formatter.format(cld.getTime());
-        String randomHex = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        String randomHex =
+                UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         return "SM" + timePart + randomHex;
     }
 
     /**
-     * Tạo URL thanh toán VNPay Sandbox với mã txnRef của đơn hàng đã lưu trước
-     * trong DB.
+     * Tạo URL thanh toán VNPay Sandbox với mã txnRef của đơn hàng đã lưu trước trong DB.
      *
-     * @param txnRef    Mã tham chiếu đơn hàng (vnp_TxnRef)
-     * @param amount    Số tiền (VND)
-     * @param bankCode  Mã ngân hàng (nullable)
+     * @param txnRef Mã tham chiếu đơn hàng (vnp_TxnRef)
+     * @param amount Số tiền (VND)
+     * @param bankCode Mã ngân hàng (nullable)
      * @param ipAddress Địa chỉ IP của người dùng
      * @param orderInfo Chuỗi thông tin đơn hàng an toàn (không chứa ký tự đặc biệt)
      * @return URL thanh toán đầy đủ để mở trình duyệt
      */
-    public String createPaymentUrl(String txnRef, long amount, String bankCode, String ipAddress, String orderInfo) {
+    public String createPaymentUrl(
+            String txnRef, long amount, String bankCode, String ipAddress, String orderInfo) {
         String vnp_Version = vnPayConfig.vnp_Version;
         String vnp_Command = vnPayConfig.vnp_Command;
         TimeZone timeZone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh");
@@ -77,7 +75,9 @@ public class VNPayService {
             vnp_Params.put("vnp_BankCode", bankCode);
         }
         vnp_Params.put("vnp_TxnRef", vnp_TxnRef);
-        vnp_Params.put("vnp_OrderInfo", orderInfo != null ? orderInfo : "Thanh toan don hang " + vnp_TxnRef);
+        vnp_Params.put(
+                "vnp_OrderInfo",
+                orderInfo != null ? orderInfo : "Thanh toan don hang " + vnp_TxnRef);
         vnp_Params.put("vnp_OrderType", "other");
         vnp_Params.put("vnp_Locale", "vn");
         vnp_Params.put("vnp_ReturnUrl", vnPayConfig.vnp_ReturnUrl);
@@ -97,12 +97,15 @@ public class VNPayService {
                     // Build hash data
                     hashData.append(fieldName);
                     hashData.append('=');
-                    hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                    hashData.append(
+                            URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
                     hashData.append('&');
                     // Build query url
-                    query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII.toString()));
+                    query.append(
+                            URLEncoder.encode(fieldName, StandardCharsets.US_ASCII.toString()));
                     query.append('=');
-                    query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                    query.append(
+                            URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
                     query.append('&');
                 } catch (Exception e) {
                     hashData.append(fieldName).append('=').append(fieldValue).append('&');

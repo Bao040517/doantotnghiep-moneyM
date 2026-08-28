@@ -70,7 +70,8 @@ public class BudgetService {
             budget.setMonth(month);
             budget.setYear(year);
         } else {
-            // Kiểm tra xem đã có ngân sách cho category + month + year + name chưa (tránh vi phạm Unique Constraint và không ghi đè nhầm các bill khác tên)
+            // Kiểm tra xem đã có ngân sách cho category + month + year + name chưa (tránh vi phạm
+            // Unique Constraint và không ghi đè nhầm các bill khác tên)
             List<Budget> existingList;
             if (req.getName() != null && !req.getName().trim().isEmpty()) {
                 existingList =
@@ -84,7 +85,13 @@ public class BudgetService {
             if (existingList != null && !existingList.isEmpty()) {
                 budget = existingList.get(0);
             } else {
-                budget = Budget.builder().user(user).category(category).month(month).year(year).build();
+                budget =
+                        Budget.builder()
+                                .user(user)
+                                .category(category)
+                                .month(month)
+                                .year(year)
+                                .build();
             }
         }
 
@@ -106,13 +113,18 @@ public class BudgetService {
 
         // Nếu request gửi kèm payeeId → tự động điền thông tin người nhận từ bảng payees
         if (req.getPayeeId() != null) {
-            payeeRepository.findById(req.getPayeeId()).ifPresent(payee -> {
-                budget.setPayeeId(payee.getId());
-                budget.setPayeeBankBin(payee.getBankBin());
-                budget.setPayeeBankAccount(payee.getBankAccount());
-                budget.setPayeeAccountName(payee.getAccountName() != null
-                        ? payee.getAccountName() : payee.getName());
-            });
+            payeeRepository
+                    .findById(req.getPayeeId())
+                    .ifPresent(
+                            payee -> {
+                                budget.setPayeeId(payee.getId());
+                                budget.setPayeeBankBin(payee.getBankBin());
+                                budget.setPayeeBankAccount(payee.getBankAccount());
+                                budget.setPayeeAccountName(
+                                        payee.getAccountName() != null
+                                                ? payee.getAccountName()
+                                                : payee.getName());
+                            });
         } else {
             budget.setPayeeId(null);
         }
@@ -195,12 +207,14 @@ public class BudgetService {
                             if (spent == null) spent = BigDecimal.ZERO;
                             return toSummaryResponse(b, spent);
                         })
-                .sorted((b1, b2) -> {
-                    boolean m1 = b1.isMandatory();
-                    boolean m2 = b2.isMandatory();
-                    if (m1 != m2) return m1 ? -1 : 1; // Priority (isMandatory = true) on top
-                    return 0;
-                })
+                .sorted(
+                        (b1, b2) -> {
+                            boolean m1 = b1.isMandatory();
+                            boolean m2 = b2.isMandatory();
+                            if (m1 != m2)
+                                return m1 ? -1 : 1; // Priority (isMandatory = true) on top
+                            return 0;
+                        })
                 .collect(Collectors.toList());
     }
 
@@ -240,10 +254,9 @@ public class BudgetService {
     // Helper: xác định mốc thời gian bắt đầu tính chi tiêu
     // ─────────────────────────────────────────────────────────────
     /**
-     * Nếu budget được TẠO MỚI trong đúng tháng/năm đang xét → trả về createdAt
-     * (chỉ đếm giao dịch từ lúc tạo trở đi, không hồi tố).
-     * Nếu budget được rollover từ tháng trước hoặc là update → trả về null
-     * (đếm toàn bộ tháng như bình thường).
+     * Nếu budget được TẠO MỚI trong đúng tháng/năm đang xét → trả về createdAt (chỉ đếm giao dịch
+     * từ lúc tạo trở đi, không hồi tố). Nếu budget được rollover từ tháng trước hoặc là update →
+     * trả về null (đếm toàn bộ tháng như bình thường).
      */
     private java.time.LocalDateTime getSinceDateTime(Budget budget, int year, int month) {
         if (budget.getCreatedAt() == null) return null;
@@ -254,25 +267,26 @@ public class BudgetService {
         return null;
     }
 
-    /**
-     * Tính tổng chi tiêu thực tế của budget, có hoặc không có filter createdAt.
-     */
+    /** Tính tổng chi tiêu thực tế của budget, có hoặc không có filter createdAt. */
     private BigDecimal calculateSpent(
-            UUID userId, Budget budget, int year, int month,
-            java.time.LocalDateTime since) {
+            UUID userId, Budget budget, int year, int month, java.time.LocalDateTime since) {
         UUID catId = budget.getCategory().getId();
         boolean isBill = budget.getType() == com.example.sharemoney.entity.BudgetType.BILL;
 
         if (since != null) {
             // Budget mới tạo trong tháng → chỉ đếm từ createdAt trở đi
             return isBill
-                    ? transactionRepository.sumAllExpenseByCategoryAndMonthSince(userId, catId, year, month, since)
-                    : transactionRepository.sumExpenseByCategoryAndMonthSince(userId, catId, year, month, since);
+                    ? transactionRepository.sumAllExpenseByCategoryAndMonthSince(
+                            userId, catId, year, month, since)
+                    : transactionRepository.sumExpenseByCategoryAndMonthSince(
+                            userId, catId, year, month, since);
         } else {
             // Budget rollover / toàn tháng
             return isBill
-                    ? transactionRepository.sumAllExpenseByCategoryAndMonth(userId, catId, year, month)
-                    : transactionRepository.sumExpenseByCategoryAndMonth(userId, catId, year, month);
+                    ? transactionRepository.sumAllExpenseByCategoryAndMonth(
+                            userId, catId, year, month)
+                    : transactionRepository.sumExpenseByCategoryAndMonth(
+                            userId, catId, year, month);
         }
     }
 

@@ -19,11 +19,15 @@ class GeminiServiceTest {
         geminiService = new GeminiService();
         // Không cấu hình API key để kiểm thử cơ chế fallback heuristic generator
         ReflectionTestUtils.setField(geminiService, "apiKey", "");
-        ReflectionTestUtils.setField(geminiService, "apiUrl", "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent");
+        ReflectionTestUtils.setField(
+                geminiService,
+                "apiUrl",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent");
     }
 
     @Test
-    @DisplayName("Tạo tin nhắn nhắc nợ phong cách FUNNY (Hài hước) qua Heuristic Fallback thành công")
+    @DisplayName(
+            "Tạo tin nhắn nhắc nợ phong cách FUNNY (Hài hước) qua Heuristic Fallback thành công")
     void testGenerateDebtMessageFunny() {
         AiMessageRequest request = new AiMessageRequest();
         request.setDebtorName("Trần Văn B");
@@ -40,7 +44,8 @@ class GeminiServiceTest {
     }
 
     @Test
-    @DisplayName("Tạo tin nhắn nhắc nợ phong cách POLITE (Lịch sự) qua Heuristic Fallback thành công")
+    @DisplayName(
+            "Tạo tin nhắn nhắc nợ phong cách POLITE (Lịch sự) qua Heuristic Fallback thành công")
     void testGenerateDebtMessagePolite() {
         AiMessageRequest request = new AiMessageRequest();
         request.setDebtorName("Nguyễn Thị C");
@@ -56,7 +61,8 @@ class GeminiServiceTest {
     }
 
     @Test
-    @DisplayName("Tạo tin nhắn nhắc nợ phong cách POETIC (Thơ ca) qua Heuristic Fallback thành công")
+    @DisplayName(
+            "Tạo tin nhắn nhắc nợ phong cách POETIC (Thơ ca) qua Heuristic Fallback thành công")
     void testGenerateDebtMessagePoetic() {
         AiMessageRequest request = new AiMessageRequest();
         request.setDebtorName("Hoàng Nam");
@@ -72,7 +78,8 @@ class GeminiServiceTest {
     }
 
     @Test
-    @DisplayName("Tạo tin nhắn nhắc nợ phong cách AGGRESSIVE (Đòi gấp) qua Heuristic Fallback thành công")
+    @DisplayName(
+            "Tạo tin nhắn nhắc nợ phong cách AGGRESSIVE (Đòi gấp) qua Heuristic Fallback thành công")
     void testGenerateDebtMessageAggressive() {
         AiMessageRequest request = new AiMessageRequest();
         request.setDebtorName("Lê Tuấn");

@@ -61,8 +61,8 @@ public class QrReceiptService {
     }
 
     /**
-     * Xác thực URL nhằm ngăn chặn lỗ hổng SSRF (Server-Side Request Forgery).
-     * Chỉ cho phép giao thức http/https và cấm toàn bộ địa chỉ IP nội bộ, loopback, private networks.
+     * Xác thực URL nhằm ngăn chặn lỗ hổng SSRF (Server-Side Request Forgery). Chỉ cho phép giao
+     * thức http/https và cấm toàn bộ địa chỉ IP nội bộ, loopback, private networks.
      */
     private void validateUrlSafety(String urlString) {
         if (urlString == null || urlString.isBlank()) {
@@ -72,7 +72,8 @@ public class QrReceiptService {
         try {
             URI uri = URI.create(urlString.trim());
             String scheme = uri.getScheme();
-            if (scheme == null || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
+            if (scheme == null
+                    || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
                 log.warn("[SSRF Defense] Blocked non-http(s) scheme: {}", scheme);
                 throw new AppException(ErrorCode.VALIDATION_ERROR);
             }
@@ -100,7 +101,10 @@ public class QrReceiptService {
                         || addr.isLinkLocalAddress()
                         || addr.isSiteLocalAddress()
                         || addr.isMulticastAddress()) {
-                    log.warn("[SSRF Defense] Blocked private/internal IP address: {} for host: {}", addr.getHostAddress(), host);
+                    log.warn(
+                            "[SSRF Defense] Blocked private/internal IP address: {} for host: {}",
+                            addr.getHostAddress(),
+                            host);
                     throw new AppException(ErrorCode.RECEIPT_SCAN_FAILED);
                 }
             }
@@ -113,4 +117,3 @@ public class QrReceiptService {
         }
     }
 }
-

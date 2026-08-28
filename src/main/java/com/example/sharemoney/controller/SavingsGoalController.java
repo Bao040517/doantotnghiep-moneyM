@@ -66,13 +66,15 @@ public class SavingsGoalController {
     }
 
     @PostMapping("/auto-allocate")
-    public ResponseEntity<com.example.sharemoney.dto.response.AutoAllocateResponse> autoAllocateSavings() {
+    public ResponseEntity<com.example.sharemoney.dto.response.AutoAllocateResponse>
+            autoAllocateSavings() {
         return ResponseEntity.ok(
                 savingsGoalService.autoAllocateSavingsGoals(SecurityUtils.getCurrentUserId()));
     }
 
     @GetMapping("/auto-allocate/status")
-    public ResponseEntity<com.example.sharemoney.dto.response.AutoAllocateStatusResponse> getAutoAllocateStatus() {
+    public ResponseEntity<com.example.sharemoney.dto.response.AutoAllocateStatusResponse>
+            getAutoAllocateStatus() {
         return ResponseEntity.ok(
                 savingsGoalService.getAutoAllocateStatus(SecurityUtils.getCurrentUserId()));
     }

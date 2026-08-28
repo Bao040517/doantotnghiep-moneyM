@@ -128,9 +128,12 @@ public class ExpenseService {
         // Gửi thông báo tới những người bị chia tiền (trừ người thực hiện thao tác)
         for (ExpenseSplit split : expense.getSplits()) {
             if (!split.getUser().getId().equals(requestUserId)) {
-                String message = String.format("%s đã thêm bạn vào khoản chi \"%s\" (%s VNĐ)",
-                        payer.getName(), req.getTitle(), split.getAmountOwed());
-                notificationService.sendNotification(split.getUser().getId(), message, "EXPENSE_CREATED");
+                String message =
+                        String.format(
+                                "%s đã thêm bạn vào khoản chi \"%s\" (%s VNĐ)",
+                                payer.getName(), req.getTitle(), split.getAmountOwed());
+                notificationService.sendNotification(
+                        split.getUser().getId(), message, "EXPENSE_CREATED");
             }
         }
 
@@ -327,9 +330,12 @@ public class ExpenseService {
         // Gửi thông báo cập nhật
         for (ExpenseSplit split : expense.getSplits()) {
             if (!split.getUser().getId().equals(requestUserId)) {
-                String message = String.format("Khoản chi \"%s\" đã được cập nhật, phần của bạn là %s VNĐ",
-                        req.getTitle(), split.getAmountOwed());
-                notificationService.sendNotification(split.getUser().getId(), message, "EXPENSE_UPDATED");
+                String message =
+                        String.format(
+                                "Khoản chi \"%s\" đã được cập nhật, phần của bạn là %s VNĐ",
+                                req.getTitle(), split.getAmountOwed());
+                notificationService.sendNotification(
+                        split.getUser().getId(), message, "EXPENSE_UPDATED");
             }
         }
 
@@ -363,7 +369,6 @@ public class ExpenseService {
                 || "CONSOLIDATION".equals(expense.getCategory())) {
             throw new AppException(ErrorCode.CANNOT_MODIFY_SYSTEM_EXPENSE);
         }
-
 
         expenseRepository.delete(expense); // CascadeType.ALL xoá splits tự động
 
@@ -453,11 +458,12 @@ public class ExpenseService {
     // Private: Mapping helpers
     // ─────────────────────────────────────────────────────────────
     private ExpenseResponse toListResponse(Expense expense, UUID userId) {
-        BigDecimal userSplit = expense.getSplits().stream()
-                .filter(s -> s.getUser().getId().equals(userId))
-                .findFirst()
-                .map(ExpenseSplit::getAmountOwed)
-                .orElse(BigDecimal.ZERO);
+        BigDecimal userSplit =
+                expense.getSplits().stream()
+                        .filter(s -> s.getUser().getId().equals(userId))
+                        .findFirst()
+                        .map(ExpenseSplit::getAmountOwed)
+                        .orElse(BigDecimal.ZERO);
 
         return ExpenseResponse.builder()
                 .id(expense.getId())

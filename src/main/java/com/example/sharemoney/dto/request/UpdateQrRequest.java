@@ -19,4 +19,3 @@ public class UpdateQrRequest {
     private String savingsBankAccountNo;
     private String savingsBankAccountName;
 }
-

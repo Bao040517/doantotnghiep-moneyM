@@ -46,7 +46,8 @@ public class GroupController {
 
     /** GET /api/groups/past-members Lấy danh sách người quen (từng chung nhóm). */
     @GetMapping("/past-members")
-    public ResponseEntity<List<com.example.sharemoney.dto.response.UserSummaryResponse>> getPastMembers() {
+    public ResponseEntity<List<com.example.sharemoney.dto.response.UserSummaryResponse>>
+            getPastMembers() {
         UUID userId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.ok(groupService.getPastMembers(userId));
     }

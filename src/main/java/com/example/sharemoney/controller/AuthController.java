@@ -98,33 +98,40 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+    public ResponseEntity<AuthResponse> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request) {
         String requestRefreshToken = request.getRefreshToken();
 
-        return refreshTokenService.findByToken(requestRefreshToken)
+        return refreshTokenService
+                .findByToken(requestRefreshToken)
                 .map(refreshTokenService::verifyExpiration)
                 .map(RefreshToken::getUser)
-                .map(user -> {
-                    String newAccessToken = jwtUtil.generateToken(new CustomUserDetails(user));
-                    // Cơ chế Token Rotation: Thu hồi token cũ và sinh refresh token mới
-                    refreshTokenService.revokeToken(requestRefreshToken);
-                    RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user);
+                .map(
+                        user -> {
+                            String newAccessToken =
+                                    jwtUtil.generateToken(new CustomUserDetails(user));
+                            // Cơ chế Token Rotation: Thu hồi token cũ và sinh refresh token mới
+                            refreshTokenService.revokeToken(requestRefreshToken);
+                            RefreshToken newRefreshToken =
+                                    refreshTokenService.createRefreshToken(user);
 
-                    return ResponseEntity.ok(
-                            AuthResponse.builder()
-                                    .token(newAccessToken)
-                                    .accessToken(newAccessToken)
-                                    .refreshToken(newRefreshToken.getToken())
-                                    .tokenType("Bearer")
-                                    .user(toUserSummary(user))
-                                    .build());
-                })
+                            return ResponseEntity.ok(
+                                    AuthResponse.builder()
+                                            .token(newAccessToken)
+                                            .accessToken(newAccessToken)
+                                            .refreshToken(newRefreshToken.getToken())
+                                            .tokenType("Bearer")
+                                            .user(toUserSummary(user))
+                                            .build());
+                        })
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_REFRESH_TOKEN));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestBody(required = false) RefreshTokenRequest request) {
-        if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
+        if (request != null
+                && request.getRefreshToken() != null
+                && !request.getRefreshToken().isBlank()) {
             refreshTokenService.revokeToken(request.getRefreshToken());
         }
         return ResponseEntity.ok().build();

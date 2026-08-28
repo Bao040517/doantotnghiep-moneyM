@@ -36,8 +36,7 @@ public class ExternalLoanController {
 
     @PutMapping("/{loanId}")
     public ResponseEntity<ExternalLoanDTO> updateLoan(
-            @PathVariable UUID loanId,
-            @RequestBody UpdateExternalLoanRequest request) {
+            @PathVariable UUID loanId, @RequestBody UpdateExternalLoanRequest request) {
         UUID userId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.ok(externalLoanService.updateLoan(loanId, userId, request));
     }

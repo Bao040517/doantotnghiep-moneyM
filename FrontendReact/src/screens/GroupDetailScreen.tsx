@@ -24,6 +24,7 @@ import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
 import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
 import { ScanReceiptModal } from "../components/modals/ScanReceiptModal";
 import { Toast } from "../components/ui/Toast";
+import { GroupDetailSkeleton } from "../components/ui/SkeletonLoader";
 import { colors } from "../constants/colors";
 import { groupService } from "../services/groupService";
 import { useAuth } from "../hooks/useAuth";
@@ -310,11 +311,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   const owedToMe = debts?.transactions?.filter((t: any) => t.to?.id === user?.id) || [];
 
   if (loading && !group) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.indigo600} />
-      </View>
-    );
+    return <GroupDetailSkeleton />;
   }
 
   if (!group) {

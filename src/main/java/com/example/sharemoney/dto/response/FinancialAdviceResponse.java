@@ -95,6 +95,12 @@ public class FinancialAdviceResponse {
         private int increasePercent; // % tăng so với trung bình
         private String severity; // "HIGH" | "MEDIUM"
         private String message; // Tin nhắn cảnh báo
+        private BigDecimal projectedMonthEnd; // Dự kiến cả tháng
+        private BigDecimal dailyBurnRate; // Tốc độ chi mỗi ngày
+        private BigDecimal recommendedDailyLimit; // Hạn mức chi mỗi ngày còn lại
+        private int remainingDays; // Số ngày còn lại trong tháng
+        private String actionableTip; // Lời khuyên hành động cụ thể
+        private String impactSummary; // Đánh giá mức độ ảnh hưởng
     }
 
     @Data

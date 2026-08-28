@@ -7,6 +7,7 @@ import { Input } from "../components/ui/Input";
 import { BottomSheet } from "../components/ui/BottomSheet";
 import { SavingsGoalCard } from "../components/features/SavingsGoalCard";
 import { VietQRCard } from "../components/features/VietQRCard";
+import { SavingsSkeleton } from "../components/ui/SkeletonLoader";
 import { colors } from "../constants/colors";
 import { useAppData } from "../hooks/useAppData";
 import { useSavings } from "../hooks/useSavings";
@@ -223,6 +224,10 @@ export const SavingsScreen: React.FC = () => {
   const totalSavingsBalance = goals.reduce((acc, g) => acc + (g.currentAmount || 0), 0);
   const totalTargetAmount = goals.reduce((acc, g) => acc + (g.targetAmount || 0), 0);
   const overallSavingsProgress = totalTargetAmount > 0 ? Math.min(100, Math.round((totalSavingsBalance / totalTargetAmount) * 100)) : 0;
+
+  if (appLoading && goals.length === 0) {
+    return <SavingsSkeleton />;
+  }
 
   return (
     <View style={styles.container}>

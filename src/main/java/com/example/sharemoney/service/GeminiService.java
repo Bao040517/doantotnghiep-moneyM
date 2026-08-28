@@ -33,13 +33,13 @@ public class GeminiService {
     @Value("${gemini.api.key:}")
     private String apiKey;
 
-    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent}")
+    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent}")
     private String apiUrl;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final Random random = new Random();
 
-    private boolean isValidApiKey() {
+    public boolean isValidApiKey() {
         return apiKey != null
                 && !apiKey.trim().isEmpty()
                 && !apiKey.contains("YOUR_GEMINI_API_KEY_HERE");
@@ -101,7 +101,10 @@ public class GeminiService {
             Map<String, Object> textPart =
                     Map.of(
                             "text",
-                            "Analyze this receipt. Extract the final total amount paid (as a number) and a brief description/name of the store or items. Return exactly a JSON object in this format: {\"amount\": 150000, \"note\": \"Supermarket Groceries\"}. Do not include any other text, markdown, or code blocks.");
+                            "Analyze this receipt image carefully. Extract the final total amount paid (as a number), the store or supplier name (as 'note'), and the list of line items purchased if visible. "
+                                    + "Return strictly a valid JSON object in this format: "
+                                    + "{\"amount\": 150000, \"note\": \"Tên cửa hàng\", \"items\": [{\"description\": \"Tên món\", \"quantity\": 1, \"unitPrice\": 50000, \"totalPrice\": 50000}]}. "
+                                    + "Do not include any other text, markdown, or code blocks.");
 
             Map<String, Object> imagePart = Map.of("inline_data", inlineData);
 

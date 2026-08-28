@@ -24,6 +24,7 @@ import { RemindDebtBottomSheet } from "../components/modals/RemindDebtBottomShee
 import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
 import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
 import { Toast } from "../components/ui/Toast";
+import { GroupsSkeleton } from "../components/ui/SkeletonLoader";
 import { colors } from "../constants/colors";
 import { groupService } from "../services/groupService";
 import { useAuth } from "../hooks/useAuth";
@@ -294,6 +295,10 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const owingList = (debtSummary?.details || []).filter(
     (d) => d.type === "OWING" || (d.amount && d.amount < 0)
   );
+
+  if (loading && groups.length === 0) {
+    return <GroupsSkeleton />;
+  }
 
   return (
     <View style={styles.container}>

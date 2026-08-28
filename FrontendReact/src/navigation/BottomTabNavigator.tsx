@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Text, View, StyleSheet, TouchableOpacity, Platform } from "react-native";
+import { Text, View, StyleSheet, TouchableOpacity, Platform, DeviceEventEmitter } from "react-native";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { ReportScreen } from "../screens/ReportScreen";
 import { GroupsScreen } from "../screens/GroupsScreen";
@@ -13,6 +13,7 @@ import { AddTransactionModal } from "../components/modals/AddTransactionModal";
 import { QuickActionBottomSheet, QuickActionType } from "../components/modals/QuickActionBottomSheet";
 import { CreateGroupBottomSheet } from "../components/modals/CreateGroupBottomSheet";
 import { ScanReceiptModal } from "../components/modals/ScanReceiptModal";
+import { AiChatbotModal } from "../components/modals/AiChatbotModal";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { colors } from "../constants/colors";
 import { UserSummary } from "../types";
@@ -78,13 +79,23 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
   const [transactionType, setTransactionType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
   const [createGroupVisible, setCreateGroupVisible] = useState(false);
   const [scanReceiptVisible, setScanReceiptVisible] = useState(false);
+  const [aiChatVisible, setAiChatVisible] = useState(false);
   const [scannedInitialAmount, setScannedInitialAmount] = useState("");
   const [scannedInitialNote, setScannedInitialNote] = useState("");
 
   const { wallets, refresh } = useAppData();
 
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("OPEN_AI_CHATBOT", () => {
+      setAiChatVisible(true);
+    });
+    return () => sub.remove();
+  }, []);
+
   const handleSelectAction = (action: QuickActionType) => {
-    if (action === "scan_receipt") {
+    if (action === "ai_chat") {
+      setAiChatVisible(true);
+    } else if (action === "scan_receipt") {
       setScanReceiptVisible(true);
     } else if (action === "expense") {
       setScannedInitialAmount("");
@@ -296,6 +307,12 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
         visible={createGroupVisible}
         onClose={() => setCreateGroupVisible(false)}
         onGroupCreated={() => refresh()}
+      />
+
+      {/* Floating AI Chatbot Modal */}
+      <AiChatbotModal
+        visible={aiChatVisible}
+        onClose={() => setAiChatVisible(false)}
       />
     </>
   );

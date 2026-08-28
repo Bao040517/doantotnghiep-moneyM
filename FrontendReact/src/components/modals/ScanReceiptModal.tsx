@@ -171,10 +171,10 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
       setScannedResult(data);
     } catch (e: any) {
       console.error("[ScanReceipt] OCR error:", e);
-      Alert.alert(
-        "Thông báo",
-        "Tính năng nhận diện ảnh đang được nâng cấp & hoàn thiện. Vui lòng thử lại sau."
-      );
+      const serverMsg =
+        e.response?.data?.message ||
+        "Tính năng nhận diện hóa đơn AI cần cấu hình API Key trên máy chủ. Bạn vui lòng thử lại sau hoặc nhập thông tin thủ công.";
+      Alert.alert("Thông báo", serverMsg);
     } finally {
       setLoading(false);
     }

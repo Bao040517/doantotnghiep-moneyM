@@ -55,9 +55,9 @@ public enum ErrorCode {
 
     // --- Receipt OCR ---
     RECEIPT_SCAN_CONFIG_ERROR(
-            HttpStatus.INTERNAL_SERVER_ERROR, "Chưa cấu hình API Key cho dịch vụ quét hóa đơn."),
+            HttpStatus.BAD_REQUEST, "Chưa cấu hình API Key cho dịch vụ quét hóa đơn (Mindee / Gemini Vision). Vui lòng nhập thủ công hoặc cấu hình API Key trên máy chủ."),
     RECEIPT_SCAN_FAILED(
-            HttpStatus.BAD_REQUEST, "Không thể đọc hóa đơn. Vui lòng thử lại với ảnh rõ hơn."),
+            HttpStatus.BAD_REQUEST, "Không thể đọc hóa đơn từ ảnh này. Vui lòng thử lại với ảnh rõ nét hơn hoặc nhập thủ công."),
     CUSTOM_SPLIT_MISMATCH(
             HttpStatus.BAD_REQUEST,
             "Tổng số tiền chia tùy chỉnh không khớp với tổng tiền hóa đơn."),

@@ -22,17 +22,20 @@ import { financialServices } from "../services/financialServices";
 import { groupService } from "../services/groupService";
 import { CategoryBreakdown, MonthlySummary, BudgetSummary, Transaction } from "../types";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
+import { ReportSkeleton } from "../components/ui/SkeletonLoader";
 import { X } from "lucide-react-native";
 
 const CHART_COLORS = [
-  "#FF6B6B",
-  "#FFD93D",
-  "#6BCB77",
-  "#4D96FF",
-  "#C77DFF",
-  "#FF9F43",
-  "#00C9A7",
-  "#FF6B9D",
+  "#FBBF24", // Vàng ấm (như Mua sắm 58%)
+  "#FB923C", // Cam tươi (như Chợ, siêu thị 22%)
+  "#34D399", // Xanh ngọc (như Hóa đơn 12%)
+  "#60A5FA", // Xanh dương pastel (như Di chuyển 5%)
+  "#A78BFA", // Tím pastel
+  "#F472B6", // Hồng phấn
+  "#38BDF8", // Xanh sky
+  "#94A3B8", // Xám bạc (như Còn lại 3%)
+  "#F87171", // Đỏ san hô
+  "#4ADE80", // Xanh lá tươi
 ];
 
 const NEEDS_KEYWORDS = [
@@ -62,6 +65,7 @@ export const ReportScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
   const [showDetail, setShowDetail] = useState(false);
+  const [selectedSliceIndex, setSelectedSliceIndex] = useState<number | null>(null);
   const [expandedExpenseSections, setExpandedExpenseSections] = useState<Record<string, boolean>>({});
 
   // Interactive Modal state for 5 summary cards
@@ -167,6 +171,7 @@ export const ReportScreen: React.FC = () => {
       m = 12;
       y--;
     }
+    setSelectedSliceIndex(null);
     setSelectedMonth(m);
     setSelectedYear(y);
   };
@@ -282,6 +287,10 @@ export const ReportScreen: React.FC = () => {
     );
   };
 
+  if (loading && !summary) {
+    return <ReportSkeleton />;
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -319,7 +328,7 @@ export const ReportScreen: React.FC = () => {
 
         {/* ─── 4 SUMMARY CARDS (2x2 Grid) + SAVINGS CARD (INTERACTIVE) ─── */}
         <View style={styles.grid2x2}>
-          {/* Đã Thu */}
+          {/* Đã Thu Thực Tế */}
           <TouchableOpacity style={{ width: "48.5%" }} onPress={() => setSelectedCardModal("INCOME")}>
             <Card style={styles.summaryBox}>
               <Text style={styles.summaryBoxLabel}>💵 Đã thu (Thực tế)</Text>
@@ -327,7 +336,7 @@ export const ReportScreen: React.FC = () => {
             </Card>
           </TouchableOpacity>
 
-          {/* Đã Chi */}
+          {/* Đã Chi Thực Tế (Lấy từ lịch sử chi tiêu) */}
           <TouchableOpacity style={{ width: "48.5%" }} onPress={() => setSelectedCardModal("EXPENSE")}>
             <Card style={styles.summaryBox}>
               <Text style={styles.summaryBoxLabel}>💸 Đã chi (Thực tế)</Text>
@@ -335,22 +344,22 @@ export const ReportScreen: React.FC = () => {
             </Card>
           </TouchableOpacity>
 
-          {/* Tổng Thu (Cần thu) */}
+          {/* Tổng Thu Dự Kiến (Đã thu + Cần thu) */}
           <TouchableOpacity style={{ width: "48.5%" }} onPress={() => setSelectedCardModal("RECEIVABLE")}>
             <Card style={styles.summaryBox}>
-              <Text style={styles.summaryBoxLabel}>📥 Tổng thu (Cần thu)</Text>
+              <Text style={styles.summaryBoxLabel}>📥 Tổng thu (Dự kiến)</Text>
               <Text style={[styles.summaryBoxVal, { color: colors.indigo600 }]}>
                 {fmt(totalIncome + debtSummary.totalOwed)}
               </Text>
             </Card>
           </TouchableOpacity>
 
-          {/* Tổng Chi (Cần trả) */}
+          {/* Tổng Chi Kế Hoạch / Dự Kiến (Hạn mức phải chi + Nợ) */}
           <TouchableOpacity style={{ width: "48.5%" }} onPress={() => setSelectedCardModal("PAYABLE")}>
             <Card style={styles.summaryBox}>
-              <Text style={styles.summaryBoxLabel}>📤 Tổng chi (Cần trả)</Text>
+              <Text style={styles.summaryBoxLabel}>📤 Tổng chi (Kế hoạch)</Text>
               <Text style={[styles.summaryBoxVal, { color: colors.amber600 }]}>
-                {fmt(totalExpense + debtSummary.totalOwing)}
+                {fmt(totalExpense + unpaidBudgetsAmount + debtSummary.totalOwing)}
               </Text>
             </Card>
           </TouchableOpacity>
@@ -404,7 +413,10 @@ export const ReportScreen: React.FC = () => {
 
           <View style={styles.toggleRow}>
             <TouchableOpacity
-              onPress={() => setActiveTab("expense")}
+              onPress={() => {
+                setActiveTab("expense");
+                setSelectedSliceIndex(null);
+              }}
               style={[styles.toggleBtn, activeTab === "expense" && styles.toggleBtnActiveExpense]}
             >
               <Text style={[styles.toggleBtnText, activeTab === "expense" && styles.toggleBtnTextActive]}>
@@ -413,7 +425,10 @@ export const ReportScreen: React.FC = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setActiveTab("income")}
+              onPress={() => {
+                setActiveTab("income");
+                setSelectedSliceIndex(null);
+              }}
               style={[styles.toggleBtn, activeTab === "income" && styles.toggleBtnActiveIncome]}
             >
               <Text style={[styles.toggleBtnText, activeTab === "income" && styles.toggleBtnTextActive]}>
@@ -429,81 +444,246 @@ export const ReportScreen: React.FC = () => {
             </View>
           ) : (
             <>
-              <View style={styles.donutRow}>
+              {/* ─── DONUT CHART WITH >=5% THRESHOLD & DASHED LEADER LINES ─── */}
+              <View style={styles.donutLeaderChartWrapper}>
                 {(() => {
-                  const size = 114;
-                  const strokeWidth = 18;
-                  const radius = (size - strokeWidth) / 2;
-                  const center = size / 2;
-                  const circumference = 2 * Math.PI * radius;
                   const total = activeBreakdown.reduce((acc, item) => acc + (item.totalAmount || 0), 0);
 
-                  let accumulated = 0;
-                  const slices = activeBreakdown.map((item, idx) => {
-                    const pct = total > 0 ? item.totalAmount / total : 0;
-                    const strokeDasharray = `${pct * circumference} ${circumference}`;
-                    const strokeDashoffset = -(accumulated * circumference);
-                    accumulated += pct;
+                  // 1. Tách các danh mục >= 5% và gom các mục < 5% vào "Còn lại"
+                  const majorSlices: CategoryBreakdown[] = [];
+                  let otherAmount = 0;
+                  let otherPercentage = 0;
+
+                  activeBreakdown.forEach((item) => {
+                    const itemPct = total > 0 ? ((item.totalAmount || 0) / total) * 100 : 0;
+                    if (itemPct >= 5) {
+                      majorSlices.push({
+                        ...item,
+                        percentage: itemPct,
+                      });
+                    } else {
+                      otherAmount += item.totalAmount || 0;
+                      otherPercentage += itemPct;
+                    }
+                  });
+
+                  // Sắp xếp các mục lớn từ lớn tới bé
+                  majorSlices.sort((a, b) => (b.totalAmount || 0) - (a.totalAmount || 0));
+
+                  const chartItems: Array<CategoryBreakdown & { isOther?: boolean }> = [...majorSlices];
+                  if (otherAmount > 0) {
+                    chartItems.push({
+                      categoryId: "cat_other_remaining",
+                      categoryName: "Còn lại",
+                      categoryIcon: "🫧",
+                      totalAmount: otherAmount,
+                      percentage: otherPercentage,
+                      isOther: true,
+                    });
+                  }
+
+                  // 2. Kích thước lớn, vành dày & rộng (Nép sát 2 lề)
+                  const chartW = 350;
+                  const chartH = 290;
+                  const cx = 175;
+                  const cy = 145;
+                  const R_outer = 96;
+                  const strokeWidth = 38;
+                  const R_mid = R_outer - strokeWidth / 2; // 77
+                  const circumference = 2 * Math.PI * R_mid; // ~483.8
+                  const gap = chartItems.length > 1 ? 6 : 0;
+
+                  let accumulatedFraction = 0;
+                  const rawSlices = chartItems.map((item, idx) => {
+                    const fraction = total > 0 ? (item.totalAmount || 0) / total : 0;
+                    const startFraction = accumulatedFraction;
+                    accumulatedFraction += fraction;
+
+                    // Góc theo hệ trục (0 = 12 o'clock, quay theo chiều kim đồng hồ)
+                    const startAngle = startFraction * 2 * Math.PI - Math.PI / 2;
+                    const endAngle = accumulatedFraction * 2 * Math.PI - Math.PI / 2;
+                    const midAngle = (startAngle + endAngle) / 2;
+
+                    // Dasharray
+                    const sliceLength = fraction * circumference;
+                    const drawLength = Math.max(0.1, sliceLength - gap);
+                    const strokeDasharray = `${drawLength} ${circumference}`;
+                    const strokeDashoffset = -(startFraction * circumference + gap / 2);
+
+                    const isSelected = selectedSliceIndex === idx;
+                    const color = item.isOther ? "#94A3B8" : CHART_COLORS[idx % CHART_COLORS.length];
+                    const pctStr = `${Math.round(fraction * 100)}%`;
+
+                    // Tọa độ đường dẫn chỉ định (Leader line)
+                    const p1x = cx + R_outer * Math.cos(midAngle);
+                    const p1y = cy + R_outer * Math.sin(midAngle);
+
+                    const extDist = 10;
+                    const p2x = cx + (R_outer + extDist) * Math.cos(midAngle);
+                    const p2y = cy + (R_outer + extDist) * Math.sin(midAngle);
+
+                    const isRight = Math.cos(midAngle) >= 0;
+                    // Đường kẻ ngang nối thẳng sát lề (trái/phải)
+                    const p3x = isRight ? chartW - 86 : 86;
+                    const p3y = p2y;
+
                     return {
-                      key: item.categoryId || `${idx}`,
-                      color: CHART_COLORS[idx % CHART_COLORS.length],
+                      item,
+                      idx,
+                      color,
+                      pctStr,
                       strokeDasharray,
                       strokeDashoffset,
+                      isSelected,
+                      p1: { x: p1x, y: p1y },
+                      p2: { x: p2x, y: p2y },
+                      p3: { x: p3x, y: p3y },
+                      isRight,
                     };
                   });
 
+                  // Tránh đè nhãn theo phương dọc (De-collision)
+                  const rightSlices = rawSlices.filter((s) => s.isRight).sort((a, b) => a.p3.y - b.p3.y);
+                  for (let i = 1; i < rightSlices.length; i++) {
+                    if (rightSlices[i].p3.y - rightSlices[i - 1].p3.y < 38) {
+                      rightSlices[i].p3.y = rightSlices[i - 1].p3.y + 38;
+                    }
+                  }
+
+                  const leftSlices = rawSlices.filter((s) => !s.isRight).sort((a, b) => a.p3.y - b.p3.y);
+                  for (let i = 1; i < leftSlices.length; i++) {
+                    if (leftSlices[i].p3.y - leftSlices[i - 1].p3.y < 38) {
+                      leftSlices[i].p3.y = leftSlices[i - 1].p3.y + 38;
+                    }
+                  }
+
                   return (
-                    <View style={[styles.donutContainer, { width: size, height: size }]}>
-                      <Svg width={size} height={size}>
+                    <View style={[styles.donutLeaderBox, { width: chartW, height: chartH }]}>
+                      {/* SVG Canvas for Donut + Dashed Leader Lines */}
+                      <Svg width={chartW} height={chartH} style={StyleSheet.absoluteFill}>
+                        {/* Leader Lines (Đường kẻ nét đứt dẫn tới chú thích sát lề) */}
+                        {rawSlices.map((slice) => (
+                          <Polyline
+                            key={`leader_${slice.idx}`}
+                            points={`${slice.p1.x},${slice.p1.y} ${slice.p2.x},${slice.p2.y} ${slice.p3.x},${slice.p3.y}`}
+                            stroke={slice.isSelected ? slice.color : "#CBD5E1"}
+                            strokeDasharray="3 3"
+                            strokeWidth={slice.isSelected ? 2 : 1.2}
+                            fill="none"
+                          />
+                        ))}
+
+                        {/* Donut Slices */}
                         {total <= 0 ? (
                           <Circle
-                            cx={center}
-                            cy={center}
-                            r={radius}
+                            cx={cx}
+                            cy={cy}
+                            r={R_mid}
                             stroke="#E2E8F0"
                             strokeWidth={strokeWidth}
                             fill="none"
                           />
                         ) : (
-                          <G rotation="-90" origin={`${center}, ${center}`}>
-                            {slices.map((slice) => (
+                          <G rotation="-90" origin={`${cx}, ${cy}`}>
+                            {rawSlices.map((slice) => (
                               <Circle
-                                key={slice.key}
-                                cx={center}
-                                cy={center}
-                                r={radius}
+                                key={`donut_slice_${slice.idx}`}
+                                cx={cx}
+                                cy={cy}
+                                r={R_mid}
                                 stroke={slice.color}
-                                strokeWidth={strokeWidth}
+                                strokeWidth={slice.isSelected ? strokeWidth + 4 : strokeWidth}
                                 strokeDasharray={slice.strokeDasharray}
                                 strokeDashoffset={slice.strokeDashoffset}
                                 fill="none"
-                                strokeLinecap="butt"
+                                strokeLinecap="round"
+                                opacity={selectedSliceIndex === null || slice.isSelected ? 1 : 0.35}
+                                onPress={() =>
+                                  setSelectedSliceIndex(selectedSliceIndex === slice.idx ? null : slice.idx)
+                                }
                               />
                             ))}
                           </G>
                         )}
                       </Svg>
-                      <View style={styles.donutCenterContent}>
-                        <Text style={{ fontSize: 24 }}>{activeTab === "expense" ? "💸" : "💵"}</Text>
-                      </View>
+
+                      {/* ─── CALLOUT LABELS NÉP SÁT 2 LỀ ─── */}
+                      {rawSlices.map((slice) => {
+                        if (slice.isRight) {
+                          return (
+                            <TouchableOpacity
+                              key={`callout_label_${slice.idx}`}
+                              style={[
+                                styles.calloutLabelAbsolute,
+                                {
+                                  right: 0,
+                                  top: slice.p3.y - 18,
+                                  alignItems: "flex-start",
+                                  width: 84,
+                                },
+                              ]}
+                              onPress={() =>
+                                setSelectedSliceIndex(selectedSliceIndex === slice.idx ? null : slice.idx)
+                              }
+                              activeOpacity={0.8}
+                            >
+                              <View style={styles.calloutPillRow}>
+                                <CategoryIcon name={slice.item.categoryName || slice.item.categoryIcon} size={14} />
+                                <Text style={[styles.calloutPctText, { color: slice.color }]}>
+                                  {slice.pctStr}
+                                </Text>
+                              </View>
+                              <Text
+                                style={[
+                                  styles.calloutNameText,
+                                  slice.isSelected && { fontWeight: "900", color: slice.color },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {slice.item.categoryName}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        } else {
+                          return (
+                            <TouchableOpacity
+                              key={`callout_label_${slice.idx}`}
+                              style={[
+                                styles.calloutLabelAbsolute,
+                                {
+                                  left: 0,
+                                  top: slice.p3.y - 18,
+                                  alignItems: "flex-start",
+                                  width: 84,
+                                },
+                              ]}
+                              onPress={() =>
+                                setSelectedSliceIndex(selectedSliceIndex === slice.idx ? null : slice.idx)
+                              }
+                              activeOpacity={0.8}
+                            >
+                              <View style={styles.calloutPillRow}>
+                                <CategoryIcon name={slice.item.categoryName || slice.item.categoryIcon} size={14} />
+                                <Text style={[styles.calloutPctText, { color: slice.color }]}>
+                                  {slice.pctStr}
+                                </Text>
+                              </View>
+                              <Text
+                                style={[
+                                  styles.calloutNameText,
+                                  slice.isSelected && { fontWeight: "900", color: slice.color },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {slice.item.categoryName}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        }
+                      })}
                     </View>
                   );
                 })()}
-
-                <View style={styles.donutLegendCol}>
-                  {activeBreakdown.slice(0, 4).map((item, idx) => (
-                    <View key={item.categoryId} style={styles.legendRowItem}>
-                      <View style={[styles.legendDot, { backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }]} />
-                      <Text style={styles.legendName} numberOfLines={1}>
-                        {item.categoryName}
-                      </Text>
-                      <Text style={styles.legendPct}>{item.percentage ? item.percentage.toFixed(1) : 0}%</Text>
-                    </View>
-                  ))}
-                  {activeBreakdown.length > 4 && (
-                    <Text style={styles.moreCatsText}>+{activeBreakdown.length - 4} danh mục khác</Text>
-                  )}
-                </View>
               </View>
 
               <TouchableOpacity onPress={toggleDetail} style={styles.accordionHeader}>
@@ -660,7 +840,11 @@ export const ReportScreen: React.FC = () => {
       <TotalExpenseDetailBottomSheet
         visible={selectedCardModal === "PAYABLE"}
         onClose={() => setSelectedCardModal(null)}
-        totalExpense={totalExpense + unpaidBudgetsAmount + debtSummary.totalOwing}
+        totalExpense={totalExpense}
+        budgets={budgets}
+        expBreakdown={expBreakdown}
+        debtSummary={debtSummary}
+        totalSavings={netSavings > 0 ? netSavings : 0}
       />
 
       {/* ─── INTERACTIVE BOTTOM SHEET MODAL FOR OTHER SUMMARY CARDS ─── */}
@@ -858,7 +1042,7 @@ export const ReportScreen: React.FC = () => {
                   const sections = [
                     {
                       key: "NEEDS",
-                      label: "📌 Chi phí Thiết yếu",
+                      label: "1. Chi tiêu thiết yếu",
                       items: needsItems,
                       total: needsTotal,
                       bgColor: "#eff6ff",
@@ -867,7 +1051,7 @@ export const ReportScreen: React.FC = () => {
                     },
                     {
                       key: "WANTS",
-                      label: "🎯 Chi phí Linh hoạt",
+                      label: "2. Chi tiêu linh hoạt",
                       items: wantsItems,
                       total: wantsTotal,
                       bgColor: "#fff7ed",
@@ -876,7 +1060,7 @@ export const ReportScreen: React.FC = () => {
                     },
                     {
                       key: "SAVINGS",
-                      label: "💰 Tích lũy & Tiết kiệm",
+                      label: "3. Tích lũy & tiết kiệm",
                       items: savingsItems,
                       total: savingsTotal,
                       bgColor: "#f0fdf4",
@@ -951,25 +1135,28 @@ export const ReportScreen: React.FC = () => {
 
                             {isExpanded && (
                               <View style={styles.expenseSectionBody}>
-                                {section.items.map((item, idx) => (
-                                  <TouchableOpacity
-                                    key={item.categoryId || idx}
-                                    style={styles.expenseItemRow}
-                                    onPress={() => openCategoryHistory(item)}
-                                    activeOpacity={0.7}
-                                  >
-                                    <View style={styles.expenseItemLeft}>
-                                      <CategoryIcon name={item.categoryName || item.categoryIcon || "Khác"} size={24} />
-                                      <View style={{ marginLeft: 4 }}>
-                                        <Text style={styles.expenseItemName}>{item.categoryName}</Text>
-                                        <Text style={{ fontSize: 9, color: colors.indigo600, fontWeight: "700", marginTop: 1 }}>
-                                          Bấm xem lịch sử chi ›
-                                        </Text>
+                                {section.items.map((item, idx) => {
+                                  const limit = Number(budgetByCategory.get(item.categoryId?.toString())) || 0;
+                                  return (
+                                    <TouchableOpacity
+                                      key={item.categoryId || idx}
+                                      style={styles.expenseItemRow}
+                                      onPress={() => openCategoryHistory(item)}
+                                      activeOpacity={0.7}
+                                    >
+                                      <View style={styles.expenseItemLeft}>
+                                        <CategoryIcon name={item.categoryName || item.categoryIcon || "Khác"} size={24} />
+                                        <View style={{ marginLeft: 4 }}>
+                                          <Text style={styles.expenseItemName}>{item.categoryName}</Text>
+                                          <Text style={{ fontSize: 10, color: "#64748b", marginTop: 1 }}>
+                                            {limit > 0 ? `Hạn mức: ${fmt(limit)} • Bấm xem lịch sử ›` : "Bấm xem lịch sử ›"}
+                                          </Text>
+                                        </View>
                                       </View>
-                                    </View>
-                                    <Text style={styles.expenseItemVal}>{fmt(item.totalAmount)}</Text>
-                                  </TouchableOpacity>
-                                ))}
+                                      <Text style={styles.expenseItemVal}>{fmt(item.totalAmount)}</Text>
+                                    </TouchableOpacity>
+                                  );
+                                })}
                               </View>
                             )}
                           </View>
@@ -1193,52 +1380,73 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
-  /* Donut Section */
-  donutRow: {
-    flexDirection: "row",
+  /* ─── LEADER-LINE DONUT CHART STYLES ─── */
+  donutLeaderChartWrapper: {
+    marginVertical: 10,
     alignItems: "center",
-    gap: 16,
-    marginBottom: 16,
+    justifyContent: "center",
   },
-  donutContainer: {
+  donutLeaderBox: {
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
   },
-  donutCenterContent: {
+  donutCenterHole: {
     position: "absolute",
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
-  donutLegendCol: {
-    flex: 1,
-    gap: 6,
+  donutCenterTotalLabel: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    color: colors.slate500,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  legendRowItem: {
+  donutCenterTotalVal: {
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  donutCenterActiveName: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.slate800,
+    marginTop: 2,
+  },
+  donutCenterActiveVal: {
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 1,
+  },
+
+  /* Callout Labels Attached to Leader Lines */
+  calloutLabelAbsolute: {
+    position: "absolute",
+    maxWidth: 95,
+  },
+  calloutPillRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 3,
+    marginBottom: 2,
   },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  calloutPctText: {
+    fontSize: 12.5,
+    fontWeight: "900",
   },
-  legendName: {
+  calloutNameText: {
     fontSize: 11,
     fontWeight: "700",
-    color: colors.slate700,
-    flex: 1,
-  },
-  legendPct: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.slate900,
-  },
-  moreCatsText: {
-    fontSize: 10,
-    color: colors.slate400,
-    fontWeight: "600",
+    color: "#475569",
   },
 
   /* Accordion */
@@ -1355,6 +1563,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   legendText: {
     fontSize: 10,

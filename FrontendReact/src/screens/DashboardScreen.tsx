@@ -12,10 +12,11 @@ import {
   StatusBar,
   Image,
   AppState,
+  DeviceEventEmitter,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useNavigation } from "@react-navigation/native";
-import { Bell } from "lucide-react-native";
+import { Bell, Sparkles } from "lucide-react-native";
 import { Card } from "../components/ui/Card";
 import { WalletManagerBottomSheet } from "../components/modals/WalletManagerBottomSheet";
 import { AddTransactionModal } from "../components/modals/AddTransactionModal";
@@ -317,7 +318,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                       <View style={[styles.pillFill, { width: "100%", backgroundColor: colors.rose600 }]} />
                     </View>
 
-                    <Text style={styles.overPillVal}>Vượt {fmt(overAmt)}</Text>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                      <Text style={styles.overPillVal}>Vượt {fmt(overAmt)}</Text>
+                      <Text style={{ fontSize: 9.5, fontWeight: "700", color: colors.rose600 }}>Cần tái cân bằng ›</Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -327,6 +331,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                 const catName = (b.name || b.categoryName || "Khoản chi").replace(/^Ngân sách\s+/i, "");
                 const pct = Math.round(((b.spentAmount || 0) / b.limitAmount) * 100);
                 const remainAmt = b.limitAmount - (b.spentAmount || 0);
+                const now = new Date();
+                const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                const daysRemaining = Math.max(1, daysInMonth - now.getDate());
+                const dailyRemain = Math.round(remainAmt / daysRemaining);
 
                 return (
                   <TouchableOpacity
@@ -353,7 +361,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                       />
                     </View>
 
-                    <Text style={styles.approachingPillVal}>Còn {fmt(remainAmt)}</Text>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                      <Text style={styles.approachingPillVal}>Còn {fmt(remainAmt)}</Text>
+                      <Text style={{ fontSize: 9.5, fontWeight: "700", color: colors.amber700 }}>
+                        (tối đa {fmt(dailyRemain)}/ngày)
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -551,6 +564,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           refresh();
         }}
       />
+
+      {/* 🤖 Floating AI Assistant Button */}
+      <TouchableOpacity
+        style={styles.floatingAiBtn}
+        onPress={() => DeviceEventEmitter.emit("OPEN_AI_CHATBOT")}
+        activeOpacity={0.85}
+      >
+        <Sparkles size={22} color="#FFFFFF" />
+        <View style={styles.floatingAiBadge}>
+          <Text style={styles.floatingAiBadgeText}>AI</Text>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -1244,5 +1269,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
     color: colors.slate800,
+  },
+  floatingAiBtn: {
+    position: "absolute",
+    right: 20,
+    bottom: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#4f46e5",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#4f46e5",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.4)",
+    zIndex: 99,
+  },
+  floatingAiBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#f59e0b",
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: "#ffffff",
+  },
+  floatingAiBadgeText: {
+    fontSize: 8,
+    fontWeight: "900",
+    color: "#ffffff",
   },
 });

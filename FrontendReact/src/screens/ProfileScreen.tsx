@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import {
   View,
@@ -13,7 +13,6 @@ import {
   Modal,
   ActivityIndicator,
   Switch,
-  Animated,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Card } from "../components/ui/Card";
@@ -58,50 +57,45 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const onLogout = propLogout || contextLogout;
   const onRefreshUser = propRefreshUser || contextRefreshProfile;
 
-  const [bankBin, setBankBin] = useState(user?.bankBin || "970422");
-  const [accountNo, setAccountNo] = useState(user?.bankAccountNo || "");
-  const [accountName, setAccountName] = useState(user?.bankAccountName || user?.name || "");
+  // ─── 1. THÔNG TIN LIÊN HỆ ───
   const [phone, setPhone] = useState(user?.phone || "");
-  const [loading, setLoading] = useState(false);
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
-  const [bankModalVisible, setBankModalVisible] = useState(false);
-  const [bankModalTarget, setBankModalTarget] = useState<"main" | "savings">("main");
-  const [searchBank, setSearchBank] = useState("");
 
-  // Edit / Lock states: Mặc định khóa để tránh vô tình chạm vào nhảy thông tin
-  const [isEditingPhone, setIsEditingPhone] = useState(false);
-  const [isEditingVietQr, setIsEditingVietQr] = useState(false);
+  // ─── 2. NGÂN HÀNG GIAO DỊCH (TRANSACTION BANK) ───
+  const [bankBin, setBankBin] = useState(user?.bankBin || "970422");
+  const [accountNo, setAccountNo] = useState(user?.bankAccountNo || "");
+  const [accountName, setAccountName] = useState(user?.bankAccountName || user?.name || "");
+  const [mainBankLoading, setMainBankLoading] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupVerified, setLookupVerified] = useState(false);
 
-  // Savings Bank ("Ví Tiết Kiệm") states
+  // ─── 3. NGÂN HÀNG TIẾT KIỆM (SAVINGS BANK) ───
   const [savingsBankBin, setSavingsBankBin] = useState(user?.savingsBankBin || "970407");
   const [savingsAccountNo, setSavingsAccountNo] = useState(user?.savingsBankAccountNo || "");
   const [savingsAccountName, setSavingsAccountName] = useState(user?.savingsBankAccountName || user?.name || "");
-  const [isEditingSavingsBank, setIsEditingSavingsBank] = useState(false);
   const [savingsLoading, setSavingsLoading] = useState(false);
   const [savingsLookupLoading, setSavingsLookupLoading] = useState(false);
   const [savingsLookupVerified, setSavingsLookupVerified] = useState(false);
-  const [savingsLookupMessage, setSavingsLookupMessage] = useState<string | null>(null);
 
-  // Bank Lookup states
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupVerified, setLookupVerified] = useState(false);
-  const [lookupMessage, setLookupMessage] = useState<string | null>(null);
+  // ─── MODAL CẤU HÌNH NGÂN HÀNG ───
+  const [configModalType, setConfigModalType] = useState<"main" | "savings" | null>(null);
+  const [bankPickerVisible, setBankPickerVisible] = useState(false);
+  const [searchBank, setSearchBank] = useState("");
 
   const cleanAccountName = (name: string): string => {
     if (!name) return "";
     return name.replace(/\s*\([^)]*\)/g, "").trim().toUpperCase();
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
-      const bBin = user.bankBin || "970422";
-      const accNo = user.bankAccountNo || "";
-      setBankBin(bBin);
-      setAccountNo(accNo);
-      setAccountName(cleanAccountName(user.bankAccountName || user.name || ""));
       setPhone(user.phone || "");
+      setBankBin(user.bankBin || "970422");
+      setAccountNo(user.bankAccountNo || "");
+      setAccountName(cleanAccountName(user.bankAccountName || user.name || ""));
 
       setSavingsBankBin(user.savingsBankBin || "970407");
       setSavingsAccountNo(user.savingsBankAccountNo || "");
@@ -118,22 +112,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       b.shortName.toLowerCase().includes(searchBank.toLowerCase())
   );
 
+  // Tra cứu Napas tự động cho ngân hàng giao dịch
   const handleLookupAccount = async (targetBin?: string, targetAccNo?: string) => {
     const currentBin = targetBin || bankBin;
     const currentAcc = (targetAccNo !== undefined ? targetAccNo : accountNo).trim();
     if (!currentBin || currentAcc.length < 6) return;
 
     setLookupLoading(true);
-    setLookupMessage(null);
     try {
       const res = await authService.lookupBankAccount(currentBin, currentAcc);
       if (res.verified && res.accountName) {
         setAccountName(res.accountName);
         setLookupVerified(true);
-        setLookupMessage(`✓ Đã tự động khớp chủ tài khoản từ ${selectedBank.shortName}`);
       } else {
         setLookupVerified(false);
-        if (res.message) setLookupMessage(res.message);
       }
     } catch (e: any) {
       setLookupVerified(false);
@@ -142,22 +134,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
+  // Tra cứu Napas tự động cho ngân hàng tiết kiệm
   const handleLookupSavingsAccount = async (targetBin?: string, targetAccNo?: string) => {
     const currentBin = targetBin || savingsBankBin;
     const currentAcc = (targetAccNo !== undefined ? targetAccNo : savingsAccountNo).trim();
     if (!currentBin || currentAcc.length < 6) return;
 
     setSavingsLookupLoading(true);
-    setSavingsLookupMessage(null);
     try {
       const res = await authService.lookupBankAccount(currentBin, currentAcc);
       if (res.verified && res.accountName) {
         setSavingsAccountName(res.accountName);
         setSavingsLookupVerified(true);
-        setSavingsLookupMessage(`✓ Đã tự động khớp chủ tài khoản từ ${selectedSavingsBank.shortName}`);
       } else {
         setSavingsLookupVerified(false);
-        if (res.message) setSavingsLookupMessage(res.message);
       }
     } catch (e: any) {
       setSavingsLookupVerified(false);
@@ -166,41 +156,36 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
-  // Tự động tra cứu và nhảy tên chủ tài khoản sau khi nhập số tài khoản (debounce 400ms)
-  React.useEffect(() => {
-    if (isEditingVietQr && bankBin && accountNo.trim().length >= 6) {
+  // Debounce lookup khi gõ số tài khoản
+  useEffect(() => {
+    if (configModalType === "main" && bankBin && accountNo.trim().length >= 6) {
       const timer = setTimeout(() => {
         handleLookupAccount(bankBin, accountNo.trim());
       }, 400);
       return () => clearTimeout(timer);
-    } else {
-      setLookupVerified(false);
-      setLookupMessage(null);
     }
-  }, [bankBin, accountNo, isEditingVietQr]);
+  }, [bankBin, accountNo, configModalType]);
 
-  React.useEffect(() => {
-    if (isEditingSavingsBank && savingsBankBin && savingsAccountNo.trim().length >= 6) {
+  useEffect(() => {
+    if (configModalType === "savings" && savingsBankBin && savingsAccountNo.trim().length >= 6) {
       const timer = setTimeout(() => {
         handleLookupSavingsAccount(savingsBankBin, savingsAccountNo.trim());
       }, 400);
       return () => clearTimeout(timer);
-    } else {
-      setSavingsLookupVerified(false);
-      setSavingsLookupMessage(null);
     }
-  }, [savingsBankBin, savingsAccountNo, isEditingSavingsBank]);
+  }, [savingsBankBin, savingsAccountNo, configModalType]);
 
+  // Cập nhật Avatar
   const handlePickAvatarFromGallery = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert("Quyền truy cập", "Vui lòng cấp quyền truy cập thư viện ảnh để đổi avatar.");
+        Alert.alert("Quyền truy cập", "Vui lòng cấp quyền truy cập thư viện ảnh để đổi ảnh đại diện.");
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.6,
@@ -209,10 +194,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
-        const avatarUri = asset.base64
-          ? `data:image/jpeg;base64,${asset.base64}`
-          : asset.uri;
-
+        const avatarUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
         setAvatarModalVisible(false);
         await handleSaveAvatar(avatarUri);
       }
@@ -234,6 +216,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
+  // Cập nhật Số điện thoại
   const handleUpdatePhone = async () => {
     if (!phone.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập số điện thoại");
@@ -242,7 +225,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setPhoneLoading(true);
     try {
       await authService.updatePhone(phone.trim());
-      Alert.alert("Thành công 🎉", "Đã cập nhật số điện thoại cá nhân!");
+      Alert.alert("Thành công 🎉", "Đã cập nhật số điện thoại liên hệ!");
       setIsEditingPhone(false);
       onRefreshUser();
     } catch (e: any) {
@@ -252,59 +235,33 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
-  const isVietQrConfigured = Boolean(
-    bankBin && bankBin.trim().length >= 4 &&
-    accountNo && accountNo.trim().length >= 4 &&
-    accountName && accountName.trim().length > 0
-  );
-
-  const isSavingsBankConfigured = Boolean(
-    savingsBankBin && savingsBankBin.trim().length >= 4 &&
-    savingsAccountNo && savingsAccountNo.trim().length >= 4 &&
-    savingsAccountName && savingsAccountName.trim().length > 0
-  );
-
-  const handleUpdateVietQR = async () => {
-    if (!bankBin.trim()) {
-      Alert.alert("Lỗi", "Vui lòng chọn ngân hàng nhận tiền");
+  // Cập nhật Ngân hàng giao dịch
+  const handleSaveMainBank = async () => {
+    if (!bankBin.trim() || !accountNo.trim() || !accountName.trim()) {
+      Alert.alert("Lỗi", "Vui lòng điền đầy đủ thông tin ngân hàng giao dịch");
       return;
     }
-    if (!accountNo.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập số tài khoản ngân hàng");
-      return;
-    }
-    if (!accountName.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập tên chủ tài khoản ngân hàng");
-      return;
-    }
-    setLoading(true);
+    setMainBankLoading(true);
     try {
       await authService.updateVietQRLink({
         bankBin: bankBin.trim(),
         bankAccountNo: accountNo.trim(),
         bankAccountName: accountName.trim().toUpperCase(),
       });
-      Alert.alert("Thành công 🎉", "Đã cập nhật tài khoản nhận tiền VietQR Napas247!");
-      setIsEditingVietQr(false);
+      Alert.alert("Thành công 🎉", "Đã lưu thông tin Ngân hàng giao dịch!");
+      setConfigModalType(null);
       onRefreshUser();
     } catch (e: any) {
-      Alert.alert("Lỗi", e.response?.data?.message || "Cập nhật thất bại");
+      Alert.alert("Lỗi", e.response?.data?.message || "Không thể lưu thông tin");
     } finally {
-      setLoading(false);
+      setMainBankLoading(false);
     }
   };
 
-  const handleUpdateSavingsBank = async () => {
-    if (!savingsBankBin.trim()) {
-      Alert.alert("Lỗi", "Vui lòng chọn ngân hàng cho Ví Tiết Kiệm");
-      return;
-    }
-    if (!savingsAccountNo.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập số tài khoản Ví Tiết Kiệm");
-      return;
-    }
-    if (!savingsAccountName.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập tên chủ tài khoản Ví Tiết Kiệm");
+  // Cập nhật Ngân hàng tiết kiệm
+  const handleSaveSavingsBank = async () => {
+    if (!savingsBankBin.trim() || !savingsAccountNo.trim() || !savingsAccountName.trim()) {
+      Alert.alert("Lỗi", "Vui lòng điền đầy đủ thông tin ngân hàng tiết kiệm");
       return;
     }
     setSavingsLoading(true);
@@ -314,396 +271,417 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         savingsBankAccountNo: savingsAccountNo.trim(),
         savingsBankAccountName: savingsAccountName.trim().toUpperCase(),
       });
-      Alert.alert("Thành công 🎉", "Đã lưu thông tin tài khoản ngân hàng Ví Tiết Kiệm!");
-      setIsEditingSavingsBank(false);
+      Alert.alert("Thành công 🎉", "Đã lưu thông tin Ngân hàng tiết kiệm!");
+      setConfigModalType(null);
       onRefreshUser();
     } catch (e: any) {
-      Alert.alert("Lỗi", e.response?.data?.message || "Cập nhật Ví Tiết Kiệm thất bại");
+      Alert.alert("Lỗi", e.response?.data?.message || "Không thể lưu thông tin");
     } finally {
       setSavingsLoading(false);
     }
   };
 
+  const isMainBankConfigured = Boolean(
+    user?.bankBin && user?.bankAccountNo && user?.bankAccountNo.trim().length >= 4
+  );
+
+  const isSavingsBankConfigured = Boolean(
+    user?.savingsBankBin && user?.savingsBankAccountNo && user?.savingsBankAccountNo.trim().length >= 4
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* User Card with Interactive Avatar */}
-        <Card style={[styles.userCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-          <TouchableOpacity
-            style={styles.avatarContainer}
-            onPress={() => setAvatarModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            {avatarLoading ? (
-              <View style={[styles.avatar, styles.avatarLoadingBox]}>
-                <ActivityIndicator size="small" color={colors.white} />
-              </View>
-            ) : user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{user?.name?.charAt(0)?.toUpperCase() || "U"}</Text>
-              </View>
-            )}
-            <View style={styles.cameraBadge}>
-              <Text style={styles.cameraBadgeText}>📷</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => setAvatarModalVisible(true)} style={styles.changeAvatarBtn}>
-            <Text style={styles.changeAvatarText}>Đổi ảnh đại diện</Text>
-          </TouchableOpacity>
-
-          <Text style={[styles.userName, { color: themeColors.textPrimary }]}>{user?.name || "Người dùng"}</Text>
-          <Text style={[styles.userEmail, { color: themeColors.textSecondary }]}>{user?.email || "Chưa thiết lập email"}</Text>
-        </Card>
-
-        {/* Phone Update Card */}
-        <Text style={styles.sectionTitle}>Số điện thoại liên hệ</Text>
-        <Card style={styles.bankFormCard}>
-          <Input
-            label="Số điện thoại cá nhân"
-            placeholder="VD: 0912345678"
-            keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
-            editable={isEditingPhone}
-          />
-          {isEditingPhone ? (
-            <View style={styles.actionBtnRow}>
-              <View style={{ flex: 1 }}>
-                <Button
-                  title="Hủy"
-                  variant="secondary"
-                  onPress={() => {
-                    setPhone(user?.phone || "");
-                    setIsEditingPhone(false);
-                  }}
-                  disabled={phoneLoading}
-                />
-              </View>
-              <View style={{ flex: 1.6 }}>
-                <Button
-                  title="Lưu số điện thoại"
-                  variant="primary"
-                  onPress={handleUpdatePhone}
-                  loading={phoneLoading}
-                />
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.editOutlineBtn}
-              onPress={() => setIsEditingPhone(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.editOutlineBtnText}>Chỉnh sửa số điện thoại</Text>
-            </TouchableOpacity>
-          )}
-        </Card>
-
-        {/* VietQR Bank Configuration Card */}
-        <Text style={styles.sectionTitle}>Cấu hình nhận tiền VietQR Napas247</Text>
-        <Card style={styles.bankFormCard}>
-          <Text style={styles.fieldLabel}>Chọn ngân hàng (*)</Text>
-          <TouchableOpacity
-            style={[styles.bankSelectBtn, !isEditingVietQr && styles.bankSelectBtnDisabled]}
-            onPress={() => {
-              if (isEditingVietQr) {
-                setBankModalTarget("main");
-                setBankModalVisible(true);
-              }
-            }}
-            activeOpacity={isEditingVietQr ? 0.8 : 1}
-            disabled={!isEditingVietQr}
-          >
-            <View style={styles.bankSelectLeft}>
-              <Image source={{ uri: selectedBank.logo }} style={styles.bankSelectLogo} resizeMode="contain" />
-              <View style={styles.bankSelectTextGroup}>
-                <Text style={styles.bankSelectShortName}>{selectedBank.shortName}</Text>
-                <Text style={styles.bankSelectFullName} numberOfLines={1}>
-                  {selectedBank.name}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.bankSelectArrowBox}>
-              <Text style={styles.bankSelectArrow}>▼</Text>
-            </View>
-          </TouchableOpacity>
-
-          <Input
-            label="Số tài khoản ngân hàng (*)"
-            placeholder="Nhập số tài khoản ngân hàng của bạn"
-            keyboardType="number-pad"
-            value={accountNo}
-            onChangeText={(text) => {
-              setAccountNo(text);
-              setLookupVerified(false);
-            }}
-            editable={isEditingVietQr}
-          />
-
-          {isEditingVietQr && lookupLoading && (
-            <View style={styles.lookupStatusRow}>
-              <ActivityIndicator size="small" color={colors.indigo600} />
-              <Text style={styles.lookupLoadingText}>Đang tra cứu tên từ ngân hàng...</Text>
-            </View>
-          )}
-
-          {isEditingVietQr && lookupVerified && (
-            <View style={styles.lookupVerifiedRow}>
-              <Text style={styles.lookupVerifiedText}>✓ Đã xác thực chính chủ từ {selectedBank.shortName}</Text>
-            </View>
-          )}
-
-          <Input
-            label="Tên chủ tài khoản (*)"
-            placeholder="Tự động điền theo số tài khoản ngân hàng..."
-            value={accountName}
-            onChangeText={setAccountName}
-            editable={isEditingVietQr}
-          />
-
-          {isEditingVietQr ? (
-            <View style={styles.actionBtnRow}>
-              <View style={{ flex: 1 }}>
-                <Button
-                  title="Hủy"
-                  variant="secondary"
-                  onPress={() => {
-                    setBankBin(user?.bankBin || "970422");
-                    setAccountNo(user?.bankAccountNo || "");
-                    setAccountName(cleanAccountName(user?.bankAccountName || user?.name || ""));
-                    setIsEditingVietQr(false);
-                    setLookupVerified(false);
-                    setLookupMessage(null);
-                  }}
-                  disabled={loading}
-                />
-              </View>
-              <View style={{ flex: 1.6 }}>
-                <Button
-                  title="Lưu tài khoản VietQR"
-                  variant="primary"
-                  onPress={handleUpdateVietQR}
-                  loading={loading}
-                />
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.editOutlineBtn}
-              onPress={() => {
-                setIsEditingVietQr(true);
-                if (bankBin && accountNo.trim().length >= 6) {
-                  handleLookupAccount(bankBin, accountNo.trim());
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.editOutlineBtnText}>Chỉnh sửa thông tin VietQR</Text>
-            </TouchableOpacity>
-          )}
-        </Card>
-
-        {/* Live Preview QR */}
-        <Text style={styles.sectionTitle}>Xem trước mã VietQR của bạn</Text>
-        {isVietQrConfigured ? (
-          <VietQRCard
-            bankBin={bankBin.trim()}
-            accountNo={accountNo.trim()}
-            accountName={accountName.trim().toUpperCase()}
-            description={`Chuyen tien cho ${accountName.trim() || user?.name || "ShareMoney"}`}
-          />
-        ) : (
-          <Card style={styles.emptyQrCard}>
-            <Text style={{ fontSize: 36, marginBottom: 8 }}>💳</Text>
-            <Text style={styles.emptyQrTitle}>Chưa đủ thông tin tạo mã VietQR</Text>
-            <Text style={styles.emptyQrSub}>
-              Vui lòng chọn Ngân hàng, nhập Số tài khoản và Tên chủ tài khoản ở trên để hiển thị mã QR nhận tiền.
-            </Text>
-          </Card>
-        )}
-
-        {/* ─── SAVINGS BANK CONFIGURATION CARD (Ví Tiết Kiệm) ─── */}
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>🏦 Cấu hình "Ví Tiết Kiệm" (Ngân Hàng Tích Lũy)</Text>
-        <Card style={styles.bankFormCard}>
-          <Text style={{ fontSize: 13, color: colors.slate600, marginBottom: 14, lineHeight: 18 }}>
-            Tài khoản ngân hàng dùng để nhận tiền khi thực hiện <Text style={{ fontWeight: "700", color: colors.amber700 }}>Phân bổ tự động an toàn</Text> & Nạp tiền vào quỹ tích lũy.
-          </Text>
-
-          <Text style={styles.fieldLabel}>Chọn ngân hàng Ví Tiết Kiệm (*)</Text>
-          <TouchableOpacity
-            style={[styles.bankSelectBtn, !isEditingSavingsBank && styles.bankSelectBtnDisabled]}
-            onPress={() => {
-              if (isEditingSavingsBank) {
-                setBankModalTarget("savings");
-                setBankModalVisible(true);
-              }
-            }}
-            activeOpacity={isEditingSavingsBank ? 0.8 : 1}
-            disabled={!isEditingSavingsBank}
-          >
-            <View style={styles.bankSelectLeft}>
-              <Image source={{ uri: selectedSavingsBank.logo }} style={styles.bankSelectLogo} resizeMode="contain" />
-              <View style={styles.bankSelectTextGroup}>
-                <Text style={styles.bankSelectShortName}>{selectedSavingsBank.shortName}</Text>
-                <Text style={styles.bankSelectFullName} numberOfLines={1}>
-                  {selectedSavingsBank.name}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.bankSelectArrowBox}>
-              <Text style={styles.bankSelectArrow}>▼</Text>
-            </View>
-          </TouchableOpacity>
-
-          <Input
-            label="Số tài khoản Ví Tiết Kiệm (*)"
-            placeholder="Nhập số tài khoản ngân hàng tích lũy"
-            keyboardType="number-pad"
-            value={savingsAccountNo}
-            onChangeText={(text) => {
-              setSavingsAccountNo(text);
-              setSavingsLookupVerified(false);
-            }}
-            editable={isEditingSavingsBank}
-          />
-
-          {isEditingSavingsBank && savingsLookupLoading && (
-            <View style={styles.lookupStatusRow}>
-              <ActivityIndicator size="small" color={colors.indigo600} />
-              <Text style={styles.lookupLoadingText}>Đang tra cứu tên từ ngân hàng...</Text>
-            </View>
-          )}
-
-          {isEditingSavingsBank && savingsLookupVerified && (
-            <View style={styles.lookupVerifiedRow}>
-              <Text style={styles.lookupVerifiedText}>✓ Đã xác thực chính chủ từ {selectedSavingsBank.shortName}</Text>
-            </View>
-          )}
-
-          <Input
-            label="Tên chủ tài khoản Ví Tiết Kiệm (*)"
-            placeholder="Tự động điền theo số tài khoản ngân hàng..."
-            value={savingsAccountName}
-            onChangeText={setSavingsAccountName}
-            editable={isEditingSavingsBank}
-          />
-
-          {isEditingSavingsBank ? (
-            <View style={styles.actionBtnRow}>
-              <View style={{ flex: 1 }}>
-                <Button
-                  title="Hủy"
-                  variant="secondary"
-                  onPress={() => {
-                    setSavingsBankBin(user?.savingsBankBin || "970407");
-                    setSavingsAccountNo(user?.savingsBankAccountNo || "");
-                    setSavingsAccountName(cleanAccountName(user?.savingsBankAccountName || user?.name || ""));
-                    setIsEditingSavingsBank(false);
-                    setSavingsLookupVerified(false);
-                    setSavingsLookupMessage(null);
-                  }}
-                  disabled={savingsLoading}
-                />
-              </View>
-              <View style={{ flex: 1.6 }}>
-                <Button
-                  title="Lưu Ví Tiết Kiệm"
-                  variant="amber"
-                  onPress={handleUpdateSavingsBank}
-                  loading={savingsLoading}
-                />
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.editOutlineBtn}
-              onPress={() => {
-                setIsEditingSavingsBank(true);
-                if (savingsBankBin && savingsAccountNo.trim().length >= 6) {
-                  handleLookupSavingsAccount(savingsBankBin, savingsAccountNo.trim());
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.editOutlineBtnText}>Chỉnh sửa Ví Tiết Kiệm</Text>
-            </TouchableOpacity>
-          )}
-        </Card>
-
-        {/* Live Preview QR Ví Tiết Kiệm */}
-        <Text style={styles.sectionTitle}>Mã VietQR Ví Tiết Kiệm</Text>
-        {isSavingsBankConfigured ? (
-          <VietQRCard
-            bankBin={savingsBankBin.trim()}
-            accountNo={savingsAccountNo.trim()}
-            accountName={savingsAccountName.trim().toUpperCase()}
-            description="Chuyen tien vao Vi Tiet Kiem"
-          />
-        ) : (
-          <Card style={styles.emptyQrCard}>
-            <Text style={{ fontSize: 36, marginBottom: 8 }}>🏦</Text>
-            <Text style={styles.emptyQrTitle}>Chưa thiết lập ngân hàng Ví Tiết Kiệm</Text>
-            <Text style={styles.emptyQrSub}>
-              Vui lòng chọn Ngân hàng và nhập Số tài khoản Ví Tiết Kiệm ở trên để hiển thị mã QR nạp quỹ.
-            </Text>
-          </Card>
-        )}
-
-        {/* ─── DARK MODE TOGGLE ─── */}
-        <View style={[styles.darkModeCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-          <View style={styles.darkModeLeft}>
-            <View style={[styles.darkModeIconCircle, { backgroundColor: isDark ? '#312E81' : '#EEF2FF' }]}>
-              <Text style={{ fontSize: 22 }}>{isDark ? '🌙' : '☀️'}</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+        {/* ══════════════════════════════════════════════════════════════
+            KHỐI CHA 1: THÔNG TIN LIÊN HỆ
+           ══════════════════════════════════════════════════════════════ */}
+        <View style={styles.blockSection}>
+          <View style={styles.blockHeaderRow}>
+            <View style={styles.blockIconBoxBlue}>
+              <Text style={{ fontSize: 16 }}>👤</Text>
             </View>
             <View>
-              <Text style={[styles.darkModeTitle, { color: themeColors.textPrimary }]}>Chế độ tối</Text>
-              <Text style={[styles.darkModeSub, { color: themeColors.textSecondary }]}>
-                {isDark ? 'Đang bật — Bảo vệ mắt' : 'Đang tắt — Chế độ sáng'}
-              </Text>
+              <Text style={[styles.blockTitle, { color: themeColors.textPrimary }]}>Thông tin liên hệ</Text>
+              <Text style={[styles.blockSub, { color: themeColors.textSecondary }]}>Hồ sơ cá nhân và phương thức liên lạc</Text>
             </View>
           </View>
-          <Switch
-            value={isDark}
-            onValueChange={toggleTheme}
-            trackColor={{ false: '#CBD5E1', true: '#6366F1' }}
-            thumbColor={isDark ? '#E0E7FF' : '#FFFFFF'}
-            ios_backgroundColor="#CBD5E1"
-          />
+
+          <Card style={[styles.cardSurface, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            {/* Avatar & Tên User */}
+            <View style={styles.userProfileTopRow}>
+              <TouchableOpacity
+                style={styles.avatarWrapper}
+                onPress={() => setAvatarModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                {avatarLoading ? (
+                  <View style={[styles.avatarBox, { backgroundColor: colors.slate400 }]}>
+                    <ActivityIndicator size="small" color={colors.white} />
+                  </View>
+                ) : user?.avatarUrl ? (
+                  <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
+                ) : (
+                  <View style={[styles.avatarBox, { backgroundColor: colors.indigo600 }]}>
+                    <Text style={styles.avatarText}>{user?.name?.charAt(0)?.toUpperCase() || "U"}</Text>
+                  </View>
+                )}
+                <View style={styles.cameraIconBadge}>
+                  <Text style={{ fontSize: 11 }}>📷</Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={{ flex: 1, marginLeft: 16 }}>
+                <Text style={[styles.userNameText, { color: themeColors.textPrimary }]}>
+                  {user?.name || "Người dùng"}
+                </Text>
+                <Text style={[styles.userEmailText, { color: themeColors.textSecondary }]}>
+                  {user?.email || "Chưa có email"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setAvatarModalVisible(true)}
+                  style={styles.changeAvatarSmallBtn}
+                >
+                  <Text style={styles.changeAvatarSmallText}>Đổi ảnh đại diện</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.cardDivider} />
+
+            {/* Số điện thoại */}
+            <View style={{ marginTop: 4 }}>
+              <Input
+                label="Số điện thoại cá nhân"
+                placeholder="VD: 0912345678"
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={setPhone}
+                editable={isEditingPhone}
+                containerStyle={{ marginBottom: isEditingPhone ? 12 : 6 }}
+              />
+
+              {isEditingPhone ? (
+                <View style={styles.actionRow}>
+                  <Button
+                    title="Hủy"
+                    variant="secondary"
+                    onPress={() => {
+                      setPhone(user?.phone || "");
+                      setIsEditingPhone(false);
+                    }}
+                    disabled={phoneLoading}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    title="Lưu số điện thoại"
+                    variant="primary"
+                    onPress={handleUpdatePhone}
+                    loading={phoneLoading}
+                    style={{ flex: 1.6 }}
+                  />
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.editBtnOutline}
+                  onPress={() => setIsEditingPhone(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.editBtnOutlineText}>Chỉnh sửa số điện thoại</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </Card>
         </View>
 
-        {/* Logout Button */}
+        {/* ══════════════════════════════════════════════════════════════
+            KHỐI CHA 2: THÔNG TIN NGÂN HÀNG
+           ══════════════════════════════════════════════════════════════ */}
+        <View style={styles.blockSection}>
+          <View style={styles.blockHeaderRow}>
+            <View style={styles.blockIconBoxPurple}>
+              <Text style={{ fontSize: 16 }}>🏦</Text>
+            </View>
+            <View>
+              <Text style={[styles.blockTitle, { color: themeColors.textPrimary }]}>Thông tin ngân hàng</Text>
+              <Text style={[styles.blockSub, { color: themeColors.textSecondary }]}>Cấu hình tài khoản nhận tiền & tích lũy quỹ</Text>
+            </View>
+          </View>
+
+          {/* KHỐI NHỎ 1: NGÂN HÀNG GIAO DỊCH */}
+          <TouchableOpacity
+            style={[styles.bankCardItem, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+            onPress={() => setConfigModalType("main")}
+            activeOpacity={0.85}
+          >
+            <View style={styles.bankCardHeader}>
+              <View style={styles.bankTagIndigo}>
+                <Text style={styles.bankTagIndigoText}>💳 Ngân hàng giao dịch</Text>
+              </View>
+              <View style={styles.configPill}>
+                <Text style={styles.configPillText}>Cấu hình ›</Text>
+              </View>
+            </View>
+
+            <View style={styles.bankCardContentRow}>
+              <View style={styles.bankLogoCircle}>
+                <Image source={{ uri: selectedBank.logo }} style={styles.bankLogo} resizeMode="contain" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.bankNameTitle, { color: themeColors.textPrimary }]}>{selectedBank.shortName}</Text>
+                <Text style={styles.bankAccNoText}>
+                  {user?.bankAccountNo ? user.bankAccountNo : "Chưa cấu hình tài khoản"}
+                </Text>
+                <Text style={[styles.bankAccOwnerText, { color: themeColors.textSecondary }]}>
+                  Chủ TK: <Text style={{ fontWeight: "700", color: themeColors.textPrimary }}>{accountName || user?.name || "---"}</Text>
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.bankCardFooterStrip}>
+              <Text style={styles.bankCardFooterDesc}>Dùng nhận tiền chia sẻ chi phí nhóm & thanh toán nợ</Text>
+              {isMainBankConfigured && <Text style={styles.statusVerifiedBadge}>✓ Đã kích hoạt</Text>}
+            </View>
+          </TouchableOpacity>
+
+          {/* KHỐI NHỎ 2: NGÂN HÀNG TIẾT KIỆM */}
+          <TouchableOpacity
+            style={[styles.bankCardItem, { backgroundColor: themeColors.card, borderColor: themeColors.border, marginTop: 12 }]}
+            onPress={() => setConfigModalType("savings")}
+            activeOpacity={0.85}
+          >
+            <View style={styles.bankCardHeader}>
+              <View style={styles.bankTagAmber}>
+                <Text style={styles.bankTagAmberText}>🐷 Ngân hàng tiết kiệm</Text>
+              </View>
+              <View style={styles.configPill}>
+                <Text style={styles.configPillText}>Cấu hình ›</Text>
+              </View>
+            </View>
+
+            <View style={styles.bankCardContentRow}>
+              <View style={styles.bankLogoCircle}>
+                <Image source={{ uri: selectedSavingsBank.logo }} style={styles.bankLogo} resizeMode="contain" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.bankNameTitle, { color: themeColors.textPrimary }]}>{selectedSavingsBank.shortName}</Text>
+                <Text style={styles.bankAccNoText}>
+                  {user?.savingsBankAccountNo ? user.savingsBankAccountNo : "Chưa cấu hình tài khoản"}
+                </Text>
+                <Text style={[styles.bankAccOwnerText, { color: themeColors.textSecondary }]}>
+                  Chủ TK: <Text style={{ fontWeight: "700", color: themeColors.textPrimary }}>{savingsAccountName || user?.name || "---"}</Text>
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.bankCardFooterStrip}>
+              <Text style={styles.bankCardFooterDesc}>Dùng nhận tiền phân bổ tiết kiệm tự động an toàn</Text>
+              {isSavingsBankConfigured && <Text style={styles.statusVerifiedBadgeAmber}>✓ Đã kích hoạt</Text>}
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* ══════════════════════════════════════════════════════════════
+            KHỐI CHA 3: CHẾ ĐỘ TỐI SÁNG
+           ══════════════════════════════════════════════════════════════ */}
+        <View style={styles.blockSection}>
+          <View style={styles.blockHeaderRow}>
+            <View style={styles.blockIconBoxAmber}>
+              <Text style={{ fontSize: 16 }}>🌓</Text>
+            </View>
+            <View>
+              <Text style={[styles.blockTitle, { color: themeColors.textPrimary }]}>Chế độ tối sáng</Text>
+              <Text style={[styles.blockSub, { color: themeColors.textSecondary }]}>Tùy chỉnh giao diện hiển thị ứng dụng</Text>
+            </View>
+          </View>
+
+          <Card style={[styles.darkModeCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <View style={styles.darkModeLeft}>
+              <View style={[styles.darkModeIconCircle, { backgroundColor: isDark ? "#312E81" : "#EEF2FF" }]}>
+                <Text style={{ fontSize: 22 }}>{isDark ? "🌙" : "☀️"}</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.darkModeTitle, { color: themeColors.textPrimary }]}>
+                  {isDark ? "Chế độ tối (Dark mode)" : "Chế độ sáng (Light mode)"}
+                </Text>
+                <Text style={[styles.darkModeSub, { color: themeColors.textSecondary }]}>
+                  {isDark ? "Đang bật — Giảm mỏi mắt ban đêm" : "Đang bật — Giao diện sáng thanh lịch"}
+                </Text>
+              </View>
+            </View>
+
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: "#CBD5E1", true: "#6366F1" }}
+              thumbColor={isDark ? "#E0E7FF" : "#FFFFFF"}
+              ios_backgroundColor="#CBD5E1"
+            />
+          </Card>
+        </View>
+
+        {/* ─── NÚT ĐĂNG XUẤT ─── */}
         <Button
           title="Đăng xuất tài khoản"
           variant="danger"
           onPress={onLogout}
           style={styles.logoutBtn}
         />
+
+        <Text style={styles.versionText}>ShareMoney v1.2.0 • An toàn & Bảo mật</Text>
       </ScrollView>
 
-      {/* ─── BANK SELECTION MODAL ─── */}
+      {/* ══════════════════════════════════════════════════════════════
+          MODAL CẤU HÌNH NGÂN HÀNG (DÙNG RIÊNG CHO TỪNG LOẠI)
+         ══════════════════════════════════════════════════════════════ */}
       <Modal
-        visible={bankModalVisible}
-        transparent={true}
+        visible={configModalType !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setConfigModalType(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.configModalCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            {/* Modal Header */}
+            <View style={styles.configModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>
+                  {configModalType === "main" ? "Cấu hình Ngân hàng giao dịch 💳" : "Cấu hình Ngân hàng tiết kiệm 🐷"}
+                </Text>
+                <Text style={[styles.configModalSub, { color: themeColors.textSecondary }]}>
+                  {configModalType === "main"
+                    ? "Nhận tiền thanh toán chia sẻ chi phí & VietQR"
+                    : "Nhận tiền phân bổ vào quỹ tích lũy an toàn"}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setConfigModalType(null)}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 480 }}>
+              {/* Chọn ngân hàng */}
+              <Text style={[styles.fieldLabel, { color: themeColors.textPrimary }]}>Ngân hàng (*)</Text>
+              <TouchableOpacity
+                style={[styles.bankSelectBtn, { borderColor: themeColors.border, backgroundColor: themeColors.background }]}
+                onPress={() => setBankPickerVisible(true)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.bankSelectLeft}>
+                  <Image
+                    source={{ uri: configModalType === "main" ? selectedBank.logo : selectedSavingsBank.logo }}
+                    style={styles.bankSelectLogo}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.bankSelectTextGroup}>
+                    <Text style={[styles.bankSelectShortName, { color: themeColors.textPrimary }]}>
+                      {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}
+                    </Text>
+                    <Text style={[styles.bankSelectFullName, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                      {configModalType === "main" ? selectedBank.name : selectedSavingsBank.name}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.bankSelectArrowBox}>
+                  <Text style={styles.bankSelectArrow}>▼</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Nhập số tài khoản */}
+              <Input
+                label="Số tài khoản ngân hàng (*)"
+                placeholder="Nhập số tài khoản chính xác..."
+                keyboardType="number-pad"
+                value={configModalType === "main" ? accountNo : savingsAccountNo}
+                onChangeText={(text) => {
+                  if (configModalType === "main") {
+                    setAccountNo(text);
+                    setLookupVerified(false);
+                  } else {
+                    setSavingsAccountNo(text);
+                    setSavingsLookupVerified(false);
+                  }
+                }}
+              />
+
+              {/* Trạng thái tra cứu Napas */}
+              {(configModalType === "main" ? lookupLoading : savingsLookupLoading) && (
+                <View style={styles.lookupStatusRow}>
+                  <ActivityIndicator size="small" color={colors.indigo600} />
+                  <Text style={styles.lookupLoadingText}>Đang tự động tra cứu tên chủ tài khoản...</Text>
+                </View>
+              )}
+
+              {(configModalType === "main" ? lookupVerified : savingsLookupVerified) && (
+                <View style={styles.lookupVerifiedRow}>
+                  <Text style={styles.lookupVerifiedText}>✓ Đã khớp chủ tài khoản Napas 247</Text>
+                </View>
+              )}
+
+              {/* Nhập tên chủ tài khoản */}
+              <Input
+                label="Tên chủ tài khoản (*)"
+                placeholder="Tự động điền hoặc nhập tên in hoa..."
+                value={configModalType === "main" ? accountName : savingsAccountName}
+                onChangeText={(text) => {
+                  if (configModalType === "main") setAccountName(text);
+                  else setSavingsAccountName(text);
+                }}
+              />
+
+              {/* Xem trước VietQR */}
+              <Text style={[styles.previewQrLabel, { color: themeColors.textPrimary }]}>Xem trước mã VietQR:</Text>
+              <View style={{ marginBottom: 16 }}>
+                <VietQRCard
+                  bankBin={configModalType === "main" ? bankBin.trim() : savingsBankBin.trim()}
+                  accountNo={configModalType === "main" ? accountNo.trim() : savingsAccountNo.trim()}
+                  accountName={(configModalType === "main" ? accountName : savingsAccountName).trim().toUpperCase()}
+                  description={configModalType === "main" ? `Chuyen tien cho ${accountName || user?.name || "ShareMoney"}` : "Nap quy Vi Tiet Kiem"}
+                />
+              </View>
+
+              {/* Nút thao tác */}
+              <View style={styles.actionRow}>
+                <Button
+                  title="Hủy"
+                  variant="secondary"
+                  onPress={() => setConfigModalType(null)}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  title={configModalType === "main" ? "Lưu ngân hàng giao dịch" : "Lưu ngân hàng tiết kiệm"}
+                  variant={configModalType === "main" ? "primary" : "amber"}
+                  onPress={configModalType === "main" ? handleSaveMainBank : handleSaveSavingsBank}
+                  loading={configModalType === "main" ? mainBankLoading : savingsLoading}
+                  style={{ flex: 1.8 }}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══════════════════════════════════════════════════════════════
+          MODAL DANH SÁCH CHỌN NGÂN HÀNG
+         ══════════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={bankPickerVisible}
+        transparent
         animationType="fade"
-        onRequestClose={() => setBankModalVisible(false)}
+        onRequestClose={() => setBankPickerVisible(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={styles.modalBackdrop}
           activeOpacity={1}
-          onPress={() => setBankModalVisible(false)}
+          onPress={() => setBankPickerVisible(false)}
         >
-          <TouchableOpacity style={[styles.modalContent, { maxHeight: "85%" }]} activeOpacity={1}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {bankModalTarget === "savings" ? "Chọn Ngân Hàng Ví Tiết Kiệm 🏦" : "Chọn Ngân Hàng Nhận Tiền 🏦"}
-              </Text>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setBankModalVisible(false)}
-              >
+          <TouchableOpacity
+            style={[styles.bankPickerCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+            activeOpacity={1}
+          >
+            <View style={styles.configModalHeader}>
+              <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>Chọn ngân hàng 🏦</Text>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setBankPickerVisible(false)}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -712,47 +690,51 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               placeholder="🔍 Tìm ngân hàng (MB, VCB, TCB...)"
               value={searchBank}
               onChangeText={setSearchBank}
-              style={{ marginBottom: 12 }}
+              containerStyle={{ marginBottom: 10 }}
             />
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 340 }}>
               {filteredBanks.map((bank) => {
-                const isSelected = bankModalTarget === "savings" ? bank.bin === savingsBankBin : bank.bin === bankBin;
+                const isSelected =
+                  configModalType === "main" ? bank.bin === bankBin : bank.bin === savingsBankBin;
+
                 return (
                   <TouchableOpacity
                     key={bank.bin}
-                    style={[styles.bankItemRow, isSelected && styles.bankItemRowSelected]}
+                    style={[
+                      styles.bankPickRow,
+                      { borderBottomColor: themeColors.borderLight || "#F1F5F9" },
+                      isSelected && styles.bankPickRowActive,
+                    ]}
                     onPress={() => {
-                      if (bankModalTarget === "savings") {
-                        setSavingsBankBin(bank.bin);
-                        setBankModalVisible(false);
-                        setSearchBank("");
-                        if (savingsAccountNo.trim().length >= 6) {
-                          handleLookupSavingsAccount(bank.bin, savingsAccountNo.trim());
-                        }
-                      } else {
+                      if (configModalType === "main") {
                         setBankBin(bank.bin);
-                        setBankModalVisible(false);
-                        setSearchBank("");
                         if (accountNo.trim().length >= 6) {
                           handleLookupAccount(bank.bin, accountNo.trim());
                         }
+                      } else {
+                        setSavingsBankBin(bank.bin);
+                        if (savingsAccountNo.trim().length >= 6) {
+                          handleLookupSavingsAccount(bank.bin, savingsAccountNo.trim());
+                        }
                       }
+                      setBankPickerVisible(false);
+                      setSearchBank("");
                     }}
                     activeOpacity={0.7}
                   >
-                    <Image source={{ uri: bank.logo }} style={styles.bankItemLogo} resizeMode="contain" />
+                    <Image source={{ uri: bank.logo }} style={styles.bankPickLogo} resizeMode="contain" />
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[styles.bankItemShortName, isSelected && { color: colors.indigo600, fontWeight: "900" }]}>
+                      <Text style={[styles.bankPickShortName, { color: isSelected ? colors.indigo600 : themeColors.textPrimary }]}>
                         {bank.shortName}
                       </Text>
-                      <Text style={styles.bankItemFullName} numberOfLines={1}>
+                      <Text style={[styles.bankPickFullName, { color: themeColors.textSecondary }]} numberOfLines={1}>
                         {bank.name}
                       </Text>
                     </View>
                     {isSelected && (
-                      <View style={styles.bankCheckCircle}>
-                        <Text style={styles.bankCheckText}>✓</Text>
+                      <View style={styles.checkCircle}>
+                        <Text style={styles.checkCircleText}>✓</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -763,30 +745,32 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </TouchableOpacity>
       </Modal>
 
-      {/* ─── AVATAR SELECTION MODAL ─── */}
+      {/* ══════════════════════════════════════════════════════════════
+          MODAL CHỌN ẢNH ĐẠI DIỆN
+         ══════════════════════════════════════════════════════════════ */}
       <Modal
         visible={avatarModalVisible}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={() => setAvatarModalVisible(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={styles.modalBackdrop}
           activeOpacity={1}
           onPress={() => setAvatarModalVisible(false)}
         >
-          <TouchableOpacity style={styles.modalContent} activeOpacity={1}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chọn Ảnh Đại Diện 👤</Text>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setAvatarModalVisible(false)}
-              >
+          <TouchableOpacity
+            style={[styles.avatarModalCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
+            activeOpacity={1}
+          >
+            <View style={styles.configModalHeader}>
+              <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>Chọn ảnh đại diện 👤</Text>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setAvatarModalVisible(false)}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Gallery Upload Button */}
+            {/* Tải ảnh từ thư viện máy */}
             <TouchableOpacity
               style={styles.galleryPickBtn}
               onPress={handlePickAvatarFromGallery}
@@ -797,17 +781,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.galleryPickTitle}>Tải ảnh từ điện thoại</Text>
-                <Text style={styles.galleryPickSub}>Chọn bất kỳ hình ảnh nào từ thư viện máy của bạn</Text>
+                <Text style={styles.galleryPickSub}>Chọn bất kỳ hình ảnh nào từ máy của bạn</Text>
               </View>
             </TouchableOpacity>
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>HOẶC CHỌN AVATAR CÓ SẴN</Text>
+              <Text style={styles.dividerText}>HOẶC CHỌN AVATAR MẪU</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Presets Grid */}
+            {/* Lưới Avatar mẫu */}
             <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
               <View style={styles.presetGrid}>
                 {AVATAR_PRESETS.map((presetUrl, idx) => (
@@ -835,464 +819,516 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#EEF2F6",
   },
   scrollContent: {
     padding: 20,
     paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 28) + 12 : 50,
+    paddingBottom: 40,
   },
-  userCard: {
+
+  /* Khối cha chung */
+  blockSection: {
+    marginBottom: 24,
+  },
+  blockHeaderRow: {
+    flexDirection: "row",
     alignItems: "center",
-    padding: 24,
-    marginBottom: 20,
-    backgroundColor: colors.white,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    marginBottom: 12,
+    gap: 10,
   },
-  avatarContainer: {
-    position: "relative",
-    marginBottom: 8,
-  },
-  avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: colors.indigo600,
+  blockIconBoxBlue: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  avatarImage: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+  blockIconBoxPurple: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#F5F3FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  blockIconBoxAmber: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#FEF3C7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  blockTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  blockSub: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+
+  cardSurface: {
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+  },
+  userProfileTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatarWrapper: {
+    position: "relative",
+  },
+  avatarBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarImg: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 2,
     borderColor: colors.indigo600,
   },
-  avatarLoadingBox: {
-    backgroundColor: colors.slate400,
-  },
   avatarText: {
-    fontSize: 32,
-    fontWeight: "800",
+    fontSize: 26,
+    fontWeight: "900",
     color: colors.white,
   },
-  cameraBadge: {
+  cameraIconBadge: {
     position: "absolute",
-    bottom: 0,
-    right: 0,
+    bottom: -2,
+    right: -2,
     backgroundColor: colors.white,
-    borderRadius: 14,
-    width: 28,
-    height: 28,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: colors.slate200,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
   },
-  cameraBadgeText: {
-    fontSize: 14,
+  userNameText: {
+    fontSize: 18,
+    fontWeight: "900",
   },
-  changeAvatarBtn: {
-    marginBottom: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: colors.indigo50,
-  },
-  changeAvatarText: {
+  userEmailText: {
     fontSize: 12,
+    marginTop: 2,
+  },
+  changeAvatarSmallBtn: {
+    alignSelf: "flex-start",
+    marginTop: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    backgroundColor: "#EEF2FF",
+    borderRadius: 8,
+  },
+  changeAvatarSmallText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.indigo600,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginVertical: 14,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  editBtnOutline: {
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  editBtnOutlineText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.indigo600,
+  },
+
+  /* Khối nhỏ ngân hàng */
+  bankCardItem: {
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+  },
+  bankCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  bankTagIndigo: {
+    backgroundColor: "#EEF2FF",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  bankTagIndigoText: {
+    fontSize: 11,
     fontWeight: "800",
     color: colors.indigo600,
   },
-  userName: {
-    fontSize: 20,
+  bankTagAmber: {
+    backgroundColor: "#FEF3C7",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  bankTagAmberText: {
+    fontSize: 11,
     fontWeight: "800",
-    color: colors.slate900,
+    color: colors.amber700,
   },
-  userEmail: {
-    fontSize: 13,
-    color: colors.slate500,
-    marginTop: 4,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.slate900,
-    marginBottom: 12,
-  },
-  bankFormCard: {
-    backgroundColor: colors.white,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 24,
+  configPill: {
+    backgroundColor: "#F8FAFC",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
   },
-  emptyQrCard: {
-    alignItems: "center",
-    padding: 24,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    marginBottom: 24,
+  configPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.slate600,
   },
-  emptyQrTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.slate800,
-  },
-  emptyQrSub: {
-    fontSize: 13,
-    color: colors.slate500,
-    marginTop: 6,
-    textAlign: "center",
-    lineHeight: 19,
-  },
-  saveBtn: {
-    marginTop: 8,
-  },
-  logoutBtn: {
-    marginTop: 16,
-    marginBottom: 32,
-  },
-
-  /* Avatar Modal Styles */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  modalContent: {
-    width: "100%",
-    maxWidth: 360,
-    backgroundColor: colors.white,
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  modalHeader: {
+  bankCardContentRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
   },
-  modalTitle: {
-    fontSize: 17,
+  bankLogoCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 4,
+  },
+  bankLogo: {
+    width: "80%",
+    height: "80%",
+  },
+  bankNameTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  bankAccNoText: {
+    fontSize: 15,
     fontWeight: "900",
-    color: colors.slate900,
+    color: colors.indigo600,
+    marginVertical: 2,
+    letterSpacing: 0.5,
+  },
+  bankAccOwnerText: {
+    fontSize: 11,
+  },
+  bankCardFooterStrip: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  bankCardFooterDesc: {
+    fontSize: 10,
+    color: colors.slate500,
+    flex: 1,
+    marginRight: 6,
+  },
+  statusVerifiedBadge: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.emerald600,
+  },
+  statusVerifiedBadgeAmber: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.amber700,
+  },
+
+  /* Dark mode card */
+  darkModeCard: {
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  darkModeLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  darkModeIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  darkModeTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  darkModeSub: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  logoutBtn: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  versionText: {
+    textAlign: "center",
+    fontSize: 11,
+    color: colors.slate400,
+    fontWeight: "600",
+  },
+
+  /* Modals */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 18,
+  },
+  configModalCard: {
+    width: "100%",
+    borderRadius: 26,
+    padding: 20,
+    borderWidth: 1,
+    maxHeight: "92%",
+  },
+  configModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  configModalTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  configModalSub: {
+    fontSize: 11,
+    marginTop: 2,
   },
   modalCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.slate100,
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
   },
   modalCloseText: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.slate600,
-  },
-  galleryPickBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.indigo50,
-    borderWidth: 1.5,
-    borderColor: "#C7D2FE",
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 16,
-  },
-  galleryIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  galleryPickTitle: {
     fontSize: 14,
     fontWeight: "800",
-    color: colors.indigo700,
-  },
-  galleryPickSub: {
-    fontSize: 11,
-    color: colors.indigo500,
-    marginTop: 2,
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 14,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.slate200,
-  },
-  dividerText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.slate400,
-    letterSpacing: 0.5,
-  },
-  presetGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "center",
-    paddingVertical: 4,
-  },
-  presetItem: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    overflow: "hidden",
-    borderWidth: 2,
-    borderColor: colors.slate200,
-  },
-  presetImg: {
-    width: "100%",
-    height: "100%",
-  },
-
-  /* Bank Selector & Modal Styles */
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: "700",
     color: colors.slate700,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "700",
     marginBottom: 6,
   },
   bankSelectBtn: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: colors.slate50,
-    borderWidth: 1.5,
-    borderColor: colors.slate200,
-    borderRadius: 14,
+    alignItems: "center",
     padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
     marginBottom: 14,
   },
   bankSelectLeft: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    gap: 12,
   },
   bankSelectLogo: {
-    width: 44,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: colors.white,
+    width: 36,
+    height: 24,
   },
   bankSelectTextGroup: {
+    marginLeft: 10,
     flex: 1,
   },
   bankSelectShortName: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "800",
-    color: colors.slate900,
   },
   bankSelectFullName: {
-    fontSize: 12,
-    color: colors.slate500,
-    marginTop: 2,
+    fontSize: 10,
   },
   bankSelectArrowBox: {
-    paddingLeft: 8,
+    paddingHorizontal: 4,
   },
   bankSelectArrow: {
-    fontSize: 12,
-    color: colors.slate400,
-  },
-  bankItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 6,
-    backgroundColor: colors.slate50,
-    borderWidth: 1,
-    borderColor: "transparent",
-  },
-  bankItemRowSelected: {
-    backgroundColor: colors.indigo50,
-    borderColor: colors.indigo500,
-  },
-  bankItemLogo: {
-    width: 44,
-    height: 30,
-    borderRadius: 6,
-    backgroundColor: colors.white,
-  },
-  bankItemShortName: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: colors.slate900,
-  },
-  bankItemFullName: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.slate500,
-    marginTop: 2,
   },
-  bankCheckCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.indigo600,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bankCheckText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  /* Edit / Lock Section Styles */
-  bankSelectBtnDisabled: {
-    backgroundColor: "#F1F5F9",
-    borderColor: "#CBD5E1",
-  },
-  actionBtnRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
-  },
-  flexBtn: {
-    flex: 1,
-  },
-  editOutlineBtn: {
-    backgroundColor: "#EEF2FF",
-    borderWidth: 1.5,
-    borderColor: "#C7D2FE",
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 4,
-  },
-  editOutlineBtnText: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: colors.indigo600,
-  },
-
-  /* Bank Lookup Status Styles */
   lookupStatusRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#EEF2FF",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginTop: -8,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
+    marginBottom: 10,
+    marginTop: -6,
   },
   lookupLoadingText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 11,
     color: colors.indigo600,
+    fontWeight: "600",
   },
   lookupVerifiedRow: {
-    backgroundColor: "#ECFDF5",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginTop: -8,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#A7F3D0",
+    marginBottom: 10,
+    marginTop: -6,
   },
   lookupVerifiedText: {
+    fontSize: 11,
+    color: colors.emerald600,
+    fontWeight: "700",
+  },
+  previewQrLabel: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#059669",
+    marginBottom: 8,
+    marginTop: 4,
   },
-  lookupNoticeRow: {
-    backgroundColor: "#FFFBEB",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+
+  /* Bank Picker Modal */
+  bankPickerCard: {
+    width: "100%",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+  },
+  bankPickRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+  },
+  bankPickRowActive: {
+    backgroundColor: "#EEF2FF",
     borderRadius: 10,
-    marginTop: -8,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#FDE68A",
   },
-  lookupNoticeText: {
-    fontSize: 12,
-    color: "#B45309",
-  },
-  /* ─── Dark Mode Toggle Card ─── */
-  darkModeCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    marginBottom: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 1,
-  },
-  darkModeLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  darkModeIconCircle: {
+  bankPickLogo: {
     width: 44,
-    height: 44,
-    borderRadius: 14,
+    height: 28,
+  },
+  bankPickShortName: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  bankPickFullName: {
+    fontSize: 10,
+  },
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.indigo600,
     alignItems: "center",
     justifyContent: "center",
   },
-  darkModeTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  darkModeSub: {
+  checkCircleText: {
     fontSize: 12,
+    color: colors.white,
+    fontWeight: "900",
+  },
+
+  /* Avatar Modal */
+  avatarModalCard: {
+    width: "100%",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+  },
+  galleryPickBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EEF2FF",
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E0E7FF",
+    gap: 12,
+  },
+  galleryIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  galleryPickTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.indigo600,
+  },
+  galleryPickSub: {
+    fontSize: 10,
+    color: colors.slate600,
     marginTop: 2,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E2E8F0",
+  },
+  dividerText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: colors.slate400,
+    marginHorizontal: 8,
+  },
+  presetGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  presetItem: {
+    width: "30%",
+    aspectRatio: 1,
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 6,
+  },
+  presetImg: {
+    width: "100%",
+    height: "100%",
   },
 });

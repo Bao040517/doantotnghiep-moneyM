@@ -20,6 +20,7 @@ import { financialServices } from "../services/financialServices";
 import { Transaction, MonthlySummary } from "../types";
 import { matchVietnamese } from "../utils/vietnamese";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
+import { HistorySkeleton } from "../components/ui/SkeletonLoader";
 
 export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const now = new Date();
@@ -108,6 +109,10 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
       return rawDateStr;
     }
   };
+
+  if (loading && transactions.length === 0) {
+    return <HistorySkeleton />;
+  }
 
   return (
     <View style={styles.container}>

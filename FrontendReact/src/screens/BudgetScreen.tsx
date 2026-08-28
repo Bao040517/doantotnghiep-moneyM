@@ -20,6 +20,7 @@ import {
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Star, X } from "lucide-react-native";
 import { Toast } from "../components/ui/Toast";
+import { BudgetSkeleton } from "../components/ui/SkeletonLoader";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { BottomSheet } from "../components/ui/BottomSheet";
@@ -544,6 +545,10 @@ export const BudgetScreen: React.FC = () => {
   }, [budgets, searchQuery]);
 
   const totalLimit = budgets.reduce((sum, b) => sum + (b.limitAmount || 0), 0);
+
+  if (loading && budgets.length === 0) {
+    return <BudgetSkeleton />;
+  }
 
   return (
     <View style={styles.container}>

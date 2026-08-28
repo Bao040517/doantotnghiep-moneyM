@@ -7,10 +7,10 @@ import {
   Modal,
   Platform,
 } from "react-native";
-import { QrCode } from "lucide-react-native";
+import { QrCode, Sparkles } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 
-export type QuickActionType = "expense" | "group" | "income" | "scan_receipt";
+export type QuickActionType = "expense" | "group" | "income" | "scan_receipt" | "ai_chat";
 
 interface QuickActionBottomSheetProps {
   visible: boolean;
@@ -53,6 +53,29 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
 
           {/* Quick Action Cards */}
           <View style={styles.actionList}>
+            {/* 0. Trợ lý AI Cố vấn & Lập Kế Hoạch */}
+            <TouchableOpacity
+              style={[styles.actionCard, styles.aiCard]}
+              onPress={() => {
+                onClose();
+                onSelectAction("ai_chat");
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.iconBox, { backgroundColor: "#fef3c7" }]}>
+                <Sparkles size={26} color="#d97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.cardTitleRow}>
+                  <Text style={[styles.cardTitle, { color: "#b45309" }]}>Trợ lý AI & Lập Kế Hoạch</Text>
+                  <View style={[styles.badge, { backgroundColor: "#fef3c7" }]}>
+                    <Text style={[styles.badgeText, { color: "#b45309" }]}>AI 🤖</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardSub}>Lập kế hoạch mua sắm mục tiêu 3 tháng, hỏi đáp dòng tiền</Text>
+              </View>
+              <Text style={styles.arrowIcon}>›</Text>
+            </TouchableOpacity>
             {/* 1. Quét Hoá Đơn / QR Bill - Nổi Bật Nhất */}
             <TouchableOpacity
               style={[styles.actionCard, styles.scanCard]}
@@ -213,6 +236,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.5,
     gap: 12,
+  },
+  aiCard: {
+    backgroundColor: "#fffbeb",
+    borderColor: "#fde68a",
   },
   scanCard: {
     backgroundColor: "#f5f3ff",

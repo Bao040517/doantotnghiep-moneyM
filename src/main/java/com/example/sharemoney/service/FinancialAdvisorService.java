@@ -347,20 +347,55 @@ public class FinancialAdvisorService {
             // Chỉ cảnh báo nếu tăng > 30%
             if (increasePercent < 30) continue;
 
+            // 1. Tính tốc độ đốt tiền (dailyBurnRate) và ngày còn lại
+            int effectiveDay = Math.max(1, dayOfMonth);
+            BigDecimal dailyBurnRate = currentSpent.divide(BigDecimal.valueOf(effectiveDay), 0, RoundingMode.HALF_UP);
+            int remainingDays = Math.max(1, daysInMonth - effectiveDay);
+
+            // 2. Tính số tiền dự kiến vượt mức trung bình 3 tháng
+            BigDecimal projectedOver = projectedSpend.subtract(avg3Month);
+
+            // 3. Tính hạn mức chi tiêu tối đa mỗi ngày còn lại để không bị thâm hụt
+            BigDecimal recommendedDailyLimit;
+            if (avg3Month.compareTo(currentSpent) > 0) {
+                recommendedDailyLimit = avg3Month.subtract(currentSpent)
+                        .divide(BigDecimal.valueOf(remainingDays), 0, RoundingMode.HALF_UP);
+            } else {
+                recommendedDailyLimit = dailyBurnRate.multiply(BigDecimal.valueOf(0.3)).setScale(0, RoundingMode.HALF_UP);
+            }
+
+            // 4. Lời khuyên hành động cụ thể (Actionable tip & Impact summary)
             String severity = increasePercent >= 80 ? "HIGH" : "MEDIUM";
             String message;
+            String actionableTip;
+            String impactSummary;
+
             if (severity.equals("HIGH")) {
-                message =
-                        String.format(
-                                "🔴 Chi tiêu tăng quá nhanh! Dự kiến cả tháng lên %s (gấp %.1f lần bình thường).",
-                                formatVND(projectedSpend),
-                                projectedSpend.doubleValue() / avg3Month.doubleValue());
+                message = String.format(
+                        "🔴 Đốt tiền quá nhanh! Đang chi trung bình %s/ngày (gấp %.1f lần bình thường).",
+                        formatVND(dailyBurnRate),
+                        projectedSpend.doubleValue() / avg3Month.doubleValue());
+                impactSummary = String.format(
+                        "Dự kiến cả tháng lên tới %s (thâm hụt +%s so với mức chuẩn %s).",
+                        formatVND(projectedSpend),
+                        formatVND(projectedOver),
+                        formatVND(avg3Month));
+                actionableTip = String.format(
+                        "💡 Hành động ngay: Hạn chế chi tối đa %s/ngày trong %d ngày còn lại hoặc thực hiện Tái cân bằng ngân sách để bù đắp.",
+                        formatVND(recommendedDailyLimit),
+                        remainingDays);
             } else {
-                message =
-                        String.format(
-                                "⚠️ Tốc độ chi tiêu tăng %d%%. Dự kiến cuối tháng sẽ lên %s.",
-                                increasePercent,
-                                formatVND(projectedSpend));
+                message = String.format(
+                        "⚠️ Tốc độ chi tiêu tăng %d%% so với trung bình 3 tháng.",
+                        increasePercent);
+                impactSummary = String.format(
+                        "Dự kiến cuối tháng sẽ chạm mốc %s (cao hơn bình thường %s).",
+                        formatVND(projectedSpend),
+                        formatVND(projectedOver));
+                actionableTip = String.format(
+                        "💡 Khuyến nghị: Giới hạn chi tối đa %s/ngày trong %d ngày tới để giữ an toàn ngân sách.",
+                        formatVND(recommendedDailyLimit),
+                        remainingDays);
             }
 
             warnings.add(
@@ -371,6 +406,12 @@ public class FinancialAdvisorService {
                             .increasePercent(increasePercent)
                             .severity(severity)
                             .message(message)
+                            .projectedMonthEnd(projectedSpend)
+                            .dailyBurnRate(dailyBurnRate)
+                            .recommendedDailyLimit(recommendedDailyLimit)
+                            .remainingDays(remainingDays)
+                            .actionableTip(actionableTip)
+                            .impactSummary(impactSummary)
                             .build());
         }
 
@@ -444,7 +485,7 @@ public class FinancialAdvisorService {
         }
 
         // Đánh giá theo chuẩn 50/30/20
-        String verdict;
+        String verdict = "";
         List<String> recommendations = new ArrayList<>();
 
         LocalDate today = LocalDate.now();
@@ -461,49 +502,56 @@ public class FinancialAdvisorService {
         } else {
             // Đánh giá Needs
             if (needsPct > 50) {
-                verdict = "⚠️ Chi tiêu thiết yếu chiếm quá nhiều";
+                verdict = String.format("⚠️ Chi tiêu thiết yếu chiếm %.0f%% thu nhập (vượt chuẩn 50%%)", needsPct);
+                BigDecimal overNeeds = needsAmount.subtract(refIncome.multiply(BigDecimal.valueOf(0.5)));
                 recommendations.add(
                         String.format(
-                                "Chi phí thiết yếu đang chiếm %.0f%% thu nhập (chuẩn ≤ 50%%). Hãy rà soát lại tiền nhà, tiền ăn để tối ưu.",
-                                needsPct));
-            } else if (wantsPct > 30) {
-                verdict = "⚠️ Chi tiêu linh hoạt cao hơn khuyến nghị";
-                recommendations.add(
-                        String.format(
-                                "Chi tiêu mua sắm & giải trí chiếm %.0f%% thu nhập (chuẩn ≤ 30%%). Cắt giảm %.0f%% sẽ giúp tiết kiệm thêm %s/tháng.",
-                                wantsPct,
-                                wantsPct - 30,
-                                formatVND(
-                                        wantsAmount.subtract(
-                                                refIncome.multiply(BigDecimal.valueOf(0.3))))));
-            } else if (savingsPct < 20) {
-                verdict = "💡 Tỷ lệ tiết kiệm chưa đạt chuẩn";
-                BigDecimal idealSave = refIncome.multiply(BigDecimal.valueOf(0.2));
-                recommendations.add(
-                        String.format(
-                                "Bạn chỉ tiết kiệm được %.0f%% (chuẩn ≥ 20%%). Cần tích lũy thêm %s/tháng.",
-                                savingsPct, formatVND(idealSave.subtract(savingsAmount))));
+                                "📌 Chi phí thiết yếu đang chiếm %.0f%% thu nhập (vượt %s so với mức khuyến nghị 50%%). Việc này làm giảm không gian tích lũy. Gợi ý: Hãy rà soát tiền điện nước, gói cước viễn thông hoặc tối ưu chi phí đi lại.",
+                                needsPct, formatVND(overNeeds)));
             } else {
-                verdict = "🌟 Tuyệt vời! Dòng tiền đang rất cân đối.";
+                recommendations.add(
+                        String.format(
+                                "✅ Chi phí thiết yếu chiếm %.0f%% thu nhập — đang trong vùng an toàn (chuẩn ≤ 50%%).",
+                                needsPct));
             }
 
-            // Thêm nhận xét chi tiết
-            if (needsPct <= 50 && needsPct > 0) {
+            if (wantsPct > 30) {
+                verdict = String.format("🚨 Chi tiêu linh hoạt chiếm %.0f%% thu nhập (vượt chuẩn 30%%)", wantsPct);
+                BigDecimal overWants = wantsAmount.subtract(refIncome.multiply(BigDecimal.valueOf(0.3)));
                 recommendations.add(
                         String.format(
-                                "✅ Chi phí thiết yếu chiếm %.0f%% — đạt chuẩn (≤ 50%%).",
-                                needsPct));
-            }
-            if (wantsPct <= 30 && wantsPct > 0) {
+                                "🎯 Chi tiêu linh hoạt (ăn ngoài, mua sắm, giải trí) đang vượt %s so với chuẩn 30%%. Gợi ý: Hãy cắt giảm khoảng %s/ngày từ các khoản mua sắm tùy hứng.",
+                                formatVND(overWants),
+                                formatVND(overWants.divide(BigDecimal.valueOf(30), 0, RoundingMode.HALF_UP))));
+            } else if (wantsPct > 0) {
                 recommendations.add(
                         String.format(
-                                "✅ Chi tiêu linh hoạt chiếm %.0f%% — đạt chuẩn (≤ 30%%).",
+                                "✅ Chi tiêu linh hoạt chiếm %.0f%% thu nhập — kiểm soát rất tốt (chuẩn ≤ 30%%).",
                                 wantsPct));
             }
-            if (savingsPct >= 20) {
+
+            if (savingsPct < 20) {
+                BigDecimal lackSave = refIncome.multiply(BigDecimal.valueOf(0.2)).subtract(savingsAmount);
+                if (savingsPct <= 0) {
+                    verdict = "⚠️ Dòng tiền thâm hụt — Chưa có khoản tích lũy";
+                    recommendations.add(
+                        "💰 Bạn chưa có khoản tích lũy nào trong tháng này. Hãy áp dụng nguyên tắc 'Pay yourself first' — trích nạp quỹ tích lũy ngay khi nhận thu nhập.");
+                } else {
+                    verdict = String.format("💡 Tỷ lệ tích lũy đạt %.0f%% (chưa đạt mục tiêu 20%%)", savingsPct);
+                    recommendations.add(
+                            String.format(
+                                    "💰 Tỷ lệ tích lũy hiện đạt %.0f%% (thiếu %s để đạt chuẩn 20%%). Bạn nên duy trì trích lập cố định vào Ví Tiết Kiệm đầu mỗi tháng.",
+                                    savingsPct, formatVND(lackSave)));
+                }
+            } else {
                 recommendations.add(
                         String.format(
-                                "✅ Tỷ lệ tiết kiệm %.0f%% — vượt chuẩn (≥ 20%%).", savingsPct));
+                                "🌟 Tỷ lệ tích lũy đạt %.0f%% thu nhập — xuất sắc! Bạn có thể cân nhắc chuyển bớt tiền nhàn rỗi sang mục tiêu tiết kiệm dài hạn.",
+                                savingsPct));
+            }
+
+            if (needsPct <= 50 && wantsPct <= 30 && savingsPct >= 20) {
+                verdict = "🌟 Tuyệt vời! Cơ cấu tài chính chuẩn 50/30/20";
             }
         }
 

@@ -13,7 +13,7 @@ import {
   DeviceEventEmitter,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { Bell } from "lucide-react-native";
+import { Bell, Sparkles } from "lucide-react-native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
@@ -49,11 +49,18 @@ interface AdviceData {
   }>;
   warnings?: Array<{
     categoryName: string;
+    categoryIcon?: string;
     message: string;
     severity: "HIGH" | "MEDIUM";
     increasePercent: number;
     currentMonthSpent: number;
     avg3MonthSpent: number;
+    projectedMonthEnd?: number;
+    dailyBurnRate?: number;
+    recommendedDailyLimit?: number;
+    remainingDays?: number;
+    actionableTip?: string;
+    impactSummary?: string;
   }>;
   rebalancePlan?: {
     hasOverspending: boolean;
@@ -479,6 +486,33 @@ export const AdvisorScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* ─── AI ASSISTANT CHATBOT BANNER ─── */}
+        <TouchableOpacity
+          style={styles.aiBannerCard}
+          onPress={() => DeviceEventEmitter.emit("OPEN_AI_CHATBOT")}
+          activeOpacity={0.88}
+        >
+          <View style={styles.aiBannerLeft}>
+            <View style={styles.aiBannerIconWrap}>
+              <Sparkles size={22} color="#F59E0B" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={styles.aiBannerTitle}>Trợ lý AI & Lập Kế Hoạch</Text>
+                <View style={styles.aiBannerBadge}>
+                  <Text style={styles.aiBannerBadgeText}>TRENDY 🚀</Text>
+                </View>
+              </View>
+              <Text style={styles.aiBannerSub}>
+                Lên kế hoạch 3 tháng mua món đồ bạn thích, hỏi đáp dòng tiền & ghi chép nhanh
+              </Text>
+            </View>
+          </View>
+          <View style={styles.aiBannerCta}>
+            <Text style={styles.aiBannerCtaText}>Chat ngay ✨</Text>
+          </View>
+        </TouchableOpacity>
 
         {loading ? (
           <View style={styles.loadingBox}>
@@ -1188,20 +1222,118 @@ export const AdvisorScreen: React.FC = () => {
           </View>
         ) : (
           <View style={styles.tabContent}>
-            <Text style={styles.cardHeaderTitle}>⚡ Cảnh báo Chi tiêu Bất thường</Text>
+            {/* Header Description */}
+            <View style={styles.alertsHeaderCard}>
+              <View style={styles.alertsHeaderIconBox}>
+                <Text style={{ fontSize: 22 }}>⚡</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.alertsHeaderTitle}>Cảnh báo Chi tiêu Bất thường ({warnings.length})</Text>
+                <Text style={styles.alertsHeaderSub}>
+                  Hệ thống AI theo dõi tốc độ đốt tiền (Burn-rate) và so sánh với trung bình 3 tháng để cảnh báo nguy cơ thâm hụt sớm.
+                </Text>
+              </View>
+            </View>
+
             {warnings.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Text style={{ fontSize: 36, marginBottom: 8 }}>🎉</Text>
-                <Text style={styles.emptyTitle}>Mọi thứ đều ổn định!</Text>
-                <Text style={styles.emptySub}>Không phát hiện khoản chi nào tăng bất thường tháng này.</Text>
+                <View style={styles.emptyIconCircle}>
+                  <Text style={{ fontSize: 32 }}>🎉</Text>
+                </View>
+                <Text style={styles.emptyTitle}>Tốc độ chi tiêu an toàn!</Text>
+                <Text style={styles.emptySub}>
+                  Không phát hiện khoản chi nào tăng đột biến so với thói quen 3 tháng qua. Bạn đang kiểm soát dòng tiền rất tốt.
+                </Text>
               </View>
             ) : (
-              warnings.map((w, idx) => (
-                <View key={idx} style={styles.warningCard}>
-                  <Text style={styles.warningTitle}>{w.categoryName} (+{w.increasePercent}%)</Text>
-                  <Text style={styles.warningMsg}>{w.message}</Text>
-                </View>
-              ))
+              warnings.map((w, idx) => {
+                const isHigh = w.severity === "HIGH";
+                return (
+                  <View key={idx} style={[styles.smartWarningCard, isHigh ? styles.warningCardHigh : styles.warningCardMed]}>
+                    {/* Header */}
+                    <View style={styles.warningHeaderRow}>
+                      <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                        <View style={[styles.warningIconCircle, isHigh ? styles.iconCircleHigh : styles.iconCircleMed]}>
+                          <Text style={{ fontSize: 20 }}>
+                            {getCategoryIcon(w.categoryIcon, w.categoryName)}
+                          </Text>
+                        </View>
+                        <View style={{ marginLeft: 10, flex: 1 }}>
+                          <Text style={styles.warningCatName}>{w.categoryName}</Text>
+                          <Text style={[styles.warningBurnText, { color: isHigh ? colors.rose600 : colors.amber600 }]}>
+                            Tốc độ: {fmt(w.dailyBurnRate)}/ngày
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={[styles.warningSeverityBadge, isHigh ? styles.badgeHigh : styles.badgeMed]}>
+                        <Text style={[styles.warningSeverityText, isHigh ? styles.textHigh : styles.textMed]}>
+                          {isHigh ? "🔴 Rủi ro cao" : "⚠️ Cần chú ý"} (+{w.increasePercent}%)
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* 3 Metric Stats */}
+                    <View style={styles.warningStatsGrid}>
+                      <View style={styles.warningStatCol}>
+                        <Text style={styles.warningStatLabel}>ĐÃ CHI THÁNG</Text>
+                        <Text style={[styles.warningStatVal, { color: colors.rose600 }]}>
+                          {fmt(w.currentMonthSpent)}
+                        </Text>
+                      </View>
+                      <View style={styles.warningStatDivider} />
+                      <View style={styles.warningStatCol}>
+                        <Text style={styles.warningStatLabel}>TB 3 THÁNG</Text>
+                        <Text style={styles.warningStatVal}>
+                          {fmt(w.avg3MonthSpent)}
+                        </Text>
+                      </View>
+                      <View style={styles.warningStatDivider} />
+                      <View style={styles.warningStatCol}>
+                        <Text style={styles.warningStatLabel}>DỰ KIẾN CẢ THÁNG</Text>
+                        <Text style={[styles.warningStatVal, { color: isHigh ? colors.rose700 : colors.amber700 }]}>
+                          ~{fmt(w.projectedMonthEnd)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Impact / Forecast Message */}
+                    <View style={[styles.warningImpactBox, isHigh ? styles.impactBoxHigh : styles.impactBoxMed]}>
+                      <Text style={[styles.warningImpactText, isHigh ? styles.impactTextHigh : styles.impactTextMed]}>
+                        📊 {w.impactSummary || w.message}
+                      </Text>
+                    </View>
+
+                    {/* Actionable Advice Box */}
+                    {w.actionableTip && (
+                      <View style={styles.warningActionTipBox}>
+                        <Text style={styles.warningActionTipText}>
+                          {w.actionableTip}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Quick CTA Actions */}
+                    <View style={styles.warningBtnRow}>
+                      <TouchableOpacity
+                        style={styles.warningRebalanceBtn}
+                        onPress={() => setActiveSection("rebalance")}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.warningRebalanceBtnText}>🎯 Tái cân bằng ngân sách</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.warningPlanBtn}
+                        onPress={() => setActiveSection("plan")}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.warningPlanBtnText}>⚙️ Sửa hạn mức</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
             )}
           </View>
         )}
@@ -2445,5 +2577,291 @@ const styles = StyleSheet.create({
   },
   textMutedLight: {
     color: "#64748b",
+  },
+
+  /* ─── NEW ACTIONABLE ALERTS STYLES ─── */
+  alertsHeaderCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#eff6ff",
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: "#dbeafe",
+    marginBottom: 16,
+  },
+  alertsHeaderIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.indigo600,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  alertsHeaderTitle: {
+    fontSize: 14.5,
+    fontWeight: "900",
+    color: colors.indigo900,
+    marginBottom: 2,
+  },
+  alertsHeaderSub: {
+    fontSize: 11.5,
+    color: colors.slate600,
+    lineHeight: 16,
+  },
+
+  smartWarningCard: {
+    backgroundColor: colors.white,
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1.5,
+    marginBottom: 16,
+    shadowColor: "#0f172a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  warningCardHigh: {
+    borderColor: "#fecdd3",
+  },
+  warningCardMed: {
+    borderColor: "#fed7aa",
+  },
+  warningHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  warningIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconCircleHigh: {
+    backgroundColor: "#ffe4e6",
+  },
+  iconCircleMed: {
+    backgroundColor: "#ffedd5",
+  },
+  warningCatName: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.slate900,
+  },
+  warningBurnText: {
+    fontSize: 11.5,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  warningSeverityBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  badgeHigh: {
+    backgroundColor: "#fff1f2",
+    borderWidth: 1,
+    borderColor: "#fecdd3",
+  },
+  badgeMed: {
+    backgroundColor: "#fff7ed",
+    borderWidth: 1,
+    borderColor: "#ffedd5",
+  },
+  warningSeverityText: {
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  textHigh: {
+    color: colors.rose700,
+  },
+  textMed: {
+    color: colors.amber700,
+  },
+
+  warningStatsGrid: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  warningStatCol: {
+    flex: 1,
+    alignItems: "center",
+  },
+  warningStatLabel: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: "#94a3b8",
+    marginBottom: 2,
+    textTransform: "uppercase",
+  },
+  warningStatVal: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: colors.slate800,
+  },
+  warningStatDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: "#e2e8f0",
+  },
+
+  warningImpactBox: {
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+  },
+  impactBoxHigh: {
+    backgroundColor: "#fff1f2",
+    borderColor: "#ffe4e6",
+  },
+  impactBoxMed: {
+    backgroundColor: "#fff7ed",
+    borderColor: "#ffedd5",
+  },
+  warningImpactText: {
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+  },
+  impactTextHigh: {
+    color: colors.rose800,
+  },
+  impactTextMed: {
+    color: colors.amber800,
+  },
+
+  warningActionTipBox: {
+    backgroundColor: "#f0fdf4",
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#dcfce7",
+  },
+  warningActionTipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#15803d",
+    lineHeight: 17,
+  },
+
+  warningBtnRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  warningRebalanceBtn: {
+    flex: 1.4,
+    backgroundColor: colors.indigo600,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  warningRebalanceBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.white,
+  },
+  warningPlanBtn: {
+    flex: 1,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  warningPlanBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.slate700,
+  },
+  aiBannerCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 6,
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: "#1e1b4b",
+    borderWidth: 1.5,
+    borderColor: "#4338ca",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    shadowColor: "#4338ca",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  aiBannerLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  aiBannerIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)",
+  },
+  aiBannerTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#f8fafc",
+  },
+  aiBannerBadge: {
+    backgroundColor: "rgba(245, 158, 11, 0.2)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  aiBannerBadgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#fbbf24",
+  },
+  aiBannerSub: {
+    fontSize: 11,
+    color: "#cbd5e1",
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  aiBannerCta: {
+    backgroundColor: "#4f46e5",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  aiBannerCtaText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#ffffff",
   },
 });

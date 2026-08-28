@@ -43,6 +43,46 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 38. **Chuẩn Hóa Bộ Dữ Liệu Mẫu Seed V18 & Triển Khai Docker AWS Cloud EC2 (Definitive Seed V18 & Live Production EC2):** Khắc phục triệt để lỗi crash JPA `BudgetType.DYNAMIC`, chuyển toàn bộ sang `FLEXIBLE`, tích hợp migration `ALTER/UPDATE` an toàn, sửa lỗi import `VNPayController`, và khép kín quy trình build Docker container tự động chạy mượt mà trên AWS EC2 Singapore (`18.142.90.90:8080`).
 39. **Chế Độ Tối Toàn Diện (Dark Mode System) & Tối Ưu Hóa Ràng Buộc Cơ Sở Dữ Liệu & UI Polish:** Tích hợp Dark Mode toàn cục (`ThemeContext`, `theme.ts`), gạt chuyển đổi giao diện sáng/tối trong Profile, Skeleton Loading mượt mà, bọc ngoặc kép từ khóa SQL PostgreSQL (`"month"`, `"year"`, `"groups"`), tối ưu hóa kiểm tra số dư ví theo phương thức thanh toán ngoại vi (VietQR, VNPay, PayOS, Cash) và bổ sung tra cứu ngân sách theo tên.
 40. **Tối Ưu Hóa Trải Nghiệm Giao Diện Toàn Diện & Lưu Mã QR Thư Viện Ảnh (UI Polish, Dashboard Grid, MediaLibrary & Auto Bank Sniffer):** Chuẩn hóa bộ tứ chỉ số Dashboard (Tổng đã chi, Ngân sách, Tiết kiệm, Sổ nợ với 2 dòng Người khác nợ/Mình nợ), đồng bộ Vector Icon `Bell` đơn sắc, tích hợp `expo-media-library` lưu trực tiếp ảnh mã QR vào thư viện không qua Share Sheet, động cơ bắt biến động ngân hàng tự động từ Clipboard (`AppState.addEventListener`) và camera quét mã QR hóa đơn siêu nhạy 1.5x zoom.
+41. **AI Chatbot Cố Vấn Tài Chính & Lập Kế Hoạch Mua Sắm Mục Tiêu (Dream Goal Planner):** Trợ lý ảo AI thông minh bắt trend, phân tích mục tiêu mua sắm (VD: *"Mua iPhone 16 Pro Max 30tr trong 3 tháng"*), tự động tính số tiền cần tích lũy theo tháng/ngày, đo lường độ khả thi (Feasibility Gauge), gợi ý cắt giảm chi tiêu thực tế và hỗ trợ 1-chạm kích hoạt Hũ Tiết Kiệm ngay trong khung chat.
+42. **Tích Hợp Google Gemini 2.0 Flash & Heuristic NLP Engine Fallback:** Nâng cấp API kết nối trực tiếp Google Gemini 2.0 Flash (`gemini-2.0-flash`) với xác thực kép Header `x-goog-api-key` + Query Parameter, kết hợp công cụ phân tích ngôn ngữ tự nhiên Heuristic cục bộ xử lý trích xuất giao dịch siêu tốc và bảo đảm 100% không bao giờ gặp lỗi 500 khi mất mạng hoặc chưa cấu hình API key.
+43. **Tự Động Dò Tìm & Giải Mã Mã QR Trong Bức Ảnh (ZXing Multiformat Engine):** Tích hợp thư viện `zxing` tự động quét ma trận điểm ảnh tìm mã QR ở mọi góc chụp và bóc tách hóa đơn điện tử E-Invoice trực tiếp.
+44. **Tối Ưu Hóa Hồ Chứa Kết Nối HikariCP Cho Giới Hạn 15 Session của Supabase PostgreSQL (`FATAL: EMAXCONNSESSION`):** Giới hạn `maximum-pool-size=5`, `minimum-idle=2`, thiết lập thời gian timeout 20s-30s ngăn chặn triệt để xung đột quá tải kết nối khi chạy đồng thời môi trường Local và AWS EC2.
+
+### Session [2026-08-28] - AI Chatbot Cố Vấn & Lập Kế Hoạch Mua Sắm (Dream Goal Planner), Tích Hợp Gemini 2.0 Flash & Tối Ưu Hóa Kết Nối Cơ Sở Dữ Liệu AWS
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **AI Chatbot Cố Vấn Tài Chính & Lập Kế Hoạch Mua Sắm Mục Tiêu (Dream Goal Planner):**
+   - **Xử Lý Ý Định Lập Kế Hoạch (Goal Intent):** Nhận diện chính xác câu lệnh ngôn ngữ tự nhiên (VD: *"Muốn mua iPhone 16 Pro Max 30 triệu trong 3 tháng"*, *"Tích lũy 15 triệu mua laptop trong 2 tháng"*).
+   - **Thẻ Hành Động Trực Quan (Goal Plan Action Card):** Tính toán chính xác số tiền cần tích lũy hàng tháng và hàng ngày, tích hợp thanh đo độ khả thi (Feasibility Gauge 0 - 100%) so khớp với dòng tiền thu nhập thực tế.
+   - **Gợi Ý Cắt Giảm Chi Tiêu:** Phân tích các danh mục chi tiêu thực tế (Ăn uống, Cafe, Mua sắm...) để gợi ý các khoản cắt giảm cụ thể giúp đạt mục tiêu nhanh hơn.
+   - **1-Chạm Kích Hoạt Hũ Tiết Kiệm (`confirm-goal`):** Bấm nút *"Kích hoạt Hũ Tiết Kiệm ngay!"* trên Action Card để tạo ngay bản ghi `SavingsGoal` trong cơ sở dữ liệu mà không cần phải nhập form thủ công.
+
+2. **Ghi Chép Giao Dịch Siêu Tốc & Hỏi Đáp Dòng Tiền Tức Thì:**
+   - **Trích Xuất Giao Dịch Bằng Ngôn Ngữ Tự Nhiên:** Tự động nhận diện số tiền (hiểu các từ lóng: `k`, `tr`, `củ`, `cành`, `chai`), danh mục chi tiêu, ghi chú và phương thức thanh toán từ câu chat ngắn (VD: *"Ăn bún bò 55k MoMo"*, *"Đi Grab 35k tiền mặt"*, *"Nhận lương 15tr Techcombank"*).
+   - **Thống Kê Dòng Tiền & Hỏi Đáp Chi Tiêu:** Trả lời trực tiếp số tiền đã chi tiêu cho từng danh mục trong tháng (VD: *"Tháng này tao tiêu bao nhiêu tiền cà phê?"*), đối soát với dữ liệu thực tế trong CSDL.
+
+3. **Nâng Cấp Động Cơ AI Google Gemini 2.0 Flash & Heuristic Fallback:**
+   - **Chuẩn Hóa Model Gemini 2.0 Flash (`gemini-2.0-flash`):** Cấu hình endpoint v1beta chính thức từ Google AI Studio, sửa dứt điểm lỗi gọi model cũ không tồn tại.
+   - **Xác Thực Kép An Toàn:** Truyền khóa API qua cả Header `x-goog-api-key` và Query Parameter `?key=...`.
+   - **Heuristic NLP Engine Fallback:** Bộ quy tắc phân tích ngôn ngữ tự nhiên tiếng Việt cục bộ chạy ngầm, tự động kích hoạt dự phòng khi chưa cấu hình API key hoặc mạng yếu, đảm bảo hệ thống không bao giờ bị gián đoạn hay bắn lỗi 500.
+
+4. **Trải Nghiệm Giao Diện Chatbot Bắt Trend (AI Chatbot Modal UI/UX):**
+   - **Thiết Kế Dark & Glassmorphism Cao Cấp:** Giao diện Modal toàn màn hình phong cách Gen Z thời thượng, phối màu tím than `#1E1B4B` kết hợp xanh indigo `#4F46E5` và vàng hổ phách `#F59E0B`.
+   - **Hiệu Ứng Trực Quan:** Typing Dots Indicator chuyển động mượt mà, bong bóng chat phân tách rõ ràng User/Assistant, Quick Reply Chips gợi ý câu hỏi tiếp theo 1-chạm.
+   - **Đa Kênh Truy Cập:** Nút nổi Floating AI Button ở góc phải Dashboard, thẻ tác vụ nhanh trong Quick Action Sheet (Nút `+`), và Banner kêu gọi AI ở đầu màn hình Tư vấn (`AdvisorScreen.tsx`).
+
+5. **Tự Động Dò Tìm & Bóc Tách Mã QR Hóa Đơn Trong Ảnh (`ReceiptScanService.java`):**
+   - Tích hợp `com.google.zxing` (`core` + `javase`) tự động dò tìm vị trí mã QR trong bất kỳ bức ảnh hóa đơn nào được tải lên (`tryExtractQrCodeFromImage`).
+   - Tự động nhận diện URL hóa đơn điện tử E-Invoice (VNPT, Viettel, MISA, BKAV...) và trích xuất dữ liệu chi tiết hóa đơn (món hàng, số lượng, đơn giá, tổng tiền).
+
+6. **Tối Ưu Hóa Hồ Chứa Kết Nối HikariCP Cho Giới Hạn 15 Session của Supabase PostgreSQL:**
+   - Khắc phục triệt để lỗi `PSQLException: FATAL: (EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15` khi chạy song song Backend Local và AWS EC2.
+   - Cấu hình `spring.datasource.hikari.maximum-pool-size=5`, `minimum-idle=2`, `idle-timeout=30000`, `max-lifetime=60000`, `connection-timeout=20000` trong cả `application.properties` và `docker-compose.yml`.
+
+7. **Tự Động Hóa CI/CD & Deploy AWS EC2 (Singapore):**
+   - Đóng gói an toàn không lộ API key lên Git repository, vượt qua kiểm duyệt GitHub Push Protection.
+   - Pipeline GitHub Actions tự động kiểm thử, build Docker container và SSH deploy tự động lên máy chủ AWS EC2 Singapore (`18.142.90.90:8080`).
 
 ### Session [2026-08-27] (Phần 3) - Tối Ưu Hóa Giao Diện Toàn Diện (Dashboard Grid, Icon Vector, MediaLibrary Save QR, Auto Bank Sniffer & Camera QR Refinements)
 

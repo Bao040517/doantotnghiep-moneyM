@@ -68,7 +68,8 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
    - Bổ sung mock và unit test `testGoalPlan_TravelDaLat_WithoutAmount` trong `AiAssistantServiceTest.java`.
    - Chạy thành công toàn bộ **78/78 tests** (`BUILD SUCCESS`).
    - Format toàn bộ codebase với `mvn spotless:apply` (AOSP Google Java Format).
-   - Commit và Push lên GitHub `origin/main` (`commit 7772bce`).
+   - Commit và Push lên GitHub `origin/main` (`commit 8ccc763`).
+   - Đóng gói file JAR thực thi thành công: `target/sharemoney-0.0.1-SNAPSHOT.jar`.
 
 ### Session [2026-08-28] (Phần 2) - Kiểm Thử Tự Động Toàn Diện Phân Hệ AI (Dream Goal Planner, NLP Extraction, ZXing Scanner & AI Controller)
 

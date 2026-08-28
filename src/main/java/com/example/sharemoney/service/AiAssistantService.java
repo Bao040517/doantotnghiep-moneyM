@@ -212,20 +212,23 @@ public class AiAssistantService {
         if (!ctx.budgets.isEmpty()) {
             sb.append("4. KẾ HOẠCH NGÂN SÁCH THÁNG NÀY:\n");
             for (Budget b : ctx.budgets) {
-                BigDecimal spent =
-                        b.getSpentAmount() != null ? b.getSpentAmount() : BigDecimal.ZERO;
+                String catName = b.getCategory() != null ? b.getCategory().getName() : "";
+                BigDecimal spent = ctx.categorySpending.getOrDefault(catName, BigDecimal.ZERO);
+                BigDecimal limit =
+                        b.getLimitAmount() != null ? b.getLimitAmount() : BigDecimal.ZERO;
                 sb.append("   + ")
                         .append(
-                                b.getName() != null
+                                b.getName() != null && !b.getName().isBlank()
                                         ? b.getName()
-                                        : (b.getCategory() != null
-                                                ? b.getCategory().getName()
-                                                : "Ngân sách"))
+                                        : (!catName.isEmpty() ? catName : "Ngân sách"))
                         .append(": Đã chi ")
                         .append(fmt.format(spent))
                         .append(" / Hạn mức ")
-                        .append(fmt.format(b.getAmount()))
-                        .append(spent.compareTo(b.getAmount()) > 0 ? " [⚠️ VƯỢT HẠN MỨC]" : "")
+                        .append(fmt.format(limit))
+                        .append(
+                                limit.compareTo(BigDecimal.ZERO) > 0 && spent.compareTo(limit) > 0
+                                        ? " [⚠️ VƯỢT HẠN MỨC]"
+                                        : "")
                         .append("\n");
             }
             sb.append("\n");

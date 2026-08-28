@@ -48,6 +48,27 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 43. **Tự Động Dò Tìm & Giải Mã Mã QR Trong Bức Ảnh (ZXing Multiformat Engine):** Tích hợp thư viện `zxing` tự động quét ma trận điểm ảnh tìm mã QR ở mọi góc chụp và bóc tách hóa đơn điện tử E-Invoice trực tiếp.
 44. **Tối Ưu Hóa Hồ Chứa Kết Nối HikariCP Cho Giới Hạn 15 Session của Supabase PostgreSQL (`FATAL: EMAXCONNSESSION`):** Giới hạn `maximum-pool-size=5`, `minimum-idle=2`, thiết lập thời gian timeout 20s-30s ngăn chặn triệt để xung đột quá tải kết nối khi chạy đồng thời môi trường Local và AWS EC2.
 45. **Bộ Kiểm Thử Tự Động Toàn Diện Phân Hệ AI (AI Assistant, Goal Planner, ZXing & Controller Test Suite):** Xây dựng bộ 22 unit & integration tests chuyên sâu kiểm thử trọn vẹn Dream Goal Planner, trích xuất giao dịch ngôn ngữ tự nhiên (hiểu từ lóng `k`, `tr`, `củ`, `cành`, `chai`), hỏi đáp dòng tiền `QUERY_INSIGHT`, Heuristic Fallback Engine, parser JSON từ Gemini AI, giải mã QR ZXing và 100% REST endpoints AI Controller.
+46. **Kéo Toàn Bộ Dữ Liệu Tài Chính Thực Tế Vào Gemini AI & Nâng Cấp Xử Lý Ý Định Mục Tiêu Mở (Comprehensive User Financial Data Bundling & Open-ended Dream Goal Intent Engine):** Tự động truy vấn toàn bộ dữ liệu tài chính thực tế của người dùng từ cơ sở dữ liệu (Tên người dùng, số dư từng ví, thu chi ròng tháng này, phân bổ chi tiêu danh mục, hạn mức ngân sách, hũ tiết kiệm hiện có, 8 giao dịch gần nhất) và đóng gói vào System Prompt gửi thẳng tới Google Gemini 2.0 Flash (`gemini-2.0-flash`). Nâng cấp động cơ nhận diện mục tiêu mở (du lịch, đi phượt, học tập, sắm sửa...) tự động cá nhân hóa phản hồi và sinh 3 chip gợi ý 1-chạm theo tên mục tiêu.
+
+### Session [2026-08-28] (Phần 3) - Nâng Cấp Toàn Diện Đóng Gói Dữ Liệu Tài Chính Vào Gemini AI & Nhận Diện Mục Tiêu Mở
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Đóng Gói Toàn Diện Dữ Liệu Tài Chính Của User Vào Gemini Context (`AiAssistantService.java`):**
+   - **Mở rộng `FinancialContext`:** Truy vấn và tích hợp `userRepository`, `walletRepository`, `transactionRepository`, `categoryRepository`, `budgetRepository`, `savingsGoalRepository`.
+   - **Tập hợp dữ liệu thực tế:** Tên người dùng, Tổng số dư khả dụng và chi tiết từng ví, Thu nhập & Chi tiêu tháng hiện tại, Dòng tiền ròng (Thặng dư/Thâm hụt), Chi tiết từng danh mục chi tiêu, Hạn mức ngân sách tháng này (kèm cảnh báo nếu vượt hạn mức), Các hũ tiết kiệm đang có và tiến độ, 8 giao dịch gần nhất.
+   - **Tối ưu hóa System Prompt:** Cung cấp toàn bộ bức tranh tài chính trên cho Google Gemini 2.0 Flash (`gemini-2.0-flash`) giúp AI đưa ra phân tích và lời khuyên tài chính cá nhân hóa 100%.
+
+2. **Nâng Cấp Xử Lý Ý Định Mục Tiêu Mở (Open-Ended Dream Goal Intent):**
+   - **Mở rộng nhận diện từ khóa:** `"muốn"`, `"ước"`, `"dự định"`, `"kế hoạch"`, `"mục tiêu"`, `"tích lũy"`, `"tiết kiệm"`, `"du lịch"`, `"đi chơi"`, `"đi phượt"`, `"cưới"`, `"học"`, `"sắm"`, `"mua"`...
+   - **Bóc tách & Chuẩn hóa tên mục tiêu (`extractGoalName` & `cleanAndFormatGoalName`):** Viết hoa chuẩn tên địa danh (*Đà Lạt, Sapa, Phú Quốc, Hà Nội, Sài Gòn...*) và giữ nguyên các tên thiết bị có chữ/số đặc thù (*iPhone 16 Pro Max, PS5...*).
+   - **Phản hồi dẫn dắt & Gợi ý 1-chạm:** Khi người dùng nêu mục tiêu nhưng chưa có số tiền (VD: *"tôi muốn đi du lịch đà lạt"*), AI cổ vũ nhiệt tình và tạo 3 chip Quick Replies 1-chạm (`["Đi du lịch Đà Lạt 3tr trong 2 tháng", "Đi du lịch Đà Lạt 5tr trong 3 tháng", "Đi du lịch Đà Lạt 10tr trong 6 tháng"]`).
+
+3. **Kiểm Thử & Tích Hợp Hệ Thống:**
+   - Bổ sung mock và unit test `testGoalPlan_TravelDaLat_WithoutAmount` trong `AiAssistantServiceTest.java`.
+   - Chạy thành công toàn bộ **78/78 tests** (`BUILD SUCCESS`).
+   - Format toàn bộ codebase với `mvn spotless:apply` (AOSP Google Java Format).
+   - Commit và Push lên GitHub `origin/main` (`commit 7772bce`).
 
 ### Session [2026-08-28] (Phần 2) - Kiểm Thử Tự Động Toàn Diện Phân Hệ AI (Dream Goal Planner, NLP Extraction, ZXing Scanner & AI Controller)
 

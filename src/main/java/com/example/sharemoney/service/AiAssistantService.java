@@ -2,12 +2,17 @@ package com.example.sharemoney.service;
 
 import com.example.sharemoney.dto.request.AiAssistantRequest;
 import com.example.sharemoney.dto.response.AiAssistantResponse;
+import com.example.sharemoney.entity.Budget;
 import com.example.sharemoney.entity.Category;
+import com.example.sharemoney.entity.SavingsGoal;
 import com.example.sharemoney.entity.Transaction;
 import com.example.sharemoney.entity.TransactionType;
 import com.example.sharemoney.entity.Wallet;
+import com.example.sharemoney.repository.BudgetRepository;
 import com.example.sharemoney.repository.CategoryRepository;
+import com.example.sharemoney.repository.SavingsGoalRepository;
 import com.example.sharemoney.repository.TransactionRepository;
+import com.example.sharemoney.repository.UserRepository;
 import com.example.sharemoney.repository.WalletRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,9 +52,12 @@ public class AiAssistantService {
             "${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent}")
     private String apiUrl;
 
+    private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final WalletRepository walletRepository;
+    private final BudgetRepository budgetRepository;
+    private final SavingsGoalRepository savingsGoalRepository;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -144,87 +153,137 @@ public class AiAssistantService {
 
         StringBuilder sb = new StringBuilder();
         sb.append("Bạn là Trợ lý Tài chính AI thông minh của ứng dụng ShareMoney. ");
-        sb.append("Bạn nói tiếng Việt tự nhiên, thân thiện, dí dỏm và truyền cảm hứng. ");
+        sb.append("Bạn đang trò chuyện trực tiếp với người dùng ")
+                .append(ctx.userName)
+                .append(". ");
         sb.append(
-                "Bạn hiểu các viết tắt tiếng Việt: k = nghìn (50k = 50.000đ), tr = triệu, củ = triệu, cành = nghìn, chai = triệu.\n\n");
+                "Bạn nói tiếng Việt tự nhiên, thân thiện, dí dỏm, truyền cảm hứng và luôn dựa vào dữ liệu tài chính thực tế dưới đây để tư vấn chính xác.\n");
+        sb.append(
+                "Bạn hiểu các từ lóng tài chính tiếng Việt: k = nghìn (50k = 50.000đ), tr = triệu, củ = triệu, cành = nghìn, chai = triệu.\n\n");
 
-        sb.append("DỮ LIỆU TÀI CHÍNH THỰC TẾ CỦA NGƯỜI DÙNG THÁNG NÀY:\n");
-        sb.append("- Tổng số dư ví: ").append(fmt.format(ctx.totalBalance)).append("\n");
-        sb.append("- Tổng thu nhập tháng này: ").append(fmt.format(ctx.monthlyIncome)).append("\n");
-        sb.append("- Tổng chi tiêu tháng này: ")
+        sb.append("=== TOÀN BỘ DỮ LIỆU TÀI CHÍNH THỰC TẾ TRONG HỆ THỐNG CỦA ")
+                .append(ctx.userName.toUpperCase())
+                .append(" (THÁNG ")
+                .append(LocalDate.now().getMonthValue())
+                .append("/")
+                .append(LocalDate.now().getYear())
+                .append(") ===\n");
+        sb.append("1. TỔNG QUAN TÀI SẢN:\n");
+        sb.append("   - Tổng số dư khả dụng trên tất cả ví: ")
+                .append(fmt.format(ctx.totalBalance))
+                .append("\n");
+        sb.append("   - Tổng thu nhập tháng này: ")
+                .append(fmt.format(ctx.monthlyIncome))
+                .append("\n");
+        sb.append("   - Tổng chi tiêu tháng này: ")
                 .append(fmt.format(ctx.monthlyExpense))
                 .append("\n");
+        BigDecimal net = ctx.monthlyIncome.subtract(ctx.monthlyExpense);
+        sb.append("   - Dòng tiền ròng (Thu - Chi): ")
+                .append(fmt.format(net))
+                .append(net.compareTo(BigDecimal.ZERO) >= 0 ? " (Thặng dư)" : " (Thâm hụt)")
+                .append("\n\n");
+
+        if (!ctx.wallets.isEmpty()) {
+            sb.append("2. CHI TIẾT CÁC VÍ:\n");
+            for (Wallet w : ctx.wallets) {
+                sb.append("   + ")
+                        .append(w.getName())
+                        .append(": ")
+                        .append(fmt.format(w.getBalance()))
+                        .append("\n");
+            }
+            sb.append("\n");
+        }
 
         if (!ctx.categorySpending.isEmpty()) {
-            sb.append("- Chi tiêu theo danh mục tháng này:\n");
+            sb.append("3. CHI TIÊU THEO DANH MỤC THÁNG NÀY:\n");
             ctx.categorySpending.forEach(
                     (cat, amount) -> {
-                        sb.append("  + ")
+                        sb.append("   + ")
                                 .append(cat)
                                 .append(": ")
                                 .append(fmt.format(amount))
                                 .append("\n");
                     });
-        }
-
-        if (!ctx.categories.isEmpty()) {
-            sb.append("- Danh sách danh mục chi tiêu: ");
-            sb.append(
-                    ctx.categories.stream()
-                            .map(c -> c.getName() + " (" + c.getIconName() + ")")
-                            .collect(Collectors.joining(", ")));
             sb.append("\n");
         }
 
-        if (!ctx.wallets.isEmpty()) {
-            sb.append("- Danh sách ví: ");
-            sb.append(
-                    ctx.wallets.stream()
-                            .map(w -> w.getName() + " (" + fmt.format(w.getBalance()) + ")")
-                            .collect(Collectors.joining(", ")));
+        if (!ctx.budgets.isEmpty()) {
+            sb.append("4. KẾ HOẠCH NGÂN SÁCH THÁNG NÀY:\n");
+            for (Budget b : ctx.budgets) {
+                BigDecimal spent =
+                        b.getSpentAmount() != null ? b.getSpentAmount() : BigDecimal.ZERO;
+                sb.append("   + ")
+                        .append(
+                                b.getName() != null
+                                        ? b.getName()
+                                        : (b.getCategory() != null
+                                                ? b.getCategory().getName()
+                                                : "Ngân sách"))
+                        .append(": Đã chi ")
+                        .append(fmt.format(spent))
+                        .append(" / Hạn mức ")
+                        .append(fmt.format(b.getAmount()))
+                        .append(spent.compareTo(b.getAmount()) > 0 ? " [⚠️ VƯỢT HẠN MỨC]" : "")
+                        .append("\n");
+            }
             sb.append("\n");
         }
 
-        sb.append("\nQUY TẮC TRẢ LỜI:\n");
+        if (!ctx.savingsGoals.isEmpty()) {
+            sb.append("5. CÁC HŨ TIẾT KIỆM HIỆN CÓ:\n");
+            for (SavingsGoal sg : ctx.savingsGoals) {
+                sb.append("   + ")
+                        .append(sg.getName())
+                        .append(": Đã tích lũy ")
+                        .append(fmt.format(sg.getCurrentAmount()))
+                        .append(" / Mục tiêu ")
+                        .append(fmt.format(sg.getTargetAmount()))
+                        .append(" (Hạn: ")
+                        .append(sg.getDeadlineDate())
+                        .append(")")
+                        .append("\n");
+            }
+            sb.append("\n");
+        }
+
+        if (!ctx.recentTransactions.isEmpty()) {
+            sb.append("6. GIAO DỊCH PHÁT SINH GẦN ĐÂY:\n");
+            for (String tx : ctx.recentTransactions) {
+                sb.append("   - ").append(tx).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("=== QUY TẮC PHẢN HỒI (BẮT BUỘC) ===\n");
         sb.append(
-                "Luôn trả về đúng 1 JSON object (KHÔNG markdown, KHÔNG ```json```) với cấu trúc:\n");
+                "Luôn trả về đúng 1 JSON object (KHÔNG kèm markdown ngoài JSON, KHÔNG ```json```) với cấu trúc:\n");
         sb.append("{\n");
         sb.append(
-                "  \"reply\": \"Câu trả lời bằng tiếng Việt tự nhiên (dùng emoji, thân thiện, dí dỏm)\",\n");
+                "  \"reply\": \"Câu trả lời bằng tiếng Việt tự nhiên, xưng hô 'mình' - 'bạn' hoặc gọi tên người dùng, dùng emoji sinh động, phân tích trực tiếp dựa vào số liệu thực tế ở trên\",\n");
         sb.append(
                 "  \"intent\": \"PLAN_SAVINGS_GOAL | CREATE_TRANSACTION | QUERY_INSIGHT | GENERAL_CHAT\",\n");
         sb.append(
-                "  \"goalPlanData\": { chỉ khi intent=PLAN_SAVINGS_GOAL: goalName, targetAmount, targetMonths, monthlySavingsNeeded, dailySavingsNeeded, feasibilityScore (0-100), cutDownSuggestions: [{emoji, categoryName, currentSpending, suggestedSpending, monthlySavings, description}], deadlineDate },\n");
+                "  \"goalPlanData\": { chỉ khi intent=PLAN_SAVINGS_GOAL và đã có số tiền/thời gian cụ thể: goalName, targetAmount, targetMonths, monthlySavingsNeeded, dailySavingsNeeded, feasibilityScore (0-100), cutDownSuggestions: [{emoji, categoryName, currentSpending, suggestedSpending, monthlySavings, description}], deadlineDate },\n");
         sb.append(
                 "  \"transactionData\": { chỉ khi intent=CREATE_TRANSACTION: amount, categoryName, note, paymentMethod, transactionType (EXPENSE/INCOME) },\n");
+        sb.append("  \"quickReplies\": [\"gợi ý 1-chạm 1\", \"gợi ý 2\", \"gợi ý 3\"]\n");
+        sb.append("HƯỚNG DẪN XỬ LÝ THEO TỪNG TÌNH HUỐNG:\n");
         sb.append(
-                "  \"quickReplies\": [\"gợi ý câu hỏi tiếp theo 1\", \"gợi ý 2\", \"gợi ý 3\"]\n");
-        sb.append("}\n\n");
-        sb.append("Khi lập kế hoạch mua sắm & mục tiêu (PLAN_SAVINGS_GOAL):\n");
+                "1. Khi người dùng nói về mục tiêu/ước mơ/dự định (VD: 'tôi muốn đi du lịch đà lạt', 'muốn mua iPhone 16 Pro Max 30tr trong 3 tháng', 'dự định mua xe máy'):\n");
         sb.append(
-                "- Nếu người dùng đã nêu rõ số tiền và thời gian (VD: 'Muốn mua iPhone 30tr trong 3 tháng'):\n");
-        sb.append("  + Tính monthlySavingsNeeded = targetAmount / targetMonths\n");
-        sb.append("  + Tính dailySavingsNeeded = monthlySavingsNeeded / 30\n");
+                "   - Nếu ĐÃ CÓ số tiền và thời gian: Tính toán chi tiết kế hoạch (monthlySavingsNeeded = targetAmount / targetMonths, dailySavingsNeeded = monthlySavingsNeeded / 30), phân tích số dư và chi tiêu thực tế của người dùng để tính feasibilityScore và gợi ý cắt giảm cụ thể (VD: cắt bớt Ăn uống, Mua sắm từ dữ liệu ở trên).\n");
         sb.append(
-                "  + Phân tích chi tiêu thực tế và đề xuất cắt giảm CỤ THỂ (cafe, ăn ngoài, mua sắm...)\n");
+                "   - Nếu CHƯA CÓ số tiền hoặc thời gian cụ thể (VD: 'tôi muốn đi du lịch đà lạt', 'dự định mua xe'): Đặt intent='PLAN_SAVINGS_GOAL', goalPlanData=null. Phân tích nhẹ tình hình tài chính của bạn (số dư ví, thu chi), cổ vũ nhiệt tình cho mục tiêu đó, ước lượng chi phí phổ biến và hỏi người dùng dự tính bao nhiêu tiền & trong mấy tháng. Cung cấp 3 quickReplies gợi ý số tiền/tháng cụ thể (VD: ['Đi du lịch Đà Lạt 3tr trong 2 tháng', 'Đi du lịch Đà Lạt 5tr trong 3 tháng', 'Đi du lịch Đà Lạt 10tr trong 6 tháng']).\n");
         sb.append(
-                "  + Đánh giá feasibilityScore (0-100) dựa trên thu nhập vs số tiền cần tiết kiệm\n");
+                "2. Khi người dùng muốn ghi chép giao dịch (VD: 'Ăn bún bò 55k MoMo', 'Đi Grab 35k tiền mặt'):\n");
         sb.append(
-                "  + Trả lời truyền cảm hứng, có emoji, có số liệu cụ thể và điền đầy đủ goalPlanData\n");
+                "   - Trích xuất amount, categoryName từ danh sách danh mục có sẵn, note, paymentMethod, transactionType.\n");
         sb.append(
-                "- Nếu người dùng mới chỉ nói ý định chung (VD: 'tôi muốn đi du lịch đà lạt', 'muốn mua xe máy', 'dự định học IELTS') mà CHƯA có số tiền hoặc thời gian:\n");
-        sb.append("  + Trả về intent='PLAN_SAVINGS_GOAL', goalPlanData=null\n");
+                "3. Khi người dùng hỏi thăm về tình hình tài chính, thu chi, số dư (VD: 'Tháng này tiêu bao nhiêu cafe?', 'Tình hình tài chính thế nào?'):\n");
         sb.append(
-                "  + Trả lời hào hứng, khen ngợi mục tiêu đó, hỏi người dùng dự tính chi phí khoảng bao nhiêu và trong mấy tháng\n");
-        sb.append(
-                "  + Cung cấp 3 quickReplies cụ thể gắn liền với mục tiêu đó (VD: ['Đi du lịch Đà Lạt 3tr trong 2 tháng', 'Đi du lịch Đà Lạt 5tr trong 3 tháng', 'Đi du lịch Đà Lạt 10tr trong 6 tháng'])\n\n");
-        sb.append("Khi ghi chép giao dịch (CREATE_TRANSACTION):\n");
-        sb.append(
-                "- Trích xuất amount, tên danh mục phù hợp nhất từ danh sách có sẵn, ghi chú và phương thức thanh toán\n");
-        sb.append(
-                "- VD: 'Ăn bún bò 55k MoMo' -> amount=55000, categoryName='Ăn uống', note='Bún bò', paymentMethod='MoMo'\n\n");
-        sb.append(
-                "Khi trả lời thống kê (QUERY_INSIGHT): Dùng dữ liệu thực tế ở trên để trả lời chính xác.\n");
+                "   - Dùng chính xác số liệu trong DỮ LIỆU TÀI CHÍNH THỰC TẾ ở trên để trả lời rõ ràng, chi tiết, kèm lời khuyên quản lý tài chính hữu ích.\n");
 
         return sb.toString();
     }
@@ -807,13 +866,29 @@ public class AiAssistantService {
         int year = now.getYear();
         int month = now.getMonthValue();
 
+        // 1. Tên người dùng
+        try {
+            userRepository
+                    .findById(userId)
+                    .ifPresent(
+                            u -> {
+                                ctx.userName =
+                                        (u.getName() != null && !u.getName().isBlank())
+                                                ? u.getName()
+                                                : "Bạn";
+                            });
+        } catch (Exception ignored) {
+        }
+
+        // 2. Tổng số dư và danh sách ví
         ctx.totalBalance = walletRepository.sumBalanceByUserId(userId);
         if (ctx.totalBalance == null) ctx.totalBalance = BigDecimal.ZERO;
-
-        ctx.categories = categoryRepository.findByUser_Id(userId);
         ctx.wallets = walletRepository.findByUser_Id(userId);
 
-        // Tổng hợp thu chi tháng này
+        // 3. Danh mục
+        ctx.categories = categoryRepository.findByUser_Id(userId);
+
+        // 4. Tổng hợp thu chi tháng này
         List<Transaction> monthTxns = transactionRepository.findByUserAndMonth(userId, year, month);
         ctx.monthlyIncome = BigDecimal.ZERO;
         ctx.monthlyExpense = BigDecimal.ZERO;
@@ -827,6 +902,52 @@ public class AiAssistantService {
                 String catName = t.getCategory() != null ? t.getCategory().getName() : "Khác";
                 ctx.categorySpending.merge(catName, t.getAmount(), BigDecimal::add);
             }
+        }
+
+        // 5. Ngân sách tháng này
+        try {
+            ctx.budgets = budgetRepository.findByUser_IdAndMonthAndYear(userId, month, year);
+        } catch (Exception ignored) {
+        }
+
+        // 6. Các hũ tiết kiệm
+        try {
+            ctx.savingsGoals = savingsGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+        } catch (Exception ignored) {
+        }
+
+        // 7. Giao dịch gần đây (lấy tối đa 8 giao dịch)
+        try {
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM");
+            NumberFormat fmt = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("vi-VN"));
+            ctx.recentTransactions =
+                    monthTxns.stream()
+                            .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                            .limit(8)
+                            .map(
+                                    t ->
+                                            String.format(
+                                                    "%s: %s %s%s (%s, %s)",
+                                                    t.getCreatedAt() != null
+                                                            ? t.getCreatedAt().format(dtf)
+                                                            : "",
+                                                    t.getNote() != null
+                                                            ? t.getNote()
+                                                            : (t.getCategory() != null
+                                                                    ? t.getCategory().getName()
+                                                                    : "Giao dịch"),
+                                                    t.getType() == TransactionType.EXPENSE
+                                                            ? "-"
+                                                            : "+",
+                                                    fmt.format(t.getAmount()),
+                                                    t.getCategory() != null
+                                                            ? t.getCategory().getName()
+                                                            : "Khác",
+                                                    t.getPaymentMethod() != null
+                                                            ? t.getPaymentMethod()
+                                                            : "Ví"))
+                            .collect(Collectors.toList());
+        } catch (Exception ignored) {
         }
 
         return ctx;
@@ -1025,11 +1146,15 @@ public class AiAssistantService {
     // DATA CLASS
     // ─────────────────────────────────────────────────────
     private static class FinancialContext {
+        String userName = "Bạn";
         BigDecimal totalBalance = BigDecimal.ZERO;
         BigDecimal monthlyIncome = BigDecimal.ZERO;
         BigDecimal monthlyExpense = BigDecimal.ZERO;
         Map<String, BigDecimal> categorySpending = new LinkedHashMap<>();
         List<Category> categories = Collections.emptyList();
         List<Wallet> wallets = Collections.emptyList();
+        List<Budget> budgets = Collections.emptyList();
+        List<SavingsGoal> savingsGoals = Collections.emptyList();
+        List<String> recentTransactions = Collections.emptyList();
     }
 }

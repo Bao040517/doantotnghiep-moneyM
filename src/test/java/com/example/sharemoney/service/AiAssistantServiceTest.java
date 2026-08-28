@@ -11,8 +11,11 @@ import com.example.sharemoney.entity.Category;
 import com.example.sharemoney.entity.Transaction;
 import com.example.sharemoney.entity.TransactionType;
 import com.example.sharemoney.entity.Wallet;
+import com.example.sharemoney.repository.BudgetRepository;
 import com.example.sharemoney.repository.CategoryRepository;
+import com.example.sharemoney.repository.SavingsGoalRepository;
 import com.example.sharemoney.repository.TransactionRepository;
+import com.example.sharemoney.repository.UserRepository;
 import com.example.sharemoney.repository.WalletRepository;
 import java.math.BigDecimal;
 import java.util.List;
@@ -32,11 +35,17 @@ import org.springframework.test.util.ReflectionTestUtils;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AiAssistantServiceTest {
 
+    @Mock private UserRepository userRepository;
+
     @Mock private TransactionRepository transactionRepository;
 
     @Mock private CategoryRepository categoryRepository;
 
     @Mock private WalletRepository walletRepository;
+
+    @Mock private BudgetRepository budgetRepository;
+
+    @Mock private SavingsGoalRepository savingsGoalRepository;
 
     @InjectMocks private AiAssistantService aiAssistantService;
 

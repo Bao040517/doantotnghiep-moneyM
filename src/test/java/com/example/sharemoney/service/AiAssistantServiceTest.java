@@ -212,6 +212,25 @@ class AiAssistantServiceTest {
     }
 
     @Test
+    @DisplayName("Lập kế hoạch mục tiêu khi chưa có số tiền - Tôi muốn đi du lịch Đà Lạt")
+    void testGoalPlan_TravelDaLat_WithoutAmount() {
+        AiAssistantRequest req =
+                AiAssistantRequest.builder().message("tôi muốn đi du lịch đà lạt").build();
+
+        AiAssistantResponse response = aiAssistantService.chat(userId, req);
+
+        assertNotNull(response);
+        assertEquals("PLAN_SAVINGS_GOAL", response.getIntent());
+        assertTrue(response.getReply().contains("Đi du lịch"));
+        assertTrue(response.getReply().contains("Chi phí"));
+        assertNotNull(response.getQuickReplies());
+        assertFalse(response.getQuickReplies().isEmpty());
+        assertTrue(
+                response.getQuickReplies().stream()
+                        .anyMatch(q -> q.contains("Đi du lịch") || q.contains("du lịch")));
+    }
+
+    @Test
     @DisplayName("Ghi chép chi tiêu siêu tốc - Ăn bún bò 55k MoMo")
     void testCreateTransaction_BunBoMoMo() {
         AiAssistantRequest req = AiAssistantRequest.builder().message("Ăn bún bò 55k MoMo").build();

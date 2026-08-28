@@ -200,13 +200,24 @@ public class AiAssistantService {
         sb.append(
                 "  \"quickReplies\": [\"gợi ý câu hỏi tiếp theo 1\", \"gợi ý 2\", \"gợi ý 3\"]\n");
         sb.append("}\n\n");
-        sb.append("Khi lập kế hoạch mua sắm mục tiêu (PLAN_SAVINGS_GOAL):\n");
-        sb.append("- Tính monthlySavingsNeeded = targetAmount / targetMonths\n");
-        sb.append("- Tính dailySavingsNeeded = monthlySavingsNeeded / 30\n");
+        sb.append("Khi lập kế hoạch mua sắm & mục tiêu (PLAN_SAVINGS_GOAL):\n");
         sb.append(
-                "- Phân tích chi tiêu thực tế và đề xuất cắt giảm CỤ THỂ (cafe, ăn ngoài, mua sắm...)\n");
-        sb.append("- Đánh giá feasibilityScore dựa trên thu nhập vs số tiền cần tiết kiệm\n");
-        sb.append("- Trả lời truyền cảm hứng, có emoji, có số liệu cụ thể\n\n");
+                "- Nếu người dùng đã nêu rõ số tiền và thời gian (VD: 'Muốn mua iPhone 30tr trong 3 tháng'):\n");
+        sb.append("  + Tính monthlySavingsNeeded = targetAmount / targetMonths\n");
+        sb.append("  + Tính dailySavingsNeeded = monthlySavingsNeeded / 30\n");
+        sb.append(
+                "  + Phân tích chi tiêu thực tế và đề xuất cắt giảm CỤ THỂ (cafe, ăn ngoài, mua sắm...)\n");
+        sb.append(
+                "  + Đánh giá feasibilityScore (0-100) dựa trên thu nhập vs số tiền cần tiết kiệm\n");
+        sb.append(
+                "  + Trả lời truyền cảm hứng, có emoji, có số liệu cụ thể và điền đầy đủ goalPlanData\n");
+        sb.append(
+                "- Nếu người dùng mới chỉ nói ý định chung (VD: 'tôi muốn đi du lịch đà lạt', 'muốn mua xe máy', 'dự định học IELTS') mà CHƯA có số tiền hoặc thời gian:\n");
+        sb.append("  + Trả về intent='PLAN_SAVINGS_GOAL', goalPlanData=null\n");
+        sb.append(
+                "  + Trả lời hào hứng, khen ngợi mục tiêu đó, hỏi người dùng dự tính chi phí khoảng bao nhiêu và trong mấy tháng\n");
+        sb.append(
+                "  + Cung cấp 3 quickReplies cụ thể gắn liền với mục tiêu đó (VD: ['Đi du lịch Đà Lạt 3tr trong 2 tháng', 'Đi du lịch Đà Lạt 5tr trong 3 tháng', 'Đi du lịch Đà Lạt 10tr trong 6 tháng'])\n\n");
         sb.append("Khi ghi chép giao dịch (CREATE_TRANSACTION):\n");
         sb.append(
                 "- Trích xuất amount, tên danh mục phù hợp nhất từ danh sách có sẵn, ghi chú và phương thức thanh toán\n");
@@ -307,23 +318,7 @@ public class AiAssistantService {
         String lower = userMessage.toLowerCase();
         NumberFormat fmt = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("vi-VN"));
 
-        // 1. Phát hiện ý định lập kế hoạch mua sắm
-        if (containsAny(
-                lower,
-                "muốn mua",
-                "mua được",
-                "lập kế hoạch",
-                "tích lũy",
-                "tiết kiệm mua",
-                "mục tiêu mua",
-                "kế hoạch mua",
-                "sắm",
-                "dream",
-                "ước mơ")) {
-            return handleGoalPlanHeuristic(userMessage, lower, ctx, fmt);
-        }
-
-        // 2. Phát hiện ý định hỏi thống kê
+        // 1. Phát hiện ý định hỏi thống kê (Ưu tiên kiểm tra trước)
         if (containsAny(
                 lower,
                 "tiêu bao nhiêu",
@@ -339,19 +334,79 @@ public class AiAssistantService {
             return handleQueryInsightHeuristic(lower, ctx, fmt);
         }
 
-        // 3. Phát hiện ý định ghi chép giao dịch
+        // 2. Phát hiện ý định ghi chép giao dịch khi có số tiền và từ khóa chi tiêu thực tế
         BigDecimal amount = extractAmount(lower);
+        if (amount != null
+                && amount.compareTo(BigDecimal.ZERO) > 0
+                && (containsAny(
+                                lower,
+                                "ăn",
+                                "uống",
+                                "cơm",
+                                "bún",
+                                "phở",
+                                "cafe",
+                                "cà phê",
+                                "trà",
+                                "grab",
+                                "taxi",
+                                "xăng",
+                                "momo",
+                                "tiền mặt",
+                                "chuyển khoản",
+                                "zalopay",
+                                "nhận lương",
+                                "lương",
+                                "thu nhập")
+                        || !containsAny(
+                                lower,
+                                "muốn",
+                                "ước",
+                                "dự định",
+                                "kế hoạch",
+                                "mục tiêu",
+                                "tích lũy",
+                                "tiết kiệm",
+                                "tích cóp",
+                                "trong"))) {
+            return handleCreateTransactionHeuristic(userMessage, lower, amount, ctx);
+        }
+
+        // 3. Phát hiện ý định lập kế hoạch mua sắm / mục tiêu tiết kiệm (Dream Goal Planner)
+        if (containsAny(
+                lower,
+                "muốn",
+                "ước",
+                "dự định",
+                "kế hoạch",
+                "mục tiêu",
+                "tích lũy",
+                "tiết kiệm",
+                "tích cóp",
+                "du lịch",
+                "đi chơi",
+                "đi phượt",
+                "sắm",
+                "mua",
+                "cưới",
+                "học",
+                "dream",
+                "goal")) {
+            return handleGoalPlanHeuristic(userMessage, lower, ctx, fmt);
+        }
+
+        // 4. Nếu có số tiền nhưng chưa phân loại được
         if (amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
             return handleCreateTransactionHeuristic(userMessage, lower, amount, ctx);
         }
 
-        // 4. Trả lời chung
+        // 5. Trả lời chung
         String reply =
                 "Xin chào! Mình là Trợ lý Tài chính AI của bạn 🤖✨\n\n"
                         + "Mình có thể giúp bạn:\n"
-                        + "🎯 Lập kế hoạch mua sắm mục tiêu\n"
-                        + "📝 Ghi chép giao dịch siêu nhanh\n"
-                        + "📊 Hỏi đáp thống kê chi tiêu\n\n"
+                        + "🎯 Lập kế hoạch mua sắm & mục tiêu tài chính (du lịch, mua xe, điện thoại...)\n"
+                        + "📝 Ghi chép giao dịch siêu nhanh bằng tiếng Việt tự nhiên\n"
+                        + "📊 Hỏi đáp thống kê dòng tiền & chi tiêu tháng này\n\n"
                         + "Thử nhắn cho mình nhé!";
 
         return AiAssistantResponse.builder()
@@ -359,9 +414,9 @@ public class AiAssistantService {
                 .intent("GENERAL_CHAT")
                 .quickReplies(
                         List.of(
+                                "Tôi muốn đi du lịch Đà Lạt",
                                 "Muốn mua iPhone 30tr trong 3 tháng",
                                 "Ăn bún bò 55k MoMo",
-                                "Tháng này tiêu bao nhiêu cafe?",
                                 "Tình hình thu chi tháng này"))
                 .build();
     }
@@ -375,10 +430,37 @@ public class AiAssistantService {
             goalName = extractGoalName(lower);
         }
 
+        // Nếu người dùng chưa nêu rõ số tiền hoặc thời gian (VD: "tôi muốn đi du lịch đà lạt",
+        // "muốn mua xe máy")
         if (targetAmount == null || targetAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return buildChatReply(
-                    "Bạn muốn mua gì và giá bao nhiêu? Hãy nói rõ hơn nhé! Ví dụ: \"Muốn mua iPhone 30 triệu trong 3 tháng\" 🎯",
-                    "GENERAL_CHAT");
+            String targetDisplay =
+                    (goalName != null && !goalName.isBlank()) ? goalName : "mục tiêu này";
+            String promptReply =
+                    String.format(
+                            "🎯 **Kế hoạch cho mục tiêu: %s** ✨\n\n"
+                                    + "Tuyệt vời! Đây là một mục tiêu rất ý nghĩa và hoàn toàn khả thi nếu bạn có kế hoạch tài chính rõ ràng! 🚀\n\n"
+                                    + "💡 **Bạn dự tính:**\n"
+                                    + "• Chi phí cho chuyến đi/món đồ này khoảng bao nhiêu? (Ví dụ: 3 triệu, 5 triệu, 10 triệu...)\n"
+                                    + "• Bạn muốn đạt được mục tiêu trong mấy tháng? (Ví dụ: 2 tháng, 3 tháng...)\n\n"
+                                    + "Hãy nhắn cho mình số tiền và thời gian dự kiến (hoặc chọn gợi ý 1-chạm bên dưới) để mình lập kế hoạch tích lũy chi tiết giúp bạn nhé! 💪",
+                            targetDisplay);
+
+            List<String> dynamicQuickReplies = new ArrayList<>();
+            if (goalName != null && !goalName.isBlank()) {
+                dynamicQuickReplies.add(goalName + " 3tr trong 2 tháng");
+                dynamicQuickReplies.add(goalName + " 5tr trong 3 tháng");
+                dynamicQuickReplies.add(goalName + " 10tr trong 6 tháng");
+            } else {
+                dynamicQuickReplies.add("Đi du lịch Đà Lạt 5tr trong 3 tháng");
+                dynamicQuickReplies.add("Mua iPhone 30tr trong 3 tháng");
+                dynamicQuickReplies.add("Tiết kiệm 10tr trong 2 tháng");
+            }
+
+            return AiAssistantResponse.builder()
+                    .reply(promptReply)
+                    .intent("PLAN_SAVINGS_GOAL")
+                    .quickReplies(dynamicQuickReplies)
+                    .build();
         }
 
         if (targetMonths == null || targetMonths <= 0) {
@@ -794,21 +876,75 @@ public class AiAssistantService {
     }
 
     private String extractGoalName(String text) {
-        // Tìm tên món đồ: "muốn mua iPhone 16 Pro Max", "mua Macbook Air", "mua PS5"
+        if (text == null || text.isBlank()) return null;
+
+        // 1. Mẫu có tiền tố dự định / ước mơ (VD: "tôi muốn đi du lịch đà lạt", "muốn mua iPhone 16
+        // Pro Max 30tr trong 3 tháng")
         Pattern p =
                 Pattern.compile(
-                        "(?:muốn mua|tích lũy mua|kế hoạch mua|tiết kiệm mua|mục tiêu mua|mua|sắm)\\s+(.+?)(?=\\s+\\d+[.,]?\\d*\\s*(?:triệu|tr|củ|chai|k|nghìn|ngàn|cành|đồng|vnd|đ)|\\s+giá|\\s+trong|\\s+với|$)",
+                        "(?:tôi muốn|mình muốn|em muốn|dự định|kế hoạch|mục tiêu|tích lũy|tiết kiệm mua|tiết kiệm đi|tiết kiệm|tích cóp|ước mơ|muốn|ước)\\s*(.+?)(?=\\s+\\d+[.,]?\\d*\\s*(?:triệu|tr|củ|chai|k|nghìn|ngàn|cành|đồng|vnd|đ)|\\s+giá|\\s+trong|\\s+với|$)",
                         Pattern.CASE_INSENSITIVE);
         Matcher m = p.matcher(text);
         if (m.find()) {
             String name = m.group(1).trim();
-            // Bỏ số tiền và đơn vị ở cuối nếu còn sót
             name =
-                    name.replaceAll("\\d+[.,]?\\d*\\s*(k|tr|triệu|củ|nghìn|ngàn|đồng|vnd|đ).*", "")
+                    name.replaceAll(
+                                    "(?i)\\d+[.,]?\\d*\\s*(k|tr|triệu|củ|chai|nghìn|ngàn|cành|đồng|vnd|đ).*",
+                                    "")
                             .trim();
-            if (!name.isEmpty() && name.length() > 2) return name;
+            name = cleanAndFormatGoalName(name);
+            if (!name.isEmpty() && name.length() >= 2) return name;
         }
+
+        // 2. Mẫu trực tiếp (VD: "đi du lịch đà lạt", "du lịch phú quốc", "mua xe máy", "học tiếng
+        // anh")
+        Pattern pDirect =
+                Pattern.compile(
+                        "(?:đi du lịch|du lịch|đi chơi|đi phượt|mua|sắm|học|cưới)\\s+(.+?)(?=\\s+\\d+[.,]?\\d*\\s*(?:triệu|tr|củ|chai|k|nghìn|ngàn|cành|đồng|vnd|đ)|\\s+giá|\\s+trong|\\s+với|$)",
+                        Pattern.CASE_INSENSITIVE);
+        Matcher mDirect = pDirect.matcher(text);
+        if (mDirect.find()) {
+            String name = mDirect.group(1).trim();
+            name =
+                    name.replaceAll(
+                                    "(?i)\\d+[.,]?\\d*\\s*(k|tr|triệu|củ|chai|nghìn|ngàn|cành|đồng|vnd|đ).*",
+                                    "")
+                            .trim();
+            name = cleanAndFormatGoalName(name);
+            if (!name.isEmpty() && name.length() >= 2) return name;
+        }
+
         return null;
+    }
+
+    private String cleanAndFormatGoalName(String name) {
+        if (name == null || name.isBlank()) return "";
+        name = name.trim();
+        // Bỏ các từ thừa ở đầu nếu có
+        name = name.replaceAll("^(?i)(mua|sắm|tích lũy|tiết kiệm)\\s+", "").trim();
+        if (name.isEmpty()) return "";
+
+        // Nếu là iPhone -> giữ nguyên iPhone
+        if (name.equalsIgnoreCase("iphone") || name.toLowerCase().startsWith("iphone ")) {
+            return "iPhone" + name.substring(6);
+        }
+
+        // Tự động viết hoa các địa danh / danh từ phổ biến
+        name =
+                name.replaceAll("(?i)\\bđà lạt\\b", "Đà Lạt")
+                        .replaceAll("(?i)\\bhà nội\\b", "Hà Nội")
+                        .replaceAll("(?i)\\bsài gòn\\b", "Sài Gòn")
+                        .replaceAll("(?i)\\bphú quốc\\b", "Phú Quốc")
+                        .replaceAll("(?i)\\bđà nẵng\\b", "Đà Nẵng")
+                        .replaceAll("(?i)\\bnha trang\\b", "Nha Trang")
+                        .replaceAll("(?i)\\bsapa\\b", "Sa Pa")
+                        .replaceAll("(?i)\\bvũng tàu\\b", "Vũng Tàu");
+
+        // Viết hoa chữ cái đầu nếu đang là chữ thường
+        if (Character.isLowerCase(name.charAt(0))) {
+            return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+        }
+        return name;
     }
 
     private boolean containsAny(String text, String... keywords) {

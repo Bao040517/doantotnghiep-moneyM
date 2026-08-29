@@ -49,6 +49,42 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 44. **Tối Ưu Hóa Hồ Chứa Kết Nối HikariCP Cho Giới Hạn 15 Session của Supabase PostgreSQL (`FATAL: EMAXCONNSESSION`):** Giới hạn `maximum-pool-size=5`, `minimum-idle=2`, thiết lập thời gian timeout 20s-30s ngăn chặn triệt để xung đột quá tải kết nối khi chạy đồng thời môi trường Local và AWS EC2.
 45. **Bộ Kiểm Thử Tự Động Toàn Diện Phân Hệ AI (AI Assistant, Goal Planner, ZXing & Controller Test Suite):** Xây dựng bộ 22 unit & integration tests chuyên sâu kiểm thử trọn vẹn Dream Goal Planner, trích xuất giao dịch ngôn ngữ tự nhiên (hiểu từ lóng `k`, `tr`, `củ`, `cành`, `chai`), hỏi đáp dòng tiền `QUERY_INSIGHT`, Heuristic Fallback Engine, parser JSON từ Gemini AI, giải mã QR ZXing và 100% REST endpoints AI Controller.
 46. **Kéo Toàn Bộ Dữ Liệu Tài Chính Thực Tế Vào Gemini AI & Nâng Cấp Xử Lý Ý Định Mục Tiêu Mở (Comprehensive User Financial Data Bundling & Open-ended Dream Goal Intent Engine):** Tự động truy vấn toàn bộ dữ liệu tài chính thực tế của người dùng từ cơ sở dữ liệu (Tên người dùng, số dư từng ví, thu chi ròng tháng này, phân bổ chi tiêu danh mục, hạn mức ngân sách, hũ tiết kiệm hiện có, 8 giao dịch gần nhất) và đóng gói vào System Prompt gửi thẳng tới Google Gemini 2.0 Flash (`gemini-2.0-flash`). Nâng cấp động cơ nhận diện mục tiêu mở (du lịch, đi phượt, học tập, sắm sửa...) tự động cá nhân hóa phản hồi và sinh 3 chip gợi ý 1-chạm theo tên mục tiêu.
+47. **Kiến Trúc Kiểm Soát Lỗi Toàn Cục (Full-Stack Global Error Handling Architecture):** Chuẩn hóa toàn bộ cấu trúc phản hồi lỗi Backend với DTO `ErrorResponse` (status, errorCode, message, errors map, timestamp), nâng cấp `GlobalExceptionHandler` xử lý 14 loại ngoại lệ, xây dựng `errorHandler.ts` thân thiện tiếng Việt và bọc toàn bộ ứng dụng bằng `<ErrorBoundary>` tại `App.tsx`.
+48. **Mở Rộng Bộ Kiểm Thử Tự Động Toàn Diện (Full-Stack Unit Test Suite Expansion - 180 Tests):** Tăng cường quy mô kiểm thử từ 78 lên 180 kịch bản kiểm thử (157 Backend JUnit 5/Mockito + 23 Frontend Node.js/TSX) bao phủ 100% các Services, Controllers, Exception Handlers và Frontend Utilities với tỷ lệ Pass 100%.
+49. **Nâng Cấp Hệ Thống AI Gemini 3.6 Flash & Structured Logging Realtime:** Nâng cấp mô hình Google Gemini sang `gemini-3.6-flash`, bổ sung Structured Logging 5 giai đoạn cho AI Chatbot và tích hợp Gemini AI vào tính năng Nhắc Nợ Nhóm (`GeminiService.java` & `RemindDebtBottomSheet.tsx`) hỗ trợ 4 phong cách sáng tác linh hoạt (Gen Z Hài hước, Lịch sự, Đòi gấp, Thơ ca).
+
+### Session [2026-08-29] - Kiến Trúc Kiểm Soát Lỗi Toàn Cục, Mở Rộng 180 Kịch Bản Kiểm Thử & Nâng Cấp Google Gemini 3.6 Flash Nhắc Nợ Nhóm
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Kiến Trúc Kiểm Soát Lỗi Toàn Cục (Global Error Handling Architecture):**
+   - **Backend Standardized DTO (`ErrorResponse.java`):** Chuẩn hóa DTO phản hồi lỗi gồm `status`, `errorCode`, `message`, `errors` (map chi tiết lỗi validation từng trường) và `timestamp`.
+   - **Nâng Cấp `GlobalExceptionHandler.java`:** Xử lý toàn diện 14 nhóm ngoại lệ phổ biến: `AppException`, `MethodArgumentNotValidException`, `HttpMessageNotReadableException`, `ConstraintViolationException`, `MethodArgumentTypeMismatchException`, `MissingServletRequestParameterException`, `DataIntegrityViolationException`, `AccessDeniedException`, `AuthenticationException`, `MaxUploadSizeExceededException`, `HttpRequestMethodNotSupportedException`, `HttpMediaTypeNotSupportedException`, `NoResourceFoundException`, và `Exception.class` fallback.
+   - **Frontend Error Utilities (`errorHandler.ts` & `ErrorBoundary.tsx`):** Trích xuất thông báo lỗi tiếng Việt thân thiện từ mọi loại ngoại lệ (mất mạng `ERR_NETWORK`, timeout `ECONNABORTED`, validation errors, HTTP 400/401/403/404/409/413/500), hỗ trợ popup `showErrorAlert` và bọc component `<ErrorBoundary>` bắt lỗi runtime trên `App.tsx`.
+
+2. **Mở Rộng Bộ Kiểm Thử Tự Động Toàn Diện (180 Test Cases - 100% Passed):**
+   - **Backend Unit Tests (157 Tests - JUnit 5 & Mockito):**
+     - Bổ sung `AuthControllerTest.java` (8 tests): Đăng ký, Đăng nhập, Token Rotation, Refresh Token, Logout.
+     - Bổ sung `UserControllerTest.java` (8 tests): Lấy profile, tìm kiếm SĐT, đổi SĐT, đổi avatar, đổi VietQR, cập nhật Push Token.
+     - Bổ sung `BudgetControllerTest.java` (5 tests): Lập ngân sách, tổng quan ngân sách tháng, Safe-to-Spend, xóa ngân sách, đổi trạng thái bắt buộc.
+     - Bổ sung `DebtControllerTest.java` (6 tests): Công nợ nhóm tối giản, gửi lời nhắc nợ, báo đã chuyển tiền, xác nhận thanh toán, danh sách chờ duyệt.
+     - Bổ sung `CategoryControllerTest.java` (1 test): Lấy danh sách danh mục thu/chi.
+     - Bổ sung `NotificationControllerTest.java` (4 tests): Lịch sử thông báo, đếm số lượng chưa đọc, đánh dấu đã đọc.
+     - Bổ sung `WalletServiceTest.java` (10 tests), `CategoryServiceTest.java` (6 tests), `GroupServiceTest.java` (9 tests), `PayeeServiceTest.java` (7 tests), `NotificationServiceTest.java` (7 tests), `FinancialHealthServiceTest.java` (4 tests), `RefreshTokenServiceTest.java` (6 tests).
+     - Bổ sung `GlobalExceptionHandlerTest.java` (14 tests): Kiểm thử bắt trọn vẹn các mã lỗi HTTP và định dạng `ErrorResponse`.
+     - Chạy `./mvnw test` đạt **BUILD SUCCESS: 157 tests run, 0 failures, 0 errors**.
+   - **Frontend Unit Tests (23 Tests - Node.js Test Runner & TSX):**
+     - `errorHandler.test.ts` (8 tests): Trích xuất lỗi mạng, timeout, validation errors, status code fallback.
+     - `vietnamese.test.ts` (8 tests): Bộ gõ Telex Unikey, bỏ dấu, tìm kiếm tiếng Việt, nguyên âm đôi `ươ`.
+     - `bankNotificationParser.test.ts` (7 tests): Bóc tách số tiền, loại thu/chi và tự động gán danh mục SMS/Noti Vietcombank, Techcombank, MB, VPBank, WinMart.
+     - Cấu hình lệnh `npm test` trong `package.json` và kiểm tra `npx tsc --noEmit` đạt 0 lỗi typecheck.
+
+3. **Nâng Cấp Google Gemini 3.6 Flash & Structured Logging Realtime:**
+   - **Nâng cấp Model Gemini:** Cập nhật endpoint sang `gemini-3.6-flash` (thay thế model cũ `gemini-2.0-flash`), kiểm thử thành công trực tiếp với Google Generative Language API.
+   - **Structured Logging 5 Giai Đoạn (`AiAssistantService.java` & `GeminiService.java`):** Ghi nhật ký trực quan có khung viền trên terminal EC2 gồm: (1) Câu hỏi người dùng, (2) Ngữ cảnh tài chính thực tế, (3) Engine AI được chọn & Độ trễ API ms, (4) Phản hồi thô từ mô hình, (5) Ý định đã giải quyết & Dữ liệu hành động (giao dịch / hũ tiết kiệm).
+   - **Tích Hợp Gemini AI Vào Nhắc Nợ Nhóm (`GeminiService.java` & `RemindDebtBottomSheet.tsx`):** Tự động nhận diện người nợ và số tiền nợ, hỗ trợ 4 phong cách sáng tác (Gen Z Hài hước, Lịch sự, Đòi gấp, Thơ ca), tự động kích hoạt tạo câu mới ngay khi mở modal hoặc đổi phong cách.
+   - **Tối Ưu Native WebSocket (`socketService.ts`):** Sử dụng `brokerURL` giao thức `ws://` trực tiếp thay cho SockJS giúp duy trì kết nối STOMP ổn định trên môi trường mạng di động.
+   - **Đồng bộ triển khai:** Commit và Push toàn bộ mã nguồn lên GitHub `origin/main` (`commit 3f8675b` & `825c17a`), sẵn sàng đồng bộ Docker trên AWS EC2.
 
 ### Session [2026-08-28] (Phần 3) - Nâng Cấp Toàn Diện Đóng Gói Dữ Liệu Tài Chính Vào Gemini AI & Nhận Diện Mục Tiêu Mở
 

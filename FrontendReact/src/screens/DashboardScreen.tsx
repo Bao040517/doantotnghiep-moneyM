@@ -285,14 +285,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
               <View style={[styles.warningBadge, { backgroundColor: isDark ? "#381216" : "#FFE4E6", borderColor: isDark ? "#5C1D24" : "#FECDD3" }]}>
                 <Text style={styles.warningBadgeText}>
                   {overLimitBudgets.length > 0
-                    ? `${overLimitBudgets.length} mục vượt!`
-                    : `${approachingBudgets.length} mục sắp chạm`}
+                    ? `${overLimitBudgets.length} khoản vượt!`
+                    : `${approachingBudgets.length} khoản sắp chạm`}
                 </Text>
               </View>
             </View>
 
-            {/* List of Warning Items - Clean Full-Width Stack */}
-            <View style={styles.warningItemsContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.warningPillsScroll}>
               {/* 1. Over Limit Budgets (Red) */}
               {overLimitBudgets.map((b, idx) => {
                 const catName = (b.name || b.categoryName || "Khoản chi").replace(/^Ngân sách\s+/i, "");
@@ -304,37 +303,35 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                     key={b.budgetId || `over-${idx}`}
                     onPress={() => onNavigate?.("budget", b.budgetId || b.id || b.categoryId)}
                     style={[
-                      styles.warningItemBox,
+                      styles.overPill,
                       {
-                        backgroundColor: isDark ? "#2A1115" : "#FFF1F2",
+                        backgroundColor: isDark ? "#2C1215" : "#FFF1F2",
                         borderColor: isDark ? "#4C1D24" : "#FECDD3",
                       },
                     ]}
-                    activeOpacity={0.7}
+                    activeOpacity={0.75}
                   >
-                    <View style={styles.warningItemTopRow}>
-                      <View style={styles.warningItemCatGroup}>
-                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={18} />
-                        <Text style={[styles.warningItemTitle, { color: isDark ? "#FFE4E6" : "#881337" }]} numberOfLines={1}>
+                    <View style={styles.pillTopRow}>
+                      <View style={styles.pillLabelRow}>
+                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={16} />
+                        <Text style={[styles.overPillTitle, { color: isDark ? "#FFE4E6" : "#881337" }]} numberOfLines={1}>
                           {catName}
                         </Text>
                       </View>
-                      <View style={styles.overLimitBadge}>
-                        <Text style={styles.overLimitBadgeText}>Vượt {pct}%</Text>
-                      </View>
+                      <Text style={styles.overPillPct}>{pct}%</Text>
                     </View>
 
-                    {/* Progress Bar */}
-                    <View style={[styles.warningTrack, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#FEE2E2" }]}>
-                      <View style={[styles.warningFill, { width: "100%", backgroundColor: colors.rose600 }]} />
+                    <View style={[styles.pillTrack, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#FEE2E2" }]}>
+                      <View style={[styles.pillFill, { width: "100%", backgroundColor: colors.rose600 }]} />
                     </View>
 
-                    {/* Bottom Details Row */}
-                    <View style={styles.warningItemBottomRow}>
-                      <Text style={[styles.warningSpentDetail, { color: isDark ? "#94A3B8" : colors.slate600 }]}>
-                        Đã chi: <Text style={{ fontWeight: "800", color: isDark ? "#FFFFFF" : colors.slate900 }}>{fmt(b.spentAmount || 0)}</Text> / {fmt(b.limitAmount)}
+                    <View style={styles.pillBottomRow}>
+                      <Text style={[styles.pillSubLabel, { color: isDark ? "#94A3B8" : colors.slate500 }]}>
+                        Vượt mức:
                       </Text>
-                      <Text style={styles.warningOverAmt}>+{fmt(overAmt)}</Text>
+                      <Text style={styles.overPillVal} numberOfLines={1}>
+                        +{fmt(overAmt)}
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -345,54 +342,46 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                 const catName = (b.name || b.categoryName || "Khoản chi").replace(/^Ngân sách\s+/i, "");
                 const pct = Math.round(((b.spentAmount || 0) / b.limitAmount) * 100);
                 const remainAmt = b.limitAmount - (b.spentAmount || 0);
-                const now = new Date();
-                const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-                const daysRemaining = Math.max(1, daysInMonth - now.getDate());
-                const dailyRemain = Math.round(remainAmt / daysRemaining);
 
                 return (
                   <TouchableOpacity
                     key={b.budgetId || `approach-${idx}`}
                     onPress={() => onNavigate?.("budget", b.budgetId || b.id || b.categoryId)}
                     style={[
-                      styles.warningItemBox,
+                      styles.approachingPill,
                       {
                         backgroundColor: isDark ? "#261A08" : "#FFFBEB",
                         borderColor: isDark ? "#483513" : "#FDE68A",
                       },
                     ]}
-                    activeOpacity={0.7}
+                    activeOpacity={0.75}
                   >
-                    <View style={styles.warningItemTopRow}>
-                      <View style={styles.warningItemCatGroup}>
-                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={18} />
-                        <Text style={[styles.warningItemTitle, { color: isDark ? "#FEF3C7" : "#78350F" }]} numberOfLines={1}>
+                    <View style={styles.pillTopRow}>
+                      <View style={styles.pillLabelRow}>
+                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={16} />
+                        <Text style={[styles.approachingPillTitle, { color: isDark ? "#FEF3C7" : "#78350F" }]} numberOfLines={1}>
                           {catName}
                         </Text>
                       </View>
-                      <View style={styles.approachingBadge}>
-                        <Text style={styles.approachingBadgeText}>Đã dùng {pct}%</Text>
-                      </View>
+                      <Text style={styles.approachingPillPct}>{pct}%</Text>
                     </View>
 
-                    {/* Progress Bar */}
-                    <View style={[styles.warningTrack, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#FEF3C7" }]}>
-                      <View style={[styles.warningFill, { width: `${Math.min(100, pct)}%`, backgroundColor: colors.amber500 }]} />
+                    <View style={[styles.pillTrack, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#FEF3C7" }]}>
+                      <View style={[styles.pillFill, { width: `${Math.min(100, pct)}%`, backgroundColor: colors.amber500 }]} />
                     </View>
 
-                    {/* Bottom Details Row */}
-                    <View style={styles.warningItemBottomRow}>
-                      <Text style={[styles.warningSpentDetail, { color: isDark ? "#94A3B8" : colors.slate600 }]}>
-                        Đã chi: <Text style={{ fontWeight: "800", color: isDark ? "#FFFFFF" : colors.slate900 }}>{fmt(b.spentAmount || 0)}</Text> / {fmt(b.limitAmount)}
+                    <View style={styles.pillBottomRow}>
+                      <Text style={[styles.pillSubLabel, { color: isDark ? "#94A3B8" : colors.slate500 }]}>
+                        Còn lại:
                       </Text>
-                      <Text style={styles.warningRemainAmt}>
-                        Còn {fmt(remainAmt)} <Text style={styles.warningDailySub}>({fmt(dailyRemain)}/ngày)</Text>
+                      <Text style={styles.approachingPillVal} numberOfLines={1}>
+                        {fmt(remainAmt)}
                       </Text>
                     </View>
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
         ) : (
           <View style={[styles.successCard, { backgroundColor: isDark ? "#0A2118" : "#F0FDF4", borderColor: isDark ? "#14432E" : "#DCFCE7" }]}>
@@ -1068,91 +1057,83 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.rose600,
   },
-  warningItemsContainer: {
-    gap: 8,
+  warningPillsScroll: {
+    gap: 10,
+    paddingRight: 4,
   },
-  warningItemBox: {
+  overPill: {
+    width: 175,
     borderRadius: 16,
-    padding: 12,
+    padding: 11,
     borderWidth: 1,
   },
-  warningItemTopRow: {
+  approachingPill: {
+    width: 175,
+    borderRadius: 16,
+    padding: 11,
+    borderWidth: 1,
+  },
+  pillTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  warningItemCatGroup: {
+  pillLabelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     flex: 1,
-    marginRight: 8,
+    marginRight: 4,
   },
-  warningItemTitle: {
-    fontSize: 13,
+  overPillTitle: {
+    fontSize: 12,
     fontWeight: "800",
     flexShrink: 1,
   },
-  overLimitBadge: {
-    backgroundColor: "#FFE4E6",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#FECDD3",
+  approachingPillTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    flexShrink: 1,
   },
-  overLimitBadgeText: {
+  overPillPct: {
     fontSize: 10,
     fontWeight: "900",
     color: colors.rose600,
   },
-  approachingBadge: {
-    backgroundColor: "#FEF3C7",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-  },
-  approachingBadgeText: {
+  approachingPillPct: {
     fontSize: 10,
     fontWeight: "900",
-    color: colors.amber700,
+    color: colors.amber600,
   },
-  warningTrack: {
-    height: 6,
-    borderRadius: 3,
+  pillTrack: {
+    height: 4,
+    borderRadius: 2,
     overflow: "hidden",
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  warningFill: {
+  pillFill: {
     height: "100%",
-    borderRadius: 3,
+    borderRadius: 2,
   },
-  warningItemBottomRow: {
+  pillBottomRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  warningSpentDetail: {
-    fontSize: 11,
-    fontWeight: "500",
+  pillSubLabel: {
+    fontSize: 10,
+    fontWeight: "600",
   },
-  warningOverAmt: {
+  overPillVal: {
     fontSize: 11,
     fontWeight: "900",
     color: colors.rose600,
   },
-  warningRemainAmt: {
+  approachingPillVal: {
     fontSize: 11,
-    fontWeight: "800",
+    fontWeight: "900",
     color: colors.amber700,
-  },
-  warningDailySub: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: colors.amber600,
   },
   budgetHeaderRow: {
     flexDirection: "row",

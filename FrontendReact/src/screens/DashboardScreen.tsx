@@ -335,7 +335,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                         Vượt mức
                       </Text>
                       <Text style={styles.overPillVal} numberOfLines={1}>
-                        +{fmt(overAmt)}
+                        {fmt(overAmt)}
                       </Text>
                     </View>
                   </TouchableOpacity>

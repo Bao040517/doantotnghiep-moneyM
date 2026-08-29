@@ -43,9 +43,8 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
   const [groupAvatar, setGroupAvatar] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
-  // Sub-tab selection state: "past" | "phone" | "qr"
-  const [memberTab, setMemberTab] = useState<"past" | "phone" | "qr">("past");
-  const [qrFullscreenVisible, setQrFullscreenVisible] = useState(false);
+  // Sub-tab selection state: "past" | "phone"
+  const [memberTab, setMemberTab] = useState<"past" | "phone">("past");
 
   // Past members & search state
   const [pastMembers, setPastMembers] = useState<MemberCandidate[]>([]);
@@ -180,8 +179,6 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
     }
   };
 
-  const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent("ShareMoneyGroupInvite")}`;
-
   return (
     <BottomSheet visible={visible} onClose={onClose} title="Tạo Nhóm Chi Tiêu Mới 👥">
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -271,15 +268,6 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
             >
               <Text style={[styles.subTabText, memberTab === "phone" && styles.subTabTextActive]}>
                 📱 Tìm SĐT
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setMemberTab("qr")}
-              style={[styles.subTabBtn, memberTab === "qr" && styles.subTabBtnActive]}
-            >
-              <Text style={[styles.subTabText, memberTab === "qr" && styles.subTabTextActive]}>
-                📲 Quét QR
               </Text>
             </TouchableOpacity>
           </View>
@@ -394,22 +382,6 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
               )}
             </View>
           )}
-
-          {/* TAB 3: Mã QR */}
-          {memberTab === "qr" && (
-            <View style={[styles.tabFixedBody, { alignItems: "center" }]}>
-              <TouchableOpacity
-                onPress={() => setQrFullscreenVisible(true)}
-                activeOpacity={0.8}
-                style={styles.qrFrame}
-              >
-                <Image source={{ uri: qrApiUrl }} style={styles.qrImage} resizeMode="contain" />
-              </TouchableOpacity>
-
-              <Text style={styles.qrTitle}>Quét Mã QR Cá Nhân</Text>
-              <Text style={styles.qrSub}>Đưa mã QR thành viên vào camera để tự động thêm</Text>
-            </View>
-          )}
         </View>
 
         {/* Modal Action Buttons */}
@@ -424,42 +396,6 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
           />
         </View>
       </ScrollView>
-
-      {/* ─── FULL SCREEN QR LIGHTBOX MODAL ─── */}
-      <Modal
-        transparent
-        visible={qrFullscreenVisible}
-        animationType="fade"
-        onRequestClose={() => setQrFullscreenVisible(false)}
-      >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setQrFullscreenVisible(false)}
-          style={styles.fullscreenOverlay}
-        >
-          <View style={styles.fullscreenCard}>
-            <TouchableOpacity
-              onPress={() => setQrFullscreenVisible(false)}
-              style={styles.fullscreenCloseBtn}
-            >
-              <Text style={styles.fullscreenCloseText}>✕</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.fullscreenTitle}>Mã QR Mời Nhóm 📲</Text>
-            <Text style={styles.fullscreenSub}>Đưa mã này cho bạn bè quét để tham gia nhóm ngay lập tức</Text>
-
-            <View style={styles.fullscreenQrFrame}>
-              <Image
-                source={{ uri: qrApiUrl }}
-                style={styles.fullscreenQrImage}
-                resizeMode="contain"
-              />
-            </View>
-
-            <Text style={styles.fullscreenDismissHint}>Chạm bất kỳ đâu để đóng</Text>
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </BottomSheet>
   );
 };

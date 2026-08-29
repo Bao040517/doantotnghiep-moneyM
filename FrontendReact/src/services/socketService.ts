@@ -43,10 +43,11 @@ class SocketService {
     const token = await safeStorage.getItem("token");
     if (!token) return;
 
-    const wsUrl = getBaseUrl().replace("/api", "") + "/ws";
+    const rawUrl = getBaseUrl().replace("/api", "");
+    const wsUrl = rawUrl.replace(/^http:\/\//i, "ws://").replace(/^https:\/\//i, "wss://") + "/ws";
 
     this.client = new Client({
-      webSocketFactory: () => new SockJS(wsUrl),
+      brokerURL: wsUrl,
       connectHeaders: {
         Authorization: `Bearer ${token}`,
       },
@@ -54,8 +55,8 @@ class SocketService {
         if (__DEV__) console.log("[STOMP]", str);
       },
       reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
       forceBinaryWSFrames: false,
       appendMissingNULLonIncoming: true,
     });

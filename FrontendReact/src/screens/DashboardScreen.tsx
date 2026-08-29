@@ -273,26 +273,27 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
         {/* ─── AT-RISK BUDGET WARNING / ALL GOOD CARD ─── */}
         {totalWarningCount > 0 ? (
-          <View style={[styles.warningCard, { backgroundColor: isDark ? '#2A1215' : '#FFF5F5' }]}>
+          <View style={[styles.warningCard, { backgroundColor: isDark ? "#1E1214" : "#FFF5F5", borderColor: isDark ? "#3D1A1F" : "#FFE4E6" }]}>
             <View style={styles.warningHeaderRow}>
               <View style={styles.warningTitleGroup}>
                 <View style={styles.redDot} />
-                <Text style={styles.warningTitleText} numberOfLines={1}>
+                <Text style={[styles.warningTitleText, { color: isDark ? "#FDA4AF" : colors.slate800 }]} numberOfLines={1}>
                   CẢNH BÁO HẠN MỨC ({totalWarningCount})
                 </Text>
               </View>
 
-              <View style={styles.warningBadge}>
+              <View style={[styles.warningBadge, { backgroundColor: isDark ? "#381216" : "#FFE4E6", borderColor: isDark ? "#5C1D24" : "#FECDD3" }]}>
                 <Text style={styles.warningBadgeText}>
                   {overLimitBudgets.length > 0
-                    ? `${overLimitBudgets.length} khoản vượt!`
-                    : `${approachingBudgets.length} khoản sắp chạm`}
+                    ? `${overLimitBudgets.length} mục vượt!`
+                    : `${approachingBudgets.length} mục sắp chạm`}
                 </Text>
               </View>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.warningPillsScroll}>
-              {/* Over Limit Budgets (Red) */}
+            {/* List of Warning Items - Clean Full-Width Stack */}
+            <View style={styles.warningItemsContainer}>
+              {/* 1. Over Limit Budgets (Red) */}
               {overLimitBudgets.map((b, idx) => {
                 const catName = (b.name || b.categoryName || "Khoản chi").replace(/^Ngân sách\s+/i, "");
                 const pct = Math.round(((b.spentAmount || 0) / b.limitAmount) * 100);
@@ -300,33 +301,46 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
                 return (
                   <TouchableOpacity
-                    key={b.budgetId || idx}
+                    key={b.budgetId || `over-${idx}`}
                     onPress={() => onNavigate?.("budget", b.budgetId || b.id || b.categoryId)}
-                    style={styles.overPill}
+                    style={[
+                      styles.warningItemBox,
+                      {
+                        backgroundColor: isDark ? "#2A1115" : "#FFF1F2",
+                        borderColor: isDark ? "#4C1D24" : "#FECDD3",
+                      },
+                    ]}
+                    activeOpacity={0.7}
                   >
-                    <View style={styles.pillTopRow}>
-                      <View style={styles.pillLabelRow}>
+                    <View style={styles.warningItemTopRow}>
+                      <View style={styles.warningItemCatGroup}>
                         <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={18} />
-                        <Text style={styles.overPillTitle} numberOfLines={1}>
+                        <Text style={[styles.warningItemTitle, { color: isDark ? "#FFE4E6" : "#881337" }]} numberOfLines={1}>
                           {catName}
                         </Text>
                       </View>
-                      <Text style={styles.overPillPct}>{pct}%</Text>
+                      <View style={styles.overLimitBadge}>
+                        <Text style={styles.overLimitBadgeText}>Vượt {pct}%</Text>
+                      </View>
                     </View>
 
-                    <View style={styles.pillTrack}>
-                      <View style={[styles.pillFill, { width: "100%", backgroundColor: colors.rose600 }]} />
+                    {/* Progress Bar */}
+                    <View style={[styles.warningTrack, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#FEE2E2" }]}>
+                      <View style={[styles.warningFill, { width: "100%", backgroundColor: colors.rose600 }]} />
                     </View>
 
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                      <Text style={styles.overPillVal}>Vượt {fmt(overAmt)}</Text>
-                      <Text style={{ fontSize: 9.5, fontWeight: "700", color: colors.rose600 }}>Cần tái cân bằng ›</Text>
+                    {/* Bottom Details Row */}
+                    <View style={styles.warningItemBottomRow}>
+                      <Text style={[styles.warningSpentDetail, { color: isDark ? "#94A3B8" : colors.slate600 }]}>
+                        Đã chi: <Text style={{ fontWeight: "800", color: isDark ? "#FFFFFF" : colors.slate900 }}>{fmt(b.spentAmount || 0)}</Text> / {fmt(b.limitAmount)}
+                      </Text>
+                      <Text style={styles.warningOverAmt}>+{fmt(overAmt)}</Text>
                     </View>
                   </TouchableOpacity>
                 );
               })}
 
-              {/* Approaching Limit Budgets (Amber) */}
+              {/* 2. Approaching Limit Budgets (Amber) */}
               {approachingBudgets.map((b, idx) => {
                 const catName = (b.name || b.categoryName || "Khoản chi").replace(/^Ngân sách\s+/i, "");
                 const pct = Math.round(((b.spentAmount || 0) / b.limitAmount) * 100);
@@ -338,63 +352,71 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
                 return (
                   <TouchableOpacity
-                    key={b.budgetId || idx}
+                    key={b.budgetId || `approach-${idx}`}
                     onPress={() => onNavigate?.("budget", b.budgetId || b.id || b.categoryId)}
-                    style={styles.approachingPill}
+                    style={[
+                      styles.warningItemBox,
+                      {
+                        backgroundColor: isDark ? "#261A08" : "#FFFBEB",
+                        borderColor: isDark ? "#483513" : "#FDE68A",
+                      },
+                    ]}
+                    activeOpacity={0.7}
                   >
-                    <View style={styles.pillTopRow}>
-                      <View style={styles.pillLabelRow}>
+                    <View style={styles.warningItemTopRow}>
+                      <View style={styles.warningItemCatGroup}>
                         <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={18} />
-                        <Text style={styles.approachingPillTitle} numberOfLines={1}>
+                        <Text style={[styles.warningItemTitle, { color: isDark ? "#FEF3C7" : "#78350F" }]} numberOfLines={1}>
                           {catName}
                         </Text>
                       </View>
-                      <Text style={styles.approachingPillPct}>{pct}%</Text>
+                      <View style={styles.approachingBadge}>
+                        <Text style={styles.approachingBadgeText}>Đã dùng {pct}%</Text>
+                      </View>
                     </View>
 
-                    <View style={styles.pillTrack}>
-                      <View
-                        style={[
-                          styles.pillFill,
-                          { width: `${Math.min(100, pct)}%`, backgroundColor: colors.amber500 },
-                        ]}
-                      />
+                    {/* Progress Bar */}
+                    <View style={[styles.warningTrack, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#FEF3C7" }]}>
+                      <View style={[styles.warningFill, { width: `${Math.min(100, pct)}%`, backgroundColor: colors.amber500 }]} />
                     </View>
 
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                      <Text style={styles.approachingPillVal}>Còn {fmt(remainAmt)}</Text>
-                      <Text style={{ fontSize: 9.5, fontWeight: "700", color: colors.amber700 }}>
-                        (tối đa {fmt(dailyRemain)}/ngày)
+                    {/* Bottom Details Row */}
+                    <View style={styles.warningItemBottomRow}>
+                      <Text style={[styles.warningSpentDetail, { color: isDark ? "#94A3B8" : colors.slate600 }]}>
+                        Đã chi: <Text style={{ fontWeight: "800", color: isDark ? "#FFFFFF" : colors.slate900 }}>{fmt(b.spentAmount || 0)}</Text> / {fmt(b.limitAmount)}
+                      </Text>
+                      <Text style={styles.warningRemainAmt}>
+                        Còn {fmt(remainAmt)} <Text style={styles.warningDailySub}>({fmt(dailyRemain)}/ngày)</Text>
                       </Text>
                     </View>
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </View>
           </View>
         ) : (
-          <View style={[styles.successCard, { backgroundColor: isDark ? '#0A2118' : '#F0FDF4' }]}>
+          <View style={[styles.successCard, { backgroundColor: isDark ? "#0A2118" : "#F0FDF4", borderColor: isDark ? "#14432E" : "#DCFCE7" }]}>
             <View style={styles.warningHeaderRow}>
               <View style={styles.warningTitleGroup}>
                 <View style={styles.greenDot} />
-                <Text style={styles.successTitleText} numberOfLines={1}>
-                  TRẠNG THÁI NGÂN SÁCH
+                <Text style={[styles.successTitleText, { color: isDark ? "#4ADE80" : colors.emerald800 }]} numberOfLines={1}>
+                  NGÂN SÁCH TRONG TẦM KIỂM SOÁT
                 </Text>
               </View>
 
-              <View style={styles.successBadge}>
-                <Text style={styles.successBadgeText}>An toàn 100%</Text>
+              <View style={[styles.successBadge, { backgroundColor: isDark ? "#123824" : "#DCFCE7", borderColor: isDark ? "#1C5236" : "#BBF7D0" }]}>
+                <Text style={[styles.successBadgeText, { color: isDark ? "#4ADE80" : colors.emerald700 }]}>An toàn 100%</Text>
               </View>
             </View>
 
             <View style={styles.successContentRow}>
               <Text style={{ fontSize: 24, marginRight: 10 }}>🎉</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.successMainText}>
-                  Tuyệt vời! Bạn không có khoản nào bị vượt ngân sách.
+                <Text style={[styles.successMainText, { color: isDark ? "#ECFDF5" : colors.emerald900 }]}>
+                  Tuyệt vời! Không có danh mục nào vượt ngân sách.
                 </Text>
-                <Text style={styles.successSubText}>
-                  Tất cả danh mục chi tiêu đều đang nằm trong tầm kiểm soát an toàn.
+                <Text style={[styles.successSubText, { color: isDark ? "#A7F3D0" : colors.emerald700 }]}>
+                  Tất cả chi tiêu tháng này đều đang nằm trong tầm kiểm soát an toàn.
                 </Text>
               </View>
             </View>
@@ -1046,81 +1068,91 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.rose600,
   },
-  warningPillsScroll: {
-    gap: 10,
+  warningItemsContainer: {
+    gap: 8,
   },
-  overPill: {
-    width: 160,
-    backgroundColor: "#FFF1F2",
-    borderRadius: 18,
+  warningItemBox: {
+    borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#FECDD3",
   },
-  approachingPill: {
-    width: 160,
-    backgroundColor: "#FFFBEB",
-    borderRadius: 18,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-  },
-  pillTopRow: {
+  warningItemTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
   },
-  pillLabelRow: {
+  warningItemCatGroup: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     flex: 1,
+    marginRight: 8,
   },
-  overPillTitle: {
-    fontSize: 12,
+  warningItemTitle: {
+    fontSize: 13,
     fontWeight: "800",
-    color: "#881337",
     flexShrink: 1,
   },
-  approachingPillTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#78350F",
-    flexShrink: 1,
+  overLimitBadge: {
+    backgroundColor: "#FFE4E6",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FECDD3",
   },
-  overPillPct: {
+  overLimitBadgeText: {
     fontSize: 10,
     fontWeight: "900",
     color: colors.rose600,
   },
-  approachingPillPct: {
+  approachingBadge: {
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  approachingBadgeText: {
     fontSize: 10,
     fontWeight: "900",
-    color: colors.amber600,
+    color: colors.amber700,
   },
-  pillTrack: {
+  warningTrack: {
     height: 6,
-    backgroundColor: "rgba(0,0,0,0.06)",
     borderRadius: 3,
     overflow: "hidden",
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  pillFill: {
+  warningFill: {
     height: "100%",
     borderRadius: 3,
   },
-  overPillVal: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: colors.rose700,
-    textAlign: "right",
+  warningItemBottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  approachingPillVal: {
+  warningSpentDetail: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  warningOverAmt: {
     fontSize: 11,
     fontWeight: "900",
+    color: colors.rose600,
+  },
+  warningRemainAmt: {
+    fontSize: 11,
+    fontWeight: "800",
     color: colors.amber700,
-    textAlign: "right",
+  },
+  warningDailySub: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: colors.amber600,
   },
   budgetHeaderRow: {
     flexDirection: "row",

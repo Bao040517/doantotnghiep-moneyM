@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,8 +14,9 @@ import { X } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { useAppData } from "../../hooks/useAppData";
 import { CategoryIcon } from "../ui/CategoryIcon";
-import { BudgetSummary, CategoryBreakdown } from "../../types";
+import { BudgetSummary, CategoryBreakdown, GroupDebtSummary, GroupDebtDetail } from "../../types";
 import { financialServices } from "../../services/financialServices";
+import { groupService } from "../../services/groupService";
 
 interface TotalExpenseDetailBottomSheetProps {
   visible: boolean;
@@ -23,7 +24,7 @@ interface TotalExpenseDetailBottomSheetProps {
   totalExpense?: number;
   budgets?: BudgetSummary[];
   expBreakdown?: CategoryBreakdown[];
-  debtSummary?: { totalOwed: number; totalOwing: number };
+  debtSummary?: GroupDebtSummary | { totalOwed: number; totalOwing: number; details?: GroupDebtDetail[] };
   totalSavings?: number;
 }
 
@@ -49,7 +50,7 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
 
   const budgets = propBudgets || appData.budgets || [];
   const expBreakdown = propExpBreakdown || appData.topExpenseCategories || [];
-  const debtSummary = propDebtSummary || appData.debtSummary || { totalOwed: 0, totalOwing: 0 };
+  const propDebt = propDebtSummary || appData.debtSummary || { totalOwed: 0, totalOwing: 0, details: [] };
   const totalSavings = propTotalSavings !== undefined ? propTotalSavings : (appData.totalSavings || 0);
 
   const [expandedSection, setExpandedSection] = useState<string | null>("essential");
@@ -63,6 +64,39 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
 
   const [categoryTxList, setCategoryTxList] = useState<any[]>([]);
   const [loadingTx, setLoadingTx] = useState(false);
+
+  // Dữ liệu chi tiết nợ nhóm và lịch sử trả nợ
+  const [internalDebtSummary, setInternalDebtSummary] = useState<GroupDebtSummary | null>(null);
+  const [loadingDebts, setLoadingDebts] = useState(false);
+  const [paidDebtTxList, setPaidDebtTxList] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (visible) {
+      setLoadingDebts(true);
+      const now = new Date();
+      Promise.all([
+        groupService.getGroupDebtSummary().catch(() => null),
+        financialServices.getMonthlyTransactions(now.getFullYear(), now.getMonth() + 1).catch(() => []),
+      ])
+        .then(([dRes, txRes]) => {
+          if (dRes) setInternalDebtSummary(dRes);
+          if (Array.isArray(txRes)) {
+            const debtTx = txRes.filter((t: any) => {
+              const catName = (t.categoryName || t.category?.name || "").toLowerCase();
+              return (
+                catName.includes("trả nợ") ||
+                catName.includes("nợ nhóm") ||
+                catName.includes("thanh toán nợ") ||
+                (t.type === "EXPENSE" && (t.description || "").toLowerCase().includes("trả nợ"))
+              );
+            });
+            setPaidDebtTxList(debtTx);
+          }
+        })
+        .catch(() => null)
+        .finally(() => setLoadingDebts(false));
+    }
+  }, [visible]);
 
   const toggleSection = (section: string) => {
     try {
@@ -180,7 +214,10 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
   const flexibleSpent = flexibleItems.reduce((s, i) => s + i.spentAmount, 0);
   const flexibleLimit = flexibleItems.reduce((s, i) => s + (i.hasBudget ? i.limitAmount : i.spentAmount), 0);
 
-  const debtOwing = debtSummary?.totalOwing || 0;
+  const activeDebtSummary = internalDebtSummary || (propDebt as GroupDebtSummary);
+  const rawDetails: GroupDebtDetail[] = activeDebtSummary?.details || [];
+  const owingDetails = rawDetails.filter((d) => d.type === "OWING" || (d.amount > 0 && !d.type));
+  const debtOwing = activeDebtSummary?.totalOwing ?? (propDebt?.totalOwing ?? 0);
   const savingsTotal = totalSavings || 0;
 
   // Tổng thực tế đã chi
@@ -503,16 +540,97 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
 
                     {expandedSection === "debt" && (
                       <View style={styles.accordionBody}>
-                        <View style={styles.itemRow}>
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
-                            <CategoryIcon name="Trả nợ nhóm" size={24} />
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.itemName}>Nợ nhóm cần trả</Text>
-                              <Text style={styles.itemSubText}>Các khoản chia sẻ chi phí nhóm</Text>
-                            </View>
+                        {loadingDebts ? (
+                          <ActivityIndicator size="small" color="#E11D48" style={{ marginVertical: 12 }} />
+                        ) : owingDetails.length > 0 ? (
+                          <View style={{ gap: 8 }}>
+                            <Text style={styles.debtSubSectionHeader}>
+                              Danh sách khoản nợ cần thanh toán ({owingDetails.length} khoản):
+                            </Text>
+                            {owingDetails.map((d, idx) => {
+                              const creditorName = d.counterparty?.name || d.otherMemberName || "Thành viên nhóm";
+                              const groupName = d.groupName || "Nhóm chung";
+                              const bankInfo = d.counterparty?.bankAccountNo
+                                ? `${d.counterparty?.bankBin || "STK"}: ${d.counterparty?.bankAccountNo} • ${d.counterparty?.bankAccountName || ""}`
+                                : d.counterparty?.phone
+                                ? `SĐT: ${d.counterparty?.phone}`
+                                : null;
+
+                              return (
+                                <View key={d.counterparty?.id || idx} style={styles.debtCardBox}>
+                                  <View style={styles.debtCardTop}>
+                                    <View style={styles.debtGroupPill}>
+                                      <Text style={styles.debtGroupPillText}>👥 {groupName}</Text>
+                                    </View>
+                                    <Text style={styles.debtCardAmount}>{fmt(d.amount)}</Text>
+                                  </View>
+
+                                  <View style={styles.debtCardBottom}>
+                                    <View style={styles.debtAvatarWrap}>
+                                      <Text style={styles.debtAvatarText}>
+                                        {creditorName.charAt(0).toUpperCase()}
+                                      </Text>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                      <Text style={styles.debtCreditorTitle}>
+                                        Phải trả cho: <Text style={{ fontWeight: "900", color: "#0F172A" }}>{creditorName}</Text>
+                                      </Text>
+                                      {bankInfo && (
+                                        <Text style={styles.debtBankInfoText} numberOfLines={1}>
+                                          {bankInfo}
+                                        </Text>
+                                      )}
+                                    </View>
+                                  </View>
+                                </View>
+                              );
+                            })}
                           </View>
-                          <Text style={[styles.itemValText, { color: "#E11D48" }]}>{fmt(debtOwing)}</Text>
-                        </View>
+                        ) : debtOwing > 0 ? (
+                          <View style={styles.itemRow}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                              <CategoryIcon name="Trả nợ nhóm" size={24} />
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.itemName}>Nợ nhóm cần trả</Text>
+                                <Text style={styles.itemSubText}>Các khoản chia sẻ chi phí nhóm</Text>
+                              </View>
+                            </View>
+                            <Text style={[styles.itemValText, { color: "#E11D48" }]}>{fmt(debtOwing)}</Text>
+                          </View>
+                        ) : (
+                          <View style={styles.debtEmptyWrap}>
+                            <Text style={{ fontSize: 22, marginBottom: 2 }}>🎉</Text>
+                            <Text style={styles.debtEmptyTitle}>Không có khoản nợ nhóm nào</Text>
+                            <Text style={styles.debtEmptySub}>Tất cả các chi phí nhóm của bạn đã được thanh toán đầy đủ.</Text>
+                          </View>
+                        )}
+
+                        {/* Lịch sử đã trả nợ trong tháng (nếu có) */}
+                        {paidDebtTxList.length > 0 && (
+                          <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: "#F1F5F9", paddingTop: 10, gap: 8 }}>
+                            <Text style={styles.debtSubSectionHeader}>
+                              Đã trả nợ tháng này ({paidDebtTxList.length} lần):
+                            </Text>
+                            {paidDebtTxList.map((tx: any, idx: number) => (
+                              <View key={tx.id || idx} style={styles.debtPaidRow}>
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                                  <View style={styles.debtPaidCheckIcon}>
+                                    <Text style={{ fontSize: 11, color: "#16A34A", fontWeight: "900" }}>✓</Text>
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={styles.debtPaidNote} numberOfLines={1}>
+                                      {tx.description || tx.note || "Đã thanh toán nợ nhóm"}
+                                    </Text>
+                                    <Text style={styles.debtPaidDate}>
+                                      {tx.transactionDate ? new Date(tx.transactionDate).toLocaleDateString("vi-VN") : "Tháng này"}
+                                    </Text>
+                                  </View>
+                                </View>
+                                <Text style={styles.debtPaidAmount}>-{fmt(tx.amount)}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
                       </View>
                     )}
                   </View>
@@ -930,5 +1048,124 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: "100%",
     borderRadius: 2,
+  },
+  debtSubSectionHeader: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#475569",
+    marginBottom: 2,
+  },
+  debtCardBox: {
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#FECDD3",
+    gap: 8,
+    shadowColor: "#E11D48",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  debtCardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  debtGroupPill: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+  debtGroupPillText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#2563EB",
+  },
+  debtCardAmount: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#E11D48",
+  },
+  debtCardBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  debtAvatarWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#FFE4E6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  debtAvatarText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#E11D48",
+  },
+  debtCreditorTitle: {
+    fontSize: 12,
+    color: "#475569",
+  },
+  debtBankInfoText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#64748B",
+    marginTop: 1,
+  },
+  debtEmptyWrap: {
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 4,
+  },
+  debtEmptyTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#16A34A",
+  },
+  debtEmptySub: {
+    fontSize: 11,
+    color: "#64748B",
+    textAlign: "center",
+  },
+  debtPaidRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  debtPaidCheckIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  debtPaidNote: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  debtPaidDate: {
+    fontSize: 9,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  debtPaidAmount: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#16A34A",
   },
 });

@@ -20,7 +20,7 @@ import { colors } from "../constants/colors";
 import { useNavigation } from "@react-navigation/native";
 import { financialServices } from "../services/financialServices";
 import { groupService } from "../services/groupService";
-import { CategoryBreakdown, MonthlySummary, BudgetSummary, Transaction } from "../types";
+import { CategoryBreakdown, MonthlySummary, BudgetSummary, Transaction, GroupDebtSummary } from "../types";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { ReportSkeleton } from "../components/ui/SkeletonLoader";
 import { X } from "lucide-react-native";
@@ -61,7 +61,7 @@ export const ReportScreen: React.FC = () => {
   const [expBreakdown, setExpBreakdown] = useState<CategoryBreakdown[]>([]);
   const [incBreakdown, setIncBreakdown] = useState<CategoryBreakdown[]>([]);
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
-  const [debtSummary, setDebtSummary] = useState({ totalOwed: 0, totalOwing: 0 });
+  const [debtSummary, setDebtSummary] = useState<GroupDebtSummary>({ totalOwed: 0, totalOwing: 0, details: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
   const [showDetail, setShowDetail] = useState(false);
@@ -111,7 +111,7 @@ export const ReportScreen: React.FC = () => {
         financialServices.getCategoryBreakdown(selectedYear, selectedMonth).catch(() => []),
         financialServices.getBudgetSummary(selectedYear, selectedMonth).catch(() => []),
         financialServices.getIncomeCategoryBreakdown(selectedYear, selectedMonth).catch(() => []),
-        groupService.getGroupDebtSummary().catch(() => ({ totalOwing: 0, totalOwed: 0 })),
+        groupService.getGroupDebtSummary().catch(() => ({ totalOwing: 0, totalOwed: 0, details: [] })),
       ]);
 
       setSummary(summaryRes);
@@ -148,6 +148,7 @@ export const ReportScreen: React.FC = () => {
         setDebtSummary({
           totalOwed: debtRes.totalOwed || 0,
           totalOwing: debtRes.totalOwing || 0,
+          details: debtRes.details || [],
         });
       }
     } catch (e) {

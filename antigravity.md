@@ -53,6 +53,41 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 48. **Mở Rộng Bộ Kiểm Thử Tự Động Toàn Diện (Full-Stack Unit Test Suite Expansion - 180 Tests):** Tăng cường quy mô kiểm thử từ 78 lên 180 kịch bản kiểm thử (157 Backend JUnit 5/Mockito + 23 Frontend Node.js/TSX) bao phủ 100% các Services, Controllers, Exception Handlers và Frontend Utilities với tỷ lệ Pass 100%.
 49. **Nâng Cấp Hệ Thống AI Gemini 3.6 Flash & Structured Logging Realtime:** Nâng cấp mô hình Google Gemini sang `gemini-3.6-flash`, bổ sung Structured Logging 5 giai đoạn cho AI Chatbot và tích hợp Gemini AI vào tính năng Nhắc Nợ Nhóm (`GeminiService.java` & `RemindDebtBottomSheet.tsx`) hỗ trợ 4 phong cách sáng tác linh hoạt (Gen Z Hài hước, Lịch sự, Đòi gấp, Thơ ca).
 50. **Quét Mã QR Đa Năng Bằng Camera Trực Tiếp & Phân Loại 0ms (Universal Live Camera QR Engine & 1-Tap Group Join):** Nâng cấp khung ngắm camera đa năng tự động phân loại trong 0ms: Quét hoá đơn mua sắm / E-Invoice bóc tách chi phí bằng AI, quét mã QR mời nhóm hiển thị thẻ xem trước & 1-chạm tham gia nhóm (`/api/groups/{groupId}/join`), quét mã QR bạn bè thêm ngay vào nhóm trong 1 giây, tích hợp Modal Mã QR Cá Nhân trong Profile và bộ 195 bài kiểm thử tự động xanh 100%.
+51. **Tinh Gọn Trải Nghiệm Camera Quét QR (Minimalist Camera Viewfinder):** Loại bỏ toàn bộ nhãn thừa ("Quét mã QR & Hóa Đơn", zoom 1x/1.5x/2x, lia camera, auto nhận tiền...), chỉ giữ lại 1 nút *"Chọn từ thư viện"* thanh lịch và khung ngắm sạch sẽ, tập trung vào trải nghiệm quét tức thì.
+52. **Cảnh Báo Hạn Mức Tối Giản Không Dấu Dương (Clean Budget Overspending Pills):** Tối giản hóa thẻ cảnh báo hạn mức trên Dashboard, bỏ hoàn toàn dấu `+` trước số tiền vượt (`Vượt 1.450.000đ` và `Còn 250.000đ`), giữ nguyên layout gọn gàng, vừa vặn không bị tràn màn hình.
+53. **Chi Tiết Nợ Nhóm & Lịch Sử Trả Nợ Trong Thống Kê (Group Debt Breakdown & Settlement Audit in Report):** Tích hợp phân tích chi tiết công nợ từng thành viên (Ai nợ tôi / Tôi nợ ai, số tiền, tên nhóm, avatar) kèm bảng lịch sử các giao dịch trả nợ trong tháng khi chạm vào thẻ *"Tổng chi kế hoạch"* hoặc *"Nợ nhóm cần trả"* trong Modal Thống kê Chi tiết.
+54. **Mã QR Tham Gia Nhóm Vectơ SVG (Group Invite QR Vector System):** Phân tách chuẩn luồng tạo và quản lý nhóm: Khi tạo nhóm mới tuyệt đối không có quét QR gây rối mắt; khi nhóm đã tạo thành công thì hiển thị nút *"Mã QR 📲"* trên Header và banner *"Mã QR Tham Gia Nhóm 📲"* trong Tab Thành viên với mã QR vector độ nét cao (`react-native-svg-qrcode`) để bạn bè quét camera vào nhóm trong 1 chạm.
+55. **Chế Độ Tối Toàn Diện Hệ Thống (Comprehensive Dark Mode System):** Đồng bộ Dark Mode trên toàn bộ ứng dụng (Tab Tư vấn `AdvisorScreen`, Tab Thống kê `ReportScreen`, `TotalExpenseDetailBottomSheet`, `NotificationBottomSheet`, `BottomSheet`, `Card`, `BudgetScreen`, `SavingsScreen`, `GroupsScreen`, `HistoryScreen`), áp dụng nền tối sang trọng (`#0F172A`), card tối (`#1E293B`), chữ sáng rõ nét (`#F1F5F9`), loại bỏ hoàn toàn tình trạng chói mắt.
+
+### Session [2026-08-29] (Phần 3) - Tinh Gọn Camera, Cảnh Báo Hạn Mức Gọn Gàng, Chi Tiết Nợ Nhóm Trong Thống Kê, Mã QR Nhóm Vectơ SVG & Chế Độ Tối Toàn Diện (Dark Mode)
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Tinh Gọn Trải Nghiệm Camera Quét QR (`ScanReceiptModal.tsx`):**
+   - Xóa bỏ toàn bộ các chuỗi văn bản hướng dẫn rườm rà: *"Quét mã QR & Hóa Đơn"*, *"tự động nhận tiền"*, *"quét siêu nhạy"*, *"1x 1.5x 2x"*, *"lia camera..."*.
+   - Giao diện khung ngắm camera trở nên tối giản, cao cấp: Chỉ giữ lại khung quét laser mượt mà và nút duy nhất **`[🖼️ Chọn từ thư viện]`** ở góc dưới.
+
+2. **Cảnh Báo Hạn Mức Gọn Gàng Trên Dashboard (`DashboardScreen.tsx`):**
+   - Loại bỏ hoàn toàn dấu `+` trước số tiền vượt (`Vượt 1.450.000đ` thay vì `Vượt +1.450.000đ`).
+   - Căn chỉnh cấu trúc pill cảnh báo hạn mức (Vượt hạn mức / Sắp chạm mức) theo dạng cuộn ngang cân đối, không còn bị tràn viền hoặc vỡ bố cục.
+
+3. **Chi Tiết Nợ Nhóm & Lịch Sử Trả Nợ Trong Thống Kê (`TotalExpenseDetailBottomSheet.tsx` & `ReportScreen.tsx`):**
+   - Khi người dùng nhấn vào thẻ *"Tổng chi (Kế hoạch)"* hoặc mục *"Nợ nhóm cần trả"*: Modal hiển thị rõ ràng danh sách chi tiết từng khoản nợ (Tôi nợ ai, số tiền, tên nhóm, avatar bạn bè).
+   - Tích hợp thêm phần **Lịch sử trả nợ trong tháng** (gồm ngày giờ, người nhận, số tiền, trạng thái gạch nợ) thay vì chỉ ghi dòng chữ chung chung.
+
+4. **Mã QR Tham Gia Nhóm Vectơ SVG (`CreateGroupBottomSheet.tsx` & `GroupDetailScreen.tsx`):**
+   - **Khi tạo nhóm mới:** Loại bỏ hoàn toàn tab Quét QR, chỉ giữ lại form nhập Tên, Mô tả, Ảnh đại diện, và Chọn bạn bè / SĐT.
+   - **Khi nhóm đã tạo:** Bổ sung nút **`[Mã QR 📲]`** trên Header nhóm và thẻ **`[Mã QR Tham Gia Nhóm 📲]`** ở đầu tab Thành viên. Tích hợp thư viện `react-native-qrcode-svg` sinh mã QR vector sắc nét kèm tính năng Sao chép link mời nhóm.
+
+5. **Chế Độ Tối Toàn Diện Toàn Bộ Ứng Dụng (Comprehensive Dark Mode Overhaul):**
+   - **Tab Tư vấn (`AdvisorScreen.tsx`):** Chuyển toàn bộ container, Header, Section Pills (Gợi ý, Tái cân bằng, Thói quen, Cảnh báo), Thẻ phân tích 50/30/20, Thẻ gợi ý ngân sách, Thẻ cảnh báo đốt tiền sang màu nền tối (`#0F172A`), card tối (`#1E293B`), text sáng (`#F1F5F9`).
+   - **Tab Thống kê (`ReportScreen.tsx`):** Chuyển màu nền tổng, 4 hộp chỉ số 2x2, thẻ tiết kiệm, biểu đồ tròn và danh sách danh mục sang giao diện Dark Mode chuẩn mực.
+   - **Component nền tảng & Modals:** Tích hợp `useTheme()` vào `Card.tsx`, `BottomSheet.tsx`, `TotalExpenseDetailBottomSheet.tsx`, `NotificationBottomSheet.tsx`, `BudgetScreen.tsx`, `SavingsScreen.tsx`, `GroupsScreen.tsx`, `HistoryScreen.tsx`.
+
+6. **Kiểm Thử & Đóng Gói (Full-Stack Green Build):**
+   - **TypeScript:** `npx tsc --noEmit` đạt **0 errors**.
+   - **Unit Tests:** `npm test` đạt **33/33 tests passed (100%)**.
+   - **Git Sync:** Đã đóng gói và đẩy toàn bộ mã nguồn lên nhánh `main` (commit `148a9e8`).
 
 ### Session [2026-08-29] (Phần 2) - Quét Mã QR Đa Năng Bằng Camera Trực Tiếp: Tự Động Phân Loại Hoá Đơn, Tham Gia Nhóm & Thêm Bạn Bè
 

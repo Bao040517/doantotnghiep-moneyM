@@ -46,6 +46,16 @@ public class UserController {
         return ResponseEntity.ok(toUserSummary(user));
     }
 
+    @org.springframework.web.bind.annotation.GetMapping("/{userId}")
+    public ResponseEntity<UserSummaryResponse> getUserById(
+            @org.springframework.web.bind.annotation.PathVariable UUID userId) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return ResponseEntity.ok(toUserSummary(user));
+    }
+
     @PutMapping("/me/phone")
     public ResponseEntity<UserSummaryResponse> updateMyPhone(
             @Valid @RequestBody UpdatePhoneRequest request) {

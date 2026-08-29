@@ -38,6 +38,18 @@ export interface GroupDetail {
   createdAt?: string;
 }
 
+/** Response from GET /api/groups/:id/preview */
+export interface GroupPreview {
+  id: string;
+  name: string;
+  description?: string;
+  avatarUrl?: string;
+  owner?: { id: string; name: string; email?: string; avatarUrl?: string };
+  memberCount: number;
+  isJoined: boolean;
+  createdAt?: string;
+}
+
 /** Union type for backward compatibility */
 export type Group = GroupListItem & Partial<GroupDetail>;
 

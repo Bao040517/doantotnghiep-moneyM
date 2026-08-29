@@ -19,6 +19,7 @@ import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { VietQRCard } from "../components/features/VietQRCard";
+import { QrCode } from "lucide-react-native";
 import { colors } from "../constants/colors";
 import { UserSummary } from "../types";
 import { authService } from "../services/authService";
@@ -84,6 +85,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [configModalType, setConfigModalType] = useState<"main" | "savings" | null>(null);
   const [bankPickerVisible, setBankPickerVisible] = useState(false);
   const [searchBank, setSearchBank] = useState("");
+  const [myQrVisible, setMyQrVisible] = useState(false);
 
   const cleanAccountName = (name: string): string => {
     if (!name) return "";
@@ -390,6 +392,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   <Text style={styles.editBtnOutlineText}>Chỉnh sửa số điện thoại</Text>
                 </TouchableOpacity>
               )}
+
+              {/* Nút xem Mã QR Cá Nhân */}
+              <TouchableOpacity
+                style={[styles.myQrBtn, { backgroundColor: isDark ? "#1E293B" : "#EEF2FF", borderColor: isDark ? "#334155" : "#C7D2FE" }]}
+                onPress={() => setMyQrVisible(true)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.myQrIconBg}>
+                  <QrCode size={20} color="#4F46E5" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.myQrBtnTitle, { color: themeColors.textPrimary }]}>Mã QR Cá Nhân Của Bạn 📲</Text>
+                  <Text style={[styles.myQrBtnSub, { color: themeColors.textSecondary }]}>Đưa mã cho bạn bè quét để thêm vào nhóm siêu tốc</Text>
+                </View>
+                <Text style={styles.myQrBtnArrow}>→</Text>
+              </TouchableOpacity>
             </View>
           </Card>
         </View>
@@ -810,6 +828,60 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </View>
             </ScrollView>
           </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ══════════════════════════════════════════════════════════════
+          MODAL MÃ QR CÁ NHÂN
+         ══════════════════════════════════════════════════════════════ */}
+      <Modal
+        transparent
+        visible={myQrVisible}
+        animationType="fade"
+        onRequestClose={() => setMyQrVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setMyQrVisible(false)}
+          style={styles.qrModalOverlay}
+        >
+          <View style={[styles.qrModalCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+            <TouchableOpacity
+              onPress={() => setMyQrVisible(false)}
+              style={styles.qrModalCloseBtn}
+            >
+              <Text style={styles.qrModalCloseText}>✕</Text>
+            </TouchableOpacity>
+
+            <View style={styles.qrModalAvatarBox}>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.qrModalAvatar} />
+              ) : (
+                <Text style={styles.qrModalAvatarLetter}>{user?.name?.charAt(0) || "U"}</Text>
+              )}
+            </View>
+
+            <Text style={[styles.qrModalTitle, { color: themeColors.textPrimary }]}>{user?.name || "Người dùng"}</Text>
+            {user?.phone ? (
+              <Text style={[styles.qrModalPhone, { color: themeColors.textSecondary }]}>📞 {user.phone}</Text>
+            ) : null}
+
+            <View style={styles.qrModalFrame}>
+              <Image
+                source={{
+                  uri: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                    `https://sharemoney.app/user/${user?.id || ""}`
+                  )}`,
+                }}
+                style={styles.qrModalImage}
+                resizeMode="contain"
+              />
+            </View>
+
+            <Text style={[styles.qrModalHint, { color: themeColors.textSecondary }]}>
+              Đưa mã này cho bạn bè hoặc trưởng nhóm quét để thêm bạn vào nhóm siêu tốc! ✨
+            </Text>
+          </View>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -1330,5 +1402,135 @@ const styles = StyleSheet.create({
   presetImg: {
     width: "100%",
     height: "100%",
+  },
+
+  /* My Profile QR Button & Modal Styles */
+  myQrBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 10,
+    gap: 12,
+  },
+  myQrIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  myQrBtnTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  myQrBtnSub: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  myQrBtnArrow: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#4F46E5",
+  },
+  qrModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  qrModalCard: {
+    width: "100%",
+    maxWidth: 340,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    position: "relative",
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  qrModalCloseBtn: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.slate100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  qrModalCloseText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.slate600,
+  },
+  qrModalAvatarBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.indigo50,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    marginTop: 4,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "#C7D2FE",
+  },
+  qrModalAvatar: {
+    width: "100%",
+    height: "100%",
+  },
+  qrModalAvatarLetter: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: colors.indigo600,
+  },
+  qrModalTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: 2,
+    textAlign: "center",
+  },
+  qrModalPhone: {
+    fontSize: 12,
+    marginBottom: 14,
+  },
+  qrModalFrame: {
+    width: 230,
+    height: 230,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 14,
+  },
+  qrModalImage: {
+    width: "100%",
+    height: "100%",
+  },
+  qrModalHint: {
+    fontSize: 11,
+    textAlign: "center",
+    lineHeight: 16,
   },
 });

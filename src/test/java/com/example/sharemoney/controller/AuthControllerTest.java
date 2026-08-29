@@ -51,24 +51,27 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        user = User.builder()
-                .id(UUID.randomUUID())
-                .name("Nguyen Van A")
-                .email("vana@example.com")
-                .passwordHash("encoded_pwd")
-                .build();
+        user =
+                User.builder()
+                        .id(UUID.randomUUID())
+                        .name("Nguyen Van A")
+                        .email("vana@example.com")
+                        .passwordHash("encoded_pwd")
+                        .build();
 
-        refreshToken = RefreshToken.builder()
-                .id(UUID.randomUUID())
-                .token("refresh_token_123")
-                .user(user)
-                .expiryDate(Instant.now().plus(7, ChronoUnit.DAYS))
-                .revoked(false)
-                .build();
+        refreshToken =
+                RefreshToken.builder()
+                        .id(UUID.randomUUID())
+                        .token("refresh_token_123")
+                        .user(user)
+                        .expiryDate(Instant.now().plus(7, ChronoUnit.DAYS))
+                        .revoked(false)
+                        .build();
     }
 
     @Test
-    @DisplayName("API Register: Đăng ký thành công -> Trả về 201 Created kèm AccessToken và RefreshToken")
+    @DisplayName(
+            "API Register: Đăng ký thành công -> Trả về 201 Created kèm AccessToken và RefreshToken")
     void testRegister_Success() {
         RegisterRequest req = new RegisterRequest();
         req.setName("Nguyen Van A");
@@ -116,7 +119,8 @@ class AuthControllerTest {
         Authentication auth = mock(Authentication.class);
         when(auth.getPrincipal()).thenReturn(userDetails);
 
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(auth);
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(auth);
         when(jwtUtil.generateToken(userDetails)).thenReturn("new_access_token");
         when(refreshTokenService.createRefreshToken(user)).thenReturn(refreshToken);
 
@@ -148,14 +152,14 @@ class AuthControllerTest {
         RefreshTokenRequest req = new RefreshTokenRequest();
         req.setRefreshToken("old_refresh_token");
 
-        RefreshToken newRefreshToken = RefreshToken.builder()
-                .token("new_refresh_token_456")
-                .user(user)
-                .build();
+        RefreshToken newRefreshToken =
+                RefreshToken.builder().token("new_refresh_token_456").user(user).build();
 
-        when(refreshTokenService.findByToken("old_refresh_token")).thenReturn(Optional.of(refreshToken));
+        when(refreshTokenService.findByToken("old_refresh_token"))
+                .thenReturn(Optional.of(refreshToken));
         when(refreshTokenService.verifyExpiration(refreshToken)).thenReturn(refreshToken);
-        when(jwtUtil.generateToken(any(CustomUserDetails.class))).thenReturn("refreshed_access_token");
+        when(jwtUtil.generateToken(any(CustomUserDetails.class)))
+                .thenReturn("refreshed_access_token");
         when(refreshTokenService.createRefreshToken(user)).thenReturn(newRefreshToken);
 
         ResponseEntity<AuthResponse> response = authController.refreshToken(req);

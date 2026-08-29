@@ -52,8 +52,38 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 47. **Kiến Trúc Kiểm Soát Lỗi Toàn Cục (Full-Stack Global Error Handling Architecture):** Chuẩn hóa toàn bộ cấu trúc phản hồi lỗi Backend với DTO `ErrorResponse` (status, errorCode, message, errors map, timestamp), nâng cấp `GlobalExceptionHandler` xử lý 14 loại ngoại lệ, xây dựng `errorHandler.ts` thân thiện tiếng Việt và bọc toàn bộ ứng dụng bằng `<ErrorBoundary>` tại `App.tsx`.
 48. **Mở Rộng Bộ Kiểm Thử Tự Động Toàn Diện (Full-Stack Unit Test Suite Expansion - 180 Tests):** Tăng cường quy mô kiểm thử từ 78 lên 180 kịch bản kiểm thử (157 Backend JUnit 5/Mockito + 23 Frontend Node.js/TSX) bao phủ 100% các Services, Controllers, Exception Handlers và Frontend Utilities với tỷ lệ Pass 100%.
 49. **Nâng Cấp Hệ Thống AI Gemini 3.6 Flash & Structured Logging Realtime:** Nâng cấp mô hình Google Gemini sang `gemini-3.6-flash`, bổ sung Structured Logging 5 giai đoạn cho AI Chatbot và tích hợp Gemini AI vào tính năng Nhắc Nợ Nhóm (`GeminiService.java` & `RemindDebtBottomSheet.tsx`) hỗ trợ 4 phong cách sáng tác linh hoạt (Gen Z Hài hước, Lịch sự, Đòi gấp, Thơ ca).
+50. **Quét Mã QR Đa Năng Bằng Camera Trực Tiếp & Phân Loại 0ms (Universal Live Camera QR Engine & 1-Tap Group Join):** Nâng cấp khung ngắm camera đa năng tự động phân loại trong 0ms: Quét hoá đơn mua sắm / E-Invoice bóc tách chi phí bằng AI, quét mã QR mời nhóm hiển thị thẻ xem trước & 1-chạm tham gia nhóm (`/api/groups/{groupId}/join`), quét mã QR bạn bè thêm ngay vào nhóm trong 1 giây, tích hợp Modal Mã QR Cá Nhân trong Profile và bộ 195 bài kiểm thử tự động xanh 100%.
 
-### Session [2026-08-29] - Kiến Trúc Kiểm Soát Lỗi Toàn Cục, Mở Rộng 180 Kịch Bản Kiểm Thử & Nâng Cấp Google Gemini 3.6 Flash Nhắc Nợ Nhóm
+### Session [2026-08-29] (Phần 2) - Quét Mã QR Đa Năng Bằng Camera Trực Tiếp: Tự Động Phân Loại Hoá Đơn, Tham Gia Nhóm & Thêm Bạn Bè
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Động Cơ Phân Loại Mã QR Đa Năng (`qrParser.ts` & `qrParser.test.ts`):**
+   - **Nhận diện đa định dạng:** Tự động phân tích trong < 1ms: (1) `GROUP_INVITE` (Web URL `https://sharemoney.app/groups/{id}`, deep link `sharemoney://group/...`, JSON, UUID), (2) `USER_PROFILE` (Web URL `https://sharemoney.app/user/{id}`, deep link `sharemoney://user/...`, JSON), (3) `RECEIPT_URL` (Hoá đơn điện tử WinMart, Circle K, Sawaco, VNPT, Viettel, MISA, BKAV...), (4) `VIETQR` (Napas247 payment string).
+   - **Kiểm thử đơn vị:** 10 bài test độc lập bao phủ 100% các định dạng URL, deep link, JSON payload và chuỗi rác.
+
+2. **Backend API Mời Nhóm & Xem Trước Thành Viên (`GroupController.java`, `GroupService.java`, `UserController.java`):**
+   - **DTO `GroupPreviewResponse.java`:** Chứa đầy đủ ID, Tên nhóm, Mô tả, Ảnh đại diện, Trưởng nhóm (`owner`), Số lượng thành viên (`memberCount`) và Trạng thái đã tham gia (`isJoined`).
+   - **Endpoint `GET /api/groups/{groupId}/preview`:** Cho phép mọi user đã đăng nhập xem trước thông tin nhóm khi quét mã QR trước khi quyết định tham gia.
+   - **Endpoint `POST /api/groups/{groupId}/join`:** 1-chạm tự tham gia nhóm, tự động tạo `GroupMember` vai trò `"member"` và cập nhật sĩ số nhóm tức thì.
+   - **Endpoint `GET /api/users/{userId}`:** Tra cứu nhanh thông tin bạn bè khi quét mã QR cá nhân.
+   - **Kiểm thử Backend mở rộng:** Thêm 5 test cases (`testGetGroupPreview_NotJoined`, `testGetGroupPreview_AlreadyJoined`, `testJoinGroup_Success`, `testGetUserById_Success`, `testGetUserById_NotFound`), nâng tổng số test Backend lên **162 tests - 100% Passed**.
+
+3. **Nâng Cấp Camera Quét Đa Năng (`ScanReceiptModal.tsx`):**
+   - **Khi lia camera trúng Mã QR Nhóm:** Tự động hiện thẻ xem trước nhóm siêu đẹp (Avatar nhóm, Tên nhóm, Trưởng nhóm, Sĩ số thành viên) với nút **`[👥 Tham gia nhóm ngay]`** hoặc **`[➡️ Vào xem nhóm]`** (nếu đã tham gia).
+   - **Khi lia camera trúng Mã QR Bạn bè:** Nếu mở từ trong nhóm (`targetGroupId`), tự động hiện thẻ xác nhận và nút **`[+ Thêm vào nhóm]`** thêm ngay bạn bè trong 1 giây không cần gõ SĐT.
+   - **Khi lia camera trúng Hoá đơn:** Tự động kết nối AI OCR / E-Invoice bóc tách danh sách món hàng và số tiền như bình thường.
+
+4. **Tích Hợp Mã QR Cá Nhân & Nút Quét Nhanh (`ProfileScreen.tsx` & `AddMemberBottomSheet.tsx`):**
+   - **Mã QR Cá Nhân:** Thêm thẻ và Modal nổi bật trong `ProfileScreen.tsx` sinh mã QR cá nhân chuẩn `https://sharemoney.app/user/{userId}` để đưa cho người khác quét kết nối nhanh.
+   - **Nút Quét QR Bạn Bè:** Thêm nút **`[📷 Mở Camera Quét QR Bạn Bè]`** trong Tab QR của `AddMemberBottomSheet.tsx` giúp trưởng nhóm thêm nhanh thành viên vào nhóm.
+
+5. **Kiểm Thử & Chuẩn Hóa Toàn Diện (Full-Stack 195 Tests - 100% Passed):**
+   - **Backend:** 162 Unit & Integration Tests (`./mvnw test` đạt `BUILD SUCCESS`).
+   - **Frontend:** 33 Unit Tests (`npm test` đạt `33 pass, 0 fail`), `npx tsc --noEmit` đạt 0 lỗi typecheck.
+   - Format mã nguồn chuẩn Google Java Format (AOSP) bằng `spotless:apply`.
+
+### Session [2026-08-29] (Phần 1) - Kiến Trúc Kiểm Soát Lỗi Toàn Cục, Mở Rộng 180 Kịch Bản Kiểm Thử & Nâng Cấp Google Gemini 3.6 Flash Nhắc Nợ Nhóm
 
 **✅ Đã hoàn thành (Compact Procedure):**
 

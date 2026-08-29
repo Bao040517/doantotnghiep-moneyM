@@ -49,15 +49,19 @@ public class GeminiService {
     public AiMessageResponse generateDebtMessage(AiMessageRequest request) {
         log.info("╔══════════════════════════════════════════════════════════════════════════════");
         log.info("║ 💬 [AI-DEBT-REMINDER] INCOMING DEBT REMINDER REQUEST");
-        log.info("║ 👤 Debtor Name: \"{}\" | Amount: {} VND | Mood: \"{}\"",
-                request.getDebtorName(), request.getAmount(), request.getMood());
+        log.info(
+                "║ 👤 Debtor Name: \"{}\" | Amount: {} VND | Mood: \"{}\"",
+                request.getDebtorName(),
+                request.getAmount(),
+                request.getMood());
         log.info("╠──────────────────────────────────────────────────────────────────────────────");
 
         if (!isValidApiKey()) {
             log.info("║ ⚙️ Engine: Local Dynamic Heuristic (No Gemini API Key)");
             String msg = generateFallbackMessage(request);
             log.info("║ 📝 Generated Message: \"{}\"", msg);
-            log.info("╚══════════════════════════════════════════════════════════════════════════════");
+            log.info(
+                    "╚══════════════════════════════════════════════════════════════════════════════");
             return AiMessageResponse.builder().message(msg).build();
         }
 
@@ -79,14 +83,18 @@ public class GeminiService {
             long start = System.currentTimeMillis();
             ResponseEntity<Map> response = callGeminiApiWithRetry(entity);
             long duration = System.currentTimeMillis() - start;
-            log.info("║ 📥 Gemini API replied with HTTP {} in {} ms", response.getStatusCode(), duration);
+            log.info(
+                    "║ 📥 Gemini API replied with HTTP {} in {} ms",
+                    response.getStatusCode(),
+                    duration);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 String generatedText = extractTextFromGeminiResponse(response.getBody());
                 if (generatedText != null && !generatedText.isBlank()) {
                     String cleanMsg = generatedText.replaceAll("^\"|\"$", "").trim();
                     log.info("║ 📝 Gemini AI Generated Message: \"{}\"", cleanMsg);
-                    log.info("╚══════════════════════════════════════════════════════════════════════════════");
+                    log.info(
+                            "╚══════════════════════════════════════════════════════════════════════════════");
                     return AiMessageResponse.builder().message(cleanMsg).build();
                 }
             }
@@ -209,25 +217,30 @@ public class GeminiService {
         NumberFormat currencyFormatter =
                 NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("vi-VN"));
         String formattedAmount = currencyFormatter.format(request.getAmount());
-        String debtor = (request.getDebtorName() != null && !request.getDebtorName().isBlank())
-                ? request.getDebtorName().trim()
-                : "bạn hiền";
+        String debtor =
+                (request.getDebtorName() != null && !request.getDebtorName().isBlank())
+                        ? request.getDebtorName().trim()
+                        : "bạn hiền";
         String mood = request.getMood() != null ? request.getMood().toUpperCase().trim() : "FUNNY";
 
         String styleGuidance;
         switch (mood) {
             case "POLITE":
-                styleGuidance = "Lịch sự, tinh tế, giữ hòa khí bạn bè, xưng hô tôn trọng, nhẹ nhàng nhắc gửi tiền khi thuận tiện.";
+                styleGuidance =
+                        "Lịch sự, tinh tế, giữ hòa khí bạn bè, xưng hô tôn trọng, nhẹ nhàng nhắc gửi tiền khi thuận tiện.";
                 break;
             case "AGGRESSIVE":
-                styleGuidance = "Nghiêm túc, dứt khoát, nhắc nhở hạn chót thanh toán để chốt sổ nhóm, dùng emoji cảnh báo.";
+                styleGuidance =
+                        "Nghiêm túc, dứt khoát, nhắc nhở hạn chót thanh toán để chốt sổ nhóm, dùng emoji cảnh báo.";
                 break;
             case "POETIC":
-                styleGuidance = "Sáng tác một đoạn thơ 4 chữ hoặc 2 câu lục bát hài hước, vần điệu, ca dao tục ngữ biến tấu nhắc nợ.";
+                styleGuidance =
+                        "Sáng tác một đoạn thơ 4 chữ hoặc 2 câu lục bát hài hước, vần điệu, ca dao tục ngữ biến tấu nhắc nợ.";
                 break;
             case "FUNNY":
             default:
-                styleGuidance = "Hài hước, dí dỏm, phong cách Gen Z thân mật (ví dụ: ví đang thở oxy, hết tiền ăn sáng, meme vui), dùng emoji sinh động.";
+                styleGuidance =
+                        "Hài hước, dí dỏm, phong cách Gen Z thân mật (ví dụ: ví đang thở oxy, hết tiền ăn sáng, meme vui), dùng emoji sinh động.";
                 break;
         }
 

@@ -39,20 +39,22 @@ class CategoryServiceTest {
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
-        user = User.builder()
-                .id(userId)
-                .name("Nguyen Van A")
-                .email("vana@example.com")
-                .passwordHash("hashed")
-                .build();
+        user =
+                User.builder()
+                        .id(userId)
+                        .name("Nguyen Van A")
+                        .email("vana@example.com")
+                        .passwordHash("hashed")
+                        .build();
 
-        category = Category.builder()
-                .id(UUID.randomUUID())
-                .user(user)
-                .name("Ăn uống")
-                .type(TransactionType.EXPENSE)
-                .iconName("🍔")
-                .build();
+        category =
+                Category.builder()
+                        .id(UUID.randomUUID())
+                        .user(user)
+                        .name("Ăn uống")
+                        .type(TransactionType.EXPENSE)
+                        .iconName("🍔")
+                        .build();
     }
 
     @Test
@@ -87,7 +89,8 @@ class CategoryServiceTest {
         when(categoryRepository.findByUser_Id(userId)).thenReturn(Collections.emptyList());
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(AppException.class, () -> categoryService.getUserCategories(userId));
+        AppException ex =
+                assertThrows(AppException.class, () -> categoryService.getUserCategories(userId));
         assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
     }
 
@@ -96,7 +99,9 @@ class CategoryServiceTest {
     void testGetOrCreateCategory_ReturnsExisting() {
         when(categoryRepository.findByUser_Id(userId)).thenReturn(List.of(category));
 
-        Category result = categoryService.getOrCreateCategory(userId, "Ăn uống", TransactionType.EXPENSE, "🍔");
+        Category result =
+                categoryService.getOrCreateCategory(
+                        userId, "Ăn uống", TransactionType.EXPENSE, "🍔");
 
         assertNotNull(result);
         assertEquals(category.getId(), result.getId());
@@ -110,7 +115,9 @@ class CategoryServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Category result = categoryService.getOrCreateCategory(userId, "Du lịch", TransactionType.EXPENSE, "✈️");
+        Category result =
+                categoryService.getOrCreateCategory(
+                        userId, "Du lịch", TransactionType.EXPENSE, "✈️");
 
         assertNotNull(result);
         assertEquals("Du lịch", result.getName());
@@ -124,9 +131,12 @@ class CategoryServiceTest {
         when(categoryRepository.findByUser_Id(userId)).thenReturn(Collections.emptyList());
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(AppException.class, () -> 
-            categoryService.getOrCreateCategory(userId, "Đầu tư", TransactionType.EXPENSE, "📈")
-        );
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () ->
+                                categoryService.getOrCreateCategory(
+                                        userId, "Đầu tư", TransactionType.EXPENSE, "📈"));
         assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
     }
 }

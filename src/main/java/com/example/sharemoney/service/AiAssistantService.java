@@ -67,7 +67,10 @@ public class AiAssistantService {
     public AiAssistantResponse chat(UUID userId, AiAssistantRequest request) {
         long startTime = System.currentTimeMillis();
         String userMessage = request.getMessage() != null ? request.getMessage().trim() : "";
-        int historySize = request.getConversationHistory() != null ? request.getConversationHistory().size() : 0;
+        int historySize =
+                request.getConversationHistory() != null
+                        ? request.getConversationHistory().size()
+                        : 0;
 
         log.info("╔══════════════════════════════════════════════════════════════════════════════");
         log.info("║ 🤖 [AI-CHATBOT] INCOMING USER QUESTION");
@@ -78,7 +81,8 @@ public class AiAssistantService {
 
         if (userMessage.isEmpty()) {
             log.info("║ ⚠️ Empty user message. Returning default greeting.");
-            log.info("╚══════════════════════════════════════════════════════════════════════════════");
+            log.info(
+                    "╚══════════════════════════════════════════════════════════════════════════════");
             return buildChatReply(
                     "Bạn chưa nhập gì cả. Thử hỏi mình điều gì đó nhé! 😊", "GENERAL_CHAT");
         }
@@ -88,15 +92,23 @@ public class AiAssistantService {
         log.info("║ 📊 User Financial Context Loaded:");
         log.info("║    - User Name: {}", ctx.userName);
         log.info("║    - Total Balance: {} VND", ctx.totalBalance);
-        log.info("║    - Monthly Income: {} VND | Monthly Expense: {} VND", ctx.monthlyIncome, ctx.monthlyExpense);
-        log.info("║    - Wallets: {} | Budgets: {} | Savings Goals: {}", ctx.wallets.size(), ctx.budgets.size(), ctx.savingsGoals.size());
+        log.info(
+                "║    - Monthly Income: {} VND | Monthly Expense: {} VND",
+                ctx.monthlyIncome,
+                ctx.monthlyExpense);
+        log.info(
+                "║    - Wallets: {} | Budgets: {} | Savings Goals: {}",
+                ctx.wallets.size(),
+                ctx.budgets.size(),
+                ctx.savingsGoals.size());
 
         AiAssistantResponse response;
         // Thử dùng Gemini AI nếu có API key
         if (isValidApiKey()) {
             log.info("║ 🌐 Engine Selected: Google Gemini 2.0 AI (Cloud LLM)");
             try {
-                response = chatWithGemini(userId, userMessage, ctx, request.getConversationHistory());
+                response =
+                        chatWithGemini(userId, userMessage, ctx, request.getConversationHistory());
             } catch (Exception e) {
                 log.warn(
                         "║ ⚠️ Gemini failed: {}. Falling back to local heuristic NLP.",
@@ -112,16 +124,20 @@ public class AiAssistantService {
         long totalDuration = System.currentTimeMillis() - startTime;
         log.info("╠──────────────────────────────────────────────────────────────────────────────");
         log.info("║ 🎯 Resolved Intent: {}", response.getIntent());
-        log.info("║ 📝 Final Reply: \"{}\"", response.getReply() != null ? response.getReply().replace("\n", " ") : "");
+        log.info(
+                "║ 📝 Final Reply: \"{}\"",
+                response.getReply() != null ? response.getReply().replace("\n", " ") : "");
         if (response.getTransactionData() != null) {
-            log.info("║ 💸 Detected Transaction: {} VND | Category: {} | Note: {} | Type: {}",
+            log.info(
+                    "║ 💸 Detected Transaction: {} VND | Category: {} | Note: {} | Type: {}",
                     response.getTransactionData().getAmount(),
                     response.getTransactionData().getCategoryName(),
                     response.getTransactionData().getNote(),
                     response.getTransactionData().getTransactionType());
         }
         if (response.getGoalPlanData() != null) {
-            log.info("║ 🎯 Proposed Savings Goal: \"{}\" | Target: {} VND in {} months | Feasibility Score: {}/100",
+            log.info(
+                    "║ 🎯 Proposed Savings Goal: \"{}\" | Target: {} VND in {} months | Feasibility Score: {}/100",
                     response.getGoalPlanData().getGoalName(),
                     response.getGoalPlanData().getTargetAmount(),
                     response.getGoalPlanData().getTargetMonths(),
@@ -183,11 +199,16 @@ public class AiAssistantService {
         long geminiStart = System.currentTimeMillis();
         ResponseEntity<Map> response = restTemplate.postForEntity(targetUrl, entity, Map.class);
         long geminiDuration = System.currentTimeMillis() - geminiStart;
-        log.info("║ 📥 Gemini API replied with HTTP {} in {} ms", response.getStatusCode(), geminiDuration);
+        log.info(
+                "║ 📥 Gemini API replied with HTTP {} in {} ms",
+                response.getStatusCode(),
+                geminiDuration);
 
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
             String generatedText = extractTextFromGeminiResponse(response.getBody());
-            log.info("║ 🧠 Raw Gemini Model Output: \"{}\"", generatedText != null ? generatedText.replace("\n", " ") : "null");
+            log.info(
+                    "║ 🧠 Raw Gemini Model Output: \"{}\"",
+                    generatedText != null ? generatedText.replace("\n", " ") : "null");
             if (generatedText != null) {
                 return parseGeminiJsonResponse(generatedText.trim());
             }

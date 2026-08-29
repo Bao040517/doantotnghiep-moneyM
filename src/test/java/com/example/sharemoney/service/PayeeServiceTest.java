@@ -43,22 +43,19 @@ class PayeeServiceTest {
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
-        user = User.builder()
-                .id(userId)
-                .name("Nguyen Van A")
-                .email("vana@example.com")
-                .build();
+        user = User.builder().id(userId).name("Nguyen Van A").email("vana@example.com").build();
 
-        payee = Payee.builder()
-                .id(UUID.randomUUID())
-                .user(user)
-                .name("Tran Thi B")
-                .bankBin("970436")
-                .bankName("Vietcombank")
-                .bankAccount("123456789")
-                .accountName("TRAN THI B")
-                .createdAt(LocalDateTime.now())
-                .build();
+        payee =
+                Payee.builder()
+                        .id(UUID.randomUUID())
+                        .user(user)
+                        .name("Tran Thi B")
+                        .bankBin("970436")
+                        .bankName("Vietcombank")
+                        .bankAccount("123456789")
+                        .accountName("TRAN THI B")
+                        .createdAt(LocalDateTime.now())
+                        .build();
     }
 
     @Test
@@ -78,26 +75,40 @@ class PayeeServiceTest {
     @DisplayName("Gợi ý người nhận thông minh: Kết hợp danh bạ lưu và thành viên nhóm")
     void testGetSuggestions_CombinesSavedAndGroupMembers() {
         UUID friendId = UUID.randomUUID();
-        User friend = User.builder()
-                .id(friendId)
-                .name("Le Van C")
-                .bankBin("970422")
-                .bankAccountNo("99998888")
-                .build();
+        User friend =
+                User.builder()
+                        .id(friendId)
+                        .name("Le Van C")
+                        .bankBin("970422")
+                        .bankAccountNo("99998888")
+                        .build();
 
         Group group = Group.builder().id(UUID.randomUUID()).name("Nhóm Test").build();
-        GroupMember myMembership = GroupMember.builder().id(UUID.randomUUID()).group(group).user(user).build();
-        GroupMember friendMembership = GroupMember.builder().id(UUID.randomUUID()).group(group).user(friend).build();
+        GroupMember myMembership =
+                GroupMember.builder().id(UUID.randomUUID()).group(group).user(user).build();
+        GroupMember friendMembership =
+                GroupMember.builder().id(UUID.randomUUID()).group(group).user(friend).build();
 
         when(payeeRepository.findByUser_IdOrderByCreatedAtDesc(userId)).thenReturn(List.of(payee));
         when(groupMemberRepository.findByUser_Id(userId)).thenReturn(List.of(myMembership));
-        when(groupMemberRepository.findByGroup_Id(group.getId())).thenReturn(List.of(myMembership, friendMembership));
+        when(groupMemberRepository.findByGroup_Id(group.getId()))
+                .thenReturn(List.of(myMembership, friendMembership));
 
         List<PayeeResponse> suggestions = payeeService.getSuggestions(userId);
 
         assertEquals(2, suggestions.size());
-        assertTrue(suggestions.stream().anyMatch(s -> "saved".equals(s.getSource()) && "123456789".equals(s.getBankAccount())));
-        assertTrue(suggestions.stream().anyMatch(s -> "group_member".equals(s.getSource()) && "99998888".equals(s.getBankAccount())));
+        assertTrue(
+                suggestions.stream()
+                        .anyMatch(
+                                s ->
+                                        "saved".equals(s.getSource())
+                                                && "123456789".equals(s.getBankAccount())));
+        assertTrue(
+                suggestions.stream()
+                        .anyMatch(
+                                s ->
+                                        "group_member".equals(s.getSource())
+                                                && "99998888".equals(s.getBankAccount())));
     }
 
     @Test
@@ -111,7 +122,8 @@ class PayeeServiceTest {
         req.setAccountName("HOANG VAN D");
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(payeeRepository.findByUser_IdAndBankAccount(userId, "000111222")).thenReturn(Optional.empty());
+        when(payeeRepository.findByUser_IdAndBankAccount(userId, "000111222"))
+                .thenReturn(Optional.empty());
         when(payeeRepository.save(any(Payee.class))).thenAnswer(inv -> inv.getArgument(0));
 
         PayeeResponse response = payeeService.saveOrUpdate(userId, req);
@@ -131,7 +143,8 @@ class PayeeServiceTest {
         req.setBankAccount("123456789");
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(payeeRepository.findByUser_IdAndBankAccount(userId, "123456789")).thenReturn(Optional.of(payee));
+        when(payeeRepository.findByUser_IdAndBankAccount(userId, "123456789"))
+                .thenReturn(Optional.of(payee));
         when(payeeRepository.save(any(Payee.class))).thenAnswer(inv -> inv.getArgument(0));
 
         PayeeResponse response = payeeService.saveOrUpdate(userId, req);
@@ -157,7 +170,8 @@ class PayeeServiceTest {
         UUID randomPayeeId = UUID.randomUUID();
         when(payeeRepository.findById(randomPayeeId)).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(AppException.class, () -> payeeService.delete(userId, randomPayeeId));
+        AppException ex =
+                assertThrows(AppException.class, () -> payeeService.delete(userId, randomPayeeId));
         assertEquals(ErrorCode.PAYEE_NOT_FOUND, ex.getErrorCode());
     }
 
@@ -168,7 +182,8 @@ class PayeeServiceTest {
         UUID payeeId = payee.getId();
         when(payeeRepository.findById(payeeId)).thenReturn(Optional.of(payee));
 
-        AppException ex = assertThrows(AppException.class, () -> payeeService.delete(otherUserId, payeeId));
+        AppException ex =
+                assertThrows(AppException.class, () -> payeeService.delete(otherUserId, payeeId));
         assertEquals(ErrorCode.UNAUTHORIZED, ex.getErrorCode());
     }
 }

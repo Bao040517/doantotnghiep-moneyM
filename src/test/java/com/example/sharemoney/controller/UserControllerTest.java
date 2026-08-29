@@ -1,7 +1,6 @@
 package com.example.sharemoney.controller;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.example.sharemoney.dto.request.UpdateAvatarRequest;
@@ -40,13 +39,14 @@ class UserControllerTest {
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
-        user = User.builder()
-                .id(userId)
-                .name("Nguyen Van A")
-                .email("vana@example.com")
-                .phone("0987654321")
-                .avatarUrl("https://example.com/avatar.png")
-                .build();
+        user =
+                User.builder()
+                        .id(userId)
+                        .name("Nguyen Van A")
+                        .email("vana@example.com")
+                        .phone("0987654321")
+                        .avatarUrl("https://example.com/avatar.png")
+                        .build();
     }
 
     @Test
@@ -82,7 +82,8 @@ class UserControllerTest {
     void testSearchByPhone_NotFound_ThrowsException() {
         when(userRepository.findByPhone("0000000000")).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(AppException.class, () -> userController.searchByPhone("0000000000"));
+        AppException ex =
+                assertThrows(AppException.class, () -> userController.searchByPhone("0000000000"));
         assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
     }
 
@@ -118,7 +119,8 @@ class UserControllerTest {
             when(userRepository.findById(userId)).thenReturn(Optional.of(user));
             when(userRepository.findByPhone("0912345678")).thenReturn(Optional.of(otherUser));
 
-            AppException ex = assertThrows(AppException.class, () -> userController.updateMyPhone(req));
+            AppException ex =
+                    assertThrows(AppException.class, () -> userController.updateMyPhone(req));
             assertEquals(ErrorCode.PHONE_ALREADY_EXISTS, ex.getErrorCode());
             verify(userRepository, never()).save(user);
         }
@@ -171,11 +173,36 @@ class UserControllerTest {
             mockedSecurity.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
             when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
-            ResponseEntity<Void> response = userController.updateMyPushToken(Map.of("pushToken", "ExponentPushToken[123]"));
+            ResponseEntity<Void> response =
+                    userController.updateMyPushToken(Map.of("pushToken", "ExponentPushToken[123]"));
 
             assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
             assertEquals("ExponentPushToken[123]", user.getPushToken());
             verify(userRepository).save(user);
         }
+    }
+
+    @Test
+    @DisplayName("Lấy thông tin User theo ID qua mã QR (GET /api/users/{userId})")
+    void testGetUserById_Success() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        ResponseEntity<UserSummaryResponse> response = userController.getUserById(userId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("Nguyen Van A", response.getBody().getName());
+        assertEquals(userId, response.getBody().getId());
+    }
+
+    @Test
+    @DisplayName("Lấy thông tin User theo ID không tồn tại -> USER_NOT_FOUND")
+    void testGetUserById_NotFound_ThrowsException() {
+        UUID nonExistId = UUID.randomUUID();
+        when(userRepository.findById(nonExistId)).thenReturn(Optional.empty());
+
+        AppException ex =
+                assertThrows(AppException.class, () -> userController.getUserById(nonExistId));
+        assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
     }
 }

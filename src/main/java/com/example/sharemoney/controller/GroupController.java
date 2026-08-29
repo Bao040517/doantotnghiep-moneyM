@@ -67,6 +67,21 @@ public class GroupController {
         return ResponseEntity.ok(groupService.updateGroupAvatar(groupId, req.getAvatarUrl()));
     }
 
+    /** GET /api/groups/{groupId}/preview Xem trước thông tin nhóm qua mã QR trước khi tham gia. */
+    @GetMapping("/{groupId}/preview")
+    public ResponseEntity<com.example.sharemoney.dto.response.GroupPreviewResponse> getGroupPreview(
+            @PathVariable UUID groupId) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(groupService.getGroupPreview(groupId, userId));
+    }
+
+    /** POST /api/groups/{groupId}/join Tự tham gia nhóm qua mã QR / liên kết mời. */
+    @PostMapping("/{groupId}/join")
+    public ResponseEntity<GroupResponse> joinGroup(@PathVariable UUID groupId) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(groupService.joinGroup(groupId, userId));
+    }
+
     /** POST /api/groups/{groupId}/members Thêm thành viên vào nhóm. */
     @PostMapping("/{groupId}/members")
     public ResponseEntity<Void> addMember(

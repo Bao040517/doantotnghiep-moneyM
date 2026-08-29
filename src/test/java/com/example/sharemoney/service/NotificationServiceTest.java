@@ -41,38 +41,48 @@ class NotificationServiceTest {
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
-        user = User.builder()
-                .id(userId)
-                .name("Nguyen Van A")
-                .email("vana@example.com")
-                .pushToken("ExponentPushToken[xxxx]")
-                .build();
+        user =
+                User.builder()
+                        .id(userId)
+                        .name("Nguyen Van A")
+                        .email("vana@example.com")
+                        .pushToken("ExponentPushToken[xxxx]")
+                        .build();
 
-        notification = Notification.builder()
-                .id(UUID.randomUUID())
-                .user(user)
-                .message("Bạn có khoản nợ mới cần thanh toán")
-                .type("REMIND_DEBT")
-                .isRead(false)
-                .createdAt(LocalDateTime.now())
-                .build();
+        notification =
+                Notification.builder()
+                        .id(UUID.randomUUID())
+                        .user(user)
+                        .message("Bạn có khoản nợ mới cần thanh toán")
+                        .type("REMIND_DEBT")
+                        .isRead(false)
+                        .createdAt(LocalDateTime.now())
+                        .build();
     }
 
     @Test
     @DisplayName("Gửi thông báo: Lưu DB, bắn STOMP websocket và gửi Push notification")
     void testSendNotification_Success() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(notificationRepository.save(any(Notification.class))).thenAnswer(inv -> {
-            Notification n = inv.getArgument(0);
-            n.setId(UUID.randomUUID());
-            return n;
-        });
+        when(notificationRepository.save(any(Notification.class)))
+                .thenAnswer(
+                        inv -> {
+                            Notification n = inv.getArgument(0);
+                            n.setId(UUID.randomUUID());
+                            return n;
+                        });
 
         notificationService.sendNotification(userId, "Bạn vừa nhận được tiền", "PAYMENT_RECEIVED");
 
         verify(notificationRepository).save(any(Notification.class));
-        verify(messagingTemplate).convertAndSend(eq("/topic/user/" + userId), any(NotificationResponse.class));
-        verify(expoPushService).sendPushNotification(eq("ExponentPushToken[xxxx]"), anyString(), eq("Bạn vừa nhận được tiền"), anyMap());
+        verify(messagingTemplate)
+                .convertAndSend(eq("/topic/user/" + userId), any(NotificationResponse.class));
+        verify(expoPushService)
+                .sendPushNotification(
+                        eq("ExponentPushToken[xxxx]"),
+                        anyString(),
+                        eq("Bạn vừa nhận được tiền"),
+                        anyMap());
     }
 
     @Test
@@ -80,16 +90,18 @@ class NotificationServiceTest {
     void testSendNotification_UserNotFound_ThrowsException() {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(AppException.class, () -> 
-            notificationService.sendNotification(userId, "Test", "WARNING")
-        );
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> notificationService.sendNotification(userId, "Test", "WARNING"));
         assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
     }
 
     @Test
     @DisplayName("Lấy danh sách thông báo của User")
     void testGetUserNotifications_Success() {
-        when(notificationRepository.findByUser_IdOrderByCreatedAtDesc(userId)).thenReturn(List.of(notification));
+        when(notificationRepository.findByUser_IdOrderByCreatedAtDesc(userId))
+                .thenReturn(List.of(notification));
 
         List<NotificationResponse> responses = notificationService.getUserNotifications(userId);
 
@@ -127,17 +139,20 @@ class NotificationServiceTest {
         UUID notificationId = notification.getId();
         when(notificationRepository.findById(notificationId)).thenReturn(Optional.of(notification));
 
-        AppException ex = assertThrows(AppException.class, () -> 
-            notificationService.markAsRead(notificationId, otherUserId)
-        );
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> notificationService.markAsRead(notificationId, otherUserId));
         assertEquals(ErrorCode.UNAUTHORIZED, ex.getErrorCode());
     }
 
     @Test
     @DisplayName("Đánh dấu tất cả thông báo đã đọc")
     void testMarkAllAsRead_Success() {
-        Notification n1 = Notification.builder().id(UUID.randomUUID()).user(user).isRead(false).build();
-        Notification n2 = Notification.builder().id(UUID.randomUUID()).user(user).isRead(false).build();
+        Notification n1 =
+                Notification.builder().id(UUID.randomUUID()).user(user).isRead(false).build();
+        Notification n2 =
+                Notification.builder().id(UUID.randomUUID()).user(user).isRead(false).build();
 
         when(notificationRepository.findByUser_IdAndIsReadFalseOrderByCreatedAtDesc(userId))
                 .thenReturn(List.of(n1, n2));

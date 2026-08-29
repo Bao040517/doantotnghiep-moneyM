@@ -21,28 +21,46 @@ import {
   RotateCcw,
   Sparkles,
   ShoppingBag,
+  Users,
+  UserPlus,
+  ArrowRight,
+  ShieldCheck,
 } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { aiService, ScanReceiptResponse } from "../../services/aiService";
+import { groupService } from "../../services/groupService";
+import { GroupPreview } from "../../types/group";
+import { parseScannedQr } from "../../utils/qrParser";
 import { Button } from "../ui/Button";
 
 interface ScanReceiptModalProps {
   visible: boolean;
   onClose: () => void;
-  onScanSuccess: (data: ScanReceiptResponse) => void;
+  onScanSuccess?: (data: ScanReceiptResponse) => void;
+  targetGroupId?: string;
+  onGroupJoined?: (groupId: string) => void;
+  onMemberAdded?: (user: any) => void;
 }
 
 export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
   visible,
   onClose,
   onScanSuccess,
+  targetGroupId,
+  onGroupJoined,
+  onMemberAdded,
 }) => {
   // 2 chế độ: Quét mã QR ("qr") và Ảnh từ điện thoại ("image")
   const [scanMode, setScanMode] = useState<"qr" | "image">("qr");
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
+
+  // Scanned Results
   const [scannedResult, setScannedResult] = useState<ScanReceiptResponse | null>(null);
+  const [scannedGroup, setScannedGroup] = useState<GroupPreview | null>(null);
+  const [scannedUser, setScannedUser] = useState<any | null>(null);
   const [scannedQrCode, setScannedQrCode] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Mức Zoom 1.5x mặc định để bắt mã QR nhỏ trên bill từ xa cực nhạy mà không cần dí sát máy
   const [zoom, setZoom] = useState(0.08);
@@ -89,6 +107,47 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
     setLoading(true);
 
     try {
+      const parsed = parseScannedQr(data);
+
+      // CASE 1: Mã QR Mời tham gia nhóm (GROUP_INVITE)
+      if (parsed.type === "GROUP_INVITE" && parsed.groupId) {
+        try {
+          const groupPreview = await groupService.getGroupPreview(parsed.groupId);
+          if (groupPreview && groupPreview.id) {
+            setScannedGroup(groupPreview);
+            return;
+          }
+        } catch (groupErr: any) {
+          console.warn("[ScanQR] Group preview error:", groupErr);
+          Alert.alert(
+            "Không tìm thấy nhóm",
+            "Mã QR nhóm này không tồn tại hoặc đã bị xóa.",
+            [{ text: "Quét lại", onPress: () => setScannedQrCode(false) }]
+          );
+          return;
+        }
+      }
+
+      // CASE 2: Mã QR Cá nhân / Thành viên (USER_PROFILE)
+      if (parsed.type === "USER_PROFILE" && parsed.userId) {
+        try {
+          const userObj = await groupService.getUserById(parsed.userId);
+          if (userObj && userObj.id) {
+            setScannedUser(userObj);
+            return;
+          }
+        } catch (userErr: any) {
+          console.warn("[ScanQR] User fetch error:", userErr);
+          Alert.alert(
+            "Không tìm thấy tài khoản",
+            "Mã QR cá nhân này không tồn tại trên hệ thống.",
+            [{ text: "Quét lại", onPress: () => setScannedQrCode(false) }]
+          );
+          return;
+        }
+      }
+
+      // CASE 3: Mã QR Hoá đơn điện tử / Mua sắm (RECEIPT_URL hoặc Fallback)
       const rawData = data.trim();
       const urlMatch = rawData.match(/https?:\/\/[^\s"'<>]+/i);
       const cleanUrl = urlMatch ? urlMatch[0] : rawData;
@@ -96,8 +155,8 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
       const result = await aiService.scanQrReceipt(cleanUrl);
       if (!result || (!result.amount && !result.note)) {
         Alert.alert(
-          "Không đọc được hoá đơn",
-          "Mã QR này không chứa dữ liệu hoá đơn hợp lệ hoặc chưa được hỗ trợ.",
+          "Không đọc được nội dung",
+          "Mã QR này không phải hoá đơn hợp lệ hoặc chưa được hỗ trợ.",
           [{ text: "Quét lại", onPress: () => setScannedQrCode(false) }]
         );
         return;
@@ -106,12 +165,64 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
     } catch (e: any) {
       console.error("[ScanReceipt] Live QR scan error:", e);
       Alert.alert(
-        "Lỗi đọc QR hoá đơn",
-        e.response?.data?.message || "Không thể tải hoá đơn từ mã QR này. Vui lòng thử lại.",
+        "Lỗi đọc mã QR",
+        e.response?.data?.message || "Không thể tải dữ liệu từ mã QR này. Vui lòng thử lại.",
         [{ text: "Quét lại", onPress: () => setScannedQrCode(false) }]
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleJoinScannedGroup = async () => {
+    if (!scannedGroup) return;
+    setActionLoading(true);
+    try {
+      await groupService.joinGroup(scannedGroup.id);
+      Alert.alert(
+        "Thành công 🎉",
+        `Bạn đã tham gia nhóm "${scannedGroup.name}" thành công!`,
+        [
+          {
+            text: "Vào nhóm ngay",
+            onPress: () => {
+              const gId = scannedGroup.id;
+              handleClose();
+              if (onGroupJoined) onGroupJoined(gId);
+            },
+          },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert("Lỗi tham gia nhóm", err.response?.data?.message || "Không thể tham gia nhóm");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAddScannedUserToGroup = async () => {
+    if (!scannedUser || !targetGroupId) return;
+    setActionLoading(true);
+    try {
+      await groupService.addMemberToGroup(targetGroupId, scannedUser.id);
+      Alert.alert(
+        "Thành công 🎉",
+        `Đã thêm ${scannedUser.name} vào nhóm thành công!`,
+        [
+          {
+            text: "Xác nhận",
+            onPress: () => {
+              const u = scannedUser;
+              handleClose();
+              if (onMemberAdded) onMemberAdded(u);
+            },
+          },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert("Lỗi thêm thành viên", err.response?.data?.message || "Không thể thêm thành viên này vào nhóm");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -130,6 +241,8 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
         if (!result.canceled && result.assets && result.assets.length > 0) {
           setImageUri(result.assets[0].uri);
           setScannedResult(null);
+          setScannedGroup(null);
+          setScannedUser(null);
         }
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -144,6 +257,8 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
         if (!result.canceled && result.assets && result.assets.length > 0) {
           setImageUri(result.assets[0].uri);
           setScannedResult(null);
+          setScannedGroup(null);
+          setScannedUser(null);
         }
       }
     } catch (e) {
@@ -181,19 +296,31 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
   };
 
   const handleApplyResult = () => {
-    if (scannedResult) {
+    if (scannedResult && onScanSuccess) {
       onScanSuccess(scannedResult);
       handleClose();
     }
   };
 
+  const handleResetScan = () => {
+    setScannedResult(null);
+    setScannedGroup(null);
+    setScannedUser(null);
+    setScannedQrCode(false);
+  };
+
   const handleClose = () => {
     setImageUri(null);
     setScannedResult(null);
+    setScannedGroup(null);
+    setScannedUser(null);
     setScannedQrCode(false);
     setLoading(false);
+    setActionLoading(false);
     onClose();
   };
+
+  const hasAnyResult = scannedResult || scannedGroup || scannedUser;
 
   if (!visible) return null;
 
@@ -208,20 +335,20 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                 <QrCode size={22} color="#4F46E5" />
               </View>
               <View>
-                <Text style={styles.title}>Quét Hoá Đơn Mua Sắm</Text>
-                <Text style={styles.subtitle}>Tự động nhận diện hoá đơn & bóc tách món hàng</Text>
+                <Text style={styles.title}>Quét Mã QR & Hoá Đơn</Text>
+                <Text style={styles.subtitle}>Tự động nhận diện Hoá đơn, Nhóm & Bạn bè</Text>
               </View>
             </View>
           </View>
 
           {/* 2 Main Mode Tabs: Quét mã QR & Ảnh từ điện thoại */}
-          {!scannedResult && (
+          {!hasAnyResult && (
             <View style={styles.tabContainer}>
               <TouchableOpacity
                 style={[styles.tabButton, scanMode === "qr" && styles.tabButtonActive]}
                 onPress={() => {
                   setScanMode("qr");
-                  setScannedQrCode(false);
+                  handleResetScan();
                 }}
                 activeOpacity={0.8}
               >
@@ -246,8 +373,83 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
 
           {/* Content Area */}
           <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-            {/* 1. SCANNED RESULT PREVIEW STATE */}
-            {scannedResult ? (
+            {/* 1. SCANNED RESULT: GROUP INVITE PREVIEW */}
+            {scannedGroup ? (
+              <View style={styles.resultContainer}>
+                <View style={[styles.resultHeaderBadge, { backgroundColor: "#EEF2FF", borderColor: "#C7D2FE" }]}>
+                  <Users size={20} color="#4F46E5" />
+                  <Text style={[styles.resultHeaderBadgeText, { color: "#3730A3" }]}>
+                    Đã tìm thấy Nhóm chi tiêu ShareMoney
+                  </Text>
+                </View>
+
+                <View style={styles.groupPreviewCard}>
+                  <View style={styles.groupPreviewAvatarBox}>
+                    {scannedGroup.avatarUrl ? (
+                      <Image source={{ uri: scannedGroup.avatarUrl }} style={styles.groupPreviewAvatar} />
+                    ) : (
+                      <Users size={32} color="#4F46E5" />
+                    )}
+                  </View>
+                  <Text style={styles.groupPreviewName}>{scannedGroup.name}</Text>
+                  {scannedGroup.description ? (
+                    <Text style={styles.groupPreviewDesc}>{scannedGroup.description}</Text>
+                  ) : null}
+
+                  <View style={styles.groupMetaRow}>
+                    <View style={styles.groupMetaPill}>
+                      <Text style={styles.groupMetaText}>👥 {scannedGroup.memberCount || 1} thành viên</Text>
+                    </View>
+                    {scannedGroup.owner ? (
+                      <View style={styles.groupMetaPill}>
+                        <Text style={styles.groupMetaText}>👑 {scannedGroup.owner.name}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {scannedGroup.isJoined ? (
+                    <View style={styles.alreadyJoinedBox}>
+                      <ShieldCheck size={16} color="#059669" />
+                      <Text style={styles.alreadyJoinedText}>Bạn đã là thành viên trong nhóm này</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.groupInviteHint}>
+                      Quét mã thành công! Bạn có muốn tham gia nhóm chi tiêu này không?
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ) : scannedUser ? (
+              /* 2. SCANNED RESULT: USER PROFILE PREVIEW */
+              <View style={styles.resultContainer}>
+                <View style={[styles.resultHeaderBadge, { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }]}>
+                  <UserPlus size={20} color="#059669" />
+                  <Text style={[styles.resultHeaderBadgeText, { color: "#065F46" }]}>
+                    {targetGroupId ? "Thêm Thành Viên Vào Nhóm" : "Hồ Sơ Thành Viên ShareMoney"}
+                  </Text>
+                </View>
+
+                <View style={styles.userPreviewCard}>
+                  <View style={styles.userPreviewAvatarBox}>
+                    {scannedUser.avatarUrl ? (
+                      <Image source={{ uri: scannedUser.avatarUrl }} style={styles.userPreviewAvatar} />
+                    ) : (
+                      <Text style={styles.userPreviewAvatarLetter}>
+                        {scannedUser.name?.charAt(0) || "U"}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.userPreviewName}>{scannedUser.name}</Text>
+                  {scannedUser.phone && (
+                    <Text style={styles.userPreviewPhone}>📞 {scannedUser.phone}</Text>
+                  )}
+                  {scannedUser.email && (
+                    <Text style={styles.userPreviewEmail}>✉️ {scannedUser.email}</Text>
+                  )}
+                </View>
+              </View>
+            ) : scannedResult ? (
+              /* 3. SCANNED RESULT: RECEIPT / BILL PREVIEW */
               <View style={styles.resultContainer}>
                 <View style={styles.resultHeaderBadge}>
                   <CheckCircle2 size={20} color={colors.emerald600} />
@@ -294,7 +496,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                 )}
               </View>
             ) : scanMode === "qr" ? (
-              /* 2. TAB 1: ULTRA-RESPONSIVE LIVE CAMERA QR SCANNER */
+              /* 4. TAB 1: ULTRA-RESPONSIVE LIVE CAMERA QR SCANNER */
               <View style={styles.modeBody}>
                 <View style={styles.cameraBoxContainer}>
                   {cameraPermission?.granted ? (
@@ -381,20 +583,20 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                             activeOpacity={0.7}
                           >
                             <Text style={[styles.zoomPillText, zoom === 0.16 && styles.zoomPillTextActive]}>
-                              2x (Bill nhỏ)
+                              2x (Xa)
                             </Text>
                           </TouchableOpacity>
                         </View>
 
                         <Text style={styles.scanTargetHint}>
-                          ⚡ Lia camera tự do quanh bill — Tự động nhận diện mọi vị trí
+                          ⚡ Lia camera vào Mã QR Hoá đơn hoặc Mã QR Nhóm / Bạn bè
                         </Text>
                       </View>
 
                       {loading && (
                         <View style={styles.cameraLoadingOverlay}>
                           <ActivityIndicator size="large" color="#FFFFFF" />
-                          <Text style={styles.cameraLoadingText}>Đang đọc hoá đơn điện tử...</Text>
+                          <Text style={styles.cameraLoadingText}>Đang nhận diện mã QR...</Text>
                         </View>
                       )}
                     </View>
@@ -405,7 +607,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                       </View>
                       <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
                       <Text style={styles.permissionSub}>
-                        Cho phép ShareMoney sử dụng camera để quét mã QR hoá đơn thanh toán.
+                        Cho phép ShareMoney sử dụng camera để quét mã QR hoá đơn và mã nhóm.
                       </Text>
                       <Button
                         title="Cấp quyền Camera"
@@ -418,7 +620,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                 </View>
               </View>
             ) : (
-              /* 3. TAB 2: ẢNH TỪ ĐIỆN THOẠI (OCR) */
+              /* 5. TAB 2: ẢNH TỪ ĐIỆN THOẠI (OCR) */
               <View style={styles.modeBody}>
                 {imageUri ? (
                   <View style={styles.previewBox}>
@@ -460,15 +662,74 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
 
           {/* Action Buttons */}
           <View style={styles.actionRow}>
-            {scannedResult ? (
+            {scannedGroup ? (
               <>
                 <Button
                   title="Quét lại"
                   variant="secondary"
-                  onPress={() => {
-                    setScannedResult(null);
-                    setScannedQrCode(false);
-                  }}
+                  onPress={handleResetScan}
+                  style={styles.flexBtn}
+                  icon={<RotateCcw size={16} color="#334155" />}
+                  disabled={actionLoading}
+                />
+                {scannedGroup.isJoined ? (
+                  <Button
+                    title="Vào xem nhóm"
+                    variant="primary"
+                    onPress={() => {
+                      const gId = scannedGroup.id;
+                      handleClose();
+                      if (onGroupJoined) onGroupJoined(gId);
+                    }}
+                    style={styles.flexBtn}
+                    icon={<ArrowRight size={16} color={colors.white} />}
+                  />
+                ) : (
+                  <Button
+                    title={actionLoading ? "Đang tham gia..." : "Tham gia nhóm ngay"}
+                    variant="primary"
+                    onPress={handleJoinScannedGroup}
+                    style={styles.flexBtn}
+                    loading={actionLoading}
+                    icon={!actionLoading ? <Users size={16} color={colors.white} /> : undefined}
+                  />
+                )}
+              </>
+            ) : scannedUser ? (
+              <>
+                <Button
+                  title="Quét lại"
+                  variant="secondary"
+                  onPress={handleResetScan}
+                  style={styles.flexBtn}
+                  icon={<RotateCcw size={16} color="#334155" />}
+                  disabled={actionLoading}
+                />
+                {targetGroupId ? (
+                  <Button
+                    title={actionLoading ? "Đang thêm..." : "+ Thêm vào nhóm"}
+                    variant="primary"
+                    onPress={handleAddScannedUserToGroup}
+                    style={styles.flexBtn}
+                    loading={actionLoading}
+                    icon={!actionLoading ? <UserPlus size={16} color={colors.white} /> : undefined}
+                  />
+                ) : (
+                  <Button
+                    title="Xong"
+                    variant="primary"
+                    onPress={handleClose}
+                    style={styles.flexBtn}
+                    icon={<CheckCircle2 size={16} color={colors.white} />}
+                  />
+                )}
+              </>
+            ) : scannedResult ? (
+              <>
+                <Button
+                  title="Quét lại"
+                  variant="secondary"
+                  onPress={handleResetScan}
                   style={styles.flexBtn}
                   icon={<RotateCcw size={16} color="#334155" />}
                 />
@@ -512,7 +773,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    backgroundColor: "rgba(15, 23, 42, 0.75)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
@@ -933,6 +1194,140 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.slate900,
   },
+
+  /* Group Preview Card Styles */
+  groupPreviewCard: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 20,
+    padding: 18,
+    alignItems: "center",
+  },
+  groupPreviewAvatarBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 24,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+  },
+  groupPreviewAvatar: {
+    width: "100%",
+    height: "100%",
+  },
+  groupPreviewName: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.slate900,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  groupPreviewDesc: {
+    fontSize: 12,
+    color: colors.slate500,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  groupMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "center",
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  groupMetaPill: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  groupMetaText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.slate700,
+  },
+  groupInviteHint: {
+    fontSize: 12,
+    color: colors.indigo600,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  alreadyJoinedBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+    marginTop: 4,
+  },
+  alreadyJoinedText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#065F46",
+  },
+
+  /* User Preview Card Styles */
+  userPreviewCard: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 20,
+    padding: 18,
+    alignItems: "center",
+  },
+  userPreviewAvatarBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.indigo50,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: "#C7D2FE",
+  },
+  userPreviewAvatar: {
+    width: "100%",
+    height: "100%",
+  },
+  userPreviewAvatarLetter: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: "#4F46E5",
+  },
+  userPreviewName: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: colors.slate900,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  userPreviewPhone: {
+    fontSize: 13,
+    color: colors.slate600,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  userPreviewEmail: {
+    fontSize: 11,
+    color: colors.slate400,
+    marginTop: 2,
+  },
+
   actionRow: {
     flexDirection: "row",
     gap: 12,

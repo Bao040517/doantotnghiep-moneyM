@@ -46,7 +46,9 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("INSUFFICIENT_WALLET_BALANCE", response.getBody().getErrorCode());
-        assertEquals(ErrorCode.INSUFFICIENT_WALLET_BALANCE.getMessage(), response.getBody().getMessage());
+        assertEquals(
+                ErrorCode.INSUFFICIENT_WALLET_BALANCE.getMessage(),
+                response.getBody().getMessage());
         assertNotNull(response.getBody().getTimestamp());
     }
 
@@ -125,7 +127,8 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Xử lý MethodArgumentTypeMismatchException (Sai kiểu dữ liệu tham số)")
     void testHandleTypeMismatch() {
-        MethodArgumentTypeMismatchException ex = Mockito.mock(MethodArgumentTypeMismatchException.class);
+        MethodArgumentTypeMismatchException ex =
+                Mockito.mock(MethodArgumentTypeMismatchException.class);
         Mockito.when(ex.getName()).thenReturn("id");
         Mockito.doReturn(java.util.UUID.class).when(ex).getRequiredType();
 
@@ -139,7 +142,8 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Xử lý MissingServletRequestParameterException (Thiếu tham số bắt buộc)")
     void testHandleMissingParam() {
-        MissingServletRequestParameterException ex = new MissingServletRequestParameterException("month", "int");
+        MissingServletRequestParameterException ex =
+                new MissingServletRequestParameterException("month", "int");
 
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleMissingParam(ex);
 
@@ -151,7 +155,9 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Xử lý DataIntegrityViolationException (409 Conflict)")
     void testHandleDataIntegrity() {
-        DataIntegrityViolationException ex = new DataIntegrityViolationException("Unique index violation", new RuntimeException("duplicate key"));
+        DataIntegrityViolationException ex =
+                new DataIntegrityViolationException(
+                        "Unique index violation", new RuntimeException("duplicate key"));
 
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleDataIntegrity(ex);
 
@@ -196,7 +202,8 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Xử lý HttpRequestMethodNotSupportedException (405 Method Not Allowed)")
     void testHandleMethodNotSupported() {
-        HttpRequestMethodNotSupportedException ex = new HttpRequestMethodNotSupportedException("POST");
+        HttpRequestMethodNotSupportedException ex =
+                new HttpRequestMethodNotSupportedException("POST");
 
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleMethodNotSupported(ex);
 
@@ -207,7 +214,8 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("Xử lý HttpMediaTypeNotSupportedException (415 Unsupported Media Type)")
     void testHandleMediaTypeNotSupported() {
-        HttpMediaTypeNotSupportedException ex = new HttpMediaTypeNotSupportedException("application/xml");
+        HttpMediaTypeNotSupportedException ex =
+                new HttpMediaTypeNotSupportedException("application/xml");
 
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleMediaTypeNotSupported(ex);
 

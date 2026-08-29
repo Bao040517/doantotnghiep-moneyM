@@ -3,6 +3,7 @@ package com.example.sharemoney.service;
 import com.example.sharemoney.dto.request.AddMemberRequest;
 import com.example.sharemoney.dto.request.CreateGroupRequest;
 import com.example.sharemoney.dto.response.GroupDetailResponse;
+import com.example.sharemoney.dto.response.GroupPreviewResponse;
 import com.example.sharemoney.dto.response.GroupResponse;
 import com.example.sharemoney.dto.response.UserSummaryResponse;
 import com.example.sharemoney.entity.Group;
@@ -204,6 +205,59 @@ public class GroupService {
         GroupMember member =
                 GroupMember.builder().group(group).user(newUser).role("member").build();
         groupMemberRepository.save(member);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Xem trước thông tin nhóm (dùng cho quét mã QR tham gia nhóm)
+    // ─────────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public GroupPreviewResponse getGroupPreview(UUID groupId, UUID currentUserId) {
+        Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+        boolean isJoined = groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, currentUserId);
+        int memberCount = groupMemberRepository.findByGroup_Id(groupId).size();
+
+        return GroupPreviewResponse.builder()
+                .id(group.getId())
+                .name(group.getName())
+                .description(group.getDescription())
+                .avatarUrl(group.getAvatarUrl())
+                .owner(toUserSummary(group.getOwner()))
+                .memberCount(memberCount)
+                .isJoined(isJoined)
+                .createdAt(group.getCreatedAt())
+                .build();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Người dùng tự tham gia nhóm qua mã QR / liên kết mời
+    // ─────────────────────────────────────────────────────────────
+    @Transactional
+    public GroupResponse joinGroup(UUID groupId, UUID currentUserId) {
+        Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+        User currentUser =
+                userRepository
+                        .findById(currentUserId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        boolean isAlreadyMember =
+                groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, currentUserId);
+
+        if (!isAlreadyMember) {
+            GroupMember member =
+                    GroupMember.builder().group(group).user(currentUser).role("member").build();
+            groupMemberRepository.save(member);
+        }
+
+        int memberCount = groupMemberRepository.findByGroup_Id(groupId).size();
+        return toGroupResponse(group, memberCount);
     }
 
     // ─────────────────────────────────────────────────────────────

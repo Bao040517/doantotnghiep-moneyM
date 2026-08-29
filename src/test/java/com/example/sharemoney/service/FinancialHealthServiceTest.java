@@ -46,12 +46,15 @@ class FinancialHealthServiceTest {
     }
 
     @Test
-    @DisplayName("Tính điểm sức khỏe tài chính: Không có dữ liệu thu chi -> Điểm 0, trạng thái Chưa đủ dữ liệu")
+    @DisplayName(
+            "Tính điểm sức khỏe tài chính: Không có dữ liệu thu chi -> Điểm 0, trạng thái Chưa đủ dữ liệu")
     void testCalculateHealthScore_NoData_ReturnsZeroAndNoDataStatus() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(transactionRepository.sumByTypeAndPeriod(eq(userId), eq(TransactionType.INCOME), any(), any()))
+        when(transactionRepository.sumByTypeAndPeriod(
+                        eq(userId), eq(TransactionType.INCOME), any(), any()))
                 .thenReturn(BigDecimal.ZERO);
-        when(transactionRepository.sumByTypeAndPeriod(eq(userId), eq(TransactionType.EXPENSE), any(), any()))
+        when(transactionRepository.sumByTypeAndPeriod(
+                        eq(userId), eq(TransactionType.EXPENSE), any(), any()))
                 .thenReturn(BigDecimal.ZERO);
 
         FinancialHealthDTO result = financialHealthService.calculateHealthScore(userId);
@@ -62,13 +65,16 @@ class FinancialHealthServiceTest {
     }
 
     @Test
-    @DisplayName("Tính điểm sức khỏe tài chính: Thu nhập cao, chi tiêu hợp lý, không nợ -> Điểm Tuyệt vời (>= 80)")
+    @DisplayName(
+            "Tính điểm sức khỏe tài chính: Thu nhập cao, chi tiêu hợp lý, không nợ -> Điểm Tuyệt vời (>= 80)")
     void testCalculateHealthScore_ExcellentFinancials_ReturnsHighScore() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         // Thu nhập 30 triệu, chi tiêu 10 triệu trong 3 tháng (tiết kiệm 20 triệu = 66% >= 20%)
-        when(transactionRepository.sumByTypeAndPeriod(eq(userId), eq(TransactionType.INCOME), any(), any()))
+        when(transactionRepository.sumByTypeAndPeriod(
+                        eq(userId), eq(TransactionType.INCOME), any(), any()))
                 .thenReturn(new BigDecimal("30000000"));
-        when(transactionRepository.sumByTypeAndPeriod(eq(userId), eq(TransactionType.EXPENSE), any(), any()))
+        when(transactionRepository.sumByTypeAndPeriod(
+                        eq(userId), eq(TransactionType.EXPENSE), any(), any()))
                 .thenReturn(new BigDecimal("10000000"));
 
         when(debtService.getUserDebtSummary(userId))
@@ -87,18 +93,24 @@ class FinancialHealthServiceTest {
     void testCalculateHealthScore_HighExpenseAndDebt_ReturnsWarningStatus() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         // Thu nhập 10 triệu, chi tiêu 12 triệu
-        when(transactionRepository.sumByTypeAndPeriod(eq(userId), eq(TransactionType.INCOME), any(), any()))
+        when(transactionRepository.sumByTypeAndPeriod(
+                        eq(userId), eq(TransactionType.INCOME), any(), any()))
                 .thenReturn(new BigDecimal("10000000"));
-        when(transactionRepository.sumByTypeAndPeriod(eq(userId), eq(TransactionType.EXPENSE), any(), any()))
+        when(transactionRepository.sumByTypeAndPeriod(
+                        eq(userId), eq(TransactionType.EXPENSE), any(), any()))
                 .thenReturn(new BigDecimal("12000000"));
 
         // Nợ 15 triệu (vượt thu nhập 10 triệu)
         when(debtService.getUserDebtSummary(userId))
-                .thenReturn(UserDebtSummaryResponse.builder().totalOwing(new BigDecimal("5000000")).build());
-        ExternalLoanDTO loan = ExternalLoanDTO.builder()
-                .principalAmount(new BigDecimal("10000000"))
-                .isSettled(false)
-                .build();
+                .thenReturn(
+                        UserDebtSummaryResponse.builder()
+                                .totalOwing(new BigDecimal("5000000"))
+                                .build());
+        ExternalLoanDTO loan =
+                ExternalLoanDTO.builder()
+                        .principalAmount(new BigDecimal("10000000"))
+                        .isSettled(false)
+                        .build();
         when(externalLoanService.getUserLoans(userId)).thenReturn(List.of(loan));
 
         FinancialHealthDTO result = financialHealthService.calculateHealthScore(userId);
@@ -113,7 +125,10 @@ class FinancialHealthServiceTest {
     void testCalculateHealthScore_UserNotFound_ThrowsException() {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(AppException.class, () -> financialHealthService.calculateHealthScore(userId));
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> financialHealthService.calculateHealthScore(userId));
         assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
     }
 }

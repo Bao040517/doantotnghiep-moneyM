@@ -13,9 +13,10 @@ import {
 import { BottomSheet } from "../ui/BottomSheet";
 import { Button } from "../ui/Button";
 import { Toast } from "../ui/Toast";
-import { Search } from "lucide-react-native";
+import { Search, Camera, QrCode } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { groupService } from "../../services/groupService";
+import { ScanReceiptModal } from "./ScanReceiptModal";
 
 interface AddMemberBottomSheetProps {
   visible: boolean;
@@ -42,6 +43,7 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
   const [pastMembers, setPastMembers] = useState<MemberCandidate[]>([]);
   const [loadingPast, setLoadingPast] = useState(false);
   const [qrFullscreenVisible, setQrFullscreenVisible] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
 
   // Search by phone state
   const [searchPhone, setSearchPhone] = useState("");
@@ -249,6 +251,15 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
           {memberTab === "qr" && (
             <View style={[styles.tabFixedBody, { alignItems: "center" }]}>
               <TouchableOpacity
+                onPress={() => setScannerVisible(true)}
+                style={styles.scanFriendBtn}
+                activeOpacity={0.8}
+              >
+                <Camera size={14} color={colors.white} />
+                <Text style={styles.scanFriendBtnText}>📷 Mở Camera Quét QR Bạn Bè</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 onPress={() => setQrFullscreenVisible(true)}
                 activeOpacity={0.8}
                 style={styles.qrFrame}
@@ -304,6 +315,21 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Live Camera Scanner to add friend by QR */}
+      <ScanReceiptModal
+        visible={scannerVisible}
+        targetGroupId={groupId}
+        onClose={() => setScannerVisible(false)}
+        onMemberAdded={(u) => {
+          setScannerVisible(false);
+          showToast(`Đã thêm ${u?.name || "thành viên"} vào nhóm! 🎉`, "success");
+          setTimeout(() => {
+            onClose();
+            onMemberAdded();
+          }, 800);
+        }}
+      />
 
       <Toast
         visible={toastVisible}
@@ -511,6 +537,26 @@ const styles = StyleSheet.create({
   },
 
   /* Tab 3: Mã QR */
+  scanFriendBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.indigo600,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    gap: 6,
+    marginBottom: 8,
+    shadowColor: colors.indigo600,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  scanFriendBtnText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "800",
+  },
   qrFrame: {
     width: 135,
     height: 135,

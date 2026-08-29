@@ -33,11 +33,12 @@ class RefreshTokenServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        user = User.builder()
-                .id(UUID.randomUUID())
-                .name("Nguyen Van A")
-                .email("vana@example.com")
-                .build();
+        user =
+                User.builder()
+                        .id(UUID.randomUUID())
+                        .name("Nguyen Van A")
+                        .email("vana@example.com")
+                        .build();
 
         Field durationField = RefreshTokenService.class.getDeclaredField("refreshTokenDurationMs");
         durationField.setAccessible(true);
@@ -47,7 +48,8 @@ class RefreshTokenServiceTest {
     @Test
     @DisplayName("Tạo Refresh Token mới thành công")
     void testCreateRefreshToken_Success() {
-        when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(refreshTokenRepository.save(any(RefreshToken.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
 
         RefreshToken token = refreshTokenService.createRefreshToken(user);
 
@@ -61,12 +63,13 @@ class RefreshTokenServiceTest {
     @Test
     @DisplayName("Kiểm tra hạn Refresh Token: Token hợp lệ -> Trả về token")
     void testVerifyExpiration_ValidToken_ReturnsToken() {
-        RefreshToken token = RefreshToken.builder()
-                .token("valid_token")
-                .user(user)
-                .expiryDate(Instant.now().plus(7, ChronoUnit.DAYS))
-                .revoked(false)
-                .build();
+        RefreshToken token =
+                RefreshToken.builder()
+                        .token("valid_token")
+                        .user(user)
+                        .expiryDate(Instant.now().plus(7, ChronoUnit.DAYS))
+                        .revoked(false)
+                        .build();
 
         RefreshToken result = refreshTokenService.verifyExpiration(token);
 
@@ -77,28 +80,32 @@ class RefreshTokenServiceTest {
     @Test
     @DisplayName("Kiểm tra hạn Refresh Token: Token đã bị thu hồi -> INVALID_REFRESH_TOKEN")
     void testVerifyExpiration_RevokedToken_ThrowsException() {
-        RefreshToken token = RefreshToken.builder()
-                .token("revoked_token")
-                .user(user)
-                .expiryDate(Instant.now().plus(7, ChronoUnit.DAYS))
-                .revoked(true)
-                .build();
+        RefreshToken token =
+                RefreshToken.builder()
+                        .token("revoked_token")
+                        .user(user)
+                        .expiryDate(Instant.now().plus(7, ChronoUnit.DAYS))
+                        .revoked(true)
+                        .build();
 
-        AppException ex = assertThrows(AppException.class, () -> refreshTokenService.verifyExpiration(token));
+        AppException ex =
+                assertThrows(AppException.class, () -> refreshTokenService.verifyExpiration(token));
         assertEquals(ErrorCode.INVALID_REFRESH_TOKEN, ex.getErrorCode());
     }
 
     @Test
     @DisplayName("Kiểm tra hạn Refresh Token: Token đã quá hạn -> REFRESH_TOKEN_EXPIRED")
     void testVerifyExpiration_ExpiredToken_ThrowsException() {
-        RefreshToken token = RefreshToken.builder()
-                .token("expired_token")
-                .user(user)
-                .expiryDate(Instant.now().minus(1, ChronoUnit.DAYS))
-                .revoked(false)
-                .build();
+        RefreshToken token =
+                RefreshToken.builder()
+                        .token("expired_token")
+                        .user(user)
+                        .expiryDate(Instant.now().minus(1, ChronoUnit.DAYS))
+                        .revoked(false)
+                        .build();
 
-        AppException ex = assertThrows(AppException.class, () -> refreshTokenService.verifyExpiration(token));
+        AppException ex =
+                assertThrows(AppException.class, () -> refreshTokenService.verifyExpiration(token));
         assertEquals(ErrorCode.REFRESH_TOKEN_EXPIRED, ex.getErrorCode());
         assertTrue(token.isRevoked());
         verify(refreshTokenRepository).save(token);
@@ -107,11 +114,8 @@ class RefreshTokenServiceTest {
     @Test
     @DisplayName("Thu hồi 1 token cụ thể")
     void testRevokeToken_Success() {
-        RefreshToken token = RefreshToken.builder()
-                .token("active_token")
-                .user(user)
-                .revoked(false)
-                .build();
+        RefreshToken token =
+                RefreshToken.builder().token("active_token").user(user).revoked(false).build();
 
         when(refreshTokenRepository.findByToken("active_token")).thenReturn(Optional.of(token));
 

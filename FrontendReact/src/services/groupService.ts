@@ -35,6 +35,9 @@ export const groupService = {
   getPendingSent: (groupId: string) =>
     api.get<string[]>(`/groups/${groupId}/debts/pending-sent`).then((res) => res.data),
   searchUserByPhone: (phone: string) => api.get<{ id: string; name: string; phone: string }>(`/users/search?phone=${encodeURIComponent(phone)}`).then((res) => res.data),
+  getUserById: (userId: string) => api.get<any>(`/users/${userId}`).then((res) => res.data),
   addMemberToGroup: (groupId: string, userId: string) => api.post(`/groups/${groupId}/members`, { userId }).then((res) => res.data),
+  getGroupPreview: (groupId: string) => api.get<any>(`/groups/${groupId}/preview`).then((res) => res.data),
+  joinGroup: (groupId: string) => api.post<Group>(`/groups/${groupId}/join`).then((res) => res.data),
 };
 

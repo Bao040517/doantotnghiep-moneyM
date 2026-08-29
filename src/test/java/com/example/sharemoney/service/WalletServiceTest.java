@@ -44,27 +44,30 @@ class WalletServiceTest {
     @BeforeEach
     void setUp() {
         userId = UUID.randomUUID();
-        user = User.builder()
-                .id(userId)
-                .name("Nguyen Van A")
-                .email("vana@example.com")
-                .passwordHash("hashed")
-                .build();
+        user =
+                User.builder()
+                        .id(userId)
+                        .name("Nguyen Van A")
+                        .email("vana@example.com")
+                        .passwordHash("hashed")
+                        .build();
 
-        wallet = Wallet.builder()
-                .id(UUID.randomUUID())
-                .user(user)
-                .name("Ví chính")
-                .balance(new BigDecimal("5000000"))
-                .currency("VND")
-                .isLiability(false)
-                .build();
+        wallet =
+                Wallet.builder()
+                        .id(UUID.randomUUID())
+                        .user(user)
+                        .name("Ví chính")
+                        .balance(new BigDecimal("5000000"))
+                        .currency("VND")
+                        .isLiability(false)
+                        .build();
     }
 
     @Test
     @DisplayName("Lấy danh sách ví: Đã có ví -> Trả về danh sách ví")
     void testGetAllWallets_ReturnsExisting() {
-        when(walletRepository.findByUser_IdAndIsLiability(userId, false)).thenReturn(List.of(wallet));
+        when(walletRepository.findByUser_IdAndIsLiability(userId, false))
+                .thenReturn(List.of(wallet));
 
         List<WalletResponse> result = walletService.getAllWallets(userId);
 
@@ -76,7 +79,8 @@ class WalletServiceTest {
     @Test
     @DisplayName("Lấy danh sách ví: Chưa có ví -> Tự động khởi tạo ví Tiền mặt mặc định")
     void testGetAllWallets_CreatesDefaultWhenEmpty() {
-        when(walletRepository.findByUser_IdAndIsLiability(userId, false)).thenReturn(Collections.emptyList());
+        when(walletRepository.findByUser_IdAndIsLiability(userId, false))
+                .thenReturn(Collections.emptyList());
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(walletRepository.save(any(Wallet.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -91,10 +95,12 @@ class WalletServiceTest {
     @Test
     @DisplayName("Lấy danh sách ví: Không tìm thấy User -> Ném USER_NOT_FOUND")
     void testGetAllWallets_UserNotFound_ThrowsException() {
-        when(walletRepository.findByUser_IdAndIsLiability(userId, false)).thenReturn(Collections.emptyList());
+        when(walletRepository.findByUser_IdAndIsLiability(userId, false))
+                .thenReturn(Collections.emptyList());
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(AppException.class, () -> walletService.getAllWallets(userId));
+        AppException ex =
+                assertThrows(AppException.class, () -> walletService.getAllWallets(userId));
         assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
     }
 
@@ -150,7 +156,10 @@ class WalletServiceTest {
 
         when(walletRepository.findById(randomWalletId)).thenReturn(Optional.empty());
 
-        AppException ex = assertThrows(AppException.class, () -> walletService.updateWallet(userId, randomWalletId, req));
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> walletService.updateWallet(userId, randomWalletId, req));
         assertEquals(ErrorCode.WALLET_NOT_FOUND, ex.getErrorCode());
     }
 
@@ -164,7 +173,10 @@ class WalletServiceTest {
 
         when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));
 
-        AppException ex = assertThrows(AppException.class, () -> walletService.updateWallet(otherUserId, walletId, req));
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> walletService.updateWallet(otherUserId, walletId, req));
         assertEquals(ErrorCode.UNAUTHORIZED, ex.getErrorCode());
     }
 
@@ -186,7 +198,9 @@ class WalletServiceTest {
         when(walletRepository.findById(walletId)).thenReturn(Optional.of(wallet));
         when(transactionRepository.existsByWallet_Id(walletId)).thenReturn(true);
 
-        AppException ex = assertThrows(AppException.class, () -> walletService.deleteWallet(userId, walletId));
+        AppException ex =
+                assertThrows(
+                        AppException.class, () -> walletService.deleteWallet(userId, walletId));
         assertEquals(ErrorCode.WALLET_HAS_TRANSACTIONS, ex.getErrorCode());
         verify(walletRepository, never()).delete(any(Wallet.class));
     }
@@ -194,19 +208,21 @@ class WalletServiceTest {
     @Test
     @DisplayName("Tính tổng số dư: Tài sản trừ Nợ phải trả (Liabilities)")
     void testGetTotalBalance_CalculatesAssetsAndLiabilities() {
-        Wallet assetWallet = Wallet.builder()
-                .user(user)
-                .name("Tiền mặt")
-                .balance(new BigDecimal("10000000"))
-                .isLiability(false)
-                .build();
+        Wallet assetWallet =
+                Wallet.builder()
+                        .user(user)
+                        .name("Tiền mặt")
+                        .balance(new BigDecimal("10000000"))
+                        .isLiability(false)
+                        .build();
 
-        Wallet debtWallet = Wallet.builder()
-                .user(user)
-                .name("Thẻ tín dụng nợ")
-                .balance(new BigDecimal("3000000"))
-                .isLiability(true)
-                .build();
+        Wallet debtWallet =
+                Wallet.builder()
+                        .user(user)
+                        .name("Thẻ tín dụng nợ")
+                        .balance(new BigDecimal("3000000"))
+                        .isLiability(true)
+                        .build();
 
         when(walletRepository.findByUser_Id(userId)).thenReturn(List.of(assetWallet, debtWallet));
 

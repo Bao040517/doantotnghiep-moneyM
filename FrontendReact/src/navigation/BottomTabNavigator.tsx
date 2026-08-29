@@ -295,11 +295,15 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
         }}
       />
 
-      {/* Floating AI Scan Receipt Modal */}
+      {/* Floating AI Scan Receipt & Group QR Modal */}
       <ScanReceiptModal
         visible={scanReceiptVisible}
         onClose={() => setScanReceiptVisible(false)}
         onScanSuccess={handleScanReceiptSuccess}
+        onGroupJoined={() => {
+          setScanReceiptVisible(false);
+          refresh();
+        }}
       />
 
       {/* Floating Create Group Modal */}

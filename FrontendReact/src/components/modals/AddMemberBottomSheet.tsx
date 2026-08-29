@@ -14,6 +14,7 @@ import { BottomSheet } from "../ui/BottomSheet";
 import { Button } from "../ui/Button";
 import { Toast } from "../ui/Toast";
 import { Search, Camera, QrCode } from "lucide-react-native";
+import QRCode from "react-native-qrcode-svg";
 import { colors } from "../../constants/colors";
 import { groupService } from "../../services/groupService";
 import { ScanReceiptModal } from "./ScanReceiptModal";
@@ -264,7 +265,12 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
                 activeOpacity={0.8}
                 style={styles.qrFrame}
               >
-                <Image source={{ uri: qrApiUrl }} style={styles.qrImage} resizeMode="contain" />
+                <QRCode
+                  value={inviteUrl}
+                  size={150}
+                  color="#0F172A"
+                  backgroundColor="#FFFFFF"
+                />
               </TouchableOpacity>
 
               <Text style={styles.qrTitle}>Mã Nhóm: #{groupId?.slice(0, 8)}</Text>
@@ -303,10 +309,11 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
             <Text style={styles.fullscreenSub}>Đưa mã này cho bạn bè quét để tham gia nhóm ngay lập tức</Text>
 
             <View style={styles.fullscreenQrFrame}>
-              <Image
-                source={{ uri: qrApiUrl }}
-                style={styles.fullscreenQrImage}
-                resizeMode="contain"
+              <QRCode
+                value={inviteUrl}
+                size={210}
+                color="#0F172A"
+                backgroundColor="#FFFFFF"
               />
             </View>
 

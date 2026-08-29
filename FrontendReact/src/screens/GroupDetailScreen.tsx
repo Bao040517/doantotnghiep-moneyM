@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   StatusBar,
+  Modal,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Button } from "../components/ui/Button";
@@ -25,6 +26,8 @@ import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
 import { ScanReceiptModal } from "../components/modals/ScanReceiptModal";
 import { Toast } from "../components/ui/Toast";
 import { GroupDetailSkeleton } from "../components/ui/SkeletonLoader";
+import { QrCode } from "lucide-react-native";
+import QRCode from "react-native-qrcode-svg";
 import { colors } from "../constants/colors";
 import { groupService } from "../services/groupService";
 import { useAuth } from "../hooks/useAuth";
@@ -75,6 +78,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
 
   // Add Member Modal state
   const [addMemberVisible, setAddMemberVisible] = useState(false);
+  const [groupQrVisible, setGroupQrVisible] = useState(false);
 
   // Expense Detail Modal state
   const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(null);
@@ -338,9 +342,15 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
           <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
-        <TouchableOpacity style={styles.inviteBtn} onPress={() => setAddMemberVisible(true)}>
-          <Text style={styles.inviteBtnText}>Mời bạn bè</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <TouchableOpacity style={styles.qrHeaderBtn} onPress={() => setGroupQrVisible(true)} activeOpacity={0.8}>
+            <QrCode size={15} color="#4F46E5" />
+            <Text style={styles.qrHeaderBtnText}>Mã QR</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.inviteBtn} onPress={() => setAddMemberVisible(true)} activeOpacity={0.8}>
+            <Text style={styles.inviteBtnText}>+ Thêm</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
@@ -656,7 +666,30 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         {/* ─── MEMBERS TAB ─── */}
         {activeTab === "members" && (
           <View style={styles.tabContent}>
-            <Text style={styles.sectionHeaderTitle}>Danh sách thành viên ({group.members?.length || 0})</Text>
+            {/* Group QR Quick Action Card */}
+            <TouchableOpacity
+              style={styles.groupQrInviteCard}
+              onPress={() => setGroupQrVisible(true)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.groupQrCardIconBg}>
+                <QrCode size={22} color="#4F46E5" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.groupQrCardTitle}>Mã QR Tham Gia Nhóm 📲</Text>
+                <Text style={styles.groupQrCardSub}>
+                  Mở mã để thành viên mới quét camera vào nhóm ngay
+                </Text>
+              </View>
+              <Text style={styles.groupQrCardArrow}>→</Text>
+            </TouchableOpacity>
+
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeaderTitle}>Danh sách thành viên ({group.members?.length || 0})</Text>
+              <TouchableOpacity onPress={() => setAddMemberVisible(true)} activeOpacity={0.7}>
+                <Text style={{ fontSize: 13, fontWeight: "800", color: "#4F46E5" }}>+ Thêm thành viên</Text>
+              </TouchableOpacity>
+            </View>
             {group.members?.map((m) => (
               <View key={m.id} style={styles.memberRow}>
                 <View style={styles.memberAvatarCircle}>
@@ -1081,6 +1114,70 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
           showToast("✅ Đã nhận diện hoá đơn thành công", "success");
         }}
       />
+
+      {/* ─── GROUP QR LIGHTBOX MODAL ─── */}
+      <Modal
+        transparent
+        visible={groupQrVisible}
+        animationType="fade"
+        onRequestClose={() => setGroupQrVisible(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setGroupQrVisible(false)}
+          style={styles.groupQrModalOverlay}
+        >
+          <View style={styles.groupQrModalCard}>
+            <TouchableOpacity
+              onPress={() => setGroupQrVisible(false)}
+              style={styles.groupQrModalCloseBtn}
+            >
+              <Text style={styles.groupQrModalCloseText}>✕</Text>
+            </TouchableOpacity>
+
+            <View style={styles.groupQrModalHeader}>
+              {group.avatarUrl ? (
+                <Image source={{ uri: group.avatarUrl }} style={styles.groupQrAvatar} />
+              ) : (
+                <View style={styles.groupQrAvatarFallback}>
+                  <Text style={styles.groupQrAvatarText}>{group.name.charAt(0)}</Text>
+                </View>
+              )}
+              <Text style={styles.groupQrModalGroupName} numberOfLines={1}>
+                {group.name}
+              </Text>
+              <Text style={styles.groupQrModalSub}>
+                Quét mã QR bằng Camera ShareMoney để tham gia nhóm ngay
+              </Text>
+            </View>
+
+            <View style={styles.groupQrBox}>
+              <QRCode
+                value={`https://sharemoney.app/groups/${group.id}`}
+                size={200}
+                color="#0F172A"
+                backgroundColor="#FFFFFF"
+              />
+            </View>
+
+            <View style={styles.groupQrCodePill}>
+              <Text style={styles.groupQrCodeText}>Mã nhóm: #{group.id.slice(0, 8)}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.groupQrCopyBtn}
+              onPress={() => {
+                showToast("Đã sao chép liên kết mời nhóm thành công! ✨", "success");
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.groupQrCopyBtnText}>📋 Sao chép Link Mời Nhóm</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.groupQrDismissHint}>Chạm bất kỳ đâu bên ngoài để đóng</Text>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <Toast
         visible={toastVisible}
@@ -1964,5 +2061,199 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 14,
+  },
+  qrHeaderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EEF2FF",
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+  },
+  qrHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#4F46E5",
+  },
+  groupQrInviteCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#EEF2FF",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: "#C7D2FE",
+    marginBottom: 16,
+  },
+  groupQrCardIconBg: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  groupQrCardTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#312E81",
+  },
+  groupQrCardSub: {
+    fontSize: 11,
+    color: "#6366F1",
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  groupQrCardArrow: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#4F46E5",
+  },
+  groupQrModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  groupQrModalCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: "#0F172A",
+    padding: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  groupQrModalCloseBtn: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#0F172A",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+    zIndex: 10,
+  },
+  groupQrModalCloseText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
+  groupQrModalHeader: {
+    alignItems: "center",
+    marginBottom: 16,
+    paddingHorizontal: 10,
+  },
+  groupQrAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: "#4F46E5",
+    marginBottom: 8,
+  },
+  groupQrAvatarFallback: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#EEF2FF",
+    borderWidth: 2,
+    borderColor: "#4F46E5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  groupQrAvatarText: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#4F46E5",
+  },
+  groupQrModalGroupName: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#0F172A",
+    textAlign: "center",
+  },
+  groupQrModalSub: {
+    fontSize: 12,
+    color: "#64748B",
+    textAlign: "center",
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  groupQrBox: {
+    padding: 14,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+    marginBottom: 12,
+  },
+  groupQrCodePill: {
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginBottom: 16,
+  },
+  groupQrCodeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#475569",
+    letterSpacing: 0.5,
+  },
+  groupQrCopyBtn: {
+    width: "100%",
+    backgroundColor: "#4F46E5",
+    paddingVertical: 13,
+    borderRadius: 16,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#3730A3",
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  groupQrCopyBtnText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  groupQrDismissHint: {
+    fontSize: 11,
+    color: "#94A3B8",
+    marginTop: 12,
+    fontWeight: "500",
   },
 });

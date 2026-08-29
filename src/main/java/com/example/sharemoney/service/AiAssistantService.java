@@ -49,7 +49,7 @@ public class AiAssistantService {
     private String apiKey;
 
     @Value(
-            "${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent}")
+            "${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent}")
     private String apiUrl;
 
     private final UserRepository userRepository;

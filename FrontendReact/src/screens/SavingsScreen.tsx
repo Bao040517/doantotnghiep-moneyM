@@ -14,10 +14,12 @@ import { useSavings } from "../hooks/useSavings";
 import { useAuth } from "../hooks/useAuth";
 import { financialServices } from "../services/financialServices";
 import { SavingsPriority } from "../types";
+import { useTheme } from "../context/ThemeContext";
 
 export const SavingsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const { isDark, colors: themeColors } = useTheme();
   const { totalWalletBalance, budgets, isLoading: appLoading, refresh: refreshApp, safeToSpend: apiSafeToSpend } = useAppData();
 
   const {
@@ -230,17 +232,20 @@ export const SavingsScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#e8f5f1" }]}>
       {/* ─── STICKY HEADER ─── */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)" }]}>
         <View style={styles.headerTopRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate("Dashboard")}>
-            <Text style={styles.backArrow}>‹</Text>
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: isDark ? themeColors.surface : colors.white }]}
+            onPress={() => navigation.navigate("Dashboard")}
+          >
+            <Text style={[styles.backArrow, { color: themeColors.textPrimary }]}>‹</Text>
           </TouchableOpacity>
 
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.headerTitle}>Tiết kiệm</Text>
-            <Text style={styles.headerSub}>Quản lý quỹ & mục tiêu tiết kiệm</Text>
+            <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Tiết kiệm</Text>
+            <Text style={[styles.headerSub, { color: themeColors.textSecondary }]}>Quản lý quỹ & mục tiêu tiết kiệm</Text>
           </View>
 
           <TouchableOpacity style={styles.createBtnHeader} onPress={() => setCreateVisible(true)}>

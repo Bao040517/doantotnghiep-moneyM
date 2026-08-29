@@ -21,8 +21,10 @@ import { Transaction, MonthlySummary } from "../types";
 import { matchVietnamese } from "../utils/vietnamese";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { HistorySkeleton } from "../components/ui/SkeletonLoader";
+import { useTheme } from "../context/ThemeContext";
 
 export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
+  const { isDark, colors: themeColors } = useTheme();
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -115,7 +117,7 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#e8f5f1" }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={[colors.indigo600]} />}

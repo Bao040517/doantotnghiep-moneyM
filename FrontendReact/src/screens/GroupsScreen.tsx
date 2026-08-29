@@ -29,6 +29,7 @@ import { colors } from "../constants/colors";
 import { groupService } from "../services/groupService";
 import { useAuth } from "../hooks/useAuth";
 import { Group, GroupDebtDetail, GroupDebtSummary, Payee } from "../types";
+import { useTheme } from "../context/ThemeContext";
 
 const GROUP_IMAGES = [
   "https://images.unsplash.com/photo-1539635273304-0e8723e0f016?auto=format&fit=crop&w=400&q=80",
@@ -40,6 +41,7 @@ const GROUP_IMAGES = [
 export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const { isDark, colors: themeColors } = useTheme();
   const [groups, setGroups] = useState<Group[]>([]);
   const [debtSummary, setDebtSummary] = useState<GroupDebtSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -301,21 +303,24 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#e8f5f1" }]}>
       {/* ─── STICKY HEADER ─── */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)" }]}>
         <View style={styles.headerTopRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={handleHeaderBack}>
-            <Text style={styles.backArrow}>‹</Text>
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: isDark ? themeColors.surface : colors.white }]}
+            onPress={handleHeaderBack}
+          >
+            <Text style={[styles.backArrow, { color: themeColors.textPrimary }]}>‹</Text>
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Nhóm</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Nhóm</Text>
 
           <View style={styles.headerRightActions}>
-            <TouchableOpacity style={styles.iconCircle}>
-              <Bell size={18} color="#0F172A" />
+            <TouchableOpacity style={[styles.iconCircle, { backgroundColor: isDark ? themeColors.surface : colors.white }]}>
+              <Bell size={18} color={themeColors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconCircle}>
+            <TouchableOpacity style={[styles.iconCircle, { backgroundColor: isDark ? themeColors.surface : colors.white }]}>
               <Text style={{ fontSize: 15 }}>⚙️</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -332,8 +337,8 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           </View>
         </View>
 
-        <Text style={styles.greetingText}>
-          Chào ngày mới, <Text style={styles.greetingName}>{userName} 👋</Text>
+        <Text style={[styles.greetingText, { color: themeColors.textSecondary }]}>
+          Chào ngày mới, <Text style={[styles.greetingName, { color: themeColors.textPrimary }]}>{userName} 👋</Text>
         </Text>
       </View>
 

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { BottomSheet } from "../ui/BottomSheet";
 import { notificationService, AppNotification } from "../../services/notificationService";
 import { colors } from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 interface NotificationBottomSheetProps {
   visible: boolean;
@@ -10,6 +11,7 @@ interface NotificationBottomSheetProps {
 }
 
 export const NotificationBottomSheet: React.FC<NotificationBottomSheetProps> = ({ visible, onClose }) => {
+  const { isDark, colors: themeColors } = useTheme();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -79,13 +81,13 @@ export const NotificationBottomSheet: React.FC<NotificationBottomSheetProps> = (
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color={colors.indigo600} />
-            <Text style={styles.loadingText}>Đang tải thông báo...</Text>
+            <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Đang tải thông báo...</Text>
           </View>
         ) : notifications.length === 0 ? (
           <View style={styles.emptyBox}>
             <Text style={{ fontSize: 36, marginBottom: 8 }}>🔕</Text>
-            <Text style={styles.emptyTitle}>Chưa có thông báo nào</Text>
-            <Text style={styles.emptySub}>Các nhắc nợ, giao dịch mới và lời khuyên sẽ xuất hiện tại đây.</Text>
+            <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>Chưa có thông báo nào</Text>
+            <Text style={[styles.emptySub, { color: themeColors.textSecondary }]}>Các nhắc nợ, giao dịch mới và lời khuyên sẽ xuất hiện tại đây.</Text>
           </View>
         ) : (
           <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
@@ -93,14 +95,29 @@ export const NotificationBottomSheet: React.FC<NotificationBottomSheetProps> = (
               <TouchableOpacity
                 key={item.id}
                 onPress={() => !item.isRead && handleMarkAsRead(item.id)}
-                style={[styles.itemCard, !item.isRead && styles.itemCardUnread]}
+                style={[
+                  styles.itemCard,
+                  {
+                    backgroundColor: isDark ? themeColors.surface : colors.slate50,
+                    borderColor: isDark ? themeColors.border : colors.slate100,
+                  },
+                  !item.isRead && (isDark ? { backgroundColor: "#1E293B", borderColor: "#3B82F6" } : styles.itemCardUnread),
+                ]}
               >
-                <View style={styles.iconCircle}>
+                <View style={[styles.iconCircle, { backgroundColor: isDark ? themeColors.card : colors.white }]}>
                   <Text style={{ fontSize: 16 }}>{item.isRead ? "📩" : "🔔"}</Text>
                 </View>
                 <View style={styles.itemMain}>
-                  <Text style={[styles.itemMsg, !item.isRead && styles.itemMsgUnread]}>{item.message}</Text>
-                  <Text style={styles.itemTime}>{formatDateStr(item.createdAt)}</Text>
+                  <Text
+                    style={[
+                      styles.itemMsg,
+                      { color: isDark ? themeColors.textPrimary : colors.slate700 },
+                      !item.isRead && (isDark ? { color: "#60A5FA", fontWeight: "800" } : styles.itemMsgUnread),
+                    ]}
+                  >
+                    {item.message}
+                  </Text>
+                  <Text style={[styles.itemTime, { color: themeColors.textSecondary }]}>{formatDateStr(item.createdAt)}</Text>
                 </View>
                 {!item.isRead && <View style={styles.unreadDot} />}
               </TouchableOpacity>

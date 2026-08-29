@@ -17,6 +17,7 @@ import { CategoryIcon } from "../ui/CategoryIcon";
 import { BudgetSummary, CategoryBreakdown, GroupDebtSummary, GroupDebtDetail } from "../../types";
 import { financialServices } from "../../services/financialServices";
 import { groupService } from "../../services/groupService";
+import { useTheme } from "../../context/ThemeContext";
 
 interface TotalExpenseDetailBottomSheetProps {
   visible: boolean;
@@ -46,6 +47,7 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
   debtSummary: propDebtSummary,
   totalSavings: propTotalSavings,
 }) => {
+  const { isDark, colors: themeColors } = useTheme();
   const appData = useAppData();
 
   const budgets = propBudgets || appData.budgets || [];
@@ -214,10 +216,10 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
   const flexibleSpent = flexibleItems.reduce((s, i) => s + i.spentAmount, 0);
   const flexibleLimit = flexibleItems.reduce((s, i) => s + (i.hasBudget ? i.limitAmount : i.spentAmount), 0);
 
-  const activeDebtSummary = internalDebtSummary || (propDebt as GroupDebtSummary);
-  const rawDetails: GroupDebtDetail[] = activeDebtSummary?.details || [];
-  const owingDetails = rawDetails.filter((d) => d.type === "OWING" || (d.amount > 0 && !d.type));
-  const debtOwing = activeDebtSummary?.totalOwing ?? (propDebt?.totalOwing ?? 0);
+  // 3. Nợ phải trả và Tiền tiết kiệm
+  const activeDebt = internalDebtSummary || (propDebt as GroupDebtSummary);
+  const debtOwing = activeDebt?.totalOwing ?? 0;
+  const owingDetails: GroupDebtDetail[] = (activeDebt?.details || []).filter((d: any) => d.type === "OWING" || (d.amount > 0 && !d.type));
   const savingsTotal = totalSavings || 0;
 
   // Tổng thực tế đã chi
@@ -229,21 +231,30 @@ export const TotalExpenseDetailBottomSheet: React.FC<TotalExpenseDetailBottomShe
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity style={styles.modalCard} activeOpacity={1}>
+        <TouchableOpacity
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: isDark ? themeColors.card : "#FFFFFF",
+              borderColor: isDark ? themeColors.border : "#0F172A",
+            },
+          ]}
+          activeOpacity={1}
+        >
           {/* ─── HEADER ROW ─── */}
-          <View style={styles.modalHeaderRow}>
+          <View style={[styles.modalHeaderRow, { borderBottomColor: isDark ? themeColors.divider : "#F1F5F9" }]}>
             <View style={styles.modalTitleContainer}>
-              <Text style={styles.modalTitle}>
+              <Text style={[styles.modalTitle, { color: themeColors.textPrimary }]}>
                 {selectedCategory ? `Lịch sử • ${selectedCategory.name}` : "Chi tiết tổng chi tiêu"}
               </Text>
               {!selectedCategory && (
-                <Text style={styles.modalSubTitle}>
+                <Text style={[styles.modalSubTitle, { color: themeColors.textSecondary }]}>
                   Đối chiếu giữa Đã chi thực tế và Kế hoạch phải chi
                 </Text>
               )}
             </View>
             <TouchableOpacity
-              style={styles.closeBtn}
+              style={[styles.closeBtn, { backgroundColor: isDark ? themeColors.surface : "#F1F5F9" }]}
               onPress={() => {
                 setSelectedCategory(null);
                 onClose();

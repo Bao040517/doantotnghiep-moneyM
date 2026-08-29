@@ -39,6 +39,7 @@ import { authService } from "../services/authService";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { VietnameseTextInput } from "../components/ui/VietnameseTextInput";
 import { CATEGORY_ICONS, getCategoryEmoji } from "../constants/categories";
+import { useTheme } from "../context/ThemeContext";
 
 // The absolute core text input that NEVER re-renders to prevent ANY React Native interference with IME
 const SearchInputCore = React.memo(
@@ -93,6 +94,7 @@ export const BudgetScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { user } = useAuth();
+  const { isDark, colors: themeColors } = useTheme();
   const targetBudgetId = route.params?.targetBudgetId;
 
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
@@ -551,17 +553,20 @@ export const BudgetScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#e8f5f1" }]}>
       {/* ─── STICKY HEADER ─── */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)" }]}>
         <View style={styles.headerTopRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate("Dashboard")}>
-            <Text style={styles.backArrow}>‹</Text>
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: isDark ? themeColors.surface : colors.white }]}
+            onPress={() => navigation.navigate("Dashboard")}
+          >
+            <Text style={[styles.backArrow, { color: themeColors.textPrimary }]}>‹</Text>
           </TouchableOpacity>
 
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.headerTitle}>Quản lý Ngân sách</Text>
-            <Text style={styles.headerSub}>Đặt hạn mức chi tiêu hàng tháng</Text>
+            <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Quản lý Ngân sách</Text>
+            <Text style={[styles.headerSub, { color: themeColors.textSecondary }]}>Đặt hạn mức chi tiêu hàng tháng</Text>
           </View>
         </View>
       </View>
@@ -575,8 +580,8 @@ export const BudgetScreen: React.FC = () => {
         {/* ─── SUB HEADER ROW ─── */}
         <View style={styles.subHeaderRow}>
           <View>
-            <Text style={styles.subHeaderTitle}>Ngân sách chi tiêu</Text>
-            <Text style={styles.subHeaderSub}>Đặt hạn mức để không tiêu lố tay</Text>
+            <Text style={[styles.subHeaderTitle, { color: themeColors.textPrimary }]}>Ngân sách chi tiêu</Text>
+            <Text style={[styles.subHeaderSub, { color: themeColors.textSecondary }]}>Đặt hạn mức để không tiêu lố tay</Text>
           </View>
 
           <TouchableOpacity style={styles.createBtn} onPress={() => setModalVisible(true)}>
@@ -585,14 +590,14 @@ export const BudgetScreen: React.FC = () => {
         </View>
 
         {/* ─── SUMMARY CARD ─── */}
-        <View style={styles.summaryCard}>
+        <View style={[styles.summaryCard, { backgroundColor: isDark ? themeColors.card : colors.white, borderColor: isDark ? themeColors.border : "#a7f3d0" }]}>
           <View>
-            <Text style={styles.summaryLabel}>Tổng ngân sách tháng</Text>
-            <Text style={styles.summaryValue}>
+            <Text style={[styles.summaryLabel, { color: themeColors.textSecondary }]}>Tổng ngân sách tháng</Text>
+            <Text style={[styles.summaryValue, { color: themeColors.textPrimary }]}>
               {fmt(totalLimit)} <Text style={styles.summaryCurrency}>đ</Text>
             </Text>
           </View>
-          <View style={styles.summaryIconBg}>
+          <View style={[styles.summaryIconBg, { backgroundColor: isDark ? themeColors.surface : "#ecfdf5" }]}>
             <Text style={{ fontSize: 24 }}>🧾</Text>
           </View>
         </View>

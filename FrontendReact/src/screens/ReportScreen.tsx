@@ -24,6 +24,7 @@ import { CategoryBreakdown, MonthlySummary, BudgetSummary, Transaction, GroupDeb
 import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { ReportSkeleton } from "../components/ui/SkeletonLoader";
 import { X } from "lucide-react-native";
+import { useTheme } from "../context/ThemeContext";
 
 const CHART_COLORS = [
   "#FBBF24", // Vàng ấm (như Mua sắm 58%)
@@ -53,6 +54,7 @@ function categorizeExpenseGroup(categoryName: string): "NEEDS" | "WANTS" | "SAVI
 
 export const ReportScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { isDark, colors: themeColors } = useTheme();
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -293,7 +295,7 @@ export const ReportScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#FDFAFB" }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={[colors.indigo600]} />}
@@ -302,23 +304,23 @@ export const ReportScreen: React.FC = () => {
         <Card style={styles.headerCard}>
           <View style={styles.headerTopRow}>
             <TouchableOpacity
-              style={styles.backBtn}
+              style={[styles.backBtn, { backgroundColor: isDark ? themeColors.surface : colors.slate100 }]}
               onPress={() => navigation.navigate("Dashboard")}
               activeOpacity={0.7}
             >
-              <Text style={styles.backArrow}>‹</Text>
+              <Text style={[styles.backArrow, { color: themeColors.textPrimary }]}>‹</Text>
             </TouchableOpacity>
 
-            <Text style={styles.pageTitle}>Báo cáo tài chính</Text>
+            <Text style={[styles.pageTitle, { color: themeColors.textPrimary }]}>Báo cáo tài chính</Text>
 
             <View style={{ width: 36 }} />
           </View>
 
-          <View style={styles.monthSelectorPill}>
+          <View style={[styles.monthSelectorPill, { backgroundColor: isDark ? themeColors.surface : colors.slate50, borderColor: themeColors.border }]}>
             <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthNavBtn}>
               <Text style={styles.monthNavText}>‹</Text>
             </TouchableOpacity>
-            <Text style={styles.monthText}>
+            <Text style={[styles.monthText, { color: themeColors.textPrimary }]}>
               Tháng {selectedMonth}/{selectedYear}
             </Text>
             <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthNavBtn}>
@@ -332,7 +334,7 @@ export const ReportScreen: React.FC = () => {
           {/* Đã Thu Thực Tế */}
           <TouchableOpacity style={{ width: "48.5%" }} onPress={() => setSelectedCardModal("INCOME")}>
             <Card style={styles.summaryBox}>
-              <Text style={styles.summaryBoxLabel}>💵 Đã thu (Thực tế)</Text>
+              <Text style={[styles.summaryBoxLabel, { color: themeColors.textSecondary }]}>💵 Đã thu (Thực tế)</Text>
               <Text style={[styles.summaryBoxVal, { color: colors.emerald600 }]}>{fmt(totalIncome)}</Text>
             </Card>
           </TouchableOpacity>
@@ -340,7 +342,7 @@ export const ReportScreen: React.FC = () => {
           {/* Đã Chi Thực Tế (Lấy từ lịch sử chi tiêu) */}
           <TouchableOpacity style={{ width: "48.5%" }} onPress={() => setSelectedCardModal("EXPENSE")}>
             <Card style={styles.summaryBox}>
-              <Text style={styles.summaryBoxLabel}>💸 Đã chi (Thực tế)</Text>
+              <Text style={[styles.summaryBoxLabel, { color: themeColors.textSecondary }]}>💸 Đã chi (Thực tế)</Text>
               <Text style={[styles.summaryBoxVal, { color: colors.rose600 }]}>{fmt(totalExpense)}</Text>
             </Card>
           </TouchableOpacity>
@@ -348,7 +350,7 @@ export const ReportScreen: React.FC = () => {
           {/* Tổng Thu Dự Kiến (Đã thu + Cần thu) */}
           <TouchableOpacity style={{ width: "48.5%" }} onPress={() => setSelectedCardModal("RECEIVABLE")}>
             <Card style={styles.summaryBox}>
-              <Text style={styles.summaryBoxLabel}>📥 Tổng thu (Dự kiến)</Text>
+              <Text style={[styles.summaryBoxLabel, { color: themeColors.textSecondary }]}>📥 Tổng thu (Dự kiến)</Text>
               <Text style={[styles.summaryBoxVal, { color: colors.indigo600 }]}>
                 {fmt(totalIncome + debtSummary.totalOwed)}
               </Text>
@@ -358,7 +360,7 @@ export const ReportScreen: React.FC = () => {
           {/* Tổng Chi Kế Hoạch / Dự Kiến (Hạn mức phải chi + Nợ) */}
           <TouchableOpacity style={{ width: "48.5%" }} onPress={() => setSelectedCardModal("PAYABLE")}>
             <Card style={styles.summaryBox}>
-              <Text style={styles.summaryBoxLabel}>📤 Tổng chi (Kế hoạch)</Text>
+              <Text style={[styles.summaryBoxLabel, { color: themeColors.textSecondary }]}>📤 Tổng chi (Kế hoạch)</Text>
               <Text style={[styles.summaryBoxVal, { color: colors.amber600 }]}>
                 {fmt(totalExpense + unpaidBudgetsAmount + debtSummary.totalOwing)}
               </Text>
@@ -371,8 +373,8 @@ export const ReportScreen: React.FC = () => {
           <Card style={styles.savingsCard}>
             <View style={styles.savingsRow}>
               <View>
-                <Text style={styles.summaryBoxLabel}>💰 Tiết kiệm tháng này</Text>
-                <Text style={[styles.summaryBoxVal, { color: netSavings >= 0 ? colors.slate900 : colors.rose600 }]}>
+                <Text style={[styles.summaryBoxLabel, { color: themeColors.textSecondary }]}>💰 Tiết kiệm tháng này</Text>
+                <Text style={[styles.summaryBoxVal, { color: netSavings >= 0 ? (isDark ? themeColors.textPrimary : colors.slate900) : colors.rose600 }]}>
                   {netSavings >= 0 ? "+" : ""}
                   {fmt(netSavings)}
                 </Text>
@@ -384,7 +386,7 @@ export const ReportScreen: React.FC = () => {
                     styles.comparisonBadge,
                     {
                       backgroundColor:
-                        (summary.comparison.expenseChange || 0) > 0 ? "#FFE4E6" : "#E6F4EA",
+                        (summary.comparison.expenseChange || 0) > 0 ? (isDark ? "#4C1D24" : "#FFE4E6") : (isDark ? "#064E3B" : "#E6F4EA"),
                     },
                   ]}
                 >
@@ -394,8 +396,8 @@ export const ReportScreen: React.FC = () => {
                       {
                         color:
                           (summary.comparison.expenseChange || 0) > 0
-                            ? colors.rose600
-                            : colors.emerald600,
+                            ? (isDark ? "#FB7185" : colors.rose600)
+                            : (isDark ? "#34D399" : colors.emerald600),
                       },
                     ]}
                   >
@@ -410,9 +412,9 @@ export const ReportScreen: React.FC = () => {
 
         {/* ─── FINANCIAL STRUCTURE & BREAKDOWN CARD ─── */}
         <Card style={styles.sectionCard}>
-          <Text style={styles.cardHeaderTitle}>Cơ cấu tài chính</Text>
+          <Text style={[styles.cardHeaderTitle, { color: themeColors.textPrimary }]}>Cơ cấu tài chính</Text>
 
-          <View style={styles.toggleRow}>
+          <View style={[styles.toggleRow, { backgroundColor: isDark ? themeColors.surface : colors.slate50 }]}>
             <TouchableOpacity
               onPress={() => {
                 setActiveTab("expense");
@@ -420,7 +422,7 @@ export const ReportScreen: React.FC = () => {
               }}
               style={[styles.toggleBtn, activeTab === "expense" && styles.toggleBtnActiveExpense]}
             >
-              <Text style={[styles.toggleBtnText, activeTab === "expense" && styles.toggleBtnTextActive]}>
+              <Text style={[styles.toggleBtnText, activeTab === "expense" && styles.toggleBtnTextActive, activeTab !== "expense" && { color: themeColors.textSecondary }]}>
                 Chi tiêu
               </Text>
             </TouchableOpacity>
@@ -432,7 +434,7 @@ export const ReportScreen: React.FC = () => {
               }}
               style={[styles.toggleBtn, activeTab === "income" && styles.toggleBtnActiveIncome]}
             >
-              <Text style={[styles.toggleBtnText, activeTab === "income" && styles.toggleBtnTextActive]}>
+              <Text style={[styles.toggleBtnText, activeTab === "income" && styles.toggleBtnTextActive, activeTab !== "income" && { color: themeColors.textSecondary }]}>
                 Thu nhập
               </Text>
             </TouchableOpacity>
@@ -687,11 +689,11 @@ export const ReportScreen: React.FC = () => {
                 })()}
               </View>
 
-              <TouchableOpacity onPress={toggleDetail} style={styles.accordionHeader}>
-                <Text style={styles.accordionTitle}>
+              <TouchableOpacity onPress={toggleDetail} style={[styles.accordionHeader, { borderTopColor: isDark ? themeColors.divider : "#F1F5F9" }]}>
+                <Text style={[styles.accordionTitle, { color: themeColors.textPrimary }]}>
                   Chi tiết từng danh mục ({activeBreakdown.length})
                 </Text>
-                <Text style={styles.accordionArrow}>{showDetail ? "▲" : "▼"}</Text>
+                <Text style={[styles.accordionArrow, { color: themeColors.textSecondary }]}>{showDetail ? "▲" : "▼"}</Text>
               </TouchableOpacity>
 
               {showDetail && (
@@ -703,14 +705,14 @@ export const ReportScreen: React.FC = () => {
                     const remain = limit > 0 ? limit - item.totalAmount : 0;
 
                     return (
-                      <View key={item.categoryId} style={styles.catItemRow}>
+                      <View key={item.categoryId} style={[styles.catItemRow, { borderBottomColor: isDark ? themeColors.divider : "#F1F5F9" }]}>
                         <CategoryIcon name={item.categoryName || item.categoryIcon} size={28} />
                         <View style={{ flex: 1 }}>
                           <View style={styles.catNameRow}>
-                            <Text style={styles.catNameText}>{item.categoryName}</Text>
-                            <Text style={styles.catAmountText}>{fmt(item.totalAmount)}</Text>
+                            <Text style={[styles.catNameText, { color: themeColors.textPrimary }]}>{item.categoryName}</Text>
+                            <Text style={[styles.catAmountText, { color: themeColors.textPrimary }]}>{fmt(item.totalAmount)}</Text>
                           </View>
-                          <View style={styles.catProgressTrack}>
+                          <View style={[styles.catProgressTrack, { backgroundColor: isDark ? "#334155" : colors.slate100 }]}>
                             <View
                               style={[
                                 styles.catProgressFill,
@@ -719,7 +721,7 @@ export const ReportScreen: React.FC = () => {
                             />
                           </View>
                           <View style={styles.catMetaRow}>
-                            <Text style={styles.catMetaText}>{item.percentage}% tổng chi</Text>
+                            <Text style={[styles.catMetaText, { color: themeColors.textSecondary }]}>{item.percentage}% tổng chi</Text>
                             {limit > 0 && (
                               <Text
                                 style={[

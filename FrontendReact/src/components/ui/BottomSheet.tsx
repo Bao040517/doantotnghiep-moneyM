@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal, View, StyleSheet, TouchableWithoutFeedback, Text, Pressable } from "react-native";
 import { colors } from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 interface BottomSheetProps {
   visible: boolean;
@@ -11,19 +12,36 @@ interface BottomSheetProps {
 }
 
 export const BottomSheet: React.FC<BottomSheetProps> = ({ visible, onClose, title, headerRight, children }) => {
+  const { isDark, colors: themeColors } = useTheme();
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-        <View style={styles.modalCard}>
+        <View
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: isDark ? themeColors.card : colors.white,
+              borderColor: isDark ? themeColors.border : "#0f172a",
+            },
+          ]}
+        >
           {title && (
-            <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
+            <View style={[styles.header, { borderBottomColor: isDark ? themeColors.divider : colors.slate100 }]}>
+              <Text style={[styles.title, { color: themeColors.textPrimary }]}>{title}</Text>
               <View style={styles.headerRightContainer}>
                 {headerRight}
-                <Pressable onPress={onClose} hitSlop={10} style={styles.closeBtnWrapper}>
-                  <Text style={styles.closeBtn}>✕</Text>
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={10}
+                  style={[
+                    styles.closeBtnWrapper,
+                    { backgroundColor: isDark ? themeColors.surface : colors.slate100 },
+                  ]}
+                >
+                  <Text style={[styles.closeBtn, { color: themeColors.textSecondary }]}>✕</Text>
                 </Pressable>
               </View>
             </View>

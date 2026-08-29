@@ -22,6 +22,7 @@ import { Toast } from "../components/ui/Toast";
 import { NotificationBottomSheet } from "../components/modals/NotificationBottomSheet";
 import { useNotifications } from "../hooks/useNotifications";
 import { getCategoryEmoji } from "../constants/categories";
+import { useTheme } from "../context/ThemeContext";
 
 interface AdviceData {
   habitAnalysis?: {
@@ -99,6 +100,7 @@ interface AdviceData {
 export const AdvisorScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const { isDark, colors: themeColors } = useTheme();
   const { unreadCount } = useNotifications();
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -406,19 +408,25 @@ export const AdvisorScreen: React.FC = () => {
   const isRebalanceActive = !!activeRebalancePlan?.hasOverspending || isAllRebalanced;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#e8f5f1" }]}>
       {/* ─── STICKY HEADER ─── */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)" }]}>
         <View style={styles.headerTopRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate("Dashboard")}>
-            <Text style={styles.backArrow}>‹</Text>
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: isDark ? themeColors.surface : colors.white }]}
+            onPress={() => navigation.navigate("Dashboard")}
+          >
+            <Text style={[styles.backArrow, { color: themeColors.textPrimary }]}>‹</Text>
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Tư vấn</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Tư vấn</Text>
 
           <View style={styles.headerRightActions}>
-            <TouchableOpacity style={styles.iconCircle} onPress={() => setNotifVisible(true)}>
-              <Bell size={18} color="#0F172A" />
+            <TouchableOpacity
+              style={[styles.iconCircle, { backgroundColor: isDark ? themeColors.surface : colors.white }]}
+              onPress={() => setNotifVisible(true)}
+            >
+              <Bell size={18} color={themeColors.textPrimary} />
               {unreadCount > 0 && (
                 <View style={styles.notifBadge}>
                   <Text style={styles.notifBadgeText}>
@@ -452,36 +460,52 @@ export const AdvisorScreen: React.FC = () => {
         >
           <TouchableOpacity
             onPress={() => setActiveSection("plan")}
-            style={[styles.sectionPill, activeSection === "plan" && styles.sectionPillActive]}
+            style={[
+              styles.sectionPill,
+              { backgroundColor: isDark ? themeColors.surface : colors.white, borderColor: isDark ? themeColors.border : colors.slate200 },
+              activeSection === "plan" && styles.sectionPillActive,
+            ]}
           >
-            <Text style={[styles.sectionPillText, activeSection === "plan" && styles.sectionPillTextActive]}>
+            <Text style={[styles.sectionPillText, { color: isDark ? themeColors.textSecondary : colors.slate600 }, activeSection === "plan" && styles.sectionPillTextActive]}>
               💡 Gợi ý chi tiêu
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setActiveSection("rebalance")}
-            style={[styles.sectionPill, activeSection === "rebalance" && styles.sectionPillActive]}
+            style={[
+              styles.sectionPill,
+              { backgroundColor: isDark ? themeColors.surface : colors.white, borderColor: isDark ? themeColors.border : colors.slate200 },
+              activeSection === "rebalance" && styles.sectionPillActive,
+            ]}
           >
-            <Text style={[styles.sectionPillText, activeSection === "rebalance" && styles.sectionPillTextActive]}>
+            <Text style={[styles.sectionPillText, { color: isDark ? themeColors.textSecondary : colors.slate600 }, activeSection === "rebalance" && styles.sectionPillTextActive]}>
               ⚖️ Tái cân bằng {isAllRebalanced ? "(✓)" : activeRebalancePlan?.hasOverspending ? `(${activeRebalancePlan.overspentItems?.length || 0})` : ""}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setActiveSection("habits")}
-            style={[styles.sectionPill, activeSection === "habits" && styles.sectionPillActive]}
+            style={[
+              styles.sectionPill,
+              { backgroundColor: isDark ? themeColors.surface : colors.white, borderColor: isDark ? themeColors.border : colors.slate200 },
+              activeSection === "habits" && styles.sectionPillActive,
+            ]}
           >
-            <Text style={[styles.sectionPillText, activeSection === "habits" && styles.sectionPillTextActive]}>
+            <Text style={[styles.sectionPillText, { color: isDark ? themeColors.textSecondary : colors.slate600 }, activeSection === "habits" && styles.sectionPillTextActive]}>
               📊 Thói quen
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setActiveSection("alerts")}
-            style={[styles.sectionPill, activeSection === "alerts" && styles.sectionPillActive]}
+            style={[
+              styles.sectionPill,
+              { backgroundColor: isDark ? themeColors.surface : colors.white, borderColor: isDark ? themeColors.border : colors.slate200 },
+              activeSection === "alerts" && styles.sectionPillActive,
+            ]}
           >
-            <Text style={[styles.sectionPillText, activeSection === "alerts" && styles.sectionPillTextActive]}>
+            <Text style={[styles.sectionPillText, { color: isDark ? themeColors.textSecondary : colors.slate600 }, activeSection === "alerts" && styles.sectionPillTextActive]}>
               ⚠️ Cảnh báo ({warnings.length})
             </Text>
           </TouchableOpacity>
@@ -539,27 +563,27 @@ export const AdvisorScreen: React.FC = () => {
             {!isRebalanceActive ? (
               <View>
                 {/* Hero Safe Card */}
-                <View style={styles.rebalanceSafeCard}>
+                <View style={[styles.rebalanceSafeCard, { backgroundColor: isDark ? themeColors.card : "#ECFDF5", borderColor: isDark ? "#064E3B" : "#a7f3d0" }]}>
                   <View style={styles.safeIconCircle}>
                     <Text style={{ fontSize: 32 }}>🛡️</Text>
                   </View>
-                  <Text style={styles.rebalanceSafeTitle}>Ngân Sách Đang Rất An Toàn!</Text>
-                  <Text style={styles.rebalanceSafeSub}>
+                  <Text style={[styles.rebalanceSafeTitle, { color: isDark ? "#34D399" : "#065f46" }]}>Ngân Sách Đang Rất An Toàn!</Text>
+                  <Text style={[styles.rebalanceSafeSub, { color: isDark ? themeColors.textSecondary : "#047857" }]}>
                     Trong tháng {selectedMonth}/{selectedYear}, bạn chưa tiêu lố bất kỳ khoản ngân sách nào. Mọi khoản chi tiêu đều đang bám sát hạn mức kế hoạch.
                   </Text>
 
                   {/* 2 Stats Column */}
                   {activeBudgets.length > 0 && (
-                    <View style={[styles.rebalanceStatsRow, styles.statsRowBalanced, { marginTop: 14 }]}>
+                    <View style={[styles.rebalanceStatsRow, styles.statsRowBalanced, { marginTop: 14, backgroundColor: isDark ? themeColors.surface : "#D1FAE5" }]}>
                       <View style={styles.rebalanceStatBox}>
-                        <Text style={styles.rebalanceStatLabel}>TỔNG HẠN MỨC ĐÃ ĐẶT</Text>
+                        <Text style={[styles.rebalanceStatLabel, { color: themeColors.textSecondary }]}>TỔNG HẠN MỨC ĐÃ ĐẶT</Text>
                         <Text style={[styles.rebalanceStatValue, { color: colors.indigo600 }]}>
                           {fmt(totalAllocatedBudget)}
                         </Text>
                       </View>
-                      <View style={[styles.rebalanceStatDivider, styles.dividerBalanced]} />
+                      <View style={[styles.rebalanceStatDivider, styles.dividerBalanced, { backgroundColor: isDark ? themeColors.border : "#A7F3D0" }]} />
                       <View style={styles.rebalanceStatBox}>
-                        <Text style={styles.rebalanceStatLabel}>TRẠNG THÁI</Text>
+                        <Text style={[styles.rebalanceStatLabel, { color: themeColors.textSecondary }]}>TRẠNG THÁI</Text>
                         <Text style={[styles.rebalanceStatValue, { color: colors.emerald600 }]}>
                           ✓ 100% Cân bằng
                         </Text>
@@ -571,7 +595,7 @@ export const AdvisorScreen: React.FC = () => {
                 {/* Section Header: Danh Sách Các Khoản Đã Cân Bằng */}
                 <View style={[styles.rebalanceSectionHeaderRow, { marginTop: 20 }]}>
                   <View style={[styles.sectionHeaderDot, styles.dotEmerald]} />
-                  <Text style={styles.rebalanceSectionHeader}>
+                  <Text style={[styles.rebalanceSectionHeader, { color: themeColors.textPrimary }]}>
                     Danh Sách Các Khoản Đang Cân Bằng ({activeBudgets.length > 0 ? activeBudgets.length : plan.length})
                   </Text>
                   <View style={styles.sectionHeaderBadgeGray}>
@@ -588,46 +612,46 @@ export const AdvisorScreen: React.FC = () => {
                     const percentSpent = limit > 0 ? Math.min(100, Math.round((avgSpent / limit) * 100)) : 0;
 
                     return (
-                      <View key={idx} style={[styles.cutItemCard, styles.cutItemCardBalanced]}>
+                      <View key={idx} style={[styles.cutItemCard, styles.cutItemCardBalanced, { backgroundColor: isDark ? themeColors.card : colors.white, borderColor: isDark ? themeColors.border : "#e2e8f0" }]}>
                         {/* Header: Icon + Name + Badge Đã cân bằng */}
                         <View style={styles.cutHeaderRow}>
-                          <View style={[styles.planIconBox, { backgroundColor: "#ECFDF5" }]}>
+                          <View style={[styles.planIconBox, { backgroundColor: isDark ? themeColors.surface : "#ECFDF5" }]}>
                             <Text style={{ fontSize: 22 }}>
                               {getCategoryIcon(item.categoryIcon, item.categoryName)}
                             </Text>
                           </View>
                           <View style={{ flex: 1, marginLeft: 12 }}>
                             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                              <Text style={[styles.cutItemName, styles.textMutedDark, { flex: 1, marginRight: 8 }]} numberOfLines={1}>
+                              <Text style={[styles.cutItemName, styles.textMutedDark, { flex: 1, marginRight: 8, color: themeColors.textPrimary }]} numberOfLines={1}>
                                 {item.categoryName}
                               </Text>
                               <View style={styles.balancedTag}>
                                 <Text style={styles.balancedTagText}>✓ Đã cân bằng</Text>
                               </View>
                             </View>
-                            <Text style={[styles.cutItemSub, styles.textMutedLight, { marginTop: 3 }]}>
+                            <Text style={[styles.cutItemSub, styles.textMutedLight, { marginTop: 3, color: themeColors.textSecondary }]}>
                               Hạn mức: {fmt(limit)} • Chi TB: {fmt(avgSpent)}
                             </Text>
                           </View>
                         </View>
 
                         {/* Progress Bar & Status Pill */}
-                        <View style={styles.balancedProgressBox}>
+                        <View style={[styles.balancedProgressBox, { backgroundColor: isDark ? themeColors.surface : "#f8fafc" }]}>
                           <View style={styles.balancedProgressLabelRow}>
-                            <Text style={styles.balancedProgressText}>
+                            <Text style={[styles.balancedProgressText, { color: themeColors.textSecondary }]}>
                               Mức độ sử dụng:{" "}
                               <Text style={{ fontWeight: "800", color: percentSpent >= 90 ? colors.amber600 : colors.emerald600 }}>
                                 {percentSpent}%
                               </Text>
                             </Text>
-                            <Text style={styles.balancedRemainingText}>
+                            <Text style={[styles.balancedRemainingText, { color: themeColors.textSecondary }]}>
                               Còn dư:{" "}
                               <Text style={{ fontWeight: "900", color: colors.emerald600 }}>
                                 {fmt(remaining)}
                               </Text>
                             </Text>
                           </View>
-                          <View style={styles.balancedTrack}>
+                          <View style={[styles.balancedTrack, { backgroundColor: isDark ? "#334155" : colors.slate100 }]}>
                             <View
                               style={[
                                 styles.balancedFill,
@@ -641,14 +665,14 @@ export const AdvisorScreen: React.FC = () => {
                         </View>
 
                         {/* 2 Stats Column (Hạn mức & Trạng thái) */}
-                        <View style={styles.balancedStatsRow}>
+                        <View style={[styles.balancedStatsRow, { backgroundColor: isDark ? themeColors.surface : "#f8fafc" }]}>
                           <View style={styles.balancedStatCol}>
-                            <Text style={styles.balancedStatLabel}>HẠN MỨC THÁNG</Text>
+                            <Text style={[styles.balancedStatLabel, { color: themeColors.textSecondary }]}>HẠN MỨC THÁNG</Text>
                             <Text style={[styles.balancedStatVal, { color: colors.indigo600 }]}>{fmt(limit)}</Text>
                           </View>
-                          <View style={styles.balancedStatDivider} />
+                          <View style={[styles.balancedStatDivider, { backgroundColor: isDark ? themeColors.border : "#e2e8f0" }]} />
                           <View style={styles.balancedStatCol}>
-                            <Text style={styles.balancedStatLabel}>TRẠNG THÁI</Text>
+                            <Text style={[styles.balancedStatLabel, { color: themeColors.textSecondary }]}>TRẠNG THÁI</Text>
                             <Text style={[styles.balancedStatVal, { color: colors.emerald600 }]}>
                               ✓ An Toàn
                             </Text>
@@ -997,59 +1021,59 @@ export const AdvisorScreen: React.FC = () => {
             </View>
 
             {/* 50/30/20 Breakdown Bars */}
-            <View style={styles.breakdownCard}>
-              <Text style={styles.cardHeaderTitle}>Cơ cấu Chi tiêu / Thu nhập</Text>
+            <View style={[styles.breakdownCard, { backgroundColor: isDark ? themeColors.card : colors.white }]}>
+              <Text style={[styles.cardHeaderTitle, { color: themeColors.textPrimary }]}>Cơ cấu Chi tiêu / Thu nhập</Text>
 
               {/* Needs */}
               <View style={styles.barItem}>
                 <View style={styles.barHeader}>
-                  <Text style={styles.barLabel}>🏠 Thiết yếu (Chuẩn ≤ 50%)</Text>
+                  <Text style={[styles.barLabel, { color: themeColors.textPrimary }]}>🏠 Thiết yếu (Chuẩn ≤ 50%)</Text>
                   <Text style={[styles.barPct, { color: habits.needsPercent > 50 ? colors.rose600 : colors.emerald600 }]}>
                     {habits.needsPercent.toFixed(0)}%
                   </Text>
                 </View>
-                <View style={styles.track}>
+                <View style={[styles.track, { backgroundColor: isDark ? "#334155" : colors.slate100 }]}>
                   <View style={[styles.fill, { width: `${Math.min(100, habits.needsPercent)}%`, backgroundColor: habits.needsPercent > 50 ? colors.rose500 : colors.emerald500 }]} />
                 </View>
-                <Text style={styles.barSub}>{fmt(habits.needsAmount)} — Tiền nhà, ăn uống, điện nước...</Text>
+                <Text style={[styles.barSub, { color: themeColors.textSecondary }]}>{fmt(habits.needsAmount)} — Tiền nhà, ăn uống, điện nước...</Text>
               </View>
 
               {/* Wants */}
               <View style={styles.barItem}>
                 <View style={styles.barHeader}>
-                  <Text style={styles.barLabel}>🎉 Linh hoạt (Chuẩn ≤ 30%)</Text>
+                  <Text style={[styles.barLabel, { color: themeColors.textPrimary }]}>🎉 Linh hoạt (Chuẩn ≤ 30%)</Text>
                   <Text style={[styles.barPct, { color: habits.wantsPercent > 30 ? colors.amber600 : colors.emerald600 }]}>
                     {habits.wantsPercent.toFixed(0)}%
                   </Text>
                 </View>
-                <View style={styles.track}>
+                <View style={[styles.track, { backgroundColor: isDark ? "#334155" : colors.slate100 }]}>
                   <View style={[styles.fill, { width: `${Math.min(100, habits.wantsPercent)}%`, backgroundColor: habits.wantsPercent > 30 ? colors.amber500 : colors.emerald500 }]} />
                 </View>
-                <Text style={styles.barSub}>{fmt(habits.wantsAmount)} — Mua sắm, giải trí, mua sắm...</Text>
+                <Text style={[styles.barSub, { color: themeColors.textSecondary }]}>{fmt(habits.wantsAmount)} — Mua sắm, giải trí, mua sắm...</Text>
               </View>
 
               {/* Savings */}
               <View style={styles.barItem}>
                 <View style={styles.barHeader}>
-                  <Text style={styles.barLabel}>🌱 Tiết kiệm (Chuẩn ≥ 20%)</Text>
+                  <Text style={[styles.barLabel, { color: themeColors.textPrimary }]}>🌱 Tiết kiệm (Chuẩn ≥ 20%)</Text>
                   <Text style={[styles.barPct, { color: habits.savingsPercent < 20 ? colors.rose600 : colors.emerald600 }]}>
                     {habits.savingsPercent.toFixed(0)}%
                   </Text>
                 </View>
-                <View style={styles.track}>
+                <View style={[styles.track, { backgroundColor: isDark ? "#334155" : colors.slate100 }]}>
                   <View style={[styles.fill, { width: `${Math.min(100, habits.savingsPercent)}%`, backgroundColor: habits.savingsPercent < 20 ? colors.rose500 : colors.emerald500 }]} />
                 </View>
-                <Text style={styles.barSub}>{fmt(habits.savingsAmount)} — Thu nhập trừ chi tiêu</Text>
+                <Text style={[styles.barSub, { color: themeColors.textSecondary }]}>{fmt(habits.savingsAmount)} — Thu nhập trừ chi tiêu</Text>
               </View>
             </View>
 
             {/* Recommendations */}
             {habits.recommendations.length > 0 && (
-              <View style={styles.recommendCard}>
-                <Text style={styles.cardHeaderTitle}>💬 Nhận xét chi tiết</Text>
+              <View style={[styles.recommendCard, { backgroundColor: isDark ? themeColors.card : colors.white }]}>
+                <Text style={[styles.cardHeaderTitle, { color: themeColors.textPrimary }]}>💬 Nhận xét chi tiết</Text>
                 {habits.recommendations.map((rec, idx) => (
-                  <View key={idx} style={styles.recItem}>
-                    <Text style={styles.recText}>• {rec}</Text>
+                  <View key={idx} style={[styles.recItem, { backgroundColor: isDark ? themeColors.surface : colors.slate50 }]}>
+                    <Text style={[styles.recText, { color: isDark ? "#E2E8F0" : colors.slate700 }]}>• {rec}</Text>
                   </View>
                 ))}
               </View>
@@ -1059,15 +1083,15 @@ export const AdvisorScreen: React.FC = () => {
           <View style={styles.tabContent}>
             {/* Month Selector Pill specifically inside Gợi ý chi tiêu Tab */}
             <View style={styles.planMonthRow}>
-              <View style={styles.monthSelectorPill}>
+              <View style={[styles.monthSelectorPill, { backgroundColor: isDark ? themeColors.surface : "#ecfdf5", borderColor: isDark ? themeColors.border : "#a7f3d0" }]}>
                 <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthNavBtn}>
-                  <Text style={styles.monthNavText}>‹</Text>
+                  <Text style={[styles.monthNavText, { color: isDark ? themeColors.textPrimary : "#047857" }]}>‹</Text>
                 </TouchableOpacity>
-                <Text style={styles.monthText}>
+                <Text style={[styles.monthText, { color: isDark ? themeColors.textPrimary : "#065f46" }]}>
                   Gợi ý cho Tháng {selectedMonth}/{selectedYear}
                 </Text>
                 <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthNavBtn}>
-                  <Text style={styles.monthNavText}>›</Text>
+                  <Text style={[styles.monthNavText, { color: isDark ? themeColors.textPrimary : "#047857" }]}>›</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1097,10 +1121,10 @@ export const AdvisorScreen: React.FC = () => {
             )}
 
             {plan.length === 0 ? (
-              <View style={styles.emptyCard}>
+              <View style={[styles.emptyCard, { backgroundColor: isDark ? themeColors.card : "#f8fafc", borderColor: isDark ? themeColors.border : "#e2e8f0" }]}>
                 <Text style={{ fontSize: 36, marginBottom: 8 }}>📭</Text>
-                <Text style={styles.emptyTitle}>Chưa đủ dữ liệu gợi ý</Text>
-                <Text style={styles.emptySub}>
+                <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>Chưa đủ dữ liệu gợi ý</Text>
+                <Text style={[styles.emptySub, { color: themeColors.textSecondary }]}>
                   Hãy ghi chép thu chi ít nhất 1 tháng để hệ thống gợi ý hạn mức chuẩn xác.
                 </Text>
               </View>
@@ -1115,45 +1139,46 @@ export const AdvisorScreen: React.FC = () => {
                 const insight = getSmartInsight(item);
 
                 return (
-                  <View key={idx} style={styles.planCard}>
+                  <View key={idx} style={[styles.planCard, { backgroundColor: isDark ? themeColors.card : colors.white, borderColor: isDark ? themeColors.border : "#e2e8f0" }]}>
                     {/* Top Row: Icon & Category Name */}
                     <View style={styles.planHeader}>
-                      <View style={styles.planIconBox}>
+                      <View style={[styles.planIconBox, { backgroundColor: isDark ? themeColors.surface : "#f1f5f9" }]}>
                         <Text style={{ fontSize: 24 }}>
                           {getCategoryIcon(item.categoryIcon, item.categoryName)}
                         </Text>
                       </View>
 
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.planCategory}>{item.categoryName}</Text>
-                        <Text style={styles.planSub}>
+                        <Text style={[styles.planCategory, { color: themeColors.textPrimary }]}>{item.categoryName}</Text>
+                        <Text style={[styles.planSub, { color: themeColors.textSecondary }]}>
                           Dựa trên dữ liệu phân tích 3 tháng & tháng trước
                         </Text>
                       </View>
                     </View>
 
                     {/* 3-Pillar Data Comparison Row */}
-                    <View style={styles.metricsCompareRow}>
+                    <View style={[styles.metricsCompareRow, { backgroundColor: isDark ? themeColors.surface : "#f8fafc", borderColor: isDark ? themeColors.border : "#f1f5f9" }]}>
                       <View style={styles.metricColumn}>
-                        <Text style={styles.metricColumnLabel}>TB 3 THÁNG</Text>
-                        <Text style={styles.metricColumnValue}>{fmt(item.avgSpent3Months)}</Text>
+                        <Text style={[styles.metricColumnLabel, { color: themeColors.textSecondary }]}>TB 3 THÁNG</Text>
+                        <Text style={[styles.metricColumnValue, { color: themeColors.textPrimary }]}>{fmt(item.avgSpent3Months)}</Text>
                       </View>
 
-                      <View style={styles.metricDivider} />
+                      <View style={[styles.metricDivider, { backgroundColor: isDark ? themeColors.border : "#e2e8f0" }]} />
 
                       <View style={styles.metricColumn}>
-                        <Text style={styles.metricColumnLabel}>THÁNG TRƯỚC</Text>
+                        <Text style={[styles.metricColumnLabel, { color: themeColors.textSecondary }]}>THÁNG TRƯỚC</Text>
                         <Text
                           style={[
                             styles.metricColumnValue,
                             !(item as any).lastMonthBudget && { color: colors.slate400, fontSize: 13 },
+                            !!(item as any).lastMonthBudget && { color: themeColors.textPrimary },
                           ]}
                         >
                           {(item as any).lastMonthBudget ? fmt((item as any).lastMonthBudget) : "Chưa đặt"}
                         </Text>
                       </View>
 
-                      <View style={styles.metricDivider} />
+                      <View style={[styles.metricDivider, { backgroundColor: isDark ? themeColors.border : "#e2e8f0" }]} />
 
                       <View style={[styles.metricColumn, styles.metricColumnHighlight]}>
                         <Text style={[styles.metricColumnLabel, { color: colors.emerald700 }]}>
@@ -1165,7 +1190,7 @@ export const AdvisorScreen: React.FC = () => {
                       </View>
                     </View>
 
-                    {/* Single Smart AI Insight Box (Combines 3-Month + Last Month comparison) */}
+                    {/* Single Smart AI Insight Box */}
                     <View style={[styles.smartInsightCard, insight.bgStyle]}>
                       <View style={styles.smartInsightHeader}>
                         <Text style={{ fontSize: 16, marginRight: 6 }}>{insight.icon}</Text>
@@ -1176,7 +1201,7 @@ export const AdvisorScreen: React.FC = () => {
                       <Text style={styles.smartInsightDesc}>{insight.description}</Text>
                     </View>
 
-                    {/* Action Button: Thêm ngân sách / Đã có ngân sách */}
+                    {/* Action Button */}
                     <View style={styles.planActionRow}>
                       <TouchableOpacity
                         style={[
@@ -1207,13 +1232,13 @@ export const AdvisorScreen: React.FC = () => {
 
             {/* Link to Full Budget Manager Screen */}
             <TouchableOpacity
-              style={styles.fullBudgetLinkCard}
+              style={[styles.fullBudgetLinkCard, { backgroundColor: isDark ? themeColors.card : colors.white, borderColor: isDark ? "#059669" : colors.emerald200 }]}
               onPress={() => navigation.navigate("Budget")}
               activeOpacity={0.85}
             >
               <View style={{ flex: 1 }}>
-                <Text style={styles.fullBudgetLinkTitle}>🎯 Xem danh sách Hạn mức đầy đủ</Text>
-                <Text style={styles.fullBudgetLinkSub}>
+                <Text style={[styles.fullBudgetLinkTitle, { color: isDark ? "#34D399" : colors.emerald900 }]}>🎯 Xem danh sách Hạn mức đầy đủ</Text>
+                <Text style={[styles.fullBudgetLinkSub, { color: themeColors.textSecondary }]}>
                   Kiểm tra tiến độ chi tiêu, phân bổ và ưu tiên thanh toán
                 </Text>
               </View>
@@ -1223,25 +1248,25 @@ export const AdvisorScreen: React.FC = () => {
         ) : (
           <View style={styles.tabContent}>
             {/* Header Description */}
-            <View style={styles.alertsHeaderCard}>
-              <View style={styles.alertsHeaderIconBox}>
+            <View style={[styles.alertsHeaderCard, { backgroundColor: isDark ? themeColors.card : "#fef3c7", borderColor: isDark ? "#78350F" : "#fde68a" }]}>
+              <View style={[styles.alertsHeaderIconBox, { backgroundColor: isDark ? themeColors.surface : "#fef3c7" }]}>
                 <Text style={{ fontSize: 22 }}>⚡</Text>
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.alertsHeaderTitle}>Cảnh báo Chi tiêu Bất thường ({warnings.length})</Text>
-                <Text style={styles.alertsHeaderSub}>
+                <Text style={[styles.alertsHeaderTitle, { color: isDark ? "#FCD34D" : "#92400e" }]}>Cảnh báo Chi tiêu Bất thường ({warnings.length})</Text>
+                <Text style={[styles.alertsHeaderSub, { color: isDark ? themeColors.textSecondary : "#b45309" }]}>
                   Hệ thống AI theo dõi tốc độ đốt tiền (Burn-rate) và so sánh với trung bình 3 tháng để cảnh báo nguy cơ thâm hụt sớm.
                 </Text>
               </View>
             </View>
 
             {warnings.length === 0 ? (
-              <View style={styles.emptyCard}>
+              <View style={[styles.emptyCard, { backgroundColor: isDark ? themeColors.card : "#f8fafc", borderColor: isDark ? themeColors.border : "#e2e8f0" }]}>
                 <View style={styles.emptyIconCircle}>
                   <Text style={{ fontSize: 32 }}>🎉</Text>
                 </View>
-                <Text style={styles.emptyTitle}>Tốc độ chi tiêu an toàn!</Text>
-                <Text style={styles.emptySub}>
+                <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>Tốc độ chi tiêu an toàn!</Text>
+                <Text style={[styles.emptySub, { color: themeColors.textSecondary }]}>
                   Không phát hiện khoản chi nào tăng đột biến so với thói quen 3 tháng qua. Bạn đang kiểm soát dòng tiền rất tốt.
                 </Text>
               </View>
@@ -1249,7 +1274,7 @@ export const AdvisorScreen: React.FC = () => {
               warnings.map((w, idx) => {
                 const isHigh = w.severity === "HIGH";
                 return (
-                  <View key={idx} style={[styles.smartWarningCard, isHigh ? styles.warningCardHigh : styles.warningCardMed]}>
+                  <View key={idx} style={[styles.smartWarningCard, isHigh ? styles.warningCardHigh : styles.warningCardMed, { backgroundColor: isDark ? themeColors.card : colors.white, borderColor: isDark ? themeColors.border : (isHigh ? "#fecdd3" : "#fef08a") }]}>
                     {/* Header */}
                     <View style={styles.warningHeaderRow}>
                       <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
@@ -1259,7 +1284,7 @@ export const AdvisorScreen: React.FC = () => {
                           </Text>
                         </View>
                         <View style={{ marginLeft: 10, flex: 1 }}>
-                          <Text style={styles.warningCatName}>{w.categoryName}</Text>
+                          <Text style={[styles.warningCatName, { color: themeColors.textPrimary }]}>{w.categoryName}</Text>
                           <Text style={[styles.warningBurnText, { color: isHigh ? colors.rose600 : colors.amber600 }]}>
                             Tốc độ: {fmt(w.dailyBurnRate)}/ngày
                           </Text>
@@ -1274,23 +1299,23 @@ export const AdvisorScreen: React.FC = () => {
                     </View>
 
                     {/* 3 Metric Stats */}
-                    <View style={styles.warningStatsGrid}>
+                    <View style={[styles.warningStatsGrid, { backgroundColor: isDark ? themeColors.surface : "#f8fafc", borderColor: isDark ? themeColors.border : "#f1f5f9" }]}>
                       <View style={styles.warningStatCol}>
-                        <Text style={styles.warningStatLabel}>ĐÃ CHI THÁNG</Text>
+                        <Text style={[styles.warningStatLabel, { color: themeColors.textSecondary }]}>ĐÃ CHI THÁNG</Text>
                         <Text style={[styles.warningStatVal, { color: colors.rose600 }]}>
                           {fmt(w.currentMonthSpent)}
                         </Text>
                       </View>
-                      <View style={styles.warningStatDivider} />
+                      <View style={[styles.warningStatDivider, { backgroundColor: isDark ? themeColors.border : "#e2e8f0" }]} />
                       <View style={styles.warningStatCol}>
-                        <Text style={styles.warningStatLabel}>TB 3 THÁNG</Text>
-                        <Text style={styles.warningStatVal}>
+                        <Text style={[styles.warningStatLabel, { color: themeColors.textSecondary }]}>TB 3 THÁNG</Text>
+                        <Text style={[styles.warningStatVal, { color: themeColors.textPrimary }]}>
                           {fmt(w.avg3MonthSpent)}
                         </Text>
                       </View>
-                      <View style={styles.warningStatDivider} />
+                      <View style={[styles.warningStatDivider, { backgroundColor: isDark ? themeColors.border : "#e2e8f0" }]} />
                       <View style={styles.warningStatCol}>
-                        <Text style={styles.warningStatLabel}>DỰ KIẾN CẢ THÁNG</Text>
+                        <Text style={[styles.warningStatLabel, { color: themeColors.textSecondary }]}>DỰ KIẾN CẢ THÁNG</Text>
                         <Text style={[styles.warningStatVal, { color: isHigh ? colors.rose700 : colors.amber700 }]}>
                           ~{fmt(w.projectedMonthEnd)}
                         </Text>
@@ -1324,11 +1349,11 @@ export const AdvisorScreen: React.FC = () => {
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.warningPlanBtn}
+                        style={[styles.warningPlanBtn, { backgroundColor: isDark ? themeColors.surface : "#f1f5f9", borderColor: isDark ? themeColors.border : "#e2e8f0" }]}
                         onPress={() => setActiveSection("plan")}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.warningPlanBtnText}>⚙️ Sửa hạn mức</Text>
+                        <Text style={[styles.warningPlanBtnText, { color: isDark ? "#CBD5E1" : colors.slate700 }]}>⚙️ Sửa hạn mức</Text>
                       </TouchableOpacity>
                     </View>
                   </View>

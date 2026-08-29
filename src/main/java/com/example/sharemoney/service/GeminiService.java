@@ -47,14 +47,24 @@ public class GeminiService {
     }
 
     public AiMessageResponse generateDebtMessage(AiMessageRequest request) {
+        log.info("╔══════════════════════════════════════════════════════════════════════════════");
+        log.info("║ 💬 [AI-DEBT-REMINDER] INCOMING DEBT REMINDER REQUEST");
+        log.info("║ 👤 Debtor Name: \"{}\" | Amount: {} VND | Mood: \"{}\"",
+                request.getDebtorName(), request.getAmount(), request.getMood());
+        log.info("╠──────────────────────────────────────────────────────────────────────────────");
+
         if (!isValidApiKey()) {
-            log.info(
-                    "[GeminiService] API key not configured, using smart dynamic heuristic fallback.");
-            return AiMessageResponse.builder().message(generateFallbackMessage(request)).build();
+            log.info("║ ⚙️ Engine: Local Dynamic Heuristic (No Gemini API Key)");
+            String msg = generateFallbackMessage(request);
+            log.info("║ 📝 Generated Message: \"{}\"", msg);
+            log.info("╚══════════════════════════════════════════════════════════════════════════════");
+            return AiMessageResponse.builder().message(msg).build();
         }
 
+        log.info("║ 🌐 Engine: Google Gemini 3.6 Flash AI (Cloud LLM)");
         try {
             String prompt = buildPrompt(request);
+            log.info("║ 🚀 Dispatching prompt to Gemini API endpoint...");
 
             // Chuẩn bị payload theo format của Gemini API
             Map<String, Object> requestBody =
@@ -66,22 +76,31 @@ public class GeminiService {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
+            long start = System.currentTimeMillis();
             ResponseEntity<Map> response = callGeminiApiWithRetry(entity);
+            long duration = System.currentTimeMillis() - start;
+            log.info("║ 📥 Gemini API replied with HTTP {} in {} ms", response.getStatusCode(), duration);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 String generatedText = extractTextFromGeminiResponse(response.getBody());
                 if (generatedText != null && !generatedText.isBlank()) {
-                    return AiMessageResponse.builder().message(generatedText.trim()).build();
+                    String cleanMsg = generatedText.replaceAll("^\"|\"$", "").trim();
+                    log.info("║ 📝 Gemini AI Generated Message: \"{}\"", cleanMsg);
+                    log.info("╚══════════════════════════════════════════════════════════════════════════════");
+                    return AiMessageResponse.builder().message(cleanMsg).build();
                 }
             }
         } catch (Exception e) {
             log.warn(
-                    "[GeminiService] Gemini API call encountered error: {}. Falling back to dynamic heuristic generator.",
+                    "║ ⚠️ Gemini API call failed: {}. Falling back to dynamic heuristic generator.",
                     e.getMessage());
         }
 
         // Graceful fallback whenever Gemini is unavailable or errors out
-        return AiMessageResponse.builder().message(generateFallbackMessage(request)).build();
+        String fallbackMsg = generateFallbackMessage(request);
+        log.info("║ 📝 Fallback Heuristic Message: \"{}\"", fallbackMsg);
+        log.info("╚══════════════════════════════════════════════════════════════════════════════");
+        return AiMessageResponse.builder().message(fallbackMsg).build();
     }
 
     public ScanReceiptResponse scanReceipt(MultipartFile file) {
@@ -190,13 +209,35 @@ public class GeminiService {
         NumberFormat currencyFormatter =
                 NumberFormat.getCurrencyInstance(java.util.Locale.forLanguageTag("vi-VN"));
         String formattedAmount = currencyFormatter.format(request.getAmount());
+        String debtor = (request.getDebtorName() != null && !request.getDebtorName().isBlank())
+                ? request.getDebtorName().trim()
+                : "bạn hiền";
+        String mood = request.getMood() != null ? request.getMood().toUpperCase().trim() : "FUNNY";
+
+        String styleGuidance;
+        switch (mood) {
+            case "POLITE":
+                styleGuidance = "Lịch sự, tinh tế, giữ hòa khí bạn bè, xưng hô tôn trọng, nhẹ nhàng nhắc gửi tiền khi thuận tiện.";
+                break;
+            case "AGGRESSIVE":
+                styleGuidance = "Nghiêm túc, dứt khoát, nhắc nhở hạn chót thanh toán để chốt sổ nhóm, dùng emoji cảnh báo.";
+                break;
+            case "POETIC":
+                styleGuidance = "Sáng tác một đoạn thơ 4 chữ hoặc 2 câu lục bát hài hước, vần điệu, ca dao tục ngữ biến tấu nhắc nợ.";
+                break;
+            case "FUNNY":
+            default:
+                styleGuidance = "Hài hước, dí dỏm, phong cách Gen Z thân mật (ví dụ: ví đang thở oxy, hết tiền ăn sáng, meme vui), dùng emoji sinh động.";
+                break;
+        }
 
         return String.format(
-                "Hãy đóng vai một người bạn, viết một tin nhắn đòi tiền gửi cho người tên là '%s'. "
-                        + "Số tiền cần đòi là %s. "
-                        + "Phong cách của tin nhắn phải là: %s. "
-                        + "Yêu cầu: Viết ngắn gọn, tự nhiên, ngôn ngữ tiếng Việt đời thường, không cần lời chào hỏi quá trang trọng.",
-                request.getDebtorName(), formattedAmount, request.getMood());
+                "Bạn là trợ lý AI của ứng dụng quản lý tài chính ShareMoney. "
+                        + "Hãy viết MỘT tin nhắn ngắn bằng tiếng Việt tự nhiên để gửi nhắc nợ cho '%s'.\n"
+                        + "- Số tiền nợ: %s\n"
+                        + "- Phong cách: %s (%s)\n"
+                        + "- Yêu cầu: Viết 1-2 câu ngắn gọn, cảm xúc tự nhiên, đúng trọng tâm, KHÔNG để trong dấu ngoặc kép, KHÔNG kèm lời dẫn thừa hay giải thích.",
+                debtor, formattedAmount, mood, styleGuidance);
     }
 
     @SuppressWarnings("unchecked")

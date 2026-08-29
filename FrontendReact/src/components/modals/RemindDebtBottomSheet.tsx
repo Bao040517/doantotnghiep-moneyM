@@ -56,37 +56,40 @@ export const RemindDebtBottomSheet: React.FC<RemindDebtBottomSheetProps> = ({
     }
   };
 
+  const generateAIMessage = async (targetMood: string) => {
+    try {
+      setIsGenerating(true);
+      const res = await api.post("/ai/generate-message", {
+        debtorName: debtorName || "bạn hiền",
+        amount: Math.max(1, amount || 0),
+        mood: targetMood,
+      });
+      const generated = res.data?.message || res.data;
+      if (generated && typeof generated === "string") {
+        setMessage(generated.trim());
+      }
+    } catch (err: any) {
+      console.warn("[RemindDebt] Error generating AI message:", err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   useEffect(() => {
     if (visible) {
       setMessage(getMoodSample(mood));
+      generateAIMessage(mood);
     }
   }, [visible, debtorName, amount]);
 
   const handleSelectMood = (newMood: string) => {
     setMood(newMood);
     setMessage(getMoodSample(newMood));
+    generateAIMessage(newMood);
   };
 
-  const handleGenerateAI = async () => {
-    try {
-      setIsGenerating(true);
-      const res = await api.post("/ai/generate-message", {
-        debtorName: debtorName || "bạn hiền",
-        amount: Math.max(1, amount || 0),
-        mood,
-      });
-      const generated = res.data?.message || res.data;
-      if (generated && typeof generated === "string") {
-        setMessage(generated.trim());
-      } else {
-        setMessage(getMoodSample(mood));
-      }
-    } catch (err: any) {
-      console.warn("[RemindDebt] Error generating AI message:", err);
-      setMessage(getMoodSample(mood));
-    } finally {
-      setIsGenerating(false);
-    }
+  const handleGenerateAI = () => {
+    generateAIMessage(mood);
   };
 
   const handleSendReminder = async () => {

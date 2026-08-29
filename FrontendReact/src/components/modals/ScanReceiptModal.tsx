@@ -14,7 +14,6 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import {
-  Camera,
   Image as ImageIcon,
   QrCode,
   CheckCircle2,
@@ -61,9 +60,6 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
   const [scannedUser, setScannedUser] = useState<any | null>(null);
   const [scannedQrCode, setScannedQrCode] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Mức Zoom 1.5x mặc định để bắt mã QR nhỏ trên bill từ xa cực nhạy mà không cần dí sát máy
-  const [zoom, setZoom] = useState(0.08);
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
@@ -156,7 +152,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
       if (!result || (!result.amount && !result.note)) {
         Alert.alert(
           "Không đọc được nội dung",
-          "Mã QR này không phải hoá đơn hợp lệ hoặc chưa được hỗ trợ.",
+          "Mã QR này không hợp lệ hoặc chưa được hỗ trợ.",
           [{ text: "Quét lại", onPress: () => setScannedQrCode(false) }]
         );
         return;
@@ -226,44 +222,26 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
     }
   };
 
-  const pickImage = async (useCamera: boolean = false) => {
+  const pickImageFromGallery = async () => {
     try {
-      if (useCamera) {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (permission.status !== "granted") {
-          Alert.alert("Quyền truy cập", "Vui lòng cấp quyền camera để chụp ảnh hóa đơn");
-          return;
-        }
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ["images"],
-          quality: 0.85,
-        });
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          setImageUri(result.assets[0].uri);
-          setScannedResult(null);
-          setScannedGroup(null);
-          setScannedUser(null);
-        }
-      } else {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permission.status !== "granted") {
-          Alert.alert("Quyền truy cập", "Vui lòng cấp quyền thư viện ảnh để tải ảnh hóa đơn");
-          return;
-        }
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ["images"],
-          quality: 0.85,
-        });
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          setImageUri(result.assets[0].uri);
-          setScannedResult(null);
-          setScannedGroup(null);
-          setScannedUser(null);
-        }
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== "granted") {
+        Alert.alert("Quyền truy cập", "Vui lòng cấp quyền thư viện ảnh để chọn ảnh");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImageUri(result.assets[0].uri);
+        setScannedResult(null);
+        setScannedGroup(null);
+        setScannedUser(null);
       }
     } catch (e) {
       console.error("[ScanReceiptModal] Pick image error:", e);
-      Alert.alert("Thông báo", "Tính năng đang được hoàn thiện & phát triển. Vui lòng thử lại sau.");
+      Alert.alert("Thông báo", "Không thể mở thư viện ảnh. Vui lòng thử lại sau.");
     }
   };
 
@@ -271,7 +249,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
     if (!imageUri) return;
     setLoading(true);
     try {
-      const filename = imageUri.split("/").pop() || "receipt.jpg";
+      const filename = imageUri.split("/").pop() || "image.jpg";
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : `image/jpeg`;
 
@@ -279,7 +257,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
       if (!data || (!data.amount && !data.note)) {
         Alert.alert(
           "Thông báo",
-          "Không thể nhận diện được hóa đơn từ ảnh này. Bạn có thể thử lại với ảnh rõ nét hơn hoặc nhập thủ công."
+          "Không thể nhận diện được thông tin từ ảnh này. Vui lòng thử lại với ảnh rõ nét hơn."
         );
         return;
       }
@@ -288,7 +266,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
       console.error("[ScanReceipt] OCR error:", e);
       const serverMsg =
         e.response?.data?.message ||
-        "Tính năng nhận diện hóa đơn AI cần cấu hình API Key trên máy chủ. Bạn vui lòng thử lại sau hoặc nhập thông tin thủ công.";
+        "Không thể nhận diện nội dung từ ảnh này. Vui lòng thử lại sau.";
       Alert.alert("Thông báo", serverMsg);
     } finally {
       setLoading(false);
@@ -335,8 +313,8 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                 <QrCode size={22} color="#4F46E5" />
               </View>
               <View>
-                <Text style={styles.title}>Quét Mã QR & Hoá Đơn</Text>
-                <Text style={styles.subtitle}>Tự động nhận diện Hoá đơn, Nhóm & Bạn bè</Text>
+                <Text style={styles.title}>Quét Mã QR</Text>
+                <Text style={styles.subtitle}>Đặt mã QR vào giữa khung hình</Text>
               </View>
             </View>
           </View>
@@ -453,15 +431,15 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
               <View style={styles.resultContainer}>
                 <View style={styles.resultHeaderBadge}>
                   <CheckCircle2 size={20} color={colors.emerald600} />
-                  <Text style={styles.resultHeaderBadgeText}>Đã bóc tách hoá đơn thành công</Text>
+                  <Text style={styles.resultHeaderBadgeText}>Đã bóc tách thông tin thành công</Text>
                 </View>
 
                 {/* Main Info Card */}
                 <View style={styles.resultCard}>
                   <Text style={styles.resultStoreName}>
-                    {scannedResult.note || "Hoá đơn mua sắm"}
+                    {scannedResult.note || "Hoá đơn"}
                   </Text>
-                  <Text style={styles.resultAmountLabel}>Tổng tiền hoá đơn</Text>
+                  <Text style={styles.resultAmountLabel}>Số tiền</Text>
                   <Text style={styles.resultAmountValue}>
                     {Number(scannedResult.amount || 0).toLocaleString("vi-VN")} đ
                   </Text>
@@ -496,7 +474,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                 )}
               </View>
             ) : scanMode === "qr" ? (
-              /* 4. TAB 1: ULTRA-RESPONSIVE LIVE CAMERA QR SCANNER */
+              /* 4. TAB 1: LIVE CAMERA QR SCANNER */
               <View style={styles.modeBody}>
                 <View style={styles.cameraBoxContainer}>
                   {cameraPermission?.granted ? (
@@ -505,7 +483,6 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                         style={StyleSheet.absoluteFill}
                         facing="back"
                         autofocus="on"
-                        zoom={zoom}
                         barcodeScannerSettings={{
                           barcodeTypes: [
                             "qr",
@@ -525,13 +502,6 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
 
                       {/* Viewfinder Target Overlay */}
                       <View style={styles.cameraOverlay}>
-                        {/* Top Tools Bar inside Camera */}
-                        <View style={styles.cameraTopBar}>
-                          <View style={styles.badgeAutoDetect}>
-                            <Text style={styles.badgeAutoDetectText}>⚡ Quét siêu nhạy 0ms</Text>
-                          </View>
-                        </View>
-
                         {/* Center Active Scanning Frame with Moving Laser Line */}
                         <View style={styles.scanTargetBox}>
                           <View style={[styles.corner, styles.cornerTL]} />
@@ -556,41 +526,6 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                             ]}
                           />
                         </View>
-
-                        {/* Zoom Selection Bar */}
-                        <View style={styles.zoomContainer}>
-                          <TouchableOpacity
-                            style={[styles.zoomPill, zoom === 0 && styles.zoomPillActive]}
-                            onPress={() => setZoom(0)}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[styles.zoomPillText, zoom === 0 && styles.zoomPillTextActive]}>
-                              1x
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.zoomPill, zoom === 0.08 && styles.zoomPillActive]}
-                            onPress={() => setZoom(0.08)}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[styles.zoomPillText, zoom === 0.08 && styles.zoomPillTextActive]}>
-                              1.5x (Chuẩn)
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.zoomPill, zoom === 0.16 && styles.zoomPillActive]}
-                            onPress={() => setZoom(0.16)}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[styles.zoomPillText, zoom === 0.16 && styles.zoomPillTextActive]}>
-                              2x (Xa)
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        <Text style={styles.scanTargetHint}>
-                          ⚡ Lia camera vào Mã QR Hoá đơn hoặc Mã QR Nhóm / Bạn bè
-                        </Text>
                       </View>
 
                       {loading && (
@@ -607,7 +542,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                       </View>
                       <Text style={styles.permissionTitle}>Cần quyền truy cập Camera</Text>
                       <Text style={styles.permissionSub}>
-                        Cho phép ShareMoney sử dụng camera để quét mã QR hoá đơn và mã nhóm.
+                        Cho phép ShareMoney sử dụng camera để quét mã QR.
                       </Text>
                       <Button
                         title="Cấp quyền Camera"
@@ -620,7 +555,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                 </View>
               </View>
             ) : (
-              /* 5. TAB 2: ẢNH TỪ ĐIỆN THOẠI (OCR) */
+              /* 5. TAB 2: CHỌN ẢNH TỪ THƯ VIỆN */
               <View style={styles.modeBody}>
                 {imageUri ? (
                   <View style={styles.previewBox}>
@@ -630,29 +565,17 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <View style={styles.pickerGrid}>
+                  <View style={styles.singlePickerContainer}>
                     <TouchableOpacity
-                      style={styles.pickerCard}
-                      onPress={() => pickImage(true)}
+                      style={styles.singlePickerCard}
+                      onPress={pickImageFromGallery}
                       activeOpacity={0.8}
                     >
                       <View style={[styles.pickerIconBg, { backgroundColor: "#EEF2FF" }]}>
-                        <Camera size={28} color="#4F46E5" />
-                      </View>
-                      <Text style={styles.pickerTitle}>Chụp ảnh hoá đơn</Text>
-                      <Text style={styles.pickerSub}>Chụp bill giấy thanh toán</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.pickerCard}
-                      onPress={() => pickImage(false)}
-                      activeOpacity={0.8}
-                    >
-                      <View style={[styles.pickerIconBg, { backgroundColor: "#ECFDF5" }]}>
-                        <ImageIcon size={28} color="#10B981" />
+                        <ImageIcon size={32} color="#4F46E5" />
                       </View>
                       <Text style={styles.pickerTitle}>Chọn từ thư viện</Text>
-                      <Text style={styles.pickerSub}>Ảnh bill đã lưu trong máy</Text>
+                      <Text style={styles.pickerSub}>Chọn ảnh có chứa mã QR từ thiết bị</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -734,7 +657,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                   icon={<RotateCcw size={16} color="#334155" />}
                 />
                 <Button
-                  title="Áp dụng vào hoá đơn"
+                  title="Áp dụng"
                   variant="primary"
                   onPress={handleApplyResult}
                   style={styles.flexBtn}
@@ -752,7 +675,7 @@ export const ScanReceiptModal: React.FC<ScanReceiptModalProps> = ({
                 />
                 {scanMode === "image" && (
                   <Button
-                    title={loading ? "Đang xử lý..." : "Quét & Bóc tách"}
+                    title={loading ? "Đang xử lý..." : "Quét ảnh"}
                     variant="primary"
                     onPress={handleScanImage}
                     style={styles.flexBtn}
@@ -872,28 +795,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15, 23, 42, 0.25)",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     paddingVertical: 12,
     paddingHorizontal: 14,
-  },
-  cameraTopBar: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    alignItems: "center",
-  },
-  badgeAutoDetect: {
-    backgroundColor: "rgba(15, 23, 42, 0.65)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-  },
-  badgeAutoDetectText: {
-    color: "#38BDF8",
-    fontSize: 11,
-    fontWeight: "800",
   },
   scanTargetBox: {
     width: 240,
@@ -955,44 +859,6 @@ const styles = StyleSheet.create({
     borderRightWidth: 4,
     borderBottomRightRadius: 14,
   },
-  zoomContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(15, 23, 42, 0.7)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
-  },
-  zoomPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  zoomPillActive: {
-    backgroundColor: "#4F46E5",
-  },
-  zoomPillText: {
-    color: "#94A3B8",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  zoomPillTextActive: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-  },
-  scanTargetHint: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "700",
-    textAlign: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 16,
-  },
   cameraLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15, 23, 42, 0.85)",
@@ -1039,41 +905,40 @@ const styles = StyleSheet.create({
   modeBody: {
     paddingVertical: 4,
   },
-  pickerGrid: {
-    flexDirection: "row",
-    gap: 12,
-    paddingVertical: 6,
+  singlePickerContainer: {
+    paddingVertical: 10,
   },
-  pickerCard: {
-    flex: 1,
+  singlePickerCard: {
+    width: "100%",
     backgroundColor: "#F8FAFC",
     borderWidth: 1.5,
     borderStyle: "dashed",
     borderColor: "#CBD5E1",
     borderRadius: 18,
-    padding: 16,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",
   },
   pickerIconBg: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   pickerTitle: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "800",
     color: colors.slate800,
     textAlign: "center",
   },
   pickerSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.slate400,
     textAlign: "center",
-    marginTop: 2,
+    marginTop: 4,
   },
   previewBox: {
     alignItems: "center",

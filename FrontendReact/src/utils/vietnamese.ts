@@ -112,6 +112,18 @@ function findToneTargetIndex(chars: string[]): number {
   if (vowelIndices.length === 0) return -1;
   if (vowelIndices.length === 1) return vowelIndices[0];
 
+  // Special cases for diphthongs with modified vowels: "ươ" -> tone on "ơ", "uô" -> tone on "ô"
+  for (let j = 0; j < vowelIndices.length - 1; j++) {
+    const v1 = (ROOT_VOWELS[chars[vowelIndices[j]]] || chars[vowelIndices[j]]).toLowerCase();
+    const v2 = (ROOT_VOWELS[chars[vowelIndices[j + 1]]] || chars[vowelIndices[j + 1]]).toLowerCase();
+    if (v1 === "ư" && v2 === "ơ") {
+      return vowelIndices[j + 1];
+    }
+    if (v1 === "u" && v2 === "ô") {
+      return vowelIndices[j + 1];
+    }
+  }
+
   // If there are modified vowels (ê, ô, ơ, ư, â, ă), place tone on them
   for (const idx of vowelIndices) {
     const c = (ROOT_VOWELS[chars[idx]] || chars[idx]).toLowerCase();

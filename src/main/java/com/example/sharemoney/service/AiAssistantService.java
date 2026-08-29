@@ -65,28 +65,72 @@ public class AiAssistantService {
     // PUBLIC: Xử lý tin nhắn từ người dùng
     // ─────────────────────────────────────────────────────
     public AiAssistantResponse chat(UUID userId, AiAssistantRequest request) {
+        long startTime = System.currentTimeMillis();
         String userMessage = request.getMessage() != null ? request.getMessage().trim() : "";
+        int historySize = request.getConversationHistory() != null ? request.getConversationHistory().size() : 0;
+
+        log.info("╔══════════════════════════════════════════════════════════════════════════════");
+        log.info("║ 🤖 [AI-CHATBOT] INCOMING USER QUESTION");
+        log.info("║ 👤 User ID: {}", userId);
+        log.info("║ 💬 Message: \"{}\"", userMessage);
+        log.info("║ 📜 Conversation History: {} previous turns", historySize);
+        log.info("╠──────────────────────────────────────────────────────────────────────────────");
+
         if (userMessage.isEmpty()) {
+            log.info("║ ⚠️ Empty user message. Returning default greeting.");
+            log.info("╚══════════════════════════════════════════════════════════════════════════════");
             return buildChatReply(
                     "Bạn chưa nhập gì cả. Thử hỏi mình điều gì đó nhé! 😊", "GENERAL_CHAT");
         }
 
         // Nạp dữ liệu tài chính thực tế của người dùng
         FinancialContext ctx = loadFinancialContext(userId);
+        log.info("║ 📊 User Financial Context Loaded:");
+        log.info("║    - User Name: {}", ctx.userName);
+        log.info("║    - Total Balance: {} VND", ctx.totalBalance);
+        log.info("║    - Monthly Income: {} VND | Monthly Expense: {} VND", ctx.monthlyIncome, ctx.monthlyExpense);
+        log.info("║    - Wallets: {} | Budgets: {} | Savings Goals: {}", ctx.wallets.size(), ctx.budgets.size(), ctx.savingsGoals.size());
 
+        AiAssistantResponse response;
         // Thử dùng Gemini AI nếu có API key
         if (isValidApiKey()) {
+            log.info("║ 🌐 Engine Selected: Google Gemini 2.0 AI (Cloud LLM)");
             try {
-                return chatWithGemini(userId, userMessage, ctx, request.getConversationHistory());
+                response = chatWithGemini(userId, userMessage, ctx, request.getConversationHistory());
             } catch (Exception e) {
                 log.warn(
-                        "[AiAssistant] Gemini failed: {}. Falling back to heuristic.",
+                        "║ ⚠️ Gemini failed: {}. Falling back to local heuristic NLP.",
                         e.getMessage());
+                log.info("║ ⚙️ Engine Fallback: Local Heuristic Rule-Based NLP");
+                response = chatWithHeuristic(userId, userMessage, ctx);
             }
+        } else {
+            log.info("║ ⚙️ Engine Selected: Local Heuristic Rule-Based NLP (No Gemini API Key)");
+            response = chatWithHeuristic(userId, userMessage, ctx);
         }
 
-        // Fallback: xử lý cục bộ bằng heuristic
-        return chatWithHeuristic(userId, userMessage, ctx);
+        long totalDuration = System.currentTimeMillis() - startTime;
+        log.info("╠──────────────────────────────────────────────────────────────────────────────");
+        log.info("║ 🎯 Resolved Intent: {}", response.getIntent());
+        log.info("║ 📝 Final Reply: \"{}\"", response.getReply() != null ? response.getReply().replace("\n", " ") : "");
+        if (response.getTransactionData() != null) {
+            log.info("║ 💸 Detected Transaction: {} VND | Category: {} | Note: {} | Type: {}",
+                    response.getTransactionData().getAmount(),
+                    response.getTransactionData().getCategoryName(),
+                    response.getTransactionData().getNote(),
+                    response.getTransactionData().getTransactionType());
+        }
+        if (response.getGoalPlanData() != null) {
+            log.info("║ 🎯 Proposed Savings Goal: \"{}\" | Target: {} VND in {} months | Feasibility Score: {}/100",
+                    response.getGoalPlanData().getGoalName(),
+                    response.getGoalPlanData().getTargetAmount(),
+                    response.getGoalPlanData().getTargetMonths(),
+                    response.getGoalPlanData().getFeasibilityScore());
+        }
+        log.info("║ ⏱️ Total AI Pipeline Execution Time: {} ms", totalDuration);
+        log.info("╚══════════════════════════════════════════════════════════════════════════════");
+
+        return response;
     }
 
     // ─────────────────────────────────────────────────────
@@ -135,16 +179,22 @@ public class AiAssistantService {
         String targetUrl = apiUrl + (apiUrl.contains("?") ? "&" : "?") + "key=" + apiKey.trim();
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
+        log.info("║ 🚀 Dispatching prompt to Gemini API endpoint...");
+        long geminiStart = System.currentTimeMillis();
         ResponseEntity<Map> response = restTemplate.postForEntity(targetUrl, entity, Map.class);
+        long geminiDuration = System.currentTimeMillis() - geminiStart;
+        log.info("║ 📥 Gemini API replied with HTTP {} in {} ms", response.getStatusCode(), geminiDuration);
 
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
             String generatedText = extractTextFromGeminiResponse(response.getBody());
+            log.info("║ 🧠 Raw Gemini Model Output: \"{}\"", generatedText != null ? generatedText.replace("\n", " ") : "null");
             if (generatedText != null) {
                 return parseGeminiJsonResponse(generatedText.trim());
             }
         }
 
         // Fallback nếu Gemini không trả về kết quả hợp lệ
+        log.warn("║ ⚠️ Gemini response invalid. Switching to Heuristic.");
         return chatWithHeuristic(userId, userMessage, ctx);
     }
 

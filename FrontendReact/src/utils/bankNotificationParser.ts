@@ -210,10 +210,18 @@ export function parseBankNotificationText(rawText: string): ParsedBankNotificati
   const cleanText = rawText.trim();
   const normalized = removeVietnameseAccents(cleanText);
 
-  // 1. Nhận diện ngân hàng
+  // 1. Nhận diện ngân hàng (ưu tiên khớp từ dài trước, từ viết tắt ngắn dùng word boundary)
   let detectedBank = "Ngân hàng";
   for (const b of BANK_IDENTIFIERS) {
-    if (b.keywords.some((k) => normalized.includes(k))) {
+    if (
+      b.keywords.some((k) => {
+        if (k.length <= 3) {
+          const regex = new RegExp(`\\b${k}\\b`, "i");
+          return regex.test(normalized);
+        }
+        return normalized.includes(k);
+      })
+    ) {
       detectedBank = b.name;
       break;
     }

@@ -6,6 +6,7 @@ import { AppNavigator } from "./src/navigation/AppNavigator";
 import { AlertProvider } from "./src/context/AlertContext";
 import { AuthProvider } from "./src/context/AuthContext";
 import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
+import { ErrorBoundary } from "./src/components/ui/ErrorBoundary";
 
 // Ẩn toàn bộ popup cảnh báo hệ thống (LogBox / YellowBox) trên giao diện người dùng
 LogBox.ignoreAllLogs(true);
@@ -28,15 +29,18 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AlertProvider>
-          <AuthProvider>
-            <ThemedStatusBar />
-            <AppNavigator />
-          </AuthProvider>
-        </AlertProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AlertProvider>
+            <AuthProvider>
+              <ThemedStatusBar />
+              <AppNavigator />
+            </AuthProvider>
+          </AlertProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
+

@@ -273,7 +273,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
         {/* ─── AT-RISK BUDGET WARNING / ALL GOOD CARD ─── */}
         {totalWarningCount > 0 ? (
-          <View style={[styles.warningCard, { backgroundColor: isDark ? "#1E1214" : "#FFF5F5", borderColor: isDark ? "#3D1A1F" : "#FFE4E6" }]}>
+          <View style={[styles.warningCard, { backgroundColor: isDark ? "#1C1518" : "#FFFFFF", borderColor: isDark ? "#3D1B22" : "#FEE2E2" }]}>
             <View style={styles.warningHeaderRow}>
               <View style={styles.warningTitleGroup}>
                 <View style={styles.redDot} />
@@ -305,20 +305,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                     style={[
                       styles.overPill,
                       {
-                        backgroundColor: isDark ? "#2C1215" : "#FFF1F2",
-                        borderColor: isDark ? "#4C1D24" : "#FECDD3",
+                        backgroundColor: isDark ? "#281419" : "#FFF5F5",
+                        borderColor: isDark ? "#4D1D26" : "#FECDD3",
                       },
                     ]}
                     activeOpacity={0.75}
                   >
                     <View style={styles.pillTopRow}>
-                      <View style={styles.pillLabelRow}>
-                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={16} />
-                        <Text style={[styles.overPillTitle, { color: isDark ? "#FFE4E6" : "#881337" }]} numberOfLines={1}>
-                          {catName}
-                        </Text>
+                      <View style={styles.pillIconBoxRed}>
+                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={15} />
                       </View>
-                      <Text style={styles.overPillPct}>{pct}%</Text>
+                      <Text
+                        style={[styles.overPillTitle, { color: isDark ? "#FFE4E6" : "#881337" }]}
+                        numberOfLines={1}
+                      >
+                        {catName}
+                      </Text>
+                      <View style={styles.pillPctBadgeRed}>
+                        <Text style={styles.pillPctTextRed}>{pct}%</Text>
+                      </View>
                     </View>
 
                     <View style={[styles.pillTrack, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#FEE2E2" }]}>
@@ -327,7 +332,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
                     <View style={styles.pillBottomRow}>
                       <Text style={[styles.pillSubLabel, { color: isDark ? "#94A3B8" : colors.slate500 }]}>
-                        Vượt mức:
+                        Vượt mức
                       </Text>
                       <Text style={styles.overPillVal} numberOfLines={1}>
                         +{fmt(overAmt)}
@@ -350,20 +355,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                     style={[
                       styles.approachingPill,
                       {
-                        backgroundColor: isDark ? "#261A08" : "#FFFBEB",
-                        borderColor: isDark ? "#483513" : "#FDE68A",
+                        backgroundColor: isDark ? "#24190B" : "#FFFDF5",
+                        borderColor: isDark ? "#453215" : "#FDE68A",
                       },
                     ]}
                     activeOpacity={0.75}
                   >
                     <View style={styles.pillTopRow}>
-                      <View style={styles.pillLabelRow}>
-                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={16} />
-                        <Text style={[styles.approachingPillTitle, { color: isDark ? "#FEF3C7" : "#78350F" }]} numberOfLines={1}>
-                          {catName}
-                        </Text>
+                      <View style={styles.pillIconBoxAmber}>
+                        <CategoryIcon name={b.categoryName || b.name || b.categoryIcon} size={15} />
                       </View>
-                      <Text style={styles.approachingPillPct}>{pct}%</Text>
+                      <Text
+                        style={[styles.approachingPillTitle, { color: isDark ? "#FEF3C7" : "#78350F" }]}
+                        numberOfLines={1}
+                      >
+                        {catName}
+                      </Text>
+                      <View style={styles.pillPctBadgeAmber}>
+                        <Text style={styles.pillPctTextAmber}>{pct}%</Text>
+                      </View>
                     </View>
 
                     <View style={[styles.pillTrack, { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#FEF3C7" }]}>
@@ -372,7 +382,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
                     <View style={styles.pillBottomRow}>
                       <Text style={[styles.pillSubLabel, { color: isDark ? "#94A3B8" : colors.slate500 }]}>
-                        Còn lại:
+                        Còn lại
                       </Text>
                       <Text style={styles.approachingPillVal} numberOfLines={1}>
                         {fmt(remainAmt)}
@@ -1064,57 +1074,88 @@ const styles = StyleSheet.create({
   overPill: {
     width: 175,
     borderRadius: 16,
-    padding: 11,
+    padding: 12,
     borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   approachingPill: {
     width: 175,
     borderRadius: 16,
-    padding: 11,
+    padding: 12,
     borderWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   pillTopRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  pillLabelRow: {
-    flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    flex: 1,
-    marginRight: 4,
+    marginBottom: 8,
+  },
+  pillIconBoxRed: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFE4E6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pillIconBoxAmber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FEF3C7",
+    alignItems: "center",
+    justifyContent: "center",
   },
   overPillTitle: {
     fontSize: 12,
     fontWeight: "800",
-    flexShrink: 1,
+    flex: 1,
   },
   approachingPillTitle: {
     fontSize: 12,
     fontWeight: "800",
-    flexShrink: 1,
+    flex: 1,
   },
-  overPillPct: {
+  pillPctBadgeRed: {
+    backgroundColor: "#FFE4E6",
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  pillPctTextRed: {
     fontSize: 10,
     fontWeight: "900",
     color: colors.rose600,
   },
-  approachingPillPct: {
+  pillPctBadgeAmber: {
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  pillPctTextAmber: {
     fontSize: 10,
     fontWeight: "900",
-    color: colors.amber600,
+    color: colors.amber700,
   },
   pillTrack: {
-    height: 4,
-    borderRadius: 2,
+    height: 5,
+    borderRadius: 3,
     overflow: "hidden",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   pillFill: {
     height: "100%",
-    borderRadius: 2,
+    borderRadius: 3,
   },
   pillBottomRow: {
     flexDirection: "row",
@@ -1122,16 +1163,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pillSubLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "600",
   },
   overPillVal: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "900",
     color: colors.rose600,
   },
   approachingPillVal: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "900",
     color: colors.amber700,
   },

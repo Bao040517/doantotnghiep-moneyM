@@ -58,6 +58,25 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 53. **Chi Tiết Nợ Nhóm & Lịch Sử Trả Nợ Trong Thống Kê (Group Debt Breakdown & Settlement Audit in Report):** Tích hợp phân tích chi tiết công nợ từng thành viên (Ai nợ tôi / Tôi nợ ai, số tiền, tên nhóm, avatar) kèm bảng lịch sử các giao dịch trả nợ trong tháng khi chạm vào thẻ *"Tổng chi kế hoạch"* hoặc *"Nợ nhóm cần trả"* trong Modal Thống kê Chi tiết.
 54. **Mã QR Tham Gia Nhóm Vectơ SVG (Group Invite QR Vector System):** Phân tách chuẩn luồng tạo và quản lý nhóm: Khi tạo nhóm mới tuyệt đối không có quét QR gây rối mắt; khi nhóm đã tạo thành công thì hiển thị nút *"Mã QR 📲"* trên Header và banner *"Mã QR Tham Gia Nhóm 📲"* trong Tab Thành viên với mã QR vector độ nét cao (`react-native-svg-qrcode`) để bạn bè quét camera vào nhóm trong 1 chạm.
 55. **Chế Độ Tối Toàn Diện Hệ Thống (Comprehensive Dark Mode System):** Đồng bộ Dark Mode trên toàn bộ ứng dụng (Tab Tư vấn `AdvisorScreen`, Tab Thống kê `ReportScreen`, `TotalExpenseDetailBottomSheet`, `NotificationBottomSheet`, `BottomSheet`, `Card`, `BudgetScreen`, `SavingsScreen`, `GroupsScreen`, `HistoryScreen`), áp dụng nền tối sang trọng (`#0F172A`), card tối (`#1E293B`), chữ sáng rõ nét (`#F1F5F9`), loại bỏ hoàn toàn tình trạng chói mắt.
+56. **Chuẩn Hóa Xác Thực Đăng Ký Tài Khoản Mới (Gmail Format & Alphanumeric Password Enforcer):** Kiểm soát nghiêm ngặt luồng đăng ký user mới trên toàn bộ hệ thống: Bắt buộc email đăng ký phải đúng định dạng Gmail (`@gmail.com`), mật khẩu tối thiểu 6 ký tự và bắt buộc phải chứa đồng thời cả chữ cái lẫn chữ số. Tích hợp checklist yêu cầu trực quan realtime đổi màu xanh `✓` trên Frontend và bảo vệ 2 lớp với Bean Validation `@Pattern` trên Spring Boot Backend.
+
+### Session [2026-08-30] - Chuẩn Hóa Xác Thực Đăng Ký Người Dùng: Bắt Buộc Đúng Định Dạng Gmail & Mật Khẩu Chứa Cả Chữ Lẫn Số
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Kiểm Soát Ràng Buộc Đăng Ký Phía Backend (`RegisterRequest.java`):**
+   - **Email Gmail:** Thay thế `@Email` thông thường bằng `@Pattern(regexp = "^[A-Za-z0-9._%+-]+@gmail\\.com$", message = "Email phải đúng định dạng Gmail (kết thúc bằng @gmail.com)")`.
+   - **Mật khẩu Chữ & Số:** Bổ sung `@Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "Mật khẩu phải bao gồm cả chữ cái và chữ số")` kết hợp `@Size(min = 6)`.
+
+2. **Trải Nghiệm Đăng Ký Trực Quan & Xác Thực Phía Frontend (`AuthScreen.tsx`):**
+   - **Checklist Yêu Cầu Realtime:** Hiển thị hộp yêu cầu tài khoản ngay dưới form đăng ký với 2 tiêu chí: (1) *Email định dạng Gmail (@gmail.com)*, (2) *Mật khẩu tối thiểu 6 ký tự gồm cả chữ và số*. Khi người dùng nhập đúng, icon chuyển từ dấu chấm xám sang tích xanh `✓` nổi bật.
+   - **Validation Chặt Chẽ Khi Submit:** Bắt lỗi tức thì và bật popup thông báo tiếng Việt rõ ràng nếu người dùng cố tình gửi email không phải Gmail hoặc mật khẩu thiếu chữ/số.
+   - **Tối Ưu Giao Diện & Dark Mode:** Hỗ trợ đầy đủ Dark Mode sang trọng, placeholder rõ ràng (`yourname@gmail.com`).
+
+3. **Mở Rộng Bộ Kiểm Thử Tự Động Toàn Diện (Full-Stack 208 Tests - 100% Passed):**
+   - **Backend Unit Tests (`AuthControllerTest.java`):** Bổ sung 5 bài test tự động với `Validator` kiểm thử toàn diện: Gmail hợp lệ, từ chối email khác đuôi `@gmail.com`, từ chối mật khẩu chỉ có chữ, từ chối mật khẩu chỉ có số, từ chối mật khẩu quá ngắn. Toàn bộ **167/167 Backend tests passed (100%)**.
+   - **Frontend Unit Tests (`authValidation.test.ts`):** Xây dựng bộ 8 unit tests kiểm tra toàn diện regex Gmail và quy tắc mật khẩu. Nâng tổng số Frontend tests lên **41/41 tests passed (100%)**.
+   - **TypeScript & Style:** `npx tsc --noEmit` đạt **0 errors**, định dạng chuẩn Google Java Format (AOSP) bằng `spotless:apply`.
 
 ### Session [2026-08-29] (Phần 3) - Tinh Gọn Camera, Cảnh Báo Hạn Mức Gọn Gàng, Chi Tiết Nợ Nhóm Trong Thống Kê, Mã QR Nhóm Vectơ SVG & Chế Độ Tối Toàn Diện (Dark Mode)
 

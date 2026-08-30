@@ -16,6 +16,7 @@ import com.example.sharemoney.repository.UserRepository;
 import com.example.sharemoney.security.CustomUserDetails;
 import com.example.sharemoney.security.JwtUtil;
 import com.example.sharemoney.service.RefreshTokenService;
+import jakarta.validation.ValidatorFactory;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
@@ -75,10 +76,10 @@ class AuthControllerTest {
     void testRegister_Success() {
         RegisterRequest req = new RegisterRequest();
         req.setName("Nguyen Van A");
-        req.setEmail("vana@example.com");
+        req.setEmail("vana@gmail.com");
         req.setPassword("Password@123");
 
-        when(userRepository.existsByEmail("vana@example.com")).thenReturn(false);
+        when(userRepository.existsByEmail("vana@gmail.com")).thenReturn(false);
         when(passwordEncoder.encode("Password@123")).thenReturn("encoded_pwd");
         when(userRepository.save(any(User.class))).thenReturn(user);
         when(jwtUtil.generateToken(any(CustomUserDetails.class))).thenReturn("access_token_123");
@@ -98,10 +99,10 @@ class AuthControllerTest {
     void testRegister_EmailAlreadyExists_ThrowsException() {
         RegisterRequest req = new RegisterRequest();
         req.setName("Nguyen Van A");
-        req.setEmail("vana@example.com");
+        req.setEmail("vana@gmail.com");
         req.setPassword("Password@123");
 
-        when(userRepository.existsByEmail("vana@example.com")).thenReturn(true);
+        when(userRepository.existsByEmail("vana@gmail.com")).thenReturn(true);
 
         AppException ex = assertThrows(AppException.class, () -> authController.register(req));
         assertEquals(ErrorCode.EMAIL_ALREADY_EXISTS, ex.getErrorCode());
@@ -193,5 +194,100 @@ class AuthControllerTest {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(refreshTokenService).revokeToken("token_to_revoke");
+    }
+
+    @Test
+    @DisplayName(
+            "Validation RegisterRequest: Gmail hợp lệ + Mật khẩu có cả chữ và số -> Hợp lệ 100%")
+    void testRegisterRequestValidation_Valid() {
+        ValidatorFactory factory = jakarta.validation.Validation.buildDefaultValidatorFactory();
+        jakarta.validation.Validator validator = factory.getValidator();
+
+        RegisterRequest req = new RegisterRequest();
+        req.setName("Nguyen Van A");
+        req.setEmail("user.test123_abc@gmail.com");
+        req.setPassword("Password123");
+
+        java.util.Set<jakarta.validation.ConstraintViolation<RegisterRequest>> violations =
+                validator.validate(req);
+        assertTrue(
+                violations.isEmpty(),
+                "Dữ liệu chuẩn Gmail và mật khẩu chữ+số không được có lỗi validation");
+    }
+
+    @Test
+    @DisplayName(
+            "Validation RegisterRequest: Email không phải @gmail.com -> Báo lỗi định dạng Gmail")
+    void testRegisterRequestValidation_InvalidEmailNotGmail() {
+        ValidatorFactory factory = jakarta.validation.Validation.buildDefaultValidatorFactory();
+        jakarta.validation.Validator validator = factory.getValidator();
+
+        RegisterRequest req = new RegisterRequest();
+        req.setName("Nguyen Van A");
+        req.setEmail("user@yahoo.com");
+        req.setPassword("Password123");
+
+        java.util.Set<jakarta.validation.ConstraintViolation<RegisterRequest>> violations =
+                validator.validate(req);
+        assertFalse(violations.isEmpty());
+        assertTrue(
+                violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("email")));
+    }
+
+    @Test
+    @DisplayName("Validation RegisterRequest: Mật khẩu chỉ có chữ cái -> Báo lỗi thiếu chữ số")
+    void testRegisterRequestValidation_PasswordOnlyLetters() {
+        ValidatorFactory factory = jakarta.validation.Validation.buildDefaultValidatorFactory();
+        jakarta.validation.Validator validator = factory.getValidator();
+
+        RegisterRequest req = new RegisterRequest();
+        req.setName("Nguyen Van A");
+        req.setEmail("user@gmail.com");
+        req.setPassword("PasswordOnly");
+
+        java.util.Set<jakarta.validation.ConstraintViolation<RegisterRequest>> violations =
+                validator.validate(req);
+        assertFalse(violations.isEmpty());
+        assertTrue(
+                violations.stream()
+                        .anyMatch(v -> v.getPropertyPath().toString().equals("password")));
+    }
+
+    @Test
+    @DisplayName("Validation RegisterRequest: Mật khẩu chỉ có chữ số -> Báo lỗi thiếu chữ cái")
+    void testRegisterRequestValidation_PasswordOnlyNumbers() {
+        ValidatorFactory factory = jakarta.validation.Validation.buildDefaultValidatorFactory();
+        jakarta.validation.Validator validator = factory.getValidator();
+
+        RegisterRequest req = new RegisterRequest();
+        req.setName("Nguyen Van A");
+        req.setEmail("user@gmail.com");
+        req.setPassword("12345678");
+
+        java.util.Set<jakarta.validation.ConstraintViolation<RegisterRequest>> violations =
+                validator.validate(req);
+        assertFalse(violations.isEmpty());
+        assertTrue(
+                violations.stream()
+                        .anyMatch(v -> v.getPropertyPath().toString().equals("password")));
+    }
+
+    @Test
+    @DisplayName("Validation RegisterRequest: Mật khẩu dưới 6 ký tự -> Báo lỗi độ dài")
+    void testRegisterRequestValidation_PasswordTooShort() {
+        ValidatorFactory factory = jakarta.validation.Validation.buildDefaultValidatorFactory();
+        jakarta.validation.Validator validator = factory.getValidator();
+
+        RegisterRequest req = new RegisterRequest();
+        req.setName("Nguyen Van A");
+        req.setEmail("user@gmail.com");
+        req.setPassword("Ab1");
+
+        java.util.Set<jakarta.validation.ConstraintViolation<RegisterRequest>> violations =
+                validator.validate(req);
+        assertFalse(violations.isEmpty());
+        assertTrue(
+                violations.stream()
+                        .anyMatch(v -> v.getPropertyPath().toString().equals("password")));
     }
 }

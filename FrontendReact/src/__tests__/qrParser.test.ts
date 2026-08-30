@@ -66,20 +66,13 @@ describe("Frontend Universal QR Parser Tests", () => {
     assert.equal(result.payload?.name, "Nguyen Van B");
   });
 
-  it("8. Parse Hoá đơn điện tử E-Invoice (WinMart, Circle K, Sawaco...)", () => {
-    const raw = "https://hoadon.winmart.vn/tra-cuu?code=HD123456";
-    const result = parseScannedQr(raw);
-    assert.equal(result.type, "RECEIPT_URL");
-    assert.equal(result.url, raw);
-  });
-
-  it("9. Parse VietQR chuyển khoản ngân hàng", () => {
+  it("8. Parse VietQR chuyển khoản ngân hàng", () => {
     const raw = "00020101021238540010A0000007270124000697042201101090888899953037045802VN5913NGUYEN VAN A63041234";
     const result = parseScannedQr(raw);
     assert.equal(result.type, "VIETQR");
   });
 
-  it("10. Parse chuỗi rỗng hoặc rác -> OTHER", () => {
+  it("9. Parse chuỗi rỗng hoặc rác -> OTHER", () => {
     const resultEmpty = parseScannedQr("");
     assert.equal(resultEmpty.type, "OTHER");
 

@@ -11,16 +11,12 @@ import static org.mockito.Mockito.when;
 import com.example.sharemoney.dto.request.AiAssistantRequest;
 import com.example.sharemoney.dto.request.AiMessageRequest;
 import com.example.sharemoney.dto.request.SavingsGoalRequest;
-import com.example.sharemoney.dto.request.ScanQrReceiptRequest;
 import com.example.sharemoney.dto.response.AiAssistantResponse;
 import com.example.sharemoney.dto.response.AiMessageResponse;
 import com.example.sharemoney.dto.response.SavingsGoalResponse;
-import com.example.sharemoney.dto.response.ScanReceiptResponse;
 import com.example.sharemoney.security.SecurityUtils;
 import com.example.sharemoney.service.AiAssistantService;
 import com.example.sharemoney.service.GeminiService;
-import com.example.sharemoney.service.QrReceiptService;
-import com.example.sharemoney.service.ReceiptScanService;
 import com.example.sharemoney.service.SavingsGoalService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -42,10 +38,6 @@ import org.springframework.http.ResponseEntity;
 class AiControllerTest {
 
     @Mock private GeminiService geminiService;
-
-    @Mock private ReceiptScanService receiptScanService;
-
-    @Mock private QrReceiptService qrReceiptService;
 
     @Mock private AiAssistantService aiAssistantService;
 
@@ -148,29 +140,5 @@ class AiControllerTest {
         assertEquals(
                 "Trần Văn B ơi, 200.000đ của mình đâu rồi nè!", response.getBody().getMessage());
         verify(geminiService).generateDebtMessage(request);
-    }
-
-    @Test
-    @DisplayName("Endpoint POST /api/ai/scan-qr-receipt - Quét hóa đơn điện tử qua QR URL")
-    void testScanQrReceiptEndpoint() {
-        ScanQrReceiptRequest request = new ScanQrReceiptRequest();
-        request.setUrl("https://hoadon.vnpt.vn/lookup?id=12345");
-
-        ScanReceiptResponse expected =
-                ScanReceiptResponse.builder()
-                        .amount(new BigDecimal("450000"))
-                        .note("Hóa đơn VNPT")
-                        .build();
-
-        when(qrReceiptService.scanReceiptFromUrl("https://hoadon.vnpt.vn/lookup?id=12345"))
-                .thenReturn(expected);
-
-        ResponseEntity<ScanReceiptResponse> response = aiController.scanQrReceipt(request);
-
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals(new BigDecimal("450000"), response.getBody().getAmount());
-        assertEquals("Hóa đơn VNPT", response.getBody().getNote());
-        verify(qrReceiptService).scanReceiptFromUrl("https://hoadon.vnpt.vn/lookup?id=12345");
     }
 }

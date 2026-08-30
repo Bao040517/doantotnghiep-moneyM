@@ -2,18 +2,12 @@ package com.example.sharemoney.service;
 
 import com.example.sharemoney.dto.request.AiMessageRequest;
 import com.example.sharemoney.dto.response.AiMessageResponse;
-import com.example.sharemoney.dto.response.ReceiptItemResponse;
-import com.example.sharemoney.dto.response.ScanReceiptResponse;
 import com.example.sharemoney.exception.AppException;
 import com.example.sharemoney.exception.ErrorCode;
-import java.math.BigDecimal;
 import java.text.NumberFormat;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +17,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @Service
@@ -109,108 +102,6 @@ public class GeminiService {
         log.info("║ 📝 Fallback Heuristic Message: \"{}\"", fallbackMsg);
         log.info("╚══════════════════════════════════════════════════════════════════════════════");
         return AiMessageResponse.builder().message(fallbackMsg).build();
-    }
-
-    public ScanReceiptResponse scanReceipt(MultipartFile file) {
-        if (!isValidApiKey()) {
-            throw new AppException(ErrorCode.RECEIPT_SCAN_CONFIG_ERROR);
-        }
-
-        try {
-            String base64Image = java.util.Base64.getEncoder().encodeToString(file.getBytes());
-            String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
-
-            Map<String, Object> inlineData =
-                    Map.of(
-                            "mime_type", mimeType,
-                            "data", base64Image);
-
-            Map<String, Object> textPart =
-                    Map.of(
-                            "text",
-                            "Analyze this receipt image carefully. Extract the final total amount paid (as a number), the store or supplier name (as 'note'), and the list of line items purchased if visible. "
-                                    + "Return strictly a valid JSON object in this format: "
-                                    + "{\"amount\": 150000, \"note\": \"Tên cửa hàng\", \"items\": [{\"description\": \"Tên món\", \"quantity\": 1, \"unitPrice\": 50000, \"totalPrice\": 50000}]}. "
-                                    + "Do not include any other text, markdown, or code blocks.");
-
-            Map<String, Object> imagePart = Map.of("inline_data", inlineData);
-
-            Map<String, Object> requestBody =
-                    Map.of("contents", List.of(Map.of("parts", List.of(textPart, imagePart))));
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("x-goog-api-key", apiKey.trim());
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            ResponseEntity<Map> response = callGeminiApiWithRetry(entity);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                String generatedText = extractTextFromGeminiResponse(response.getBody());
-                if (generatedText != null) {
-                    generatedText =
-                            generatedText.replaceAll("```json", "").replaceAll("```", "").trim();
-                    com.fasterxml.jackson.databind.ObjectMapper mapper =
-                            new com.fasterxml.jackson.databind.ObjectMapper();
-                    return mapper.readValue(generatedText, ScanReceiptResponse.class);
-                }
-            }
-            throw new AppException(ErrorCode.RECEIPT_SCAN_FAILED);
-        } catch (AppException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("[GeminiService] Error scanning receipt via Gemini API", e);
-            throw new AppException(ErrorCode.RECEIPT_SCAN_FAILED);
-        }
-    }
-
-    public ScanReceiptResponse extractReceiptFromHtml(String htmlText) {
-        if (!isValidApiKey()) {
-            log.info(
-                    "[GeminiService] Gemini API key not set, parsing HTML via heuristic fallback.");
-            return extractReceiptViaHeuristic(htmlText);
-        }
-
-        try {
-            String prompt =
-                    "Analyze the following text extracted from an e-invoice webpage. "
-                            + "Extract the final total amount paid (as a number), a brief description/name of the store or supplier, and the list of purchased items. "
-                            + "Each item should have 'description' (string), 'quantity' (number), 'unitPrice' (number), and 'totalPrice' (number). "
-                            + "Return exactly a JSON object in this format: "
-                            + "{\"amount\": 150000, \"note\": \"Supermarket Groceries\", \"items\": [{\"description\": \"Item 1\", \"quantity\": 1, \"unitPrice\": 50000, \"totalPrice\": 50000}]}. "
-                            + "Do not include any other text, markdown, or code blocks.\n\n"
-                            + "Text content:\n"
-                            + htmlText;
-
-            Map<String, Object> requestBody =
-                    Map.of("contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("x-goog-api-key", apiKey.trim());
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            ResponseEntity<Map> response = callGeminiApiWithRetry(entity);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                String generatedText = extractTextFromGeminiResponse(response.getBody());
-                if (generatedText != null) {
-                    generatedText =
-                            generatedText.replaceAll("```json", "").replaceAll("```", "").trim();
-                    com.fasterxml.jackson.databind.ObjectMapper mapper =
-                            new com.fasterxml.jackson.databind.ObjectMapper();
-                    return mapper.readValue(generatedText, ScanReceiptResponse.class);
-                }
-            }
-        } catch (Exception e) {
-            log.warn(
-                    "[GeminiService] Gemini HTML extraction failed: {}. Using heuristic parser.",
-                    e.getMessage());
-        }
-
-        return extractReceiptViaHeuristic(htmlText);
     }
 
     private String buildPrompt(AiMessageRequest request) {
@@ -396,52 +287,5 @@ public class GeminiService {
         }
 
         return options.get(random.nextInt(options.size()));
-    }
-
-    /** Trích xuất thông tin hoá đơn cơ bản từ nội dung HTML khi không dùng Gemini. */
-    private ScanReceiptResponse extractReceiptViaHeuristic(String htmlText) {
-        BigDecimal amount = BigDecimal.ZERO;
-        String note = "Hoá đơn điện tử";
-
-        try {
-            // Tìm các mẫu số tiền thường gặp trong hoá đơn tiếng Việt (ví dụ: Tổng tiền: 150.000
-            // hoặc 150,000 đ)
-            Pattern pattern =
-                    Pattern.compile(
-                            "(?i)(?:tổng cộng|tổng tiền|thanh toán|total)[^0-9]{1,20}([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{4,9})");
-            Matcher matcher = pattern.matcher(htmlText);
-            if (matcher.find()) {
-                String rawNum = matcher.group(1).replace(".", "").replace(",", "");
-                amount = new BigDecimal(rawNum);
-            }
-
-            // Lấy tên cửa hàng từ các cụm từ đầu trang
-            if (htmlText.toLowerCase().contains("winmart")) {
-                note = "WinMart Supermarket";
-            } else if (htmlText.toLowerCase().contains("circle k")) {
-                note = "Circle K Convenience Store";
-            } else if (htmlText.toLowerCase().contains("co.opmart")
-                    || htmlText.toLowerCase().contains("coopmart")) {
-                note = "Co.opmart";
-            } else if (htmlText.toLowerCase().contains("seven eleven")
-                    || htmlText.toLowerCase().contains("7-eleven")) {
-                note = "7-Eleven Store";
-            }
-        } catch (Exception e) {
-            log.warn("[GeminiService] Heuristic parsing warning: {}", e.getMessage());
-        }
-
-        List<ReceiptItemResponse> items = new ArrayList<>();
-        if (amount.compareTo(BigDecimal.ZERO) > 0) {
-            items.add(
-                    ReceiptItemResponse.builder()
-                            .description(note)
-                            .quantity(1)
-                            .unitPrice(amount)
-                            .totalPrice(amount)
-                            .build());
-        }
-
-        return ScanReceiptResponse.builder().amount(amount).note(note).items(items).build();
     }
 }

@@ -11,7 +11,6 @@
 export type QrCodeType =
   | "GROUP_INVITE"
   | "USER_PROFILE"
-  | "RECEIPT_URL"
   | "VIETQR"
   | "OTHER";
 
@@ -20,7 +19,6 @@ export interface ParsedQrResult {
   raw: string;
   groupId?: string;
   userId?: string;
-  url?: string;
   payload?: any;
 }
 
@@ -116,18 +114,7 @@ export function parseScannedQr(data: string): ParsedQrResult {
     };
   }
 
-  // 5. Nhận diện Hoá đơn điện tử / E-Invoice URL
-  const urlMatch = raw.match(/https?:\/\/[^\s"'<>]+/i);
-  if (urlMatch) {
-    const url = urlMatch[0];
-    return {
-      type: "RECEIPT_URL",
-      raw,
-      url,
-    };
-  }
-
-  // 6. Trường hợp chuỗi UUID độc lập
+  // 5. Trường hợp chuỗi UUID độc lập
   const directUuidMatch = raw.match(new RegExp(`^${UUID_REGEX.source}$`));
   if (directUuidMatch) {
     return {

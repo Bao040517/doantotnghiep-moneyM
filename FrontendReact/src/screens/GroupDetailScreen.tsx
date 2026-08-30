@@ -23,7 +23,6 @@ import { ExpenseDetailBottomSheet } from "../components/modals/ExpenseDetailBott
 import { RemindDebtBottomSheet } from "../components/modals/RemindDebtBottomSheet";
 import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
 import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
-import { ScanReceiptModal } from "../components/modals/ScanReceiptModal";
 import { Toast } from "../components/ui/Toast";
 import { GroupDetailSkeleton } from "../components/ui/SkeletonLoader";
 import { QrCode } from "lucide-react-native";
@@ -140,7 +139,6 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   const [splitMode, setSplitMode] = useState<"all" | "custom">("all");
   const [selectedSplitUserIds, setSelectedSplitUserIds] = useState<string[]>([]);
   const [savingExpense, setSavingExpense] = useState(false);
-  const [scanModalVisible, setScanModalVisible] = useState(false);
 
   // VietQR settlement state
   const [qrSettleDebt, setQrSettleDebt] = useState<any | null>(null);
@@ -797,21 +795,6 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled={true}
           >
-            {/* QR Scan Button for Group Expense */}
-            <TouchableOpacity
-              style={styles.scanBtn}
-              onPress={() => setScanModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.scanIconBg}>
-                <Text style={{ fontSize: 18 }}>📸</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.scanTitle}>Quét hoá đơn / Mã QR Bill</Text>
-                <Text style={styles.scanSub}>Tự động điền tên & số tiền từ ảnh hoặc mã QR</Text>
-              </View>
-            </TouchableOpacity>
-
             <Input label="Tên khoản chi (*)" placeholder="VD: Tiền Ăn Tối, Xe Ô Tô Du Lịch" value={title} onChangeText={setTitle} />
             <Input label="Số tiền (VND) (*)" placeholder="VD: 500.000" keyboardType="numeric" value={amount} onChangeText={handleAmountChange} />
 
@@ -1095,24 +1078,6 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         visible={payeeSelectorVisible}
         onClose={() => setPayeeSelectorVisible(false)}
         onSelectPayee={handleSelectPayeeForDebt}
-      />
-
-      {/* AI Scan Receipt Modal */}
-      <ScanReceiptModal
-        visible={scanModalVisible}
-        onClose={() => setScanModalVisible(false)}
-        onScanSuccess={(data) => {
-          const rawAmount = data.amount ?? (data as any).totalAmount;
-          if (rawAmount !== undefined && rawAmount !== null) {
-            setAmount(Number(rawAmount).toLocaleString("vi-VN"));
-          }
-          const rawNote = data.note ?? (data as any).merchantName;
-          if (rawNote) {
-            const formattedTitle = rawNote.startsWith("Hoá đơn") ? rawNote : `Hoá đơn ${rawNote}`;
-            setTitle(formattedTitle);
-          }
-          showToast("✅ Đã nhận diện hoá đơn thành công", "success");
-        }}
       />
 
       {/* ─── GROUP QR LIGHTBOX MODAL ─── */}

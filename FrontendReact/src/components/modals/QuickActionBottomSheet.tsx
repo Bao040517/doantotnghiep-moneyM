@@ -7,10 +7,10 @@ import {
   Modal,
   Platform,
 } from "react-native";
-import { QrCode, Sparkles } from "lucide-react-native";
+import { Sparkles } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 
-export type QuickActionType = "expense" | "group" | "income" | "scan_receipt" | "ai_chat";
+export type QuickActionType = "expense" | "group" | "income" | "ai_chat";
 
 interface QuickActionBottomSheetProps {
   visible: boolean;
@@ -73,26 +73,6 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
                   </View>
                 </View>
                 <Text style={styles.cardSub}>Lập kế hoạch mua sắm mục tiêu 3 tháng, hỏi đáp dòng tiền</Text>
-              </View>
-              <Text style={styles.arrowIcon}>›</Text>
-            </TouchableOpacity>
-            {/* 1. Quét Hoá Đơn / QR Bill - Nổi Bật Nhất */}
-            <TouchableOpacity
-              style={[styles.actionCard, styles.scanCard]}
-              onPress={() => {
-                onClose();
-                onSelectAction("scan_receipt");
-              }}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.iconBox, { backgroundColor: "#ede9fe" }]}>
-                <QrCode size={26} color="#6366f1" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardTitle, { color: "#6366f1" }]}>Quét hoá đơn / QR Bill</Text>
-                </View>
-                <Text style={styles.cardSub}>Chụp ảnh bill hoặc dán link QR hoá đơn điện tử để tự động nhập</Text>
               </View>
               <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>

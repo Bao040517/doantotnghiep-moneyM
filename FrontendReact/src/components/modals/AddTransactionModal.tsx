@@ -6,7 +6,6 @@ import { Button } from "../ui/Button";
 import { TransactionPayload, Wallet } from "../../types";
 import { financialServices, Category } from "../../services/financialServices";
 import { colors } from "../../constants/colors";
-import { ScanReceiptModal } from "./ScanReceiptModal";
 import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface AddTransactionModalProps {
@@ -35,7 +34,6 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   const [selectedWalletId, setSelectedWalletId] = useState("");
   const [note, setNote] = useState(initialNote);
   const [loading, setLoading] = useState(false);
-  const [scanModalVisible, setScanModalVisible] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -140,34 +138,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       onClose={onClose}
       title={type === "EXPENSE" ? "Thêm Giao Dịch Chi Tiêu 💸" : "Nạp Tiền / Thu Nhập Vào Ví 💳"}
     >
-      <ScanReceiptModal 
-        visible={scanModalVisible} 
-        onClose={() => setScanModalVisible(false)} 
-        onScanSuccess={(data) => {
-          const rawAmount = data.amount ?? (data as any).totalAmount;
-          if (rawAmount !== undefined && rawAmount !== null) {
-            setAmount(Number(rawAmount).toLocaleString("vi-VN"));
-          }
-          const rawNote = data.note ?? (data as any).merchantName;
-          if (rawNote) {
-            const formattedNote = rawNote.startsWith("Hoá đơn") ? rawNote : `Hoá đơn ${rawNote}`;
-            setNote(formattedNote);
-          }
-        }} 
-      />
       <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-        {/* Scan Button for Expense */}
-        {type === "EXPENSE" && (
-          <TouchableOpacity style={styles.scanBtn} onPress={() => setScanModalVisible(true)}>
-            <View style={styles.scanIconBg}>
-              <Text style={{ fontSize: 18 }}>📸</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.scanTitle}>Quét hoá đơn / Mã QR Bill</Text>
-              <Text style={styles.scanSub}>Tự động điền số tiền từ ảnh hoặc mã QR</Text>
-            </View>
-          </TouchableOpacity>
-        )}
 
         {/* Wallet Selector (Dropdown List) */}
         {wallets.length > 1 && (
@@ -320,35 +291,6 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 const styles = StyleSheet.create({
   form: {
     paddingTop: 8,
-  },
-  scanBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F0F9FF",
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#BAE6FD",
-  },
-  scanIconBg: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  scanTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0369A1",
-  },
-  scanSub: {
-    fontSize: 11,
-    color: "#0EA5E9",
-    marginTop: 2,
   },
   sectionBox: {
     marginBottom: 14,

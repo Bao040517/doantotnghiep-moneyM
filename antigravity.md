@@ -59,6 +59,29 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 54. **Mã QR Tham Gia Nhóm Vectơ SVG (Group Invite QR Vector System):** Phân tách chuẩn luồng tạo và quản lý nhóm: Khi tạo nhóm mới tuyệt đối không có quét QR gây rối mắt; khi nhóm đã tạo thành công thì hiển thị nút *"Mã QR 📲"* trên Header và banner *"Mã QR Tham Gia Nhóm 📲"* trong Tab Thành viên với mã QR vector độ nét cao (`react-native-svg-qrcode`) để bạn bè quét camera vào nhóm trong 1 chạm.
 55. **Chế Độ Tối Toàn Diện Hệ Thống (Comprehensive Dark Mode System):** Đồng bộ Dark Mode trên toàn bộ ứng dụng (Tab Tư vấn `AdvisorScreen`, Tab Thống kê `ReportScreen`, `TotalExpenseDetailBottomSheet`, `NotificationBottomSheet`, `BottomSheet`, `Card`, `BudgetScreen`, `SavingsScreen`, `GroupsScreen`, `HistoryScreen`), áp dụng nền tối sang trọng (`#0F172A`), card tối (`#1E293B`), chữ sáng rõ nét (`#F1F5F9`), loại bỏ hoàn toàn tình trạng chói mắt.
 56. **Chuẩn Hóa Xác Thực Đăng Ký Tài Khoản Mới (Gmail Format & Alphanumeric Password Enforcer):** Kiểm soát nghiêm ngặt luồng đăng ký user mới trên toàn bộ hệ thống: Bắt buộc email đăng ký phải đúng định dạng Gmail (`@gmail.com`), mật khẩu tối thiểu 6 ký tự và bắt buộc phải chứa đồng thời cả chữ cái lẫn chữ số. Tích hợp checklist yêu cầu trực quan realtime đổi màu xanh `✓` trên Frontend và bảo vệ 2 lớp với Bean Validation `@Pattern` trên Spring Boot Backend.
+57. **Gỡ Bỏ Hoàn Toàn Luồng OCR & Quét Hóa Đơn Khỏi Dự Án (Complete Receipt OCR Decommissioning):** Gỡ bỏ toàn bộ mã nguồn, endpoints, DTOs, cấu hình bên thứ 3 (Mindee / ZXing / Jsoup), các nút bấm và modal liên quan đến tính năng quét OCR hóa đơn giấy / E-Invoice khỏi toàn bộ Backend và Frontend. Chuyển đổi bộ quét Camera sang chức năng thuần túy quét mã QR tham gia nhóm (`GROUP_INVITE`) và kết nối thành viên (`USER_PROFILE`).
+
+### Session [2026-08-30] (Phần 2) - Gỡ Bỏ Hoàn Toàn Luồng OCR & Quét Hóa Đơn Khỏi Dự Án
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Dọn Dẹp & Loại Bỏ Triệt Để Phía Backend (`Spring Boot`):**
+   - **Gỡ bỏ Endpoints:** Xóa hoàn toàn `POST /api/ai/scan-receipt` và `POST /api/ai/scan-qr-receipt` khỏi `AiController.java`.
+   - **Xóa DTOs & Services:** Xóa các file `ReceiptScanService.java`, `QrReceiptService.java`, `ScanReceiptResponse.java`, `ReceiptItemResponse.java`, `ScanQrReceiptRequest.java`, `ReceiptScanServiceTest.java`.
+   - **Tối ưu GeminiService:** Loại bỏ toàn bộ các phương thức `scanReceipt` (Gemini Vision OCR), `extractReceiptFromHtml` và `extractReceiptViaHeuristic` khỏi `GeminiService.java`.
+   - **Làm sạch Cấu hình & Lỗi:** Xóa `mindee.api.key` và `mindee.api.url` khỏi `application.properties` và `application-test.properties`; xóa `RECEIPT_SCAN_CONFIG_ERROR` và `RECEIPT_SCAN_FAILED` khỏi `ErrorCode.java`.
+   - **Tối ưu Dependencies (`pom.xml`):** Gỡ bỏ 3 thư viện không còn dùng `jsoup`, `zxing-core`, `zxing-javase`.
+   - **Kiểm thử:** Cập nhật `AiControllerTest.java`, toàn bộ **163/163 Backend Unit Tests Passed (100%)**.
+
+2. **Dọn Dẹp & Tinh Gọn Phía Frontend (`React Native`):**
+   - **`aiService.ts`:** Xóa `scanReceipt`, `scanQrReceipt`, `ScanReceiptResponse` và `ReceiptItem`.
+   - **`AddTransactionModal.tsx` & `GroupDetailScreen.tsx`:** Xóa toàn bộ nút *"Quét hoá đơn / Mã QR Bill"* và luồng tự động điền số tiền từ hóa đơn.
+   - **`QuickActionBottomSheet.tsx`:** Xóa tùy chọn *"Quét hoá đơn / QR Bill"* khỏi menu tác vụ nhanh.
+   - **`ScanReceiptModal.tsx`:** Tái cấu trúc thành bộ quét mã QR thuần túy, chuyên trách quét mã QR nhóm (`GROUP_INVITE`) và hồ sơ thành viên (`USER_PROFILE`).
+   - **`qrParser.ts` & `qrParser.test.ts`:** Gỡ bỏ định dạng `RECEIPT_URL`, giữ lại `GROUP_INVITE`, `USER_PROFILE` và `VIETQR`.
+   - **Kiểm thử:** `npx tsc --noEmit` đạt **0 errors**, toàn bộ **40/40 Frontend Unit Tests Passed (100%)**.
+
+---
 
 ### Session [2026-08-30] - Chuẩn Hóa Xác Thực Đăng Ký Người Dùng: Bắt Buộc Đúng Định Dạng Gmail & Mật Khẩu Chứa Cả Chữ Lẫn Số
 

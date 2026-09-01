@@ -548,6 +548,13 @@ export const BudgetScreen: React.FC = () => {
     });
   }, [budgets, searchQuery]);
 
+  const handleSearch = React.useCallback((text: string) => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(text);
+    }, 300);
+  }, []);
+
   const totalLimit = budgets.reduce((sum, b) => sum + (b.limitAmount || 0), 0);
 
   if (loading && budgets.length === 0) {
@@ -605,14 +612,7 @@ export const BudgetScreen: React.FC = () => {
         </View>
 
         {/* ─── ISOLATED MEMOIZED SEARCH INPUT FIELD ─── */}
-        <MemoizedSearchBar 
-          onSearch={React.useCallback((text: string) => {
-            if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-            searchTimeoutRef.current = setTimeout(() => {
-              setSearchQuery(text);
-            }, 300);
-          }, [])}
-        />
+        <MemoizedSearchBar onSearch={handleSearch} />
 
         {/* ─── BUDGET LIST ─── */}
         {loading ? (

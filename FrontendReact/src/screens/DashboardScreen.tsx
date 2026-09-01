@@ -35,6 +35,7 @@ import { useNotifications } from "../hooks/useNotifications";
 import { financialServices, Category } from "../services/financialServices";
 import { WalletPayload, TransactionPayload } from "../types";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
+import { useTopSafeInset } from "../utils/responsive";
 
 interface DashboardScreenProps {
   onNavigate?: (tab: string, targetId?: string) => void;
@@ -44,6 +45,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { isDark, colors: themeColors } = useTheme();
+  const safeTopPadding = useTopSafeInset(12);
   const { unreadCount } = useNotifications();
   const {
     wallets,
@@ -161,7 +163,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} colors={[colors.indigo600]} />}
       >
         {/* ─── DARK HEADER HERO CARD ─── */}
-        <View style={[styles.headerHeroContainer, { backgroundColor: themeColors.headerBg }]}>
+        <View style={[styles.headerHeroContainer, { backgroundColor: themeColors.headerBg, paddingTop: safeTopPadding }]}>
           {/* Top User Bar */}
           <View style={styles.topBar}>
             <TouchableOpacity

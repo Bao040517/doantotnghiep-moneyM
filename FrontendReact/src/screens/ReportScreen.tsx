@@ -25,6 +25,7 @@ import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { ReportSkeleton } from "../components/ui/SkeletonLoader";
 import { X } from "lucide-react-native";
 import { useTheme } from "../context/ThemeContext";
+import { useTopSafeInset } from "../utils/responsive";
 
 const CHART_COLORS = [
   "#FBBF24", // Vàng ấm (như Mua sắm 58%)
@@ -55,6 +56,7 @@ function categorizeExpenseGroup(categoryName: string): "NEEDS" | "WANTS" | "SAVI
 export const ReportScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { isDark, colors: themeColors } = useTheme();
+  const safeTopPadding = useTopSafeInset(10);
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -297,7 +299,7 @@ export const ReportScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#FDFAFB" }]}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: safeTopPadding }]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={[colors.indigo600]} />}
       >
         {/* ─── MONTH PICKER CARD WITH BACK BUTTON ─── */}

@@ -40,6 +40,7 @@ import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { VietnameseTextInput } from "../components/ui/VietnameseTextInput";
 import { CATEGORY_ICONS, getCategoryEmoji } from "../constants/categories";
 import { useTheme } from "../context/ThemeContext";
+import { useTopSafeInset } from "../utils/responsive";
 
 // The absolute core text input that NEVER re-renders to prevent ANY React Native interference with IME
 const SearchInputCore = React.memo(
@@ -95,6 +96,7 @@ export const BudgetScreen: React.FC = () => {
   const route = useRoute<any>();
   const { user } = useAuth();
   const { isDark, colors: themeColors } = useTheme();
+  const safeTopPadding = useTopSafeInset(10);
   const targetBudgetId = route.params?.targetBudgetId;
 
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
@@ -555,7 +557,7 @@ export const BudgetScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#e8f5f1" }]}>
       {/* ─── STICKY HEADER ─── */}
-      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)" }]}>
+      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)", paddingTop: safeTopPadding }]}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: isDark ? themeColors.surface : colors.white }]}

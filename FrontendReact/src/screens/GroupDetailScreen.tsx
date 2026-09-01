@@ -32,6 +32,7 @@ import { groupService } from "../services/groupService";
 import { useAuth } from "../hooks/useAuth";
 import { Group, GroupExpense, Payee } from "../types";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
+import { useTopSafeInset } from "../utils/responsive";
 
 interface GroupDetailScreenProps {
   groupId: string;
@@ -56,6 +57,10 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "Lưu trú": "🏨",
   "Di chuyển": "🚗",
   "Khác": "📦",
+  "Lương": "💰",
+  "Thưởng": "🎁",
+  "Được biếu tặng": "🧧",
+  "Thu nhập khác": "💵",
 };
 
 const GROUP_IMAGES = [
@@ -67,6 +72,7 @@ const GROUP_IMAGES = [
 
 export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, onBack }) => {
   const { user } = useAuth();
+  const safeTopPadding = useTopSafeInset(10);
   const [group, setGroup] = useState<Group | null>(null);
   const [expenses, setExpenses] = useState<GroupExpense[]>([]);
   const [debts, setDebts] = useState<any>(null);
@@ -335,7 +341,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   return (
     <View style={styles.container}>
       {/* ─── FULL SCREEN HEADER ─── */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, { paddingTop: safeTopPadding }]}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
           <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>

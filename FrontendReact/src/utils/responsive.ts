@@ -1,4 +1,4 @@
-import { Dimensions, PixelRatio, useWindowDimensions } from "react-native";
+import { Dimensions, PixelRatio, useWindowDimensions, Platform, StatusBar } from "react-native";
 
 const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
 
@@ -79,3 +79,24 @@ export const useResponsive = () => {
     isTablet: width >= 768,
   };
 };
+
+/**
+ * Hook tự động tính toán khoảng cách đỉnh màn hình (Top Safe Spacing)
+ * Tuyệt đối không để Header / Top Bar bị che khuất bởi Tai thỏ (Notch), Dynamic Island (iPhone 14-16) hoặc Status Bar Android.
+ */
+export const useTopSafeInset = (extraPadding: number = 8): number => {
+  try {
+    const { useSafeAreaInsets } = require("react-native-safe-area-context");
+    const insets = useSafeAreaInsets();
+    if (Platform.OS === "ios") {
+      const top = insets?.top && insets.top > 0 ? insets.top : 47;
+      return top + extraPadding;
+    }
+    const statusBarHeight = StatusBar.currentHeight || 28;
+    return Math.max(insets?.top || 0, statusBarHeight) + extraPadding;
+  } catch (e) {
+    if (Platform.OS === "ios") return 50 + extraPadding;
+    return (StatusBar.currentHeight || 28) + extraPadding;
+  }
+};
+

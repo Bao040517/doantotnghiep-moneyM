@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, StatusBar } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Bell, ChevronLeft } from "lucide-react-native";
 import { colors } from "../../constants/colors";
@@ -34,6 +34,12 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 }) => {
   const navigation = useNavigation<any>();
   const { isDark, colors: themeColors } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const safeTopPadding = Math.max(
+    insets.top,
+    Platform.OS === "ios" ? 48 : (StatusBar.currentHeight || 28)
+  ) + 8;
 
   const handleBack = () => {
     if (onBack) {
@@ -58,6 +64,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
       style={[
         styles.headerBar,
         {
+          paddingTop: safeTopPadding,
           backgroundColor: isDark
             ? themeColors.headerBg
             : "rgba(232, 245, 241, 0.95)",

@@ -30,6 +30,7 @@ import { groupService } from "../services/groupService";
 import { useAuth } from "../hooks/useAuth";
 import { Group, GroupDebtDetail, GroupDebtSummary, Payee } from "../types";
 import { useTheme } from "../context/ThemeContext";
+import { useTopSafeInset } from "../utils/responsive";
 
 const GROUP_IMAGES = [
   "https://images.unsplash.com/photo-1539635273304-0e8723e0f016?auto=format&fit=crop&w=400&q=80",
@@ -42,6 +43,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { isDark, colors: themeColors } = useTheme();
+  const safeTopPadding = useTopSafeInset(10);
   const [groups, setGroups] = useState<Group[]>([]);
   const [debtSummary, setDebtSummary] = useState<GroupDebtSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -305,7 +307,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#e8f5f1" }]}>
       {/* ─── STICKY HEADER ─── */}
-      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)" }]}>
+      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)", paddingTop: safeTopPadding }]}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: isDark ? themeColors.surface : colors.white }]}

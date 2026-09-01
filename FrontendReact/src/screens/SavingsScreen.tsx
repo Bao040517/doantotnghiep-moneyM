@@ -15,11 +15,13 @@ import { useAuth } from "../hooks/useAuth";
 import { financialServices } from "../services/financialServices";
 import { SavingsPriority } from "../types";
 import { useTheme } from "../context/ThemeContext";
+import { useTopSafeInset } from "../utils/responsive";
 
 export const SavingsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { isDark, colors: themeColors } = useTheme();
+  const safeTopPadding = useTopSafeInset(10);
   const { totalWalletBalance, budgets, isLoading: appLoading, refresh: refreshApp, safeToSpend: apiSafeToSpend } = useAppData();
 
   const {
@@ -234,7 +236,7 @@ export const SavingsScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#e8f5f1" }]}>
       {/* ─── STICKY HEADER ─── */}
-      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)" }]}>
+      <View style={[styles.headerBar, { backgroundColor: isDark ? themeColors.headerBg : "rgba(232, 245, 241, 0.95)", paddingTop: safeTopPadding }]}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: isDark ? themeColors.surface : colors.white }]}

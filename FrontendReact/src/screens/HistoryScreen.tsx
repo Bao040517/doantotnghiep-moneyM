@@ -22,9 +22,11 @@ import { matchVietnamese } from "../utils/vietnamese";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { HistorySkeleton } from "../components/ui/SkeletonLoader";
 import { useTheme } from "../context/ThemeContext";
+import { useTopSafeInset } from "../utils/responsive";
 
 export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const { isDark, colors: themeColors } = useTheme();
+  const safeTopPadding = useTopSafeInset(10);
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -119,7 +121,7 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
   return (
     <View style={[styles.container, { backgroundColor: isDark ? themeColors.background : "#e8f5f1" }]}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: safeTopPadding }]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={[colors.indigo600]} />}
       >
         {/* ─── SEARCH & TOP OVERVIEW SECTION ─── */}

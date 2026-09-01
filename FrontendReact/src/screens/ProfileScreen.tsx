@@ -25,6 +25,7 @@ import { UserSummary } from "../types";
 import { authService } from "../services/authService";
 import { VIETQR_BANKS } from "../constants/banks";
 import { useAuth } from "../hooks/useAuth";
+import { useTopSafeInset } from "../utils/responsive";
 
 const AVATAR_PRESETS = [
   "https://api.dicebear.com/7.x/bottts/png?seed=Felix",
@@ -54,6 +55,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 }) => {
   const { user: contextUser, logout: contextLogout, refreshProfile: contextRefreshProfile } = useAuth();
   const { isDark, toggleTheme, colors: themeColors } = useTheme();
+  const safeTopPadding = useTopSafeInset(10);
   const user = propUser !== undefined ? propUser : contextUser;
   const onLogout = propLogout || contextLogout;
   const onRefreshUser = propRefreshUser || contextRefreshProfile;
@@ -293,7 +295,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: safeTopPadding }]} showsVerticalScrollIndicator={false}>
         
         {/* ══════════════════════════════════════════════════════════════
             KHỐI CHA 1: THÔNG TIN LIÊN HỆ

@@ -56,6 +56,9 @@ api.interceptors.request.use(
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      if (__DEV__) {
+        console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${activeUrl}${config.url}`);
+      }
     } catch (error) {
       console.error("[API] Error reading token from safeStorage", error);
     }
@@ -84,8 +87,16 @@ const processQueue = (error: any, token: string | null = null) => {
 
 // Response Interceptor: Bắt lỗi 401 & Tự động gọi Refresh Token âm thầm (Silent Refresh)
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (__DEV__) {
+      console.log(`[API SUCCESS] ${response.config.method?.toUpperCase()} ${response.config.url} - Status: ${response.status}`);
+    }
+    return response;
+  },
   async (error) => {
+    if (__DEV__) {
+      console.log(`[API ERROR] ${error.config?.method?.toUpperCase()} ${error.config?.url} - Message:`, error.message, error.response?.status);
+    }
     const originalRequest = error.config;
 
     // Không refresh nếu là các request auth cơ bản hoặc đã từng retry rồi

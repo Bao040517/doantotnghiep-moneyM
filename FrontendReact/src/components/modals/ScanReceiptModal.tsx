@@ -153,20 +153,11 @@ export const ScanReceiptModal: React.FC<ScanQrModalProps> = ({
     setActionLoading(true);
     try {
       await groupService.joinGroup(scannedGroup.id);
-      Alert.alert(
-        "Thành công 🎉",
-        `Bạn đã tham gia nhóm "${scannedGroup.name}" thành công!`,
-        [
-          {
-            text: "Vào nhóm ngay",
-            onPress: () => {
-              const gId = scannedGroup.id;
-              handleClose();
-              if (onGroupJoined) onGroupJoined(gId);
-            },
-          },
-        ]
-      );
+      const gId = scannedGroup.id;
+      handleClose();
+      if (onGroupJoined) {
+        onGroupJoined(gId);
+      }
     } catch (err: any) {
       Alert.alert("Lỗi tham gia nhóm", err.response?.data?.message || "Không thể tham gia nhóm");
     } finally {
@@ -179,20 +170,11 @@ export const ScanReceiptModal: React.FC<ScanQrModalProps> = ({
     setActionLoading(true);
     try {
       await groupService.addMemberToGroup(targetGroupId, scannedUser.id);
-      Alert.alert(
-        "Thành công 🎉",
-        `Đã thêm ${scannedUser.name} vào nhóm thành công!`,
-        [
-          {
-            text: "Xác nhận",
-            onPress: () => {
-              const u = scannedUser;
-              handleClose();
-              if (onMemberAdded) onMemberAdded(u);
-            },
-          },
-        ]
-      );
+      const u = scannedUser;
+      handleClose();
+      if (onMemberAdded) {
+        onMemberAdded(u);
+      }
     } catch (err: any) {
       Alert.alert("Lỗi thêm thành viên", err.response?.data?.message || "Không thể thêm thành viên này vào nhóm");
     } finally {

@@ -266,7 +266,7 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
                 style={styles.qrFrame}
               >
                 <QRCode
-                  value={inviteUrl}
+                  value={inviteUrl || `https://sharemoney.app/groups/${groupId || "invite"}`}
                   size={150}
                   color="#0F172A"
                   backgroundColor="#FFFFFF"
@@ -310,7 +310,7 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
 
             <View style={styles.fullscreenQrFrame}>
               <QRCode
-                value={inviteUrl}
+                value={inviteUrl || `https://sharemoney.app/groups/${groupId || "invite"}`}
                 size={210}
                 color="#0F172A"
                 backgroundColor="#FFFFFF"

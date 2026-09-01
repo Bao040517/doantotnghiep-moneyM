@@ -207,17 +207,25 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
           </View>
         </View>
 
-        {/* Mã QR SVG Vector siêu nét */}
+        {/* Mã QR SVG Vector siêu nét (Chống lỗi No input text khi chưa có số tài khoản) */}
         <View style={styles.qrWrapper}>
-          <QRCode
-            value={qrPayload}
-            size={220}
-            color="#0f172a"
-            backgroundColor="#ffffff"
-            getRef={(ref) => {
-              qrSvgRef.current = ref;
-            }}
-          />
+          {qrPayload && qrPayload.trim().length > 0 ? (
+            <QRCode
+              value={qrPayload}
+              size={220}
+              color="#0f172a"
+              backgroundColor="#ffffff"
+              getRef={(ref) => {
+                qrSvgRef.current = ref;
+              }}
+            />
+          ) : (
+            <View style={styles.emptyQrBox}>
+              <Text style={{ fontSize: 36, marginBottom: 8 }}>🏦</Text>
+              <Text style={styles.emptyQrText}>Chưa có số tài khoản</Text>
+              <Text style={styles.emptyQrSubText}>Vui lòng nhập STK hợp lệ để tạo mã VietQR</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.qrAccountHolderBox}>
@@ -320,6 +328,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
+  },
+  emptyQrBox: {
+    width: 220,
+    height: 220,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#CBD5E1",
+    padding: 16,
+  },
+  emptyQrText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  emptyQrSubText: {
+    fontSize: 11,
+    color: "#94A3B8",
+    textAlign: "center",
   },
   qrBankName: {
     fontSize: 13,

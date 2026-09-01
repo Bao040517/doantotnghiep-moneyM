@@ -417,15 +417,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         {/* ══════════════════════════════════════════════════════════════
             KHỐI CHA 2: THÔNG TIN NGÂN HÀNG
            ══════════════════════════════════════════════════════════════ */}
+        {/* ══════════════════════════════════════════════════════════════
+            KHỐI CHA 2: THÔNG TIN NGÂN HÀNG
+           ══════════════════════════════════════════════════════════════ */}
         <View style={styles.blockSection}>
-          <View style={styles.blockHeaderRow}>
-            <View style={styles.blockIconBoxPurple}>
-              <Text style={{ fontSize: 16 }}>🏦</Text>
-            </View>
-            <View>
-              <Text style={[styles.blockTitle, { color: themeColors.textPrimary }]}>Thông tin ngân hàng</Text>
-              <Text style={[styles.blockSub, { color: themeColors.textSecondary }]}>Cấu hình tài khoản nhận tiền & tích lũy quỹ</Text>
-            </View>
+          <View style={{ marginBottom: 12 }}>
+            <Text style={[styles.blockTitle, { color: themeColors.textPrimary, fontSize: 17, fontWeight: "900" }]}>
+              Thông tin ngân hàng
+            </Text>
           </View>
 
           {/* KHỐI NHỎ 1: NGÂN HÀNG GIAO DỊCH */}
@@ -436,7 +435,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           >
             <View style={styles.bankCardHeader}>
               <View style={styles.bankTagIndigo}>
-                <Text style={styles.bankTagIndigoText}>💳 Ngân hàng giao dịch</Text>
+                <Text style={styles.bankTagIndigoText}>Ngân hàng giao dịch</Text>
               </View>
               <View style={styles.configPill}>
                 <Text style={styles.configPillText}>Cấu hình ›</Text>
@@ -472,7 +471,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           >
             <View style={styles.bankCardHeader}>
               <View style={styles.bankTagAmber}>
-                <Text style={styles.bankTagAmberText}>🐷 Ngân hàng tiết kiệm</Text>
+                <Text style={styles.bankTagAmberText}>Ngân hàng tiết kiệm</Text>
               </View>
               <View style={styles.configPill}>
                 <Text style={styles.configPillText}>Cấu hình ›</Text>
@@ -566,7 +565,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <View style={styles.configModalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>
-                  {configModalType === "main" ? "Cấu hình Ngân hàng giao dịch 💳" : "Cấu hình Ngân hàng tiết kiệm 🐷"}
+                  {configModalType === "main" ? "Cấu hình Ngân hàng giao dịch" : "Cấu hình Ngân hàng tiết kiệm"}
                 </Text>
                 <Text style={[styles.configModalSub, { color: themeColors.textSecondary }]}>
                   {configModalType === "main"
@@ -1045,25 +1044,31 @@ const styles = StyleSheet.create({
   },
   bankTagIndigo: {
     backgroundColor: "#EEF2FF",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
   },
   bankTagIndigoText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.indigo600,
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#4338CA",
+    letterSpacing: 0.2,
   },
   bankTagAmber: {
     backgroundColor: "#FEF3C7",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
   },
   bankTagAmberText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.amber700,
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#B45309",
+    letterSpacing: 0.2,
   },
   configPill: {
     backgroundColor: "#F8FAFC",

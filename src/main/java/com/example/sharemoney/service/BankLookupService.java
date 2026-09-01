@@ -94,13 +94,18 @@ public class BankLookupService {
 
                 if (response.statusCode() == 200) {
                     JsonNode root = objectMapper.readTree(response.body());
-                    if (root.has("code") && "00".equals(root.get("code").asText())) {
+                    String code = root.has("code") ? root.get("code").asText() : "";
+                    String desc = root.has("desc") ? root.get("desc").asText() : "Tài khoản không tồn tại tại ngân hàng đã chọn";
+
+                    if ("00".equals(code)) {
                         JsonNode data = root.get("data");
                         String accountName = "";
-                        if (data.has("accountName")) {
-                            accountName = data.get("accountName").asText();
-                        } else if (data.has("ownerName")) {
-                            accountName = data.get("ownerName").asText();
+                        if (data != null) {
+                            if (data.has("accountName")) {
+                                accountName = data.get("accountName").asText();
+                            } else if (data.has("ownerName")) {
+                                accountName = data.get("ownerName").asText();
+                            }
                         }
 
                         if (!accountName.isBlank()) {
@@ -112,10 +117,15 @@ public class BankLookupService {
                                     .message("Đã xác thực chính chủ từ Ngân hàng")
                                     .build();
                         }
-                    } else if (root.has("desc")) {
-                        log.warn(
-                                "[BankLookup] VietQR lookup returned non-success: {}",
-                                root.get("desc").asText());
+                    } else {
+                        log.warn("[BankLookup] VietQR lookup rejected account {}: code={}, desc={}", cleanAccNo, code, desc);
+                        return BankLookupResponse.builder()
+                                .bin(cleanBin)
+                                .accountNumber(cleanAccNo)
+                                .accountName(null)
+                                .verified(false)
+                                .message(desc)
+                                .build();
                     }
                 }
             } catch (Exception e) {
@@ -136,14 +146,13 @@ public class BankLookupService {
                     .build();
         }
 
-        // 3. Fallback khi không có API key thật và tài khoản mới
+        // 3. Fallback khi không có API key thật
         return BankLookupResponse.builder()
                 .bin(cleanBin)
                 .accountNumber(cleanAccNo)
                 .accountName(null)
                 .verified(false)
-                .message(
-                        "Chưa cấu hình API Key VietQR Napas247 hoặc tài khoản không tồn tại. Vui lòng nhập tên thủ công.")
+                .message("NO_API_KEY")
                 .build();
     }
 }

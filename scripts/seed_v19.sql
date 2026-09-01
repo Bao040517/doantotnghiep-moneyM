@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS transaction_splits (
     id UUID PRIMARY KEY,
-    transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    parent_transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
     category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
     amount NUMERIC(19, 4) NOT NULL,
     note TEXT,
@@ -261,6 +261,17 @@ ALTER TABLE IF EXISTS budgets ADD COLUMN IF NOT EXISTS due_day_of_month INTEGER;
 
 ALTER TABLE IF EXISTS transactions ADD COLUMN IF NOT EXISTS linked_expense_id UUID;
 ALTER TABLE IF EXISTS transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'TRANSFER';
+
+ALTER TABLE IF EXISTS transaction_splits ADD COLUMN IF NOT EXISTS parent_transaction_id UUID;
+DO $$ 
+BEGIN 
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'transaction_splits' AND column_name = 'transaction_id'
+    ) THEN
+        UPDATE transaction_splits SET parent_transaction_id = transaction_id WHERE parent_transaction_id IS NULL;
+    END IF;
+END $$;
 
 -- ✅ V18 CRITICAL FIX: Force DEFAULT and existing data to FLEXIBLE (prevents JPA BudgetType.DYNAMIC crash)
 ALTER TABLE IF EXISTS budgets ALTER COLUMN type SET DEFAULT 'FLEXIBLE';

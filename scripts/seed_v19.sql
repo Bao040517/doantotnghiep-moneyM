@@ -151,6 +151,12 @@ CREATE TABLE IF NOT EXISTS transaction_splits (
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS transaction_tags (
+    transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (transaction_id, tag_id)
+);
+
 CREATE TABLE IF NOT EXISTS groups (
     id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -281,7 +287,7 @@ UPDATE budgets SET type = 'FLEXIBLE' WHERE type = 'DYNAMIC';
 DO $$ 
 DECLARE 
     tbl text;
-    tbls text[] := ARRAY['refresh_tokens', 'payment_orders', 'transaction_splits', 'transactions', 'expense_splits', 'expenses', 'payments', 'group_members', 'groups', 'external_loans', 'savings_goals', 'budgets', 'categories', 'payees', 'tags', 'notifications', 'wallets', 'users'];
+    tbls text[] := ARRAY['transaction_tags', 'refresh_tokens', 'payment_orders', 'transaction_splits', 'transactions', 'expense_splits', 'expenses', 'payments', 'group_members', 'groups', 'external_loans', 'savings_goals', 'budgets', 'categories', 'payees', 'tags', 'notifications', 'wallets', 'users'];
 BEGIN 
     FOREACH tbl IN ARRAY tbls LOOP
         IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = tbl) THEN

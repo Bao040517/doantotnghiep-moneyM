@@ -1,8 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import { ShieldCheck, BarChart3 } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
-import { getCategoryEmoji } from "../../constants/categories";
+import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface RebalancePlanSectionProps {
   activeRebalancePlan?: any;
@@ -54,7 +55,7 @@ export const RebalancePlanSection: React.FC<RebalancePlanSectionProps> = ({
             ]}
           >
             <View style={styles.safeIconCircle}>
-              <Text style={{ fontSize: 32 }}>🛡️</Text>
+              <ShieldCheck size={32} color="#059669" strokeWidth={2} />
             </View>
             <Text
               style={[
@@ -146,9 +147,7 @@ export const RebalancePlanSection: React.FC<RebalancePlanSectionProps> = ({
                         { backgroundColor: isDark ? themeColors.surface : "#ECFDF5" },
                       ]}
                     >
-                      <Text style={{ fontSize: 22 }}>
-                        {getCategoryEmoji(item.categoryIcon, item.categoryName)}
-                      </Text>
+                      <CategoryIcon name={item.categoryIcon || item.categoryName} size={20} />
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -218,7 +217,7 @@ export const RebalancePlanSection: React.FC<RebalancePlanSectionProps> = ({
                 },
               ]}
             >
-              <Text style={{ fontSize: 32, marginBottom: 8 }}>📊</Text>
+              <BarChart3 size={32} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 8 }} />
               <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>
                 Chưa có danh mục nào được đặt hạn mức
               </Text>
@@ -308,9 +307,7 @@ export const RebalancePlanSection: React.FC<RebalancePlanSectionProps> = ({
             >
               <View style={styles.overspentItemTopRow}>
                 <View style={styles.overspentIconBox}>
-                  <Text style={{ fontSize: 22 }}>
-                    {getCategoryEmoji(item.categoryIcon, item.categoryName)}
-                  </Text>
+                  <CategoryIcon name={item.categoryIcon || item.categoryName} size={20} />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={[styles.overspentItemName, { color: themeColors.textPrimary }]}>
@@ -370,9 +367,7 @@ export const RebalancePlanSection: React.FC<RebalancePlanSectionProps> = ({
                       { backgroundColor: isCutApplied ? "#f1f5f9" : "#ecfdf5" },
                     ]}
                   >
-                    <Text style={{ fontSize: 22 }}>
-                      {getCategoryEmoji(item.categoryIcon, item.categoryName)}
-                    </Text>
+                    <CategoryIcon name={item.categoryIcon || item.categoryName} size={20} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>

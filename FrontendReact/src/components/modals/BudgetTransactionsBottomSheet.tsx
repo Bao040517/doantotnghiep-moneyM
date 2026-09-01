@@ -15,6 +15,7 @@ import { Transaction } from "../../types/transaction";
 import { financialServices } from "../../services/financialServices";
 import { CATEGORY_ICONS, getCategoryEmoji } from "../../constants/categories";
 import { CategoryIcon } from "../ui/CategoryIcon";
+import { Receipt } from "lucide-react-native";
 
 interface BudgetTransactionsBottomSheetProps {
   visible: boolean;
@@ -186,7 +187,7 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
           </View>
         ) : transactions.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={{ fontSize: 36, marginBottom: 10 }}>🧾</Text>
+            <Receipt size={36} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 10 }} />
             <Text style={styles.emptyTitle}>Chưa có lần chi tiêu nào</Text>
             <Text style={styles.emptySub}>
               Bạn chưa có giao dịch nào được ghi nhận cho ngân sách {catName} trong tháng {month}/{year}.

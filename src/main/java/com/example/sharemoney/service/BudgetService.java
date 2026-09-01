@@ -131,11 +131,8 @@ public class BudgetService {
 
         budgetRepository.save(budget);
 
-        // Tính số đã chi thực tế:
-        // - Nếu budget mới tạo trong tháng này → chỉ đếm từ createdAt trở đi (không hồi tố)
-        // - Nếu budget được update (id != null) → đếm toàn tháng
-        java.time.LocalDateTime since = getSinceDateTime(budget, year, month);
-        BigDecimal spent = calculateSpent(userId, budget, year, month, since);
+        // Tính số đã chi thực tế: (Đếm toàn bộ giao dịch trong tháng, có hồi tố)
+        BigDecimal spent = calculateSpent(userId, budget, year, month, null);
         if (spent == null) spent = BigDecimal.ZERO;
 
         return toSummaryResponse(budget, spent);
@@ -225,8 +222,7 @@ public class BudgetService {
         return currentBudgets.stream()
                 .map(
                         b -> {
-                            java.time.LocalDateTime since = getSinceDateTime(b, y, m);
-                            BigDecimal spent = calculateSpent(userId, b, y, m, since);
+                            BigDecimal spent = calculateSpent(userId, b, y, m, null);
                             if (spent == null) spent = BigDecimal.ZERO;
                             return toSummaryResponse(b, spent);
                         })
@@ -277,16 +273,9 @@ public class BudgetService {
     // Helper: xác định mốc thời gian bắt đầu tính chi tiêu
     // ─────────────────────────────────────────────────────────────
     /**
-     * Nếu budget được TẠO MỚI trong đúng tháng/năm đang xét → trả về createdAt (chỉ đếm giao dịch
-     * từ lúc tạo trở đi, không hồi tố). Nếu budget được rollover từ tháng trước hoặc là update →
-     * trả về null (đếm toàn bộ tháng như bình thường).
+     * Không còn sử dụng getSinceDateTime vì quy tắc mới là đếm toàn bộ tháng (hồi tố).
      */
     private java.time.LocalDateTime getSinceDateTime(Budget budget, int year, int month) {
-        if (budget.getCreatedAt() == null) return null;
-        if (budget.getCreatedAt().getYear() == year
-                && budget.getCreatedAt().getMonthValue() == month) {
-            return budget.getCreatedAt();
-        }
         return null;
     }
 

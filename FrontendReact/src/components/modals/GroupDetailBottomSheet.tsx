@@ -21,6 +21,7 @@ import { groupService } from "../../services/groupService";
 import { useAuth } from "../../hooks/useAuth";
 import { Group, GroupExpense, Payee } from "../../types";
 import { CategoryIcon } from "../ui/CategoryIcon";
+import { Receipt } from "lucide-react-native";
 
 interface GroupDetailBottomSheetProps {
   visible: boolean;
@@ -522,7 +523,7 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
 
               {expenses.length === 0 ? (
                 <View style={styles.emptyBox}>
-                  <Text style={{ fontSize: 32, marginBottom: 8 }}>🧾</Text>
+                  <Receipt size={32} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 8 }} />
                   <Text style={styles.emptyText}>Chưa có hóa đơn nào trong nhóm</Text>
                   <Text style={styles.emptySubText}>Bấm "+ Thêm hóa đơn" để tạo khoản chi đầu tiên!</Text>
                 </View>

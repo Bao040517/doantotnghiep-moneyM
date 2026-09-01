@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Platform, StatusBar } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert, TouchableOpacity, Platform, StatusBar, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Building2, Sprout, ShieldCheck, ArrowDownLeft, ArrowUpRight, Trash2, AlertTriangle } from "lucide-react-native";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -16,6 +17,7 @@ import { financialServices } from "../services/financialServices";
 import { SavingsPriority } from "../types";
 import { useTheme } from "../context/ThemeContext";
 import { useTopSafeInset } from "../utils/responsive";
+import { verifyBankAccount } from "../utils/bankAccountVerification";
 
 export const SavingsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -54,10 +56,36 @@ export const SavingsScreen: React.FC = () => {
 
   // VietQR Allocate Modal state
   const [allocateQrModalVisible, setAllocateQrModalVisible] = useState(false);
+  const [bankLookupLoading, setBankLookupLoading] = useState(false);
+  const [bankLookupVerified, setBankLookupVerified] = useState(false);
+  const [bankLookupError, setBankLookupError] = useState<string | null>(null);
 
   const targetSavingsBin = user?.savingsBankBin || user?.bankBin;
   const targetSavingsAccNo = user?.savingsBankAccountNo || user?.bankAccountNo;
   const targetSavingsAccName = user?.savingsBankAccountName || user?.bankAccountName || user?.name;
+
+  useEffect(() => {
+    if (!allocateQrModalVisible || !targetSavingsBin || !targetSavingsAccNo) return;
+
+    let active = true;
+    setBankLookupLoading(true);
+    setBankLookupVerified(false);
+    setBankLookupError(null);
+    verifyBankAccount(targetSavingsBin, targetSavingsAccNo)
+      .then(() => {
+        if (active) setBankLookupVerified(true);
+      })
+      .catch((error: any) => {
+        if (active) setBankLookupError(error?.message || "STK chưa được ngân hàng xác thực");
+      })
+      .finally(() => {
+        if (active) setBankLookupLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [allocateQrModalVisible, targetSavingsBin, targetSavingsAccNo]);
 
   const handleOpenAutoAllocateQr = () => {
     if (!targetSavingsBin || !targetSavingsAccNo) {
@@ -130,7 +158,7 @@ export const SavingsScreen: React.FC = () => {
     try {
       if (fundMode === "fund") {
         await financialServices.fundSavingsGoal(fundGoalId, rawNumber);
-        Alert.alert("Thành công 🎉", `Đã nạp ${rawNumber.toLocaleString("vi-VN")} ₫ vào mục tiêu "${fundGoalName}"!`);
+        Alert.alert("Thành công", `Đã nạp ${rawNumber.toLocaleString("vi-VN")} ₫ vào mục tiêu "${fundGoalName}"!`);
       } else {
         await financialServices.withdrawSavingsGoal(fundGoalId, rawNumber);
         Alert.alert("Thành công", `Đã rút ${rawNumber.toLocaleString("vi-VN")} ₫ từ mục tiêu "${fundGoalName}"!`);
@@ -157,7 +185,7 @@ export const SavingsScreen: React.FC = () => {
         : `Bạn có chắc muốn xóa mục tiêu "${goal?.name}"?`;
 
     Alert.alert(
-      "Xác nhận xóa mục tiêu 🗑️",
+      "Xác nhận xóa mục tiêu",
       message,
       [
         { text: "Hủy", style: "cancel" },
@@ -168,7 +196,7 @@ export const SavingsScreen: React.FC = () => {
             try {
               await financialServices.deleteSavingsGoal(goalId);
               Alert.alert(
-                "Đã xóa thành công 🎉",
+                "Đã xóa thành công",
                 amount > 0 && otherGoals.length > 0
                   ? `Mục tiêu đã được xóa. Số tiền ${formatVND(amount)} đã được tự động tái phân bổ vào các mục tiêu tiết kiệm khác trong tài khoản tiết kiệm của bạn!`
                   : "Mục tiêu tiết kiệm đã được xóa thành công."
@@ -202,7 +230,7 @@ export const SavingsScreen: React.FC = () => {
         priority,
         monthlyContribution: rawMonthly,
       });
-      Alert.alert("Thành công 🎉", `Đã tạo mục tiêu tiết kiệm "${goalName.trim()}"!`);
+      Alert.alert("Thành công", `Đã tạo mục tiêu tiết kiệm "${goalName.trim()}"!`);
       setGoalName("");
       setTargetAmount("");
       setTargetDate("");
@@ -247,7 +275,6 @@ export const SavingsScreen: React.FC = () => {
 
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={[styles.headerTitle, { color: themeColors.textPrimary }]}>Tiết kiệm</Text>
-            <Text style={[styles.headerSub, { color: themeColors.textSecondary }]}>Quản lý quỹ & mục tiêu tiết kiệm</Text>
           </View>
 
           <TouchableOpacity style={styles.createBtnHeader} onPress={() => setCreateVisible(true)}>
@@ -273,7 +300,7 @@ export const SavingsScreen: React.FC = () => {
         <Card style={styles.heroSavingsCard}>
           <View style={styles.heroSavingsHeaderRow}>
             <View style={styles.heroSavingsIconBox}>
-              <Text style={{ fontSize: 24 }}>🏦</Text>
+              <Building2 size={24} color="#10B981" strokeWidth={2} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.heroSavingsLabel}>TỔNG TIỀN TRONG TÀI KHOẢN TIẾT KIỆM</Text>
@@ -309,7 +336,7 @@ export const SavingsScreen: React.FC = () => {
           <Card style={styles.onboardingCard}>
             <View style={styles.onboardingHeader}>
               <View style={styles.onboardingIconBox}>
-                <Text style={{ fontSize: 22 }}>🌱</Text>
+                <Sprout size={22} color="#10B981" strokeWidth={2} />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.onboardingTitle}>Bắt đầu tích lũy thông minh</Text>
@@ -329,13 +356,20 @@ export const SavingsScreen: React.FC = () => {
         ) : (
           <Card style={[styles.reserveCard, (totalWalletBalance > 0 && safeToSpend <= 0) ? styles.warningCard : styles.safeCard]}>
             <View style={styles.reserveHeader}>
-              <Text style={styles.reserveTitle}>
-                {hasAllocatedThisMonth
-                  ? "🛡️ ĐIỂM DÙNG AN TOÀN (ĐÃ PHÂN BỔ THÁNG NÀY)"
-                  : totalWalletBalance > 0 && safeToSpend <= 0
-                  ? "⚠️ CẢNH BÁO ĐIỂM DỪNG AN TOÀN"
-                  : "🛡️ ĐIỂM DÙNG AN TOÀN (SAFETY RESERVE)"}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                {totalWalletBalance > 0 && safeToSpend <= 0 ? (
+                  <AlertTriangle size={16} color="#E11D48" strokeWidth={2} />
+                ) : (
+                  <ShieldCheck size={16} color="#10B981" strokeWidth={2} />
+                )}
+                <Text style={styles.reserveTitle}>
+                  {hasAllocatedThisMonth
+                    ? "ĐIỂM DÙNG AN TOÀN (ĐÃ PHÂN BỔ THÁNG NÀY)"
+                    : totalWalletBalance > 0 && safeToSpend <= 0
+                    ? "CẢNH BÁO ĐIỂM DÙNG AN TOÀN"
+                    : "ĐIỂM DÙNG AN TOÀN (SAFETY RESERVE)"}
+                </Text>
+              </View>
             </View>
             <Text style={styles.reserveDescription}>
               {hasAllocatedThisMonth
@@ -361,12 +395,12 @@ export const SavingsScreen: React.FC = () => {
             <Button
               title={
                 hasAllocatedThisMonth
-                  ? `✓ Đã Gửi Tiết Kiệm Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`
+                  ? `Đã Gửi Tiết Kiệm Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`
                   : totalWalletBalance <= 0
                   ? "Chưa Có Số Dư Để Phân Bổ"
                   : safeToSpend <= 0
-                  ? "⚠️ Số Dư Ví Không Đủ Để Trích Gửi"
-                  : "🌱 Gửi Tiết Kiệm Ngay"
+                  ? "Số Dư Ví Không Đủ Để Trích Gửi"
+                  : "Gửi Tiết Kiệm Ngay"
               }
               variant={hasAllocatedThisMonth ? "secondary" : (totalWalletBalance <= 0 || safeToSpend <= 0 ? "secondary" : "emerald")}
               onPress={handleOpenAutoAllocateQr}
@@ -382,7 +416,7 @@ export const SavingsScreen: React.FC = () => {
 
         {goals.length === 0 ? (
           <Card style={styles.emptyCard}>
-            <Text style={{ fontSize: 44, marginBottom: 8 }}>🌱</Text>
+            <Sprout size={40} color="#10B981" strokeWidth={1.5} style={{ marginBottom: 8 }} />
             <Text style={styles.emptyTitle}>Chưa có mục tiêu tiết kiệm nào</Text>
             <Text style={styles.emptySub}>Bấm "+ Tạo mới" để bắt đầu tích lũy!</Text>
             <Button
@@ -402,19 +436,28 @@ export const SavingsScreen: React.FC = () => {
                   style={styles.goalActionBtn}
                   onPress={() => openFundModal(g.id, "fund")}
                 >
-                  <Text style={styles.goalActionBtnText}>💰 Nạp tiền</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <ArrowDownLeft size={13} color="#10B981" strokeWidth={2.5} />
+                    <Text style={styles.goalActionBtnText}>Nạp tiền</Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.goalActionBtn, { backgroundColor: colors.amber50, borderColor: colors.amber200 }]}
                   onPress={() => openFundModal(g.id, "withdraw")}
                 >
-                  <Text style={[styles.goalActionBtnText, { color: colors.amber700 }]}>📤 Rút tiền</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <ArrowUpRight size={13} color={colors.amber700} strokeWidth={2.5} />
+                    <Text style={[styles.goalActionBtnText, { color: colors.amber700 }]}>Rút tiền</Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.goalActionBtn, { backgroundColor: colors.rose50, borderColor: colors.rose200 }]}
                   onPress={() => handleDeleteGoal(g.id)}
                 >
-                  <Text style={[styles.goalActionBtnText, { color: colors.rose600 }]}>🗑️ Xóa</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Trash2 size={13} color={colors.rose600} strokeWidth={2} />
+                    <Text style={[styles.goalActionBtnText, { color: colors.rose600 }]}>Xóa</Text>
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>
@@ -426,7 +469,7 @@ export const SavingsScreen: React.FC = () => {
       <BottomSheet
         visible={createVisible}
         onClose={() => setCreateVisible(false)}
-        title="Tạo Mục Tiêu Tiết Kiệm 🌱"
+        title="Tạo Mục Tiêu Tiết Kiệm"
       >
         <View style={{ paddingTop: 4 }}>
           <Input
@@ -455,10 +498,10 @@ export const SavingsScreen: React.FC = () => {
           <View style={styles.priorityRow}>
             {(["URGENT", "HIGH", "MEDIUM", "LOW"] as SavingsPriority[]).map((p) => {
               const labels: Record<SavingsPriority, string> = {
-                URGENT: "🔥 Khẩn",
-                HIGH: "⬆️ Cao",
-                MEDIUM: "➡️ TB",
-                LOW: "⬇️ Thấp",
+                URGENT: "Khẩn cấp",
+                HIGH: "Cao",
+                MEDIUM: "Trung bình",
+                LOW: "Thấp",
               };
               return (
                 <TouchableOpacity
@@ -482,7 +525,7 @@ export const SavingsScreen: React.FC = () => {
               style={{ flex: 1 }}
             />
             <Button
-              title={createLoading ? "Đang lưu..." : "🌱 Tạo Mục Tiêu"}
+              title={createLoading ? "Đang lưu..." : "Tạo Mục Tiêu"}
               variant="primary"
               onPress={handleCreateGoal}
               loading={createLoading}
@@ -515,7 +558,7 @@ export const SavingsScreen: React.FC = () => {
               style={{ flex: 1 }}
             />
             <Button
-              title={fundLoading ? "Đang xử lý..." : fundMode === "fund" ? "💰 Nạp tiền" : "📤 Rút tiền"}
+              title={fundLoading ? "Đang xử lý..." : fundMode === "fund" ? "Nạp tiền" : "Rút tiền"}
               variant={fundMode === "fund" ? "primary" : "amber"}
               onPress={handleFundSubmit}
               loading={fundLoading}
@@ -529,20 +572,33 @@ export const SavingsScreen: React.FC = () => {
       <BottomSheet
         visible={allocateQrModalVisible}
         onClose={() => setAllocateQrModalVisible(false)}
-        title="Quét Mã Nạp Ví Tiết Kiệm 🏦"
+        title="Quét Mã Nạp Ví Tiết Kiệm"
       >
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24, paddingTop: 4 }}>
           <Text style={{ fontSize: 13, color: colors.slate600, marginBottom: 14, lineHeight: 19 }}>
             Quét mã VietQR chuyển số dư an toàn <Text style={{ fontWeight: "900", color: colors.amber700 }}>{formatVND(safeToSpend)}</Text> vào <Text style={{ fontWeight: "800", color: colors.slate800 }}>Ví Tiết Kiệm</Text> để hoàn tất trích gửi tích lũy:
           </Text>
 
-          <VietQRCard
-            bankBin={targetSavingsBin || "970407"}
-            accountNo={targetSavingsAccNo || ""}
-            accountName={targetSavingsAccName || "VI TIET KIEM"}
-            amount={safeToSpend}
-            description={`Nap quy tiet kiem T${new Date().getMonth() + 1}`}
-          />
+          {bankLookupLoading ? (
+            <View style={styles.qrLookupBox}>
+              <ActivityIndicator size="large" color={colors.indigo600} />
+              <Text style={styles.qrLookupText}>Đang xác thực STK với ngân hàng...</Text>
+            </View>
+          ) : bankLookupError ? (
+            <View style={styles.qrLookupErrorBox}>
+              <Text style={styles.qrLookupErrorTitle}>Không thể tạo mã QR</Text>
+              <Text style={styles.qrLookupErrorText}>{bankLookupError}</Text>
+            </View>
+          ) : (
+            <VietQRCard
+              bankBin={targetSavingsBin || ""}
+              accountNo={targetSavingsAccNo || ""}
+              accountName={targetSavingsAccName || "VI TIET KIEM"}
+              verified={bankLookupVerified}
+              amount={safeToSpend}
+              description={`Nap quy tiet kiem T${new Date().getMonth() + 1}`}
+            />
+          )}
 
           <View style={{ marginTop: 20, gap: 10 }}>
             <Button
@@ -550,6 +606,7 @@ export const SavingsScreen: React.FC = () => {
               variant="amber"
               onPress={handleConfirmAllocation}
               loading={isAllocating}
+              disabled={!bankLookupVerified || bankLookupLoading}
             />
             <Button
               title="Đóng"
@@ -564,6 +621,34 @@ export const SavingsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  qrLookupBox: {
+    minHeight: 220,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  qrLookupText: {
+    color: colors.indigo600,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  qrLookupErrorBox: {
+    minHeight: 220,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  qrLookupErrorTitle: {
+    color: colors.rose600,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  qrLookupErrorText: {
+    color: colors.slate600,
+    fontSize: 12,
+    textAlign: "center",
+  },
   container: {
     flex: 1,
     backgroundColor: colors.slate50,

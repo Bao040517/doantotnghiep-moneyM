@@ -16,7 +16,6 @@ import * as ImagePicker from "expo-image-picker";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { BottomSheet } from "../components/ui/BottomSheet";
-import { VietQRCard } from "../components/features/VietQRCard";
 import { ExpenseChart } from "../components/features/ExpenseChart";
 import { AddMemberBottomSheet } from "../components/modals/AddMemberBottomSheet";
 import { ExpenseDetailBottomSheet } from "../components/modals/ExpenseDetailBottomSheet";
@@ -25,7 +24,7 @@ import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
 import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
 import { Toast } from "../components/ui/Toast";
 import { GroupDetailSkeleton } from "../components/ui/SkeletonLoader";
-import { QrCode } from "lucide-react-native";
+import { QrCode, AlertTriangle, Receipt, Camera } from "lucide-react-native";
 import QRCode from "react-native-qrcode-svg";
 import { colors } from "../constants/colors";
 import { groupService } from "../services/groupService";
@@ -325,14 +324,14 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   if (!group) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={{ fontSize: 36, marginBottom: 12 }}>⚠️</Text>
+        <AlertTriangle size={36} color="#F59E0B" strokeWidth={1.5} style={{ marginBottom: 12 }} />
         <Text style={styles.emptyText}>Không tìm thấy thông tin nhóm</Text>
         <Text style={{ fontSize: 12, color: colors.slate500, marginTop: 4, textAlign: "center", paddingHorizontal: 32 }}>
           Không thể tải dữ liệu nhóm từ máy chủ. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại.
         </Text>
         <View style={{ flexDirection: "row", gap: 12, marginTop: 20 }}>
-          <Button title="← Quay lại" variant="secondary" onPress={onBack} />
-          <Button title="🔄 Thử lại" variant="primary" onPress={fetchGroupDetails} />
+          <Button title="Quay lại" variant="secondary" onPress={onBack} />
+          <Button title="Thử lại" variant="primary" onPress={fetchGroupDetails} />
         </View>
       </View>
     );
@@ -348,7 +347,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <TouchableOpacity style={styles.qrHeaderBtn} onPress={() => setGroupQrVisible(true)} activeOpacity={0.8}>
-            <QrCode size={15} color="#4F46E5" />
+            <QrCode size={15} color="#0F172A" />
             <Text style={styles.qrHeaderBtnText}>Mã QR</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.inviteBtn} onPress={() => setAddMemberVisible(true)} activeOpacity={0.8}>
@@ -374,7 +373,10 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
             {updatingPhoto ? (
               <ActivityIndicator size="small" color={colors.white} />
             ) : (
-              <Text style={styles.editGroupPhotoText}>📷 Đổi ảnh</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Camera size={13} color="#FFFFFF" strokeWidth={2} />
+                <Text style={styles.editGroupPhotoText}>Đổi ảnh</Text>
+              </View>
             )}
           </TouchableOpacity>
 
@@ -455,7 +457,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
 
             {expenses.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Text style={{ fontSize: 36, marginBottom: 8 }}>🧾</Text>
+                <Receipt size={36} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 8 }} />
                 <Text style={styles.emptyText}>Chưa có hóa đơn nào trong nhóm</Text>
                 <Text style={styles.emptySubText}>Bấm "+ Thêm hóa đơn" để tạo khoản chi đầu tiên!</Text>
               </View>
@@ -718,36 +720,6 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         )}
 
       </ScrollView>
-
-      {/* ─── DEDICATED PAYMENT BOTTOMSHEET MODAL (TRANG THANH TOÁN) ─── */}
-      <BottomSheet
-        visible={!!qrSettleDebt}
-        onClose={() => setQrSettleDebt(null)}
-        title="Thanh Toán Trả Nợ"
-      >
-        {qrSettleDebt && (
-          <View style={{ paddingTop: 4, paddingBottom: 12 }}>
-            <VietQRCard
-              bankBin={qrSettleDebt.to?.bankBin || "970436"}
-              accountNo={qrSettleDebt.to?.bankAccountNo || "10928888999"}
-              accountName={qrSettleDebt.to?.name}
-              amount={qrSettleDebt.amount}
-              description={`Quyet toan no ${group?.name || "nhom"}`}
-              receiverId={qrSettleDebt.to?.id}
-            />
-
-            <View style={{ marginTop: 16 }}>
-              <Button
-                title="Thanh toán ngay"
-                variant="primary"
-                onPress={() => {
-                  setSandboxVisible(true);
-                }}
-              />
-            </View>
-          </View>
-        )}
-      </BottomSheet>
 
       {/* ─── PAYEE SELECTOR MODAL (CHO THÀNH VIÊN CHƯA CÓ STK) ─── */}
       <PayeeSelectorModal

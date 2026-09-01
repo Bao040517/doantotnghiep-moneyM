@@ -73,7 +73,7 @@ interface BottomTabNavigatorProps {
 const NullComponent = () => null;
 
 export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
-  const { colors: themeColors } = useTheme();
+  const { colors: themeColors, isDark } = useTheme();
   const [quickActionVisible, setQuickActionVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [transactionType, setTransactionType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
@@ -300,17 +300,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    elevation: 10,
-    borderWidth: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 3.5,
     borderColor: colors.white,
   },
   plusIconText: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: "300",
     color: colors.white,
-    marginTop: -3,
+    marginTop: -2,
   },
 });

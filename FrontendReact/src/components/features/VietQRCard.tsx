@@ -15,6 +15,7 @@ import * as MediaLibrary from "expo-media-library";
 import {
   Smartphone,
   Download,
+  Building2,
 } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { VIETQR_BANKS } from "../../constants/banks";
@@ -26,6 +27,8 @@ interface VietQRCardProps {
   amount?: number;
   description?: string;
   receiverId?: string;
+  /** QR chỉ được sinh sau khi lookup ngân hàng xác nhận thành công. */
+  verified?: boolean;
   showActions?: boolean;
   onCopySuccess?: (msg: string) => void;
 }
@@ -108,6 +111,7 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
   accountName = "NGUOI NHAN",
   amount = 0,
   description = "Thanh toan ShareMoney",
+  verified = false,
   showActions = true,
   onCopySuccess,
 }) => {
@@ -125,8 +129,9 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
 
   // Chuỗi QR Payload chuẩn Napas247 / VietQR có mã CRC16
   const qrPayload = useMemo(() => {
+    if (!verified) return "";
     return generateEMVCoPayload(realBin, displayAccountNo, displayAmount, displayDescription);
-  }, [realBin, displayAccountNo, displayAmount, displayDescription]);
+  }, [realBin, displayAccountNo, displayAmount, displayDescription, verified]);
 
   const handleCopy = (text: string, label: string) => {
     setCopiedField(label);
@@ -221,9 +226,11 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
             />
           ) : (
             <View style={styles.emptyQrBox}>
-              <Text style={{ fontSize: 36, marginBottom: 8 }}>🏦</Text>
+              <Building2 size={36} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 8 }} />
               <Text style={styles.emptyQrText}>Chưa có số tài khoản</Text>
-              <Text style={styles.emptyQrSubText}>Vui lòng nhập STK hợp lệ để tạo mã VietQR</Text>
+              <Text style={styles.emptyQrSubText}>
+                Vui lòng nhập số tài khoản hợp lệ (từ 6 đến 19 chữ số) để tạo mã VietQR
+              </Text>
             </View>
           )}
         </View>
@@ -234,7 +241,7 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
         </View>
 
         <View style={styles.qrFooterTag}>
-          <Smartphone size={13} color={colors.indigo600} />
+          <Smartphone size={13} color="#0F172A" />
           <Text style={styles.qrFooterText}>Quét bằng App Ngân hàng hoặc VNPAY / MoMo</Text>
         </View>
       </View>

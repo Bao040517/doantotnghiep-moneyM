@@ -221,7 +221,7 @@ class BudgetServiceTest {
                 .thenReturn(List.of(recurringBudget));
         when(budgetRepository.findByUser_IdAndMonthAndYear(userId, currentMonth, currentYear))
                 .thenReturn(new ArrayList<>()); // Chưa có budget tháng này
-        when(budgetRepository.saveAndFlush(any()))
+        when(budgetRepository.save(any()))
                 .thenAnswer(
                         inv -> {
                             Budget b = inv.getArgument(0);
@@ -241,7 +241,7 @@ class BudgetServiceTest {
 
         // Budget từ tháng trước phải được clone sang tháng này
         assertFalse(result.isEmpty());
-        verify(budgetRepository).saveAndFlush(any(Budget.class));
+        verify(budgetRepository).save(any(Budget.class));
     }
 
     @Test

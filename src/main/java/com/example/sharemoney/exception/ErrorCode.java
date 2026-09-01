@@ -14,6 +14,9 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng."),
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "Email đã được sử dụng."),
     PHONE_ALREADY_EXISTS(HttpStatus.CONFLICT, "Số điện thoại đã được sử dụng."),
+    BANK_ACCOUNT_NOT_VERIFIED(
+            HttpStatus.BAD_REQUEST,
+            "Không thể sử dụng tài khoản ngân hàng khi chưa xác thực được STK và chủ tài khoản."),
 
     // --- Group ---
     GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy nhóm."),

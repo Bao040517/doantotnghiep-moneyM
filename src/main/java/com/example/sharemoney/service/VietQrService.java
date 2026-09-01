@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class VietQrService {
 
     private final UserRepository userRepository;
+    private final BankLookupService bankLookupService;
 
     // URL base của Quick Link VietQR.io
     // Format: https://img.vietqr.io/image/{bank_bin}-{bank_account}-{template}.png
@@ -38,8 +39,16 @@ public class VietQrService {
                     .build();
         }
 
+        var lookup =
+                bankLookupService.lookupAccount(receiver.getBankBin(), receiver.getBankAccountNo());
+        if (!lookup.isVerified() || lookup.getAccountName() == null || lookup.getAccountName().isBlank()) {
+            return VietQrResponse.builder()
+                    .message("STK hoặc chủ tài khoản chưa được ngân hàng xác thực. Không thể tạo mã QR.")
+                    .build();
+        }
+
         // Tên tài khoản thường viết hoa, không dấu (ngân hàng quy định)
-        String accountName = removeDiacritics(receiver.getName()).toUpperCase();
+        String accountName = removeDiacritics(lookup.getAccountName()).toUpperCase();
 
         // Nội dung mặc định nếu null
         String description =

@@ -1,9 +1,10 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Inbox } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
-import { getCategoryEmoji } from "../../constants/categories";
+import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface BudgetPlanItem {
   categoryId?: string;
@@ -123,7 +124,7 @@ export const BudgetPlanSection: React.FC<BudgetPlanSectionProps> = ({
             },
           ]}
         >
-          <Text style={{ fontSize: 36, marginBottom: 8 }}>📭</Text>
+          <Inbox size={36} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 8 }} />
           <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>
             Chưa đủ dữ liệu gợi ý
           </Text>
@@ -160,9 +161,7 @@ export const BudgetPlanSection: React.FC<BudgetPlanSectionProps> = ({
                     { backgroundColor: isDark ? themeColors.surface : "#f1f5f9" },
                   ]}
                 >
-                  <Text style={{ fontSize: 24 }}>
-                    {getCategoryEmoji(item.categoryIcon, item.categoryName)}
-                  </Text>
+                  <CategoryIcon name={item.categoryIcon || item.categoryName} size={20} />
                 </View>
 
                 <View style={{ flex: 1, marginLeft: 12 }}>

@@ -7,6 +7,15 @@ import {
   TouchableOpacity,
   DeviceEventEmitter,
 } from "react-native";
+import {
+  Bell,
+  BellOff,
+  ArrowUpRight,
+  CheckCircle2,
+  Megaphone,
+  AlertTriangle,
+  Mail,
+} from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { notificationService, AppNotification } from "../../services/notificationService";
 import { BottomSheet } from "../ui/BottomSheet";
@@ -26,8 +35,8 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
   const [loading, setLoading] = useState(false);
 
   const fetchNotifs = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const data = await notificationService.getUserNotifications();
       setNotifications(data);
     } catch (e) {
@@ -80,14 +89,20 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
     }
   };
 
-  const getIcon = (type?: string) => {
+  const renderIcon = (type?: string) => {
     switch (type) {
-      case "DEBT_REMINDER": return "🔔";
-      case "PAYMENT_NOTIFY": return "💸";
-      case "PAYMENT_APPROVED": return "✅";
-      case "SYSTEM": return "📢";
-      case "WARNING": return "⚠️";
-      default: return "📩";
+      case "DEBT_REMINDER":
+        return <Bell size={18} color="#0F172A" strokeWidth={2} />;
+      case "PAYMENT_NOTIFY":
+        return <ArrowUpRight size={18} color="#0F172A" strokeWidth={2} />;
+      case "PAYMENT_APPROVED":
+        return <CheckCircle2 size={18} color="#0F172A" strokeWidth={2} />;
+      case "SYSTEM":
+        return <Megaphone size={18} color="#0F172A" strokeWidth={2} />;
+      case "WARNING":
+        return <AlertTriangle size={18} color="#0F172A" strokeWidth={2} />;
+      default:
+        return <Mail size={18} color="#0F172A" strokeWidth={2} />;
     }
   };
 
@@ -116,7 +131,7 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
         </View>
       ) : notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={{ fontSize: 36, marginBottom: 12 }}>🔕</Text>
+          <BellOff size={36} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 12 }} />
           <Text style={styles.emptyTitle}>Chưa có thông báo nào</Text>
           <Text style={styles.emptySub}>Các cập nhật mới nhất về chi tiêu và nhóm sẽ xuất hiện tại đây.</Text>
         </View>
@@ -133,7 +148,7 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
               disabled={item.isRead}
             >
               <View style={styles.iconBg}>
-                <Text style={{ fontSize: 20 }}>{getIcon(item.type)}</Text>
+                {renderIcon(item.type)}
               </View>
               <View style={styles.itemContent}>
                 <Text style={[styles.itemTitle, !item.isRead && styles.itemTitleUnread]}>{getTitle(item.type)}</Text>

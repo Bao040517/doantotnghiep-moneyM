@@ -22,6 +22,11 @@ public class TransactionResponse {
     private String payeeName;
     private java.util.List<String> tags;
 
+    private UUID walletId;
+    private String walletName;
+    private String categoryName;
+    private String categoryIcon;
+
     private boolean isSplit;
     private String paymentMethod;
     private List<TransactionSplitResponse> splits;

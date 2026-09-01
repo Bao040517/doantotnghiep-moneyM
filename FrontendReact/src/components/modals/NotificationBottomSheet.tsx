@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, DeviceEventEmitter } from "react-native";
+import { Bell, BellOff, MailOpen } from "lucide-react-native";
 import { BottomSheet } from "../ui/BottomSheet";
 import { notificationService, AppNotification } from "../../services/notificationService";
 import { colors } from "../../constants/colors";
@@ -85,7 +86,7 @@ export const NotificationBottomSheet: React.FC<NotificationBottomSheetProps> = (
           </View>
         ) : notifications.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={{ fontSize: 36, marginBottom: 8 }}>🔕</Text>
+            <BellOff size={36} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 8 }} />
             <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>Chưa có thông báo nào</Text>
             <Text style={[styles.emptySub, { color: themeColors.textSecondary }]}>Các nhắc nợ, giao dịch mới và lời khuyên sẽ xuất hiện tại đây.</Text>
           </View>
@@ -105,7 +106,11 @@ export const NotificationBottomSheet: React.FC<NotificationBottomSheetProps> = (
                 ]}
               >
                 <View style={[styles.iconCircle, { backgroundColor: isDark ? themeColors.card : colors.white }]}>
-                  <Text style={{ fontSize: 16 }}>{item.isRead ? "📩" : "🔔"}</Text>
+                  {item.isRead ? (
+                    <MailOpen size={16} color="#94A3B8" strokeWidth={2} />
+                  ) : (
+                    <Bell size={16} color="#0F172A" strokeWidth={2} />
+                  )}
                 </View>
                 <View style={styles.itemMain}>
                   <Text

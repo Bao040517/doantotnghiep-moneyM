@@ -6,12 +6,14 @@ import static org.mockito.Mockito.*;
 import com.example.sharemoney.dto.request.UpdateAvatarRequest;
 import com.example.sharemoney.dto.request.UpdatePhoneRequest;
 import com.example.sharemoney.dto.request.UpdateQrRequest;
+import com.example.sharemoney.dto.BankLookupResponse;
 import com.example.sharemoney.dto.response.UserSummaryResponse;
 import com.example.sharemoney.entity.User;
 import com.example.sharemoney.exception.AppException;
 import com.example.sharemoney.exception.ErrorCode;
 import com.example.sharemoney.repository.UserRepository;
 import com.example.sharemoney.security.SecurityUtils;
+import com.example.sharemoney.service.BankLookupService;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +32,7 @@ import org.springframework.http.ResponseEntity;
 class UserControllerTest {
 
     @Mock private UserRepository userRepository;
+    @Mock private BankLookupService bankLookupService;
 
     @InjectMocks private UserController userController;
 
@@ -156,6 +159,14 @@ class UserControllerTest {
         try (MockedStatic<SecurityUtils> mockedSecurity = mockStatic(SecurityUtils.class)) {
             mockedSecurity.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
             when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+            when(bankLookupService.lookupAccount("970436", "123456789"))
+                    .thenReturn(
+                            BankLookupResponse.builder()
+                                    .bin("970436")
+                                    .accountNumber("123456789")
+                                    .accountName("NGUYEN VAN A")
+                                    .verified(true)
+                                    .build());
 
             ResponseEntity<UserSummaryResponse> response = userController.updateMyQr(req);
 

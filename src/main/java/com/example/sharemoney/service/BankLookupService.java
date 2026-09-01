@@ -28,6 +28,9 @@ public class BankLookupService {
     @Value("${vietqr.lookup-url:https://api.vietqr.io/v2/lookup}")
     private String vietqrLookupUrl;
 
+    @Value("${vietqr.mock-enabled:false}")
+    private boolean mockEnabled;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient =
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
@@ -60,22 +63,24 @@ public class BankLookupService {
     /** Tra cứu tên chủ tài khoản thật qua Napas247 / VietQR Open API */
     public BankLookupResponse lookupAccount(String bin, String accountNumber) {
         String cleanBin = bin != null ? bin.trim() : "";
-        String cleanAccNo = accountNumber != null ? accountNumber.trim().replaceAll("\\D", "") : "";
+        String cleanAccNo = accountNumber != null ? accountNumber.trim().replaceAll("\\s+", "") : "";
 
-        if (cleanBin.isEmpty() || cleanAccNo.length() < 6) {
+        if (!cleanBin.matches("^[0-9]{6}$") || !cleanAccNo.matches("^[0-9]{6,19}$")) {
             return BankLookupResponse.builder()
                     .bin(cleanBin)
                     .accountNumber(cleanAccNo)
                     .verified(false)
-                    .message("Số tài khoản phải có tối thiểu 6 chữ số")
+                    .message("Mã ngân hàng hoặc số tài khoản không đúng định dạng")
                     .build();
         }
 
         // 1. Kiểm tra nếu có cấu hình VietQR API Key thật
-        if (vietqrClientId != null
+        boolean hasVietQrCredentials =
+                vietqrClientId != null
                 && !vietqrClientId.isBlank()
                 && vietqrApiKey != null
-                && !vietqrApiKey.isBlank()) {
+                && !vietqrApiKey.isBlank();
+        if (hasVietQrCredentials) {
             try {
                 Map<String, String> body = new HashMap<>();
                 body.put("bin", cleanBin);
@@ -127,6 +132,13 @@ public class BankLookupService {
                                     .message("Đã xác thực chính chủ từ Ngân hàng")
                                     .build();
                         }
+
+                        return BankLookupResponse.builder()
+                                .bin(cleanBin)
+                                .accountNumber(cleanAccNo)
+                                .verified(false)
+                                .message("Ngân hàng không trả về tên chủ tài khoản")
+                                .build();
                     } else {
                         log.warn("[BankLookup] VietQR lookup rejected account {}: code={}, desc={}", cleanAccNo, code, desc);
                         return BankLookupResponse.builder()
@@ -143,9 +155,20 @@ public class BankLookupService {
             }
         }
 
-        // 2. Tra cứu trong cơ sở dữ liệu mẫu / Mock cache
+        if (hasVietQrCredentials) {
+            return BankLookupResponse.builder()
+                    .bin(cleanBin)
+                    .accountNumber(cleanAccNo)
+                    .accountName(null)
+                    .verified(false)
+                    .message("Không thể xác thực tài khoản từ hệ thống ngân hàng")
+                    .build();
+        }
+
+        // 2. Tra cứu trong cơ sở dữ liệu mẫu / Mock cache.
+        // Chỉ các cặp BIN + STK được khai báo rõ ràng mới được xem là hợp lệ trong demo.
         String key = cleanBin + ":" + cleanAccNo;
-        if (KNOWN_ACCOUNTS.containsKey(key)) {
+        if (mockEnabled && KNOWN_ACCOUNTS.containsKey(key)) {
             String mockName = KNOWN_ACCOUNTS.get(key);
             return BankLookupResponse.builder()
                     .bin(cleanBin)
@@ -156,23 +179,15 @@ public class BankLookupService {
                     .build();
         }
 
-        // 3. Fallback khi tài khoản hợp lệ định dạng (từ 6 - 19 chữ số)
-        if (cleanAccNo.matches("^[0-9]{6,19}$")) {
-            return BankLookupResponse.builder()
-                    .bin(cleanBin)
-                    .accountNumber(cleanAccNo)
-                    .accountName(null)
-                    .verified(true)
-                    .message("Định dạng số tài khoản hợp lệ")
-                    .build();
-        }
-
         return BankLookupResponse.builder()
                 .bin(cleanBin)
                 .accountNumber(cleanAccNo)
                 .accountName(null)
                 .verified(false)
-                .message("Số tài khoản không đúng định dạng ngân hàng")
+                .message(
+                        mockEnabled
+                                ? "Số tài khoản không tồn tại tại ngân hàng đã chọn hoặc chưa thể xác thực"
+                                : "Chưa cấu hình API VietQR để xác thực STK. Vui lòng cấu hình VIETQR_CLIENT_ID và VIETQR_API_KEY")
                 .build();
     }
 }

@@ -2,11 +2,17 @@ export type TransactionType = "INCOME" | "EXPENSE";
 
 export interface Transaction {
   id: string;
-  walletId: string;
+  walletId?: string;
   walletName?: string;
-  categoryId: string;
+  categoryId?: string;
   categoryName?: string;
   categoryIcon?: string;
+  category?: {
+    id: string;
+    name: string;
+    type?: string;
+    iconName?: string;
+  };
   amount: number;
   type: TransactionType;
   note?: string;
@@ -15,6 +21,13 @@ export interface Transaction {
   paymentMethod?: "CASH" | "TRANSFER" | "VIETQR" | string;
   transactionDate: string;
   linkedExpenseId?: string;
+  isSplit?: boolean;
+  splits?: Array<{
+    id: string;
+    amount: number;
+    note?: string;
+    category?: { id: string; name: string; iconName?: string };
+  }>;
   createdAt?: string;
 }
 

@@ -13,7 +13,7 @@ import {
   Modal,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Bell } from "lucide-react-native";
+import { Bell, Users, Settings, ArrowDownLeft, ArrowUpRight, CheckCircle2 } from "lucide-react-native";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { VietQRCard } from "../components/features/VietQRCard";
@@ -320,10 +320,10 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
 
           <View style={styles.headerRightActions}>
             <TouchableOpacity style={[styles.iconCircle, { backgroundColor: isDark ? themeColors.surface : colors.white }]}>
-              <Bell size={18} color={themeColors.textPrimary} />
+              <Bell size={18} color="#10B981" />
             </TouchableOpacity>
             <TouchableOpacity style={[styles.iconCircle, { backgroundColor: isDark ? themeColors.surface : colors.white }]}>
-              <Text style={{ fontSize: 15 }}>⚙️</Text>
+              <Settings size={18} color={themeColors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.avatarCircle}
@@ -340,7 +340,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         </View>
 
         <Text style={[styles.greetingText, { color: themeColors.textSecondary }]}>
-          Chào ngày mới, <Text style={[styles.greetingName, { color: themeColors.textPrimary }]}>{userName} 👋</Text>
+          Chào ngày mới, <Text style={[styles.greetingName, { color: themeColors.textPrimary }]}>{userName}</Text>
         </Text>
       </View>
 
@@ -350,14 +350,17 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       >
         {/* ─── BENTO DEBT CARDS (Clickable Grid Cards) ─── */}
         <View style={styles.bentoRow}>
-          {/* Tiền đang bay về 💰 */}
+          {/* Tiền đang bay về */}
           <TouchableOpacity
             style={[styles.bentoCard, styles.bentoCardOwed]}
             onPress={() => setDebtModalType("owed")}
             activeOpacity={0.8}
           >
             <View style={styles.bentoCardHeaderRow}>
-              <Text style={styles.bentoCardLabel}>Tiền đang bay về 💰</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <ArrowDownLeft size={16} color="#10B981" strokeWidth={2.5} />
+                <Text style={styles.bentoCardLabel}>Tiền đang bay về</Text>
+              </View>
               <Text style={styles.bentoArrowHint}>→</Text>
             </View>
             <View>
@@ -366,14 +369,17 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             </View>
           </TouchableOpacity>
 
-          {/* Tiền cần trả 🥱 */}
+          {/* Tiền cần trả */}
           <TouchableOpacity
             style={[styles.bentoCard, styles.bentoCardOwing]}
             onPress={() => setDebtModalType("owing")}
             activeOpacity={0.8}
           >
             <View style={styles.bentoCardHeaderRow}>
-              <Text style={styles.bentoCardLabel}>Tiền cần trả 🥱</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <ArrowUpRight size={16} color="#EF4444" strokeWidth={2.5} />
+                <Text style={styles.bentoCardLabel}>Tiền cần trả</Text>
+              </View>
               <Text style={styles.bentoArrowHint}>→</Text>
             </View>
             <View>
@@ -389,7 +395,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         <View style={styles.groupsGrid}>
           {/* Create New Group Card */}
           <TouchableOpacity style={styles.createGroupCard} onPress={() => setCreateModalVisible(true)}>
-            <View style={styles.plusIconCircle}>
+            <View style={[styles.plusIconCircle, { backgroundColor: "#10B981" }]}>
               <Text style={styles.plusIconText}>+</Text>
             </View>
             <Text style={styles.createGroupTitle}>Tạo Nhóm Mới</Text>
@@ -410,7 +416,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               />
               <Text style={styles.groupNameText} numberOfLines={2}>{g.name}</Text>
               <View style={styles.memberBadge}>
-                <Text style={styles.memberIcon}>👥</Text>
+                <Users size={13} color="#10B981" strokeWidth={2} />
                 <Text style={styles.memberCountText}>{g.members?.length || g.memberCount || 0} thành viên</Text>
               </View>
             </TouchableOpacity>
@@ -441,7 +447,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                   ]}
                 />
                 <Text style={styles.modalTitle}>
-                  {debtModalType === "owed" ? "Người khác nợ bạn 🟢" : "Bạn nợ người khác 🔴"}
+                  {debtModalType === "owed" ? "Người khác nợ bạn" : "Bạn nợ người khác"}
                 </Text>
               </View>
               <TouchableOpacity
@@ -463,7 +469,11 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 </Text>
               </View>
               <View style={styles.heroIconBox}>
-                <Text style={{ fontSize: 24 }}>{debtModalType === "owed" ? "💰" : "🥱"}</Text>
+                {debtModalType === "owed" ? (
+                  <ArrowDownLeft size={22} color="#10B981" strokeWidth={2.5} />
+                ) : (
+                  <ArrowUpRight size={22} color="#EF4444" strokeWidth={2.5} />
+                )}
               </View>
             </View>
 
@@ -472,7 +482,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                 /* DANH SÁCH NGƯỜI KHÁC NỢ BẠN */
                 owedList.length === 0 ? (
                   <View style={styles.emptyDebtBox}>
-                    <Text style={styles.emptyDebtEmoji}>🎉</Text>
+                    <CheckCircle2 size={36} color="#10B981" strokeWidth={2} style={{ marginBottom: 8 }} />
                     <Text style={styles.emptyDebtTitle}>Không ai nợ bạn</Text>
                     <Text style={styles.emptyDebtSub}>Mọi người trong các nhóm đã thanh toán sòng phẳng!</Text>
                   </View>
@@ -492,7 +502,7 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                           <View style={{ flex: 1, marginRight: 8 }}>
                             <Text style={styles.debtMemberName} numberOfLines={1}>{debtorName}</Text>
                             <View style={styles.groupPill}>
-                              <Text style={styles.groupPillText} numberOfLines={1}>🏠 {gName}</Text>
+                              <Text style={styles.groupPillText} numberOfLines={1}>{gName}</Text>
                             </View>
                           </View>
                           <View style={styles.amountCol}>

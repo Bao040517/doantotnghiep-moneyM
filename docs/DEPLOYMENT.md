@@ -73,6 +73,9 @@ graph LR
    - `PAYOS_CLIENT_ID`: `f0eb6860-35ac-443b-abe4-420c5bf8914e`
    - `PAYOS_API_KEY`: `692788be-837f-4ad0-9026-5e5acd25e85b`
    - `PAYOS_CHECKSUM_KEY`: `e003b853f0539e62a405c40711a39f0c8f47c70f1da499cbb97e7342409649ca`
+   - `VIETQR_CLIENT_ID`: Client ID của VietQR Open API để tra cứu STK
+   - `VIETQR_API_KEY`: API Key của VietQR Open API để tra cứu STK
+   - `VIETQR_LOOKUP_MOCK_ENABLED`: `false` (chỉ bật `true` khi chạy dữ liệu demo)
 7. Bấm **Create Web Service**. Đợi 2-3 phút, Render sẽ build Docker image và cấp cho bạn 1 đường link HTTPS public (Ví dụ: `https://sharemoney-backend.onrender.com`).
 
 ---

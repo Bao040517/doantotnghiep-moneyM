@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useNavigation } from "@react-navigation/native";
-import { Bell, Sparkles } from "lucide-react-native";
+import { Bell, Sparkles, Eye, EyeOff, Wallet, Users, PiggyBank, Clock, CheckCircle2 } from "lucide-react-native";
 import { Card } from "../components/ui/Card";
 import { WalletManagerBottomSheet } from "../components/modals/WalletManagerBottomSheet";
 import { AddTransactionModal } from "../components/modals/AddTransactionModal";
@@ -196,7 +196,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                 )}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowBalance(!showBalance)} style={styles.eyeBtn}>
-                <Text style={{ fontSize: 18 }}>{showBalance ? "👁️" : "🙈"}</Text>
+                {showBalance ? (
+                  <Eye size={18} color="#FFFFFF" strokeWidth={2} />
+                ) : (
+                  <EyeOff size={18} color="#FFFFFF" strokeWidth={2} />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -411,7 +415,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
             </View>
 
             <View style={styles.successContentRow}>
-              <Text style={{ fontSize: 24, marginRight: 10 }}>🎉</Text>
+              <CheckCircle2 size={20} color="#10B981" strokeWidth={2} style={{ marginRight: 10 }} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.successMainText, { color: isDark ? "#ECFDF5" : colors.emerald900 }]}>
                   Tuyệt vời! Không có danh mục nào vượt ngân sách.
@@ -427,41 +431,41 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         {/* ─── QUICK ACTIONS GRID (4 Action Buttons Balanced in 1 Row) ─── */}
         <View style={styles.quickActionGrid}>
           <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("budget")} activeOpacity={0.7}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: "#FEF3C7" }]}>
-              <Text style={{ fontSize: 22 }}>🪙</Text>
+            <View style={[styles.quickActionIconCircle, { backgroundColor: isDark ? themeColors.surface : "#ECFDF5" }]}>
+              <Wallet size={22} color="#10B981" strokeWidth={2} />
             </View>
             <Text style={[styles.quickActionText, { color: themeColors.textPrimary }]} numberOfLines={1}>Ngân sách</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("groups")} activeOpacity={0.7}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: "#E0F2FE" }]}>
-              <Text style={{ fontSize: 22 }}>👥</Text>
+            <View style={[styles.quickActionIconCircle, { backgroundColor: isDark ? themeColors.surface : "#ECFDF5" }]}>
+              <Users size={22} color="#10B981" strokeWidth={2} />
             </View>
             <Text style={[styles.quickActionText, { color: themeColors.textPrimary }]} numberOfLines={1}>Nhóm</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("savings")} activeOpacity={0.7}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: "#DCFCE7" }]}>
-              <Text style={{ fontSize: 22 }}>🌱</Text>
+            <View style={[styles.quickActionIconCircle, { backgroundColor: isDark ? themeColors.surface : "#ECFDF5" }]}>
+              <PiggyBank size={22} color="#10B981" strokeWidth={2} />
             </View>
             <Text style={[styles.quickActionText, { color: themeColors.textPrimary }]} numberOfLines={1}>Tiết kiệm</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.quickActionItem} onPress={() => onNavigate?.("history")} activeOpacity={0.7}>
-            <View style={[styles.quickActionIconCircle, { backgroundColor: "#EDE9FE" }]}>
-              <Text style={{ fontSize: 22 }}>🕒</Text>
+            <View style={[styles.quickActionIconCircle, { backgroundColor: isDark ? themeColors.surface : "#ECFDF5" }]}>
+              <Clock size={22} color="#10B981" strokeWidth={2} />
             </View>
             <Text style={[styles.quickActionText, { color: themeColors.textPrimary }]} numberOfLines={1}>Lịch sử</Text>
           </TouchableOpacity>
         </View>
 
         {/* ─── BUDGET PROGRESS SECTION ─── */}
-        <Text style={[styles.sectionHeaderTitle, { color: themeColors.textPrimary }]}>Ngân sách Tháng này</Text>
+        <Text style={[styles.sectionHeaderTitle, { color: themeColors.textPrimary }]}>Ngân sách tháng này</Text>
         <Card style={[styles.budgetCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
           <TouchableOpacity onPress={() => onNavigate?.("budget")} activeOpacity={0.7}>
             <View style={styles.budgetHeaderRow}>
               <View>
-                <Text style={styles.budgetHeaderSubHighlighted}>ĐÃ CHI TIÊU 🎯</Text>
+                <Text style={styles.budgetHeaderSubHighlighted}>ĐÃ CHI TIÊU</Text>
                 <Text style={styles.budgetHeaderVal}>
                   {fmt(totalBudgetSpent)}{" "}
                   <Text style={styles.budgetHeaderLimit}>/ {fmt(totalBudgetLimit)}</Text>
@@ -488,23 +492,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           {/* Top 5 Expense Category Leaderboard */}
           {topExpenseCategories.length > 0 && (
             <View style={styles.leaderboardSection}>
-              <Text style={styles.leaderboardTitle}>🏆 BẢNG XẾP HẠNG CHI TIÊU</Text>
+              <Text style={styles.leaderboardTitle}>BẢNG XẾP HẠNG CHI TIÊU</Text>
               {topExpenseCategories.slice(0, 5).map((cat, idx) => {
                 const maxAmount = topExpenseCategories[0].totalAmount || 1;
                 const barPct = Math.min(100, Math.round((cat.totalAmount / maxAmount) * 100));
-                const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+                const ranks = ["1", "2", "3", "4", "5"];
                 return (
                   <View key={idx} style={styles.leaderboardItem}>
                     <View style={[styles.leaderboardBarFill, { width: `${barPct}%` }]} />
                     <View style={styles.leaderboardContent}>
                       <View style={styles.leaderboardLeft}>
-                        <Text style={styles.medalIcon}>{medals[idx]}</Text>
+                        <View style={[styles.medalIconBox, idx === 0 && { backgroundColor: "rgba(16, 185, 129, 0.15)" }]}>
+                          <Text style={[styles.medalIconText, idx === 0 && { color: "#10B981", fontWeight: "900" }]}>{ranks[idx]}</Text>
+                        </View>
                         <View>
                           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                             <Text style={styles.categoryNameText}>{cat.categoryName}</Text>
                             {idx === 0 && (
                               <View style={styles.topBadge}>
-                                <Text style={styles.topBadgeText}>VÔ ĐỊCH 💸</Text>
+                                <Text style={styles.topBadgeText}>Cao nhất</Text>
                               </View>
                             )}
                           </View>
@@ -1297,8 +1303,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  medalIcon: {
-    fontSize: 20,
+  medalIconBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.slate100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  medalIconText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.slate600,
   },
   categoryNameText: {
     fontSize: 14,

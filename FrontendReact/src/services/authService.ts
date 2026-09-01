@@ -30,6 +30,11 @@ export const authService = {
     return response.data;
   },
 
+  updateProfile: async (data: { name?: string; phone?: string }): Promise<UserSummary> => {
+    const response = await api.put<UserSummary>("/users/me/profile", data);
+    return response.data;
+  },
+
   updatePhone: async (phone: string): Promise<UserSummary> => {
     const response = await api.put<UserSummary>("/users/me/phone", { phone });
     return response.data;

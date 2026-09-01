@@ -1,16 +1,20 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { CheckCircle2, Zap, AlertTriangle, Lightbulb } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
-import { getCategoryEmoji } from "../../constants/categories";
+import { CategoryIcon } from "../ui/CategoryIcon";
 
 interface WarningItem {
   categoryName: string;
   categoryIcon?: string;
+  warningType?: "BURN_RATE" | "BILL_SPIKE";
   message: string;
   severity: "HIGH" | "MEDIUM";
   increasePercent: number;
+  increaseVsLastMonth?: number;
   currentMonthSpent: number;
+  lastMonthSpent?: number;
   avg3MonthSpent: number;
   projectedMonthEnd?: number;
   dailyBurnRate?: number;
@@ -49,7 +53,7 @@ export const AnomalyWarningsSection: React.FC<AnomalyWarningsSectionProps> = ({
             { backgroundColor: isDark ? themeColors.surface : "#fef3c7" },
           ]}
         >
-          <Text style={{ fontSize: 22 }}>⚡</Text>
+          <Zap size={22} color="#D97706" strokeWidth={2.5} />
         </View>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text
@@ -66,7 +70,7 @@ export const AnomalyWarningsSection: React.FC<AnomalyWarningsSectionProps> = ({
               { color: isDark ? themeColors.textSecondary : "#b45309" },
             ]}
           >
-            Hệ thống AI theo dõi tốc độ đốt tiền (Burn-rate) và so sánh với trung bình 3 tháng để cảnh báo nguy cơ thâm hụt sớm.
+            Hệ thống AI theo dõi tốc độ chi tiêu linh hoạt (Burn-rate) và so sánh biến động hóa đơn/chi phí cố định với tháng trước và trung bình 3 tháng.
           </Text>
         </View>
       </View>
@@ -82,7 +86,7 @@ export const AnomalyWarningsSection: React.FC<AnomalyWarningsSectionProps> = ({
           ]}
         >
           <View style={styles.emptyIconCircle}>
-            <Text style={{ fontSize: 32 }}>🎉</Text>
+            <CheckCircle2 size={32} color="#059669" strokeWidth={2} />
           </View>
           <Text style={[styles.emptyTitle, { color: themeColors.textPrimary }]}>
             Tốc độ chi tiêu an toàn!
@@ -94,6 +98,7 @@ export const AnomalyWarningsSection: React.FC<AnomalyWarningsSectionProps> = ({
       ) : (
         warnings.map((w, idx) => {
           const isHigh = w.severity === "HIGH";
+          const isBill = w.warningType === "BILL_SPIKE";
           return (
             <View
               key={idx}
@@ -120,9 +125,7 @@ export const AnomalyWarningsSection: React.FC<AnomalyWarningsSectionProps> = ({
                       },
                     ]}
                   >
-                    <Text style={{ fontSize: 20 }}>
-                      {getCategoryEmoji(w.categoryIcon, w.categoryName)}
-                    </Text>
+                    <CategoryIcon name={w.categoryIcon || w.categoryName} size={18} />
                   </View>
                   <View style={{ marginLeft: 10, flex: 1 }}>
                     <Text style={[styles.warningCatName, { color: themeColors.textPrimary }]}>
@@ -134,7 +137,11 @@ export const AnomalyWarningsSection: React.FC<AnomalyWarningsSectionProps> = ({
                         { color: isHigh ? colors.rose600 : colors.amber600 },
                       ]}
                     >
-                      Tốc độ: {fmt(w.dailyBurnRate)}/ngày
+                      {isBill
+                        ? (w.increaseVsLastMonth && w.increaseVsLastMonth > 0
+                            ? `+${w.increaseVsLastMonth}% so với tháng trước`
+                            : `+${w.increasePercent}% so với TB 3 tháng`)
+                        : `Tốc độ: ${fmt(w.dailyBurnRate)}/ngày`}
                     </Text>
                   </View>
                 </View>
@@ -148,7 +155,7 @@ export const AnomalyWarningsSection: React.FC<AnomalyWarningsSectionProps> = ({
                   ]}
                 >
                   <Text style={styles.warningSeverityText}>
-                    {isHigh ? "🔴 Rủi ro cao" : "⚠️ Cần chú ý"} (+{w.increasePercent}%)
+                    {isHigh ? "Rủi ro cao" : "Cần chú ý"} (+{w.increasePercent}%)
                   </Text>
                 </View>
               </View>
@@ -182,16 +189,16 @@ export const AnomalyWarningsSection: React.FC<AnomalyWarningsSectionProps> = ({
                 </View>
                 <View style={styles.warningStatDivider} />
                 <View style={styles.warningStatCol}>
-                  <Text style={styles.warningStatLabel}>TB 3 THÁNG QUA</Text>
+                  <Text style={styles.warningStatLabel}>{isBill ? "THÁNG TRƯỚC" : "TB 3 THÁNG QUA"}</Text>
                   <Text style={[styles.warningStatVal, { color: themeColors.textPrimary }]}>
-                    {fmt(w.avg3MonthSpent)}
+                    {fmt(isBill ? (w.lastMonthSpent || 0) : w.avg3MonthSpent)}
                   </Text>
                 </View>
                 <View style={styles.warningStatDivider} />
                 <View style={styles.warningStatCol}>
-                  <Text style={styles.warningStatLabel}>DỰ KIẾN CUỐI THÁNG</Text>
-                  <Text style={[styles.warningStatVal, { color: colors.rose600 }]}>
-                    {fmt(w.projectedMonthEnd)}
+                  <Text style={styles.warningStatLabel}>{isBill ? "TB 3 THÁNG QUA" : "DỰ KIẾN CUỐI THÁNG"}</Text>
+                  <Text style={[styles.warningStatVal, { color: isBill ? themeColors.textPrimary : colors.rose600 }]}>
+                    {fmt(isBill ? w.avg3MonthSpent : w.projectedMonthEnd)}
                   </Text>
                 </View>
               </View>
@@ -199,8 +206,8 @@ export const AnomalyWarningsSection: React.FC<AnomalyWarningsSectionProps> = ({
               {/* Actionable Tip */}
               {w.actionableTip && (
                 <View style={styles.actionableTipBox}>
-                  <Text style={styles.actionableTipIcon}>💡</Text>
-                  <Text style={styles.actionableTipText}>{w.actionableTip}</Text>
+                  <Lightbulb size={16} color="#D97706" strokeWidth={2} style={{ marginTop: 2, marginRight: 6 }} />
+                  <Text style={[styles.actionableTipText, { flex: 1 }]}>{w.actionableTip}</Text>
                 </View>
               )}
             </View>

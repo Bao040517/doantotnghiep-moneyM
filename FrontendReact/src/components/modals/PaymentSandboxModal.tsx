@@ -9,11 +9,12 @@ import {
   Alert,
   TextInput,
 } from "react-native";
-import { CheckCircle2, Download } from "lucide-react-native";
+import { CheckCircle2, Download, Building2 } from "lucide-react-native";
 import { BottomSheet } from "../ui/BottomSheet";
 import { VIETQR_BANKS } from "../../constants/banks";
 import { VietQRCard } from "../features/VietQRCard";
 import { groupService } from "../../services/groupService";
+import { verifyBankAccount } from "../../utils/bankAccountVerification";
 
 interface PaymentSandboxModalProps {
   visible: boolean;
@@ -50,9 +51,22 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
   const [showAmountConfirm, setShowAmountConfirm] = useState(false);
   const [actualAmountText, setActualAmountText]   = useState("");
   const [actualAmount, setActualAmount]           = useState(0);
+  const [bankLookupLoading, setBankLookupLoading] = useState(false);
+  const [bankLookupVerified, setBankLookupVerified] = useState(false);
+  const [bankLookupError, setBankLookupError] = useState<string | null>(null);
+  const [verifiedAccountName, setVerifiedAccountName] = useState("");
+
+  // Không dùng giá trị mặc định cho BIN: thiếu ngân hàng thì không được tạo QR.
+  const recipientBin = debtInfo?.toBankBin?.trim() || "";
+  const recipientAccNo = debtInfo?.toAccountNo?.replace(/\s/g, "") || "";
+  const directDesc = `SM${Date.now().toString().slice(-6)}`;
 
   useEffect(() => {
     if (!visible || !debtInfo) {
+      setBankLookupLoading(false);
+      setBankLookupVerified(false);
+      setBankLookupError(null);
+      setVerifiedAccountName("");
       return;
     }
 
@@ -64,13 +78,40 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
     setActualAmountText(debtInfo.amount.toString());
   }, [visible, debtInfo?.amount, debtInfo?.toUserId, debtInfo?.toAccountNo]);
 
+  useEffect(() => {
+    if (!visible || !debtInfo || !recipientBin || !recipientAccNo) {
+      setBankLookupVerified(false);
+      setBankLookupError(!recipientAccNo ? "Người nhận chưa có số tài khoản ngân hàng." : "Chưa có mã ngân hàng hợp lệ.");
+      return;
+    }
+
+    let active = true;
+    setBankLookupLoading(true);
+    setBankLookupVerified(false);
+    setBankLookupError(null);
+    verifyBankAccount(recipientBin, recipientAccNo)
+      .then((verified) => {
+        if (!active) return;
+        setVerifiedAccountName(verified.accountName || debtInfo.toName || "");
+        setBankLookupVerified(true);
+      })
+      .catch((error: any) => {
+        if (!active) return;
+        setBankLookupError(error?.message || "STK không tồn tại hoặc chưa xác thực được chủ tài khoản.");
+      })
+      .finally(() => {
+        if (active) setBankLookupLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [visible, debtInfo?.toBankBin, debtInfo?.toAccountNo]);
+
   if (!debtInfo) return null;
 
   // Thông tin người nhận trực tiếp (P2P VietQR)
-  const recipientBin     = debtInfo.toBankBin || "970422";
-  const recipientAccNo   = debtInfo.toAccountNo || "";
-  const recipientAccName = (debtInfo.toName || "Người thụ hưởng").toUpperCase();
-  const directDesc       = `SM${Date.now().toString().slice(-6)}`;
+  const recipientAccName = (verifiedAccountName || debtInfo.toName || "Người thụ hưởng").toUpperCase();
 
   const recipientBankObj = VIETQR_BANKS.find((b) => b.bin === recipientBin);
   const recipientBankName = recipientBankObj?.shortName || (recipientBin ? `Ngân hàng (${recipientBin})` : "Ngân hàng");
@@ -198,25 +239,32 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
         </View>
 
         {/* ── 3. VIETQR CARD ── */}
-        {recipientAccNo ? (
+        {bankLookupLoading ? (
+          <View style={styles.emptyAccountBox}>
+            <ActivityIndicator size="large" color="#4F46E5" />
+            <Text style={styles.emptyAccountTitle}>Đang xác thực tài khoản...</Text>
+            <Text style={styles.emptyAccountSub}>Chỉ hiển thị QR sau khi ngân hàng xác nhận STK và chủ tài khoản.</Text>
+          </View>
+        ) : bankLookupVerified ? (
           <VietQRCard
             bankBin={recipientBin}
             accountNo={recipientAccNo}
             accountName={recipientAccName}
+            verified={bankLookupVerified}
             amount={debtInfo.amount}
             description={directDesc}
             onCopySuccess={(msg) => showToast(msg)}
           />
         ) : (
           <View style={styles.emptyAccountBox}>
-            <Text style={{ fontSize: 32, marginBottom: 8 }}>🏦</Text>
-            <Text style={styles.emptyAccountTitle}>Chưa có thông tin số tài khoản</Text>
+            <Building2 size={36} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 8 }} />
+            <Text style={styles.emptyAccountTitle}>{bankLookupError ? "Không thể tạo mã QR" : "Chưa có thông tin số tài khoản"}</Text>
             <Text style={styles.emptyAccountSub}>
-              Người nhận chưa đăng ký STK nhận tiền. Vui lòng bấm "Đổi người nhận / STK khác" để nhập.
+              {bankLookupError || "Người nhận chưa đăng ký STK nhận tiền. Vui lòng bấm \"Đổi người nhận / STK khác\" để nhập."}
             </Text>
             {onChangePayee && (
               <TouchableOpacity style={styles.emptyAccountBtn} onPress={onChangePayee} activeOpacity={0.8}>
-                <Text style={styles.emptyAccountBtnText}>➕ Nhập STK người nhận</Text>
+                <Text style={styles.emptyAccountBtnText}>Nhập STK người nhận</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -226,16 +274,14 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
         <TouchableOpacity
           style={styles.confirmBtn}
           onPress={handleOpenConfirmDialog}
-          disabled={processing}
+          disabled={processing || !bankLookupVerified}
           activeOpacity={0.85}
         >
           {processing ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <Text style={styles.confirmBtnText}>
-                ✓ Xác nhận chuyển khoản ({debtInfo.amount.toLocaleString("vi-VN")} ₫)
-              </Text>
+              <Text style={styles.confirmBtnText}>Xác nhận chuyển khoản</Text>
               <Text style={styles.confirmBtnSub}>Chạm để xác nhận số tiền thực chuyển & gạch nợ</Text>
             </>
           )}
@@ -247,7 +293,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
           onPress={debtInfo.groupId && debtInfo.toUserId ? handleCashNotify : handleOpenConfirmDialog}
           activeOpacity={0.75}
         >
-          <Text style={styles.cashBtnText}>💵 Xác nhận thanh toán tiền mặt</Text>
+          <Text style={styles.cashBtnText}>Xác nhận thanh toán tiền mặt</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -309,9 +355,7 @@ export const PaymentSandboxModal: React.FC<PaymentSandboxModalProps> = ({
                 {processing ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.confirmSubmitBtnText}>
-                    ✓ Xác nhận ({(actualAmount > 0 ? actualAmount : debtInfo.amount).toLocaleString("vi-VN")} ₫)
-                  </Text>
+                  <Text style={styles.confirmSubmitBtnText}>Xác nhận</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -626,31 +670,35 @@ const styles = StyleSheet.create({
   },
   confirmModalActions: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
+    gap: 12,
+    marginTop: 6,
   },
   confirmCancelBtn: {
     flex: 1,
     backgroundColor: "#F1F5F9",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",
+    justifyContent: "center",
   },
   confirmCancelBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
     color: "#64748B",
+    textAlign: "center",
   },
   confirmSubmitBtn: {
-    flex: 2,
+    flex: 1,
     backgroundColor: "#4F46E5",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 14,
     alignItems: "center",
+    justifyContent: "center",
   },
   confirmSubmitBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "800",
     color: "#ffffff",
+    textAlign: "center",
   },
 });

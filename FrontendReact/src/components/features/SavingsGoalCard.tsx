@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { Target } from "lucide-react-native";
 import { Card } from "../ui/Card";
 import { Badge, BadgeVariant } from "../ui/Badge";
 import { ProgressBar } from "../ui/ProgressBar";
@@ -39,7 +40,7 @@ export const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({ goal, onDeposi
     <Card style={styles.card}>
       <View style={styles.header}>
         <View style={styles.titleWrapper}>
-          <Text style={styles.icon}>{goal.icon || "🎯"}</Text>
+          <Target size={24} color="#10B981" strokeWidth={2} />
           <View style={{ flex: 1 }}>
             <Text style={styles.goalName} numberOfLines={2} ellipsizeMode="tail">
               {goal.name}

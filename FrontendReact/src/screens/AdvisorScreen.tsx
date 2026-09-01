@@ -54,10 +54,13 @@ interface AdviceData {
   warnings?: Array<{
     categoryName: string;
     categoryIcon?: string;
+    warningType?: "BURN_RATE" | "BILL_SPIKE";
     message: string;
     severity: "HIGH" | "MEDIUM";
     increasePercent: number;
+    increaseVsLastMonth?: number;
     currentMonthSpent: number;
+    lastMonthSpent?: number;
     avg3MonthSpent: number;
     projectedMonthEnd?: number;
     dailyBurnRate?: number;

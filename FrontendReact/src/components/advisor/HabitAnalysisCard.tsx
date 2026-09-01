@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { Home, ShoppingBag, PiggyBank, MessageSquare, TrendingUp } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -24,7 +25,10 @@ export const HabitAnalysisCard: React.FC<HabitAnalysisCardProps> = ({ habits, fm
     <View style={styles.container}>
       {/* Verdict Hero Card */}
       <View style={styles.verdictCard}>
-        <Text style={styles.verdictTitle}>Phân tích theo chuẩn 50/30/20 📈</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <TrendingUp size={18} color={colors.white} strokeWidth={2.5} />
+          <Text style={styles.verdictTitle}>Phân tích theo chuẩn 50/30/20</Text>
+        </View>
         <Text style={styles.verdictSub}>Mô hình quản lý tài chính cá nhân quốc tế</Text>
         <View style={styles.verdictBox}>
           <Text style={styles.verdictText}>{habits.verdict}</Text>
@@ -45,9 +49,12 @@ export const HabitAnalysisCard: React.FC<HabitAnalysisCardProps> = ({ habits, fm
         {/* Needs (50%) */}
         <View style={styles.barItem}>
           <View style={styles.barHeader}>
-            <Text style={[styles.barLabel, { color: themeColors.textPrimary }]}>
-              🏠 Thiết yếu (Chuẩn ≤ 50%)
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Home size={15} color="#10B981" strokeWidth={2} />
+              <Text style={[styles.barLabel, { color: themeColors.textPrimary }]}>
+                Thiết yếu (Chuẩn ≤ 50%)
+              </Text>
+            </View>
             <Text
               style={[
                 styles.barPct,
@@ -82,9 +89,12 @@ export const HabitAnalysisCard: React.FC<HabitAnalysisCardProps> = ({ habits, fm
         {/* Wants (30%) */}
         <View style={styles.barItem}>
           <View style={styles.barHeader}>
-            <Text style={[styles.barLabel, { color: themeColors.textPrimary }]}>
-              🎉 Linh hoạt (Chuẩn ≤ 30%)
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <ShoppingBag size={15} color="#F59E0B" strokeWidth={2} />
+              <Text style={[styles.barLabel, { color: themeColors.textPrimary }]}>
+                Linh hoạt (Chuẩn ≤ 30%)
+              </Text>
+            </View>
             <Text
               style={[
                 styles.barPct,
@@ -119,9 +129,12 @@ export const HabitAnalysisCard: React.FC<HabitAnalysisCardProps> = ({ habits, fm
         {/* Savings (20%) */}
         <View style={styles.barItem}>
           <View style={styles.barHeader}>
-            <Text style={[styles.barLabel, { color: themeColors.textPrimary }]}>
-              🌱 Tiết kiệm (Chuẩn ≥ 20%)
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <PiggyBank size={15} color="#10B981" strokeWidth={2} />
+              <Text style={[styles.barLabel, { color: themeColors.textPrimary }]}>
+                Tiết kiệm (Chuẩn ≥ 20%)
+              </Text>
+            </View>
             <Text
               style={[
                 styles.barPct,
@@ -162,9 +175,12 @@ export const HabitAnalysisCard: React.FC<HabitAnalysisCardProps> = ({ habits, fm
             { backgroundColor: isDark ? themeColors.card : colors.white },
           ]}
         >
-          <Text style={[styles.cardHeaderTitle, { color: themeColors.textPrimary }]}>
-            💬 Nhận xét chi tiết
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 }}>
+            <MessageSquare size={16} color="#10B981" strokeWidth={2} />
+            <Text style={[styles.cardHeaderTitle, { color: themeColors.textPrimary, marginBottom: 0 }]}>
+              Nhận xét chi tiết
+            </Text>
+          </View>
           {habits.recommendations.map((rec, idx) => (
             <View
               key={idx}

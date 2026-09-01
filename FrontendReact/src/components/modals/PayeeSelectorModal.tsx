@@ -20,8 +20,9 @@ import { colors } from "../../constants/colors";
 import { VIETQR_BANKS, BankInfo } from "../../constants/banks";
 import { Payee, SavePayeePayload } from "../../types/payee";
 import { payeeService } from "../../services/payeeService";
-import { authService } from "../../services/authService";
+import { verifyBankAccount } from "../../utils/bankAccountVerification";
 import { VietnameseTextInput } from "../ui/VietnameseTextInput";
+import { Building2 } from "lucide-react-native";
 
 const { height: SCREEN_H } = Dimensions.get("window");
 
@@ -79,6 +80,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
   const [lookupLoading, setLookupLoading]         = useState(false);
   const [lookupVerified, setLookupVerified]       = useState(false);
   const [lookupMessage, setLookupMessage]         = useState<string | null>(null);
+  const lookupRequestRef = useRef(0);
 
   const [isSubmittingQR, setIsSubmittingQR]     = useState(false);
   const [isSubmittingCash, setIsSubmittingCash] = useState(false);
@@ -100,23 +102,24 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
     const currentAcc = (targetAccNo !== undefined ? targetAccNo : newAccNo).trim();
     if (!currentBin || currentAcc.length < 6) return;
 
+    const requestId = ++lookupRequestRef.current;
     setLookupLoading(true);
     setLookupMessage(null);
     try {
-      const res = await authService.lookupBankAccount(currentBin, currentAcc);
-      if (res.verified && res.accountName) {
-        setNewName(res.accountName);
-        setLookupVerified(true);
+      const verified = await verifyBankAccount(currentBin, currentAcc);
+      if (requestId !== lookupRequestRef.current) return;
+      setNewName(verified.accountName || newName);
+      setLookupVerified(true);
+      {
         const bankObj = VIETQR_BANKS.find((b) => b.bin === currentBin);
         setLookupMessage(`✓ Đã xác thực chính chủ từ ${bankObj?.shortName || "Ngân hàng"}`);
-      } else {
-        setLookupVerified(false);
-        if (res.message) setLookupMessage(res.message);
       }
-    } catch {
+    } catch (error: any) {
+      if (requestId !== lookupRequestRef.current) return;
       setLookupVerified(false);
+      setLookupMessage(error?.message || "STK không tồn tại hoặc chưa xác thực được chủ tài khoản");
     } finally {
-      setLookupLoading(false);
+      if (requestId === lookupRequestRef.current) setLookupLoading(false);
     }
   };
 
@@ -197,19 +200,34 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
   const handlePayWithQR = async () => {
     if (activeTab === "recent") {
       if (recentPayee && recentPayee.bankAccount) {
-        onSelectPayee({
-          name: recentPayee.name || recentPayee.accountName || "Người nhận gần nhất",
-          bankBin: recentPayee.bankBin,
-          bankAccount: recentPayee.bankAccount,
-          accountName: recentPayee.accountName,
-          source: "saved",
-        }, true);
-        onClose();
+        try {
+          const verified = await verifyBankAccount(recentPayee.bankBin, recentPayee.bankAccount);
+          onSelectPayee({
+            name: recentPayee.name || verified.accountName || "Người nhận gần nhất",
+            bankBin: verified.bin,
+            bankAccount: verified.accountNumber,
+            accountName: verified.accountName,
+            source: "saved",
+          }, true);
+          onClose();
+        } catch (error: any) {
+          Alert.alert("Không thể tạo QR", error?.message || "STK chưa được ngân hàng xác thực.");
+        }
       }
     } else if (activeTab === "saved") {
       if (selectedPayee && selectedPayee.bankAccount) {
-        onSelectPayee(selectedPayee, false);
-        onClose();
+        try {
+          const verified = await verifyBankAccount(selectedPayee.bankBin, selectedPayee.bankAccount);
+          onSelectPayee({
+            ...selectedPayee,
+            bankBin: verified.bin,
+            bankAccount: verified.accountNumber,
+            accountName: verified.accountName,
+          }, false);
+          onClose();
+        } catch (error: any) {
+          Alert.alert("Không thể tạo QR", error?.message || "STK chưa được ngân hàng xác thực.");
+        }
       }
     } else if (activeTab === "new") {
       if (!newBankBin) {
@@ -220,16 +238,24 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
         Alert.alert("Chưa nhập số tài khoản", "Vui lòng nhập số tài khoản người nhận.");
         return;
       }
+      let verifiedAccount;
+      try {
+        verifiedAccount = await verifyBankAccount(newBankBin, newAccNo);
+      } catch (error: any) {
+        setLookupVerified(false);
+        Alert.alert("Không thể tạo QR", error?.message || "STK chưa được ngân hàng xác thực.");
+        return;
+      }
       setIsSubmittingQR(true);
       const bankObj = VIETQR_BANKS.find((b) => b.bin === newBankBin);
       const bName = bankObj?.shortName || newBankName || "Ngân hàng";
-      const payeeName = newName.trim() || `Tài khoản ${newAccNo.trim()}`;
+      const payeeName = newName.trim() || verifiedAccount.accountName || "Người nhận";
       const payload: SavePayeePayload = {
         name: payeeName,
-        bankAccount: newAccNo.trim(),
-        bankBin: newBankBin,
+        bankAccount: verifiedAccount.accountNumber,
+        bankBin: verifiedAccount.bin,
         bankName: bName,
-        accountName: newName.trim() || undefined,
+        accountName: verifiedAccount.accountName || payeeName,
       };
 
       try {
@@ -359,7 +385,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
   const isQRDisabled =
     (activeTab === "recent" && (!recentPayee || !recentPayee.bankAccount)) ||
     (activeTab === "saved" && (!selectedPayee || !selectedPayee.bankAccount)) ||
-    (activeTab === "new" && !newAccNo.trim()) ||
+    (activeTab === "new" && (!newBankBin || !newAccNo.trim() || !lookupVerified || lookupLoading)) ||
     isSubmitting;
 
   // Validation Cash button
@@ -457,7 +483,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
                                   resizeMode="contain"
                                 />
                               ) : (
-                                <Text style={{ fontSize: 32 }}>🏦</Text>
+                                <Building2 size={28} color="#64748B" strokeWidth={1.5} />
                               )}
                             </View>
                             <Text style={styles.recentHeroName}>

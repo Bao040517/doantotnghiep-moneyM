@@ -18,7 +18,7 @@ import {
   Image,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Star, X } from "lucide-react-native";
+import { Star, X, Search } from "lucide-react-native";
 import { Toast } from "../components/ui/Toast";
 import { BudgetSkeleton } from "../components/ui/SkeletonLoader";
 import { Button } from "../components/ui/Button";
@@ -41,6 +41,7 @@ import { VietnameseTextInput } from "../components/ui/VietnameseTextInput";
 import { CATEGORY_ICONS, getCategoryEmoji } from "../constants/categories";
 import { useTheme } from "../context/ThemeContext";
 import { useTopSafeInset } from "../utils/responsive";
+import { verifyBankAccount } from "../utils/bankAccountVerification";
 
 // The absolute core text input that NEVER re-renders to prevent ANY React Native interference with IME
 const SearchInputCore = React.memo(
@@ -77,7 +78,7 @@ const MemoizedSearchBar = React.memo(({ onSearch }: { onSearch: (val: string) =>
   return (
     <View style={styles.searchBarContainer}>
       <View style={styles.searchIconBox}>
-        <Text style={{ fontSize: 16 }}>🔍</Text>
+        <Search size={16} color="#10B981" strokeWidth={2.5} />
       </View>
       
       <SearchInputCore ref={inputRef} onText={handleText} />
@@ -491,6 +492,25 @@ export const BudgetScreen: React.FC = () => {
       return;
     }
 
+    const hasPayeeBankInfo = Boolean(payeeBankBin || payeeBankAccount.trim() || payeeAccountName.trim());
+    let verifiedPayeeAccount;
+    if (hasPayeeBankInfo) {
+      if (!payeeBankBin || !payeeBankAccount.trim()) {
+        showToast("Vui lòng nhập đủ ngân hàng và số tài khoản người nhận", "error");
+        return;
+      }
+      try {
+        verifiedPayeeAccount = await verifyBankAccount(payeeBankBin, payeeBankAccount, payeeAccountName);
+        if (verifiedPayeeAccount.accountName) {
+          setPayeeAccountName(verifiedPayeeAccount.accountName);
+        }
+      } catch (e: any) {
+        setBudgetLookupVerified(false);
+        showToast(e?.message || "STK chưa được ngân hàng xác thực", "error");
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       await financialServices.createBudget({
@@ -502,9 +522,9 @@ export const BudgetScreen: React.FC = () => {
         isMandatory: isMandatory,
         type: type,
         isRecurring: isRecurring,
-        payeeBankBin: payeeBankBin || undefined,
-        payeeBankAccount: payeeBankAccount.trim() || undefined,
-        payeeAccountName: payeeAccountName.trim() || undefined,
+        payeeBankBin: verifiedPayeeAccount?.bin || undefined,
+        payeeBankAccount: verifiedPayeeAccount?.accountNumber || undefined,
+        payeeAccountName: verifiedPayeeAccount?.accountName || undefined,
       });
 
       showToast("Đã tạo ngân sách chi tiêu mới! 🎉", "success");

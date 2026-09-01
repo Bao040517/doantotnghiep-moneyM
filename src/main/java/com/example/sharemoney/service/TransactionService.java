@@ -935,9 +935,13 @@ public class TransactionService {
 
         return TransactionResponse.builder()
                 .id(transaction.getId())
+                .walletId(transaction.getWallet() != null ? transaction.getWallet().getId() : null)
+                .walletName(transaction.getWallet() != null ? transaction.getWallet().getName() : null)
                 .amount(transaction.getAmount())
                 .type(transaction.getType())
                 .category(categoryResponse)
+                .categoryName(categoryResponse != null ? categoryResponse.getName() : null)
+                .categoryIcon(categoryResponse != null ? categoryResponse.getIconName() : null)
                 .transactionDate(transaction.getTransactionDate())
                 .note(transaction.getNote())
                 .linkedExpenseId(transaction.getLinkedExpenseId())

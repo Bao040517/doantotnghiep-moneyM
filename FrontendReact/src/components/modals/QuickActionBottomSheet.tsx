@@ -7,7 +7,7 @@ import {
   Modal,
   Platform,
 } from "react-native";
-import { Sparkles } from "lucide-react-native";
+import { Sparkles, Zap, ArrowUpRight, Users, Wallet } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 
 export type QuickActionType = "expense" | "group" | "income" | "ai_chat";
@@ -39,7 +39,7 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
           {/* Header Row */}
           <View style={styles.headerRow}>
             <View style={styles.titleRow}>
-              <Text style={{ fontSize: 20 }}>⚡</Text>
+              <Zap size={20} color="#0F172A" strokeWidth={2.5} />
               <Text style={styles.modalTitle}>Tạo tác vụ nhanh</Text>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
@@ -62,14 +62,14 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.iconBox, { backgroundColor: "#fef3c7" }]}>
-                <Sparkles size={26} color="#d97706" />
+              <View style={[styles.iconBox, { backgroundColor: "#0F172A" }]}>
+                <Sparkles size={22} color="#FFFFFF" strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardTitle, { color: "#b45309" }]}>Trợ lý AI & Lập Kế Hoạch</Text>
-                  <View style={[styles.badge, { backgroundColor: "#fef3c7" }]}>
-                    <Text style={[styles.badgeText, { color: "#b45309" }]}>AI 🤖</Text>
+                  <Text style={[styles.cardTitle, { color: "#0F172A" }]}>Trợ lý AI & Lập Kế Hoạch</Text>
+                  <View style={[styles.badge, { backgroundColor: "#F1F5F9" }]}>
+                    <Text style={[styles.badgeText, { color: "#0F172A" }]}>AI</Text>
                   </View>
                 </View>
                 <Text style={styles.cardSub}>Lập kế hoạch mua sắm mục tiêu 3 tháng, hỏi đáp dòng tiền</Text>
@@ -86,12 +86,12 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.iconBox, { backgroundColor: "#ffe4e6" }]}>
-                <Text style={{ fontSize: 26 }}>💸</Text>
+              <View style={[styles.iconBox, { backgroundColor: "#F1F5F9" }]}>
+                <ArrowUpRight size={22} color="#0F172A" strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardTitle, { color: "#e11d48" }]}>Tạo chi tiêu</Text>
+                  <Text style={[styles.cardTitle, { color: "#0F172A" }]}>Tạo chi tiêu</Text>
                 </View>
                 <Text style={styles.cardSub}>Thêm 1 bản ghi vào lịch sử chi tiêu & trừ số dư ví</Text>
               </View>
@@ -107,12 +107,12 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.iconBox, { backgroundColor: "#d1fae5" }]}>
-                <Text style={{ fontSize: 26 }}>👥</Text>
+              <View style={[styles.iconBox, { backgroundColor: "#F1F5F9" }]}>
+                <Users size={22} color="#0F172A" strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardTitle, { color: "#059669" }]}>Tạo nhóm mới</Text>
+                  <Text style={[styles.cardTitle, { color: "#0F172A" }]}>Tạo nhóm mới</Text>
                 </View>
                 <Text style={styles.cardSub}>Bắt đầu chia sẻ chi tiêu chung với bạn bè</Text>
               </View>
@@ -128,12 +128,12 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.iconBox, { backgroundColor: "#fef3c7" }]}>
-                <Text style={{ fontSize: 26 }}>💳</Text>
+              <View style={[styles.iconBox, { backgroundColor: "#F1F5F9" }]}>
+                <Wallet size={22} color="#0F172A" strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.cardTitleRow}>
-                  <Text style={[styles.cardTitle, { color: "#d97706" }]}>Nạp tiền vào ví</Text>
+                  <Text style={[styles.cardTitle, { color: "#0F172A" }]}>Nạp tiền vào ví</Text>
                 </View>
                 <Text style={styles.cardSub}>Thêm tiền trực tiếp vào số dư khả dụng (Lương, nạp ví)</Text>
               </View>

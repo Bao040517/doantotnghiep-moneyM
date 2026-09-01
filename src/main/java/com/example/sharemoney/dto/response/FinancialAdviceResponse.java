@@ -100,6 +100,9 @@ public class FinancialAdviceResponse {
         private BigDecimal projectedMonthEnd; // Dự kiến cả tháng
         private BigDecimal dailyBurnRate; // Tốc độ chi mỗi ngày
         private BigDecimal recommendedDailyLimit; // Hạn mức chi mỗi ngày còn lại
+        private String warningType; // "BURN_RATE" (khoản linh hoạt) | "BILL_SPIKE" (hóa đơn / đột xuất)
+        private BigDecimal lastMonthSpent; // Thực chi tháng trước
+        private int increaseVsLastMonth; // % tăng so với tháng trước
         private int remainingDays; // Số ngày còn lại trong tháng
         private String actionableTip; // Lời khuyên hành động cụ thể
         private String impactSummary; // Đánh giá mức độ ảnh hưởng

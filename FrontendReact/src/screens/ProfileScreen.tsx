@@ -19,13 +19,14 @@ import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { VietQRCard } from "../components/features/VietQRCard";
-import { QrCode } from "lucide-react-native";
+import { QrCode, User, Moon, Sun, Camera, Building2, PiggyBank, Phone, LogOut } from "lucide-react-native";
 import { colors } from "../constants/colors";
 import { UserSummary } from "../types";
 import { authService } from "../services/authService";
 import { VIETQR_BANKS } from "../constants/banks";
 import { useAuth } from "../hooks/useAuth";
 import { useTopSafeInset } from "../utils/responsive";
+import { verifyBankAccount } from "../utils/bankAccountVerification";
 
 const AVATAR_PRESETS = [
   "https://api.dicebear.com/7.x/bottts/png?seed=Felix",
@@ -60,10 +61,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const onLogout = propLogout || contextLogout;
   const onRefreshUser = propRefreshUser || contextRefreshProfile;
 
-  // ─── 1. THÔNG TIN LIÊN HỆ ───
+  // ─── 1. THÔNG TIN CÁ NHÂN ───
+  const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
-  const [isEditingPhone, setIsEditingPhone] = useState(false);
-  const [phoneLoading, setPhoneLoading] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
 
@@ -72,18 +74,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [accountNo, setAccountNo] = useState(user?.bankAccountNo || "");
   const [accountName, setAccountName] = useState(user?.bankAccountName || user?.name || "");
   const [mainBankLoading, setMainBankLoading] = useState(false);
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupVerified, setLookupVerified] = useState(false);
-  const [lookupError, setLookupError] = useState<string | null>(null);
 
   // ─── 3. NGÂN HÀNG TIẾT KIỆM (SAVINGS BANK) ───
   const [savingsBankBin, setSavingsBankBin] = useState(user?.savingsBankBin || "970407");
   const [savingsAccountNo, setSavingsAccountNo] = useState(user?.savingsBankAccountNo || "");
   const [savingsAccountName, setSavingsAccountName] = useState(user?.savingsBankAccountName || user?.name || "");
   const [savingsLoading, setSavingsLoading] = useState(false);
-  const [savingsLookupLoading, setSavingsLookupLoading] = useState(false);
-  const [savingsLookupVerified, setSavingsLookupVerified] = useState(false);
-  const [savingsLookupError, setSavingsLookupError] = useState<string | null>(null);
 
   // ─── MODAL CẤU HÌNH NGÂN HÀNG ───
   const [configModalType, setConfigModalType] = useState<"main" | "savings" | null>(null);
@@ -98,36 +94,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   useEffect(() => {
     if (user) {
+      setName(user.name || "");
       setPhone(user.phone || "");
       setBankBin(user.bankBin || "970422");
       setAccountNo(user.bankAccountNo || "");
       setAccountName(cleanAccountName(user.bankAccountName || user.name || ""));
-      setLookupVerified(false);
 
       setSavingsBankBin(user.savingsBankBin || "970407");
       setSavingsAccountNo(user.savingsBankAccountNo || "");
       setSavingsAccountName(cleanAccountName(user.savingsBankAccountName || user.name || ""));
-      setSavingsLookupVerified(false);
     }
   }, [user]);
-
-  useEffect(() => {
-    if (configModalType === "main") {
-      setLookupError(null);
-      if (bankBin && accountNo.trim().length >= 6) {
-        handleLookupAccount(bankBin, accountNo.trim());
-      } else {
-        setLookupVerified(false);
-      }
-    } else if (configModalType === "savings") {
-      setSavingsLookupError(null);
-      if (savingsBankBin && savingsAccountNo.trim().length >= 6) {
-        handleLookupSavingsAccount(savingsBankBin, savingsAccountNo.trim());
-      } else {
-        setSavingsLookupVerified(false);
-      }
-    }
-  }, [configModalType]);
 
   const selectedBank = VIETQR_BANKS.find((b) => b.bin === bankBin) || VIETQR_BANKS[0];
   const selectedSavingsBank = VIETQR_BANKS.find((b) => b.bin === savingsBankBin) || VIETQR_BANKS[0];
@@ -138,128 +115,36 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       b.shortName.toLowerCase().includes(searchBank.toLowerCase())
   );
 
-  // Tra cứu Napas tự động cho ngân hàng giao dịch
-  const handleLookupAccount = async (targetBin?: string, targetAccNo?: string) => {
-    const currentBin = targetBin || bankBin;
-    const currentAcc = (targetAccNo !== undefined ? targetAccNo : accountNo).replace(/\D/g, "");
-    if (!currentBin || currentAcc.length < 6) {
-      setLookupVerified(false);
-      setLookupError(null);
-      return;
-    }
-
-    const currentBankObj = VIETQR_BANKS.find((b) => b.bin === currentBin);
-    const bankName = currentBankObj ? currentBankObj.shortName : "Ngân hàng";
-
-    setLookupLoading(true);
-    setLookupError(null);
-    try {
-      const res = await authService.lookupBankAccount(currentBin, currentAcc);
-      if (res.verified) {
-        if (res.accountName) {
-          setAccountName(res.accountName);
-        }
-        setLookupVerified(true);
-        setLookupError(null);
-      } else {
-        setLookupVerified(false);
-        setLookupError(res.message || `Số tài khoản ${currentAcc} không tồn tại hoặc sai ngân hàng ${bankName}`);
-      }
-    } catch (e: any) {
-      setLookupVerified(false);
-      setLookupError(`Không thể xác thực số tài khoản tại ${bankName}`);
-    } finally {
-      setLookupLoading(false);
-    }
-  };
-
-  // Tra cứu Napas tự động cho ngân hàng tiết kiệm
-  const handleLookupSavingsAccount = async (targetBin?: string, targetAccNo?: string) => {
-    const currentBin = targetBin || savingsBankBin;
-    const currentAcc = (targetAccNo !== undefined ? targetAccNo : savingsAccountNo).replace(/\D/g, "");
-    if (!currentBin || currentAcc.length < 6) {
-      setSavingsLookupVerified(false);
-      setSavingsLookupError(null);
-      return;
-    }
-
-    const currentBankObj = VIETQR_BANKS.find((b) => b.bin === currentBin);
-    const bankName = currentBankObj ? currentBankObj.shortName : "Ngân hàng";
-
-    setSavingsLookupLoading(true);
-    setSavingsLookupError(null);
-    try {
-      const res = await authService.lookupBankAccount(currentBin, currentAcc);
-      if (res.verified) {
-        if (res.accountName) {
-          setSavingsAccountName(res.accountName);
-        }
-        setSavingsLookupVerified(true);
-        setSavingsLookupError(null);
-      } else {
-        setSavingsLookupVerified(false);
-        setSavingsLookupError(res.message || `Số tài khoản ${currentAcc} không tồn tại hoặc sai ngân hàng ${bankName}`);
-      }
-    } catch (e: any) {
-      setSavingsLookupVerified(false);
-      setSavingsLookupError(`Không thể xác thực số tài khoản tại ${bankName}`);
-    } finally {
-      setSavingsLookupLoading(false);
-    }
-  };
-
-  // Debounce lookup khi gõ số tài khoản
-  useEffect(() => {
-    if (configModalType === "main" && bankBin && accountNo.trim().length >= 4) {
-      const timer = setTimeout(() => {
-        handleLookupAccount(bankBin, accountNo.trim());
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [bankBin, accountNo, configModalType]);
-
-  useEffect(() => {
-    if (configModalType === "savings" && savingsBankBin && savingsAccountNo.trim().length >= 4) {
-      const timer = setTimeout(() => {
-        handleLookupSavingsAccount(savingsBankBin, savingsAccountNo.trim());
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [savingsBankBin, savingsAccountNo, configModalType]);
-
   // Cập nhật Avatar
   const handlePickAvatarFromGallery = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert("Quyền truy cập", "Vui lòng cấp quyền truy cập thư viện ảnh để đổi ảnh đại diện.");
+        Alert.alert("Quyền truy cập bị từ chối", "Ứng dụng cần quyền truy cập thư viện ảnh để đổi Avatar");
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.6,
-        base64: true,
+        quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const asset = result.assets[0];
-        const avatarUri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        setAvatarModalVisible(false);
-        await handleSaveAvatar(avatarUri);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await handleUpdateAvatar(result.assets[0].uri);
       }
-    } catch (err: any) {
-      Alert.alert("Lỗi", "Không thể chọn ảnh từ máy");
+    } catch (e) {
+      Alert.alert("Lỗi", "Không thể chọn ảnh từ thư viện");
     }
   };
 
-  const handleSaveAvatar = async (avatarUrl: string) => {
+  const handleUpdateAvatar = async (avatarUrl: string) => {
     setAvatarLoading(true);
     try {
       await authService.updateAvatar(avatarUrl);
       Alert.alert("Thành công 🎉", "Đã cập nhật ảnh đại diện mới!");
+      setAvatarModalVisible(false);
       onRefreshUser();
     } catch (e: any) {
       Alert.alert("Lỗi", e.response?.data?.message || "Không thể cập nhật ảnh đại diện");
@@ -268,28 +153,31 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
-  // Cập nhật Số điện thoại
-  const handleUpdatePhone = async () => {
-    if (!phone.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập số điện thoại");
+  // Cập nhật Thông tin cá nhân (Họ tên & Số điện thoại)
+  const handleSaveProfile = async () => {
+    if (!name.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập họ và tên");
       return;
     }
-    setPhoneLoading(true);
+    setProfileLoading(true);
     try {
-      await authService.updatePhone(phone.trim());
-      Alert.alert("Thành công 🎉", "Đã cập nhật số điện thoại liên hệ!");
-      setIsEditingPhone(false);
+      await authService.updateProfile({
+        name: name.trim(),
+        phone: phone.trim(),
+      });
+      Alert.alert("Thành công 🎉", "Đã cập nhật thông tin cá nhân!");
+      setIsEditingProfile(false);
       onRefreshUser();
     } catch (e: any) {
-      Alert.alert("Lỗi", e.response?.data?.message || "Cập nhật số điện thoại thất bại");
+      Alert.alert("Lỗi", e.response?.data?.message || "Cập nhật thông tin thất bại");
     } finally {
-      setPhoneLoading(false);
+      setProfileLoading(false);
     }
   };
 
   // Cập nhật Ngân hàng giao dịch
   const handleSaveMainBank = async () => {
-    const cleanAcc = accountNo.replace(/\D/g, "");
+    const cleanAcc = accountNo.replace(/\s/g, "");
     if (!bankBin.trim()) {
       Alert.alert("Lỗi", "Vui lòng chọn ngân hàng giao dịch");
       return;
@@ -303,14 +191,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       return;
     }
 
+    let verifiedAccount;
+    try {
+      verifiedAccount = await verifyBankAccount(bankBin, cleanAcc, accountName);
+    } catch (e: any) {
+      Alert.alert("Không thể lưu", e?.message || "Định dạng số tài khoản không hợp lệ.");
+      return;
+    }
+
     setMainBankLoading(true);
     try {
       await authService.updateVietQRLink({
-        bankBin: bankBin.trim(),
-        bankAccountNo: cleanAcc,
-        bankAccountName: accountName.trim().toUpperCase(),
+        bankBin: verifiedAccount.bin,
+        bankAccountNo: verifiedAccount.accountNumber,
+        bankAccountName: (verifiedAccount.accountName || accountName).toUpperCase(),
       });
-      Alert.alert("Thành công 🎉", `Đã lưu thông tin Ngân hàng giao dịch (${selectedBank.shortName})!`);
+      Alert.alert("Thành công", `Đã lưu thông tin Ngân hàng giao dịch (${selectedBank.shortName})!`);
       setConfigModalType(null);
       onRefreshUser();
     } catch (e: any) {
@@ -322,7 +218,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   // Cập nhật Ngân hàng tiết kiệm
   const handleSaveSavingsBank = async () => {
-    const cleanAcc = savingsAccountNo.replace(/\D/g, "");
+    const cleanAcc = savingsAccountNo.replace(/\s/g, "");
     if (!savingsBankBin.trim()) {
       Alert.alert("Lỗi", "Vui lòng chọn ngân hàng tiết kiệm");
       return;
@@ -336,14 +232,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       return;
     }
 
+    let verifiedAccount;
+    try {
+      verifiedAccount = await verifyBankAccount(savingsBankBin, cleanAcc, savingsAccountName);
+    } catch (e: any) {
+      Alert.alert("Không thể lưu", e?.message || "Định dạng số tài khoản không hợp lệ.");
+      return;
+    }
+
     setSavingsLoading(true);
     try {
       await authService.updateVietQRLink({
-        savingsBankBin: savingsBankBin.trim(),
-        savingsBankAccountNo: cleanAcc,
-        savingsBankAccountName: savingsAccountName.trim().toUpperCase(),
+        savingsBankBin: verifiedAccount.bin,
+        savingsBankAccountNo: verifiedAccount.accountNumber,
+        savingsBankAccountName: (verifiedAccount.accountName || savingsAccountName).toUpperCase(),
       });
-      Alert.alert("Thành công 🎉", `Đã lưu thông tin Ngân hàng tiết kiệm (${selectedSavingsBank.shortName})!`);
+      Alert.alert("Thành công", `Đã lưu thông tin Ngân hàng tiết kiệm (${selectedSavingsBank.shortName})!`);
       setConfigModalType(null);
       onRefreshUser();
     } catch (e: any) {
@@ -366,18 +270,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: safeTopPadding }]} showsVerticalScrollIndicator={false}>
         
         {/* ══════════════════════════════════════════════════════════════
-            KHỐI CHA 1: THÔNG TIN LIÊN HỆ
+            KHỐI CHA 1: THÔNG TIN CÁ NHÂN
            ══════════════════════════════════════════════════════════════ */}
         <View style={styles.blockSection}>
-          <View style={styles.blockHeaderRow}>
-            <View style={styles.blockIconBoxBlue}>
-              <Text style={{ fontSize: 16 }}>👤</Text>
-            </View>
-            <View>
-              <Text style={[styles.blockTitle, { color: themeColors.textPrimary }]}>Thông tin liên hệ</Text>
-              <Text style={[styles.blockSub, { color: themeColors.textSecondary }]}>Hồ sơ cá nhân và phương thức liên lạc</Text>
-            </View>
-          </View>
+          <Text style={[styles.mainHeaderTitle, { color: themeColors.textPrimary }]}>
+            Thông tin cá nhân
+          </Text>
 
           <Card style={[styles.cardSurface, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
             {/* Avatar & Tên User */}
@@ -394,12 +292,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 ) : user?.avatarUrl ? (
                   <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
                 ) : (
-                  <View style={[styles.avatarBox, { backgroundColor: colors.indigo600 }]}>
+                  <View style={[styles.avatarBox, { backgroundColor: "#0F172A" }]}>
                     <Text style={styles.avatarText}>{user?.name?.charAt(0)?.toUpperCase() || "U"}</Text>
                   </View>
                 )}
-                <View style={styles.cameraIconBadge}>
-                  <Text style={{ fontSize: 11 }}>📷</Text>
+                <View style={[styles.cameraIconBadge, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+                  <Camera size={11} color={themeColors.textPrimary} strokeWidth={2} />
                 </View>
               </TouchableOpacity>
 
@@ -412,71 +310,90 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </Text>
                 <TouchableOpacity
                   onPress={() => setAvatarModalVisible(true)}
-                  style={styles.changeAvatarSmallBtn}
+                  style={[styles.changeAvatarSmallBtn, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}
                 >
-                  <Text style={styles.changeAvatarSmallText}>Đổi ảnh đại diện</Text>
+                  <Text style={[styles.changeAvatarSmallText, { color: themeColors.textPrimary }]}>Đổi ảnh đại diện</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.cardDivider} />
 
-            {/* Số điện thoại */}
+            {/* Thông tin Họ tên & Số điện thoại */}
             <View style={{ marginTop: 4 }}>
-              <Input
-                label="Số điện thoại cá nhân"
-                placeholder="VD: 0912345678"
-                keyboardType="phone-pad"
-                value={phone}
-                onChangeText={setPhone}
-                editable={isEditingPhone}
-                containerStyle={{ marginBottom: isEditingPhone ? 12 : 6 }}
-              />
-
-              {isEditingPhone ? (
-                <View style={styles.actionRow}>
-                  <Button
-                    title="Hủy"
-                    variant="secondary"
-                    onPress={() => {
-                      setPhone(user?.phone || "");
-                      setIsEditingPhone(false);
-                    }}
-                    disabled={phoneLoading}
-                    style={{ flex: 1 }}
+              {isEditingProfile ? (
+                <View>
+                  <Input
+                    label="Họ và tên"
+                    placeholder="VD: Nguyễn Văn A"
+                    value={name}
+                    onChangeText={setName}
+                    containerStyle={{ marginBottom: 12 }}
                   />
-                  <Button
-                    title="Lưu số điện thoại"
-                    variant="primary"
-                    onPress={handleUpdatePhone}
-                    loading={phoneLoading}
-                    style={{ flex: 1.6 }}
+                  <Input
+                    label="Số điện thoại cá nhân"
+                    placeholder="VD: 0912345678"
+                    keyboardType="phone-pad"
+                    value={phone}
+                    onChangeText={setPhone}
+                    containerStyle={{ marginBottom: 14 }}
                   />
+                  <View style={styles.actionRow}>
+                    <Button
+                      title="Hủy"
+                      variant="secondary"
+                      onPress={() => {
+                        setName(user?.name || "");
+                        setPhone(user?.phone || "");
+                        setIsEditingProfile(false);
+                      }}
+                      disabled={profileLoading}
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      title="Lưu thay đổi"
+                      variant="primary"
+                      onPress={handleSaveProfile}
+                      loading={profileLoading}
+                      style={{ flex: 1.6 }}
+                    />
+                  </View>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={styles.editBtnOutline}
-                  onPress={() => setIsEditingPhone(true)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.editBtnOutlineText}>Chỉnh sửa số điện thoại</Text>
-                </TouchableOpacity>
+                <View>
+                  <View style={styles.profileInfoRow}>
+                    <Text style={[styles.profileInfoLabel, { color: themeColors.textSecondary }]}>Số điện thoại:</Text>
+                    <Text style={[styles.profileInfoValue, { color: themeColors.textPrimary }]}>
+                      {user?.phone || "Chưa cập nhật"}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.editBtnOutline, { borderColor: themeColors.border, marginTop: 10 }]}
+                    onPress={() => setIsEditingProfile(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.editBtnOutlineText, { color: themeColors.textPrimary }]}>
+                      Chỉnh sửa thông tin cá nhân
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {/* Nút xem Mã QR Cá Nhân */}
               <TouchableOpacity
-                style={[styles.myQrBtn, { backgroundColor: isDark ? "#1E293B" : "#EEF2FF", borderColor: isDark ? "#334155" : "#C7D2FE" }]}
+                style={[styles.myQrBtn, { backgroundColor: isDark ? "#1E293B" : "#F8FAFC", borderColor: isDark ? "#334155" : "#E2E8F0" }]}
                 onPress={() => setMyQrVisible(true)}
                 activeOpacity={0.8}
               >
-                <View style={styles.myQrIconBg}>
-                  <QrCode size={20} color="#4F46E5" />
+                <View style={[styles.myQrIconBg, { backgroundColor: isDark ? "#334155" : "#EEF2FF" }]}>
+                  <QrCode size={18} color={themeColors.textPrimary} strokeWidth={2} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.myQrBtnTitle, { color: themeColors.textPrimary }]}>Mã QR Cá Nhân Của Bạn 📲</Text>
+                  <Text style={[styles.myQrBtnTitle, { color: themeColors.textPrimary }]}>Mã QR Cá Nhân Của Bạn</Text>
                   <Text style={[styles.myQrBtnSub, { color: themeColors.textSecondary }]}>Đưa mã cho bạn bè quét để thêm vào nhóm siêu tốc</Text>
                 </View>
-                <Text style={styles.myQrBtnArrow}>→</Text>
+                <Text style={[styles.myQrBtnArrow, { color: themeColors.textSecondary }]}>→</Text>
               </TouchableOpacity>
             </View>
           </Card>
@@ -485,14 +402,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         {/* ══════════════════════════════════════════════════════════════
             KHỐI CHA 2: THÔNG TIN NGÂN HÀNG
            ══════════════════════════════════════════════════════════════ */}
-        {/* ══════════════════════════════════════════════════════════════
-            KHỐI CHA 2: THÔNG TIN NGÂN HÀNG
-           ══════════════════════════════════════════════════════════════ */}
         <View style={styles.blockSection}>
-          <View style={{ marginBottom: 12 }}>
-            <Text style={[styles.blockTitle, { color: themeColors.textPrimary, fontSize: 17, fontWeight: "900" }]}>
-              Thông tin ngân hàng
-            </Text>
+          <View style={styles.blockHeaderRow}>
+            <View style={[styles.blockIconBoxMono, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}>
+              <Building2 size={16} color={themeColors.textPrimary} strokeWidth={2} />
+            </View>
+            <View>
+              <Text style={[styles.blockTitle, { color: themeColors.textPrimary }]}>Thông tin ngân hàng</Text>
+              <Text style={[styles.blockSub, { color: themeColors.textSecondary }]}>Tài khoản nhận tiền chia sẻ & quỹ tiết kiệm</Text>
+            </View>
           </View>
 
           {/* KHỐI NHỎ 1: NGÂN HÀNG GIAO DỊCH */}
@@ -502,8 +420,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             activeOpacity={0.85}
           >
             <View style={styles.bankCardHeader}>
-              <View style={styles.bankTagIndigo}>
-                <Text style={styles.bankTagIndigoText}>Ngân hàng giao dịch</Text>
+              <View style={[styles.bankTagMono, { borderColor: themeColors.border, backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}>
+                <Text style={[styles.bankTagMonoText, { color: themeColors.textPrimary }]}>Ngân hàng giao dịch</Text>
               </View>
               <View style={styles.configPill}>
                 <Text style={styles.configPillText}>Cấu hình ›</Text>
@@ -516,7 +434,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={[styles.bankNameTitle, { color: themeColors.textPrimary }]}>{selectedBank.shortName}</Text>
-                <Text style={styles.bankAccNoText}>
+                <Text style={[styles.bankAccNoText, { color: themeColors.textPrimary }]}>
                   {user?.bankAccountNo ? user.bankAccountNo : "Chưa cấu hình tài khoản"}
                 </Text>
                 <Text style={[styles.bankAccOwnerText, { color: themeColors.textSecondary }]}>
@@ -527,7 +445,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
             <View style={styles.bankCardFooterStrip}>
               <Text style={styles.bankCardFooterDesc}>Dùng nhận tiền chia sẻ chi phí nhóm & thanh toán nợ</Text>
-              {isMainBankConfigured && <Text style={styles.statusVerifiedBadge}>✓ Đã kích hoạt</Text>}
+              {isMainBankConfigured && <Text style={[styles.statusVerifiedBadge, { color: themeColors.textPrimary }]}>✓ Đã kích hoạt</Text>}
             </View>
           </TouchableOpacity>
 
@@ -538,8 +456,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             activeOpacity={0.85}
           >
             <View style={styles.bankCardHeader}>
-              <View style={styles.bankTagAmber}>
-                <Text style={styles.bankTagAmberText}>Ngân hàng tiết kiệm</Text>
+              <View style={[styles.bankTagMono, { borderColor: themeColors.border, backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}>
+                <Text style={[styles.bankTagMonoText, { color: themeColors.textPrimary }]}>Ngân hàng tiết kiệm</Text>
               </View>
               <View style={styles.configPill}>
                 <Text style={styles.configPillText}>Cấu hình ›</Text>
@@ -552,7 +470,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={[styles.bankNameTitle, { color: themeColors.textPrimary }]}>{selectedSavingsBank.shortName}</Text>
-                <Text style={styles.bankAccNoText}>
+                <Text style={[styles.bankAccNoText, { color: themeColors.textPrimary }]}>
                   {user?.savingsBankAccountNo ? user.savingsBankAccountNo : "Chưa cấu hình tài khoản"}
                 </Text>
                 <Text style={[styles.bankAccOwnerText, { color: themeColors.textSecondary }]}>
@@ -563,7 +481,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
             <View style={styles.bankCardFooterStrip}>
               <Text style={styles.bankCardFooterDesc}>Dùng nhận tiền phân bổ tiết kiệm tự động an toàn</Text>
-              {isSavingsBankConfigured && <Text style={styles.statusVerifiedBadgeAmber}>✓ Đã kích hoạt</Text>}
+              {isSavingsBankConfigured && <Text style={[styles.statusVerifiedBadge, { color: themeColors.textPrimary }]}>✓ Đã kích hoạt</Text>}
             </View>
           </TouchableOpacity>
         </View>
@@ -573,8 +491,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
            ══════════════════════════════════════════════════════════════ */}
         <View style={styles.blockSection}>
           <View style={styles.blockHeaderRow}>
-            <View style={styles.blockIconBoxAmber}>
-              <Text style={{ fontSize: 16 }}>🌓</Text>
+            <View style={[styles.blockIconBoxMono, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}>
+              {isDark ? (
+                <Moon size={16} color={themeColors.textPrimary} strokeWidth={2} />
+              ) : (
+                <Sun size={16} color={themeColors.textPrimary} strokeWidth={2} />
+              )}
             </View>
             <View>
               <Text style={[styles.blockTitle, { color: themeColors.textPrimary }]}>Chế độ tối sáng</Text>
@@ -584,8 +506,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
           <Card style={[styles.darkModeCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
             <View style={styles.darkModeLeft}>
-              <View style={[styles.darkModeIconCircle, { backgroundColor: isDark ? "#312E81" : "#EEF2FF" }]}>
-                <Text style={{ fontSize: 22 }}>{isDark ? "🌙" : "☀️"}</Text>
+              <View style={[styles.darkModeIconCircle, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}>
+                {isDark ? (
+                  <Moon size={20} color={themeColors.textPrimary} strokeWidth={2} />
+                ) : (
+                  <Sun size={20} color={themeColors.textPrimary} strokeWidth={2} />
+                )}
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={[styles.darkModeTitle, { color: themeColors.textPrimary }]}>
@@ -600,8 +526,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <Switch
               value={isDark}
               onValueChange={toggleTheme}
-              trackColor={{ false: "#CBD5E1", true: "#6366F1" }}
-              thumbColor={isDark ? "#E0E7FF" : "#FFFFFF"}
+              trackColor={{ false: "#CBD5E1", true: "#0F172A" }}
+              thumbColor={isDark ? "#FFFFFF" : "#FFFFFF"}
               ios_backgroundColor="#CBD5E1"
             />
           </Card>
@@ -681,18 +607,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                         onPress={() => {
                           if (configModalType === "main") {
                             setBankBin(bank.bin);
-                            setLookupVerified(false);
-                            setLookupError(null);
-                            if (accountNo.trim().length >= 4) {
-                              handleLookupAccount(bank.bin, accountNo.trim());
-                            }
                           } else {
                             setSavingsBankBin(bank.bin);
-                            setSavingsLookupVerified(false);
-                            setSavingsLookupError(null);
-                            if (savingsAccountNo.trim().length >= 4) {
-                              handleLookupSavingsAccount(bank.bin, savingsAccountNo.trim());
-                            }
                           }
                           setBankPickerVisible(false);
                           setSearchBank("");
@@ -775,100 +691,57 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     onChangeText={(text) => {
                       if (configModalType === "main") {
                         setAccountNo(text);
-                        setLookupVerified(false);
-                        setLookupError(null);
                       } else {
                         setSavingsAccountNo(text);
-                        setSavingsLookupVerified(false);
-                        setSavingsLookupError(null);
                       }
                     }}
                   />
 
-                  {/* Trạng thái tra cứu Napas */}
-                  {(configModalType === "main" ? lookupLoading : savingsLookupLoading) && (
-                    <View style={styles.lookupStatusRow}>
-                      <ActivityIndicator size="small" color={colors.indigo600} />
-                      <Text style={styles.lookupLoadingText}>
-                        Đang tra cứu tên chủ tài khoản từ Napas 247...
+                  {/* Nhập tên chủ tài khoản */}
+                  <Input
+                    label="Tên chủ tài khoản (*)"
+                    placeholder="VD: NGUYEN VAN A"
+                    value={configModalType === "main" ? accountName : savingsAccountName}
+                    onChangeText={(text) => {
+                      if (configModalType === "main") {
+                        setAccountName(text.toUpperCase());
+                      } else {
+                        setSavingsAccountName(text.toUpperCase());
+                      }
+                    }}
+                    editable={true}
+                  />
+
+                  {/* Chỉ báo ngân hàng nhận tiền */}
+                  {(configModalType === "main" ? accountNo.trim().length >= 6 : savingsAccountNo.trim().length >= 6) && (
+                    <View style={styles.qrBankHintBadge}>
+                      <Text style={styles.qrBankHintText}>
+                        Mã VietQR sẽ nhận tiền về:{" "}
+                        <Text style={{ fontWeight: "900", color: "#4338CA" }}>
+                          {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}
+                        </Text>
+                        {" • STK: "}
+                        <Text style={{ fontWeight: "900", color: "#0F172A" }}>
+                          {configModalType === "main" ? accountNo.trim() : savingsAccountNo.trim()}
+                        </Text>
                       </Text>
                     </View>
                   )}
 
-                  {!(configModalType === "main" ? lookupLoading : savingsLookupLoading) &&
-                    (configModalType === "main" ? lookupVerified : savingsLookupVerified) && (
-                      <View style={styles.lookupVerifiedRow}>
-                        <Text style={styles.lookupVerifiedText}>✓ Đã xác thực chủ tài khoản Napas 247</Text>
-                      </View>
-                    )}
-
-                  {!(configModalType === "main" ? lookupLoading : savingsLookupLoading) &&
-                    !(configModalType === "main" ? lookupVerified : savingsLookupVerified) &&
-                    (configModalType === "main" ? lookupError : savingsLookupError) && (
-                      <View style={styles.lookupErrorRow}>
-                        <Text style={styles.lookupErrorText}>
-                          ❌ {configModalType === "main" ? lookupError : savingsLookupError}
-                        </Text>
-                      </View>
-                    )}
-
-                  {/* Nhập tên chủ tài khoản */}
-                  <Input
-                    label="Tên chủ tài khoản (*)"
-                    placeholder="Nhập tên chủ tài khoản (in hoa)..."
-                    value={configModalType === "main" ? accountName : savingsAccountName}
-                    onChangeText={(text) => {
-                      if (configModalType === "main") setAccountName(text.toUpperCase());
-                      else setSavingsAccountName(text.toUpperCase());
-                    }}
-                  />
-
-                  {/* Chỉ báo ngân hàng nhận tiền */}
-                  {(configModalType === "main" ? accountNo.trim().length >= 6 : savingsAccountNo.trim().length >= 6) &&
-                    !(configModalType === "main" ? lookupError : savingsLookupError) && (
-                      <View style={styles.qrBankHintBadge}>
-                        <Text style={styles.qrBankHintText}>
-                          📌 Mã VietQR sẽ nhận tiền về:{" "}
-                          <Text style={{ fontWeight: "900", color: "#4338CA" }}>
-                            {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}
-                          </Text>
-                          {" • STK: "}
-                          <Text style={{ fontWeight: "900", color: "#0F172A" }}>
-                            {configModalType === "main" ? accountNo.trim() : savingsAccountNo.trim()}
-                          </Text>
-                        </Text>
-                      </View>
-                    )}
-
                   {/* Xem trước VietQR */}
                   <Text style={[styles.previewQrLabel, { color: themeColors.textPrimary }]}>Xem trước mã VietQR:</Text>
                   <View style={{ marginBottom: 16 }}>
-                    {(configModalType === "main" ? lookupLoading : savingsLookupLoading) ? (
-                      <View style={styles.validatingQrBox}>
-                        <ActivityIndicator size="large" color={colors.indigo600} />
-                        <Text style={styles.validatingQrText}>
-                          Đang kiểm tra tài khoản tại {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}...
-                        </Text>
-                        <Text style={styles.validatingQrSubText}>Vui lòng chờ xác thực hệ thống Napas 247</Text>
-                      </View>
-                    ) : (configModalType === "main" ? lookupError : savingsLookupError) ? (
-                      <View style={styles.errorQrBox}>
-                        <Text style={{ fontSize: 32, marginBottom: 6 }}>❌</Text>
-                        <Text style={styles.errorQrTitle}>Số tài khoản không hợp lệ</Text>
-                        <Text style={styles.errorQrDesc}>
-                          {configModalType === "main" ? lookupError : savingsLookupError}
-                        </Text>
-                      </View>
-                    ) : (configModalType === "main" ? lookupVerified : savingsLookupVerified) ? (
+                    {(configModalType === "main" ? accountNo.trim().length >= 6 : savingsAccountNo.trim().length >= 6) ? (
                       <VietQRCard
                         bankBin={configModalType === "main" ? bankBin.trim() : savingsBankBin.trim()}
                         accountNo={configModalType === "main" ? accountNo.trim() : savingsAccountNo.trim()}
                         accountName={(configModalType === "main" ? accountName : savingsAccountName).trim().toUpperCase()}
+                        verified={true}
                         description={configModalType === "main" ? `Chuyen tien cho ${accountName || user?.name || "ShareMoney"}` : "Nap quy Vi Tiet Kiem"}
                       />
                     ) : (
                       <View style={styles.emptyQrBox}>
-                        <Text style={{ fontSize: 32, marginBottom: 6 }}>🏦</Text>
+                        <Building2 size={36} color="#94A3B8" strokeWidth={1.5} style={{ marginBottom: 6 }} />
                         <Text style={styles.emptyQrText}>Chưa có số tài khoản</Text>
                         <Text style={styles.emptyQrSubText}>Vui lòng nhập số tài khoản hợp lệ (từ 6 đến 19 chữ số) để tạo mã VietQR</Text>
                       </View>
@@ -953,7 +826,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     style={styles.presetItem}
                     onPress={() => {
                       setAvatarModalVisible(false);
-                      handleSaveAvatar(presetUrl);
+                      handleUpdateAvatar(presetUrl);
                     }}
                     activeOpacity={0.7}
                   >
@@ -1037,35 +910,36 @@ const styles = StyleSheet.create({
   blockSection: {
     marginBottom: 24,
   },
+  mainHeaderTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
+    marginBottom: 16,
+    letterSpacing: -0.3,
+  },
   blockHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 12,
     gap: 10,
   },
-  blockIconBoxBlue: {
+  blockIconBoxMono: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
   },
-  blockIconBoxPurple: {
-    width: 32,
-    height: 32,
+  bankTagMono: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: "#F5F3FF",
-    alignItems: "center",
-    justifyContent: "center",
+    borderWidth: 1,
   },
-  blockIconBoxAmber: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "#FEF3C7",
-    alignItems: "center",
-    justifyContent: "center",
+  bankTagMonoText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.2,
   },
   blockTitle: {
     fontSize: 16,
@@ -1145,6 +1019,21 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#F1F5F9",
     marginVertical: 14,
+  },
+  profileInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  profileInfoLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  profileInfoValue: {
+    fontSize: 14,
+    fontWeight: "700",
   },
   actionRow: {
     flexDirection: "row",

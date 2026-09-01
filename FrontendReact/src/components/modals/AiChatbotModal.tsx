@@ -528,7 +528,7 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({ visible, onClose
 
         await financialServices.createTransaction(targetWallet.id, {
           amount: txData.amount,
-          categoryId: matchedCat ? matchedCat.id : undefined,
+          categoryId: matchedCat?.id || "",
           note: txData.note || `${isExpense ? "Chi tiêu" : "Thu nhập"}: ${txData.categoryName}`,
           type: isExpense ? "EXPENSE" : "INCOME",
           transactionDate: new Date().toISOString(),

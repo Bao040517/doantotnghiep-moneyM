@@ -49,7 +49,7 @@ public class AiAssistantService {
     private String apiKey;
 
     @Value(
-            "${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent}")
+            "${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent}")
     private String apiUrl;
 
     private final UserRepository userRepository;
@@ -58,8 +58,16 @@ public class AiAssistantService {
     private final WalletRepository walletRepository;
     private final BudgetRepository budgetRepository;
     private final SavingsGoalRepository savingsGoalRepository;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = createFastRestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private static RestTemplate createFastRestTemplate() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(12000);
+        return new RestTemplate(factory);
+    }
 
     // ─────────────────────────────────────────────────────
     // PUBLIC: Xử lý tin nhắn từ người dùng

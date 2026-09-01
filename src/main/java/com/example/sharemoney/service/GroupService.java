@@ -28,6 +28,7 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     // ─────────────────────────────────────────────────────────────
     // Tạo nhóm mới + tự động thêm người tạo làm "owner"
@@ -67,6 +68,10 @@ public class GroupService {
                                     .build();
                     groupMemberRepository.save(gm);
                     count++;
+
+                    // Gửi thông báo Realtime & Push Notification cho thành viên được thêm vào nhóm
+                    String message = String.format("%s đã thêm bạn vào nhóm \"%s\".", owner.getName(), group.getName());
+                    notificationService.sendNotification(memberUser.getId(), message, "GROUP_MEMBER_ADDED");
                 }
             }
         }
@@ -205,6 +210,12 @@ public class GroupService {
         GroupMember member =
                 GroupMember.builder().group(group).user(newUser).role("member").build();
         groupMemberRepository.save(member);
+
+        // Gửi thông báo Realtime & Push Notification cho thành viên vừa được thêm
+        User currentAdder = userRepository.findById(currentUserId).orElse(null);
+        String adderName = (currentAdder != null && currentAdder.getName() != null) ? currentAdder.getName() : "Một thành viên";
+        String message = String.format("%s đã thêm bạn vào nhóm \"%s\".", adderName, group.getName());
+        notificationService.sendNotification(newUser.getId(), message, "GROUP_MEMBER_ADDED");
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -254,6 +265,12 @@ public class GroupService {
             GroupMember member =
                     GroupMember.builder().group(group).user(currentUser).role("member").build();
             groupMemberRepository.save(member);
+
+            // Báo cho chủ nhóm nếu có thành viên mới tự quét mã QR tham gia
+            if (group.getOwner() != null && !group.getOwner().getId().equals(currentUser.getId())) {
+                String message = String.format("%s đã tham gia vào nhóm \"%s\" qua mã QR / liên kết mời.", currentUser.getName(), group.getName());
+                notificationService.sendNotification(group.getOwner().getId(), message, "GROUP_MEMBER_ADDED");
+            }
         }
 
         int memberCount = groupMemberRepository.findByGroup_Id(groupId).size();

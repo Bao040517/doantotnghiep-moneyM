@@ -73,6 +73,7 @@ interface BottomTabNavigatorProps {
 const NullComponent = () => null;
 
 export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
+  const { colors: themeColors } = useTheme();
   const [quickActionVisible, setQuickActionVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [transactionType, setTransactionType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
@@ -105,10 +106,7 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
   return (
     <>
       <Tab.Navigator
-        screenOptions={({ route }) => {
-          // eslint-disable-next-line react-hooks/rules-of-hooks
-          const { colors: themeColors } = useTheme();
-          return {
+        screenOptions={({ route }) => ({
           headerShown: false,
           headerStyle: {
             backgroundColor: themeColors.card,
@@ -171,7 +169,7 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
             }
             return null;
           },
-        };}}
+        })}
       >
         <Tab.Screen
           name="Dashboard"

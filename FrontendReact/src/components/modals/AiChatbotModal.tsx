@@ -21,7 +21,8 @@ import {
   AiChatMessage,
   GoalPlanData,
 } from "../../services/aiAssistantService";
-import { X, Send, Sparkles, Target, Receipt, TrendingUp, Bot, User, Zap } from "lucide-react-native";
+import { financialServices } from "../../services/financialServices";
+import { X, Send, Sparkles, Target, Receipt, TrendingUp, Bot, User, Zap, CheckCircle2 } from "lucide-react-native";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -236,8 +237,12 @@ const goalCardStyles = StyleSheet.create({
 
 // ── Transaction Action Card ──
 const TransactionCard: React.FC<{
+  bubbleId: string;
   data: NonNullable<AiAssistantResponse["transactionData"]>;
-}> = ({ data }) => {
+  isSaving: boolean;
+  isSaved: boolean;
+  onSave: (bubbleId: string, data: NonNullable<AiAssistantResponse["transactionData"]>) => void;
+}> = ({ bubbleId, data, isSaving, isSaved, onSave }) => {
   return (
     <View style={txCardStyles.card}>
       <View style={txCardStyles.row}>
@@ -266,6 +271,27 @@ const TransactionCard: React.FC<{
           </View>
         )}
       </View>
+
+      <TouchableOpacity
+        style={[txCardStyles.saveBtn, isSaved && txCardStyles.savedBtn]}
+        disabled={isSaving || isSaved}
+        onPress={() => onSave(bubbleId, data)}
+        activeOpacity={0.8}
+      >
+        {isSaving ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : isSaved ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <CheckCircle2 size={14} color="#10B981" />
+            <Text style={txCardStyles.savedBtnText}>Đã lưu vào sổ chi tiêu</Text>
+          </View>
+        ) : (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <CheckCircle2 size={14} color="#FFFFFF" />
+            <Text style={txCardStyles.saveBtnText}>Lưu vào sổ chi tiêu (1-Chạm)</Text>
+          </View>
+        )}
+      </TouchableOpacity>
     </View>
   );
 };
@@ -281,6 +307,13 @@ const txCardStyles = StyleSheet.create({
   detailRow: { flexDirection: "row", justifyContent: "space-between" },
   detailLabel: { fontSize: 12, color: "#94A3B8" },
   detailValue: { fontSize: 12, fontWeight: "600", color: "#E2E8F0" },
+  saveBtn: {
+    marginTop: 10, backgroundColor: "#10B981", borderRadius: 8,
+    paddingVertical: 8, paddingHorizontal: 12, alignItems: "center", justifyContent: "center",
+  },
+  saveBtnText: { color: "#FFFFFF", fontSize: 12, fontWeight: "600" },
+  savedBtn: { backgroundColor: "rgba(16,185,129,0.15)", borderWidth: 1, borderColor: "rgba(16,185,129,0.4)" },
+  savedBtnText: { color: "#10B981", fontSize: 12, fontWeight: "600" },
 });
 
 // ── Typing Indicator ──
@@ -467,6 +500,60 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({ visible, onClose
     }
   }, []);
 
+  const [savingTxId, setSavingTxId] = useState<string | null>(null);
+  const [savedTxIds, setSavedTxIds] = useState<Set<string>>(new Set());
+
+  // Save detected transaction
+  const handleSaveTransaction = useCallback(
+    async (bubbleId: string, txData: NonNullable<AiAssistantResponse["transactionData"]>) => {
+      setSavingTxId(bubbleId);
+      try {
+        const [wallets, categories] = await Promise.all([
+          financialServices.getWallets(),
+          financialServices.getCategories(),
+        ]);
+
+        if (!wallets || wallets.length === 0) {
+          Alert.alert("Thông báo", "Bạn chưa có ví tiền nào để ghi nhận giao dịch. Hãy tạo ví ở tab Trang chủ nhé!");
+          return;
+        }
+
+        const targetWallet = wallets[0];
+        const isExpense = txData.transactionType !== "INCOME";
+        const targetType = isExpense ? "EXPENSE" : "INCOME";
+        
+        const matchedCat = categories.find(
+          (c) => c.name.toLowerCase() === txData.categoryName.toLowerCase()
+        ) || categories.find((c) => c.type === targetType) || categories[0];
+
+        await financialServices.createTransaction(targetWallet.id, {
+          amount: txData.amount,
+          categoryId: matchedCat ? matchedCat.id : undefined,
+          note: txData.note || `${isExpense ? "Chi tiêu" : "Thu nhập"}: ${txData.categoryName}`,
+          type: isExpense ? "EXPENSE" : "INCOME",
+          transactionDate: new Date().toISOString(),
+        });
+
+        setSavedTxIds((prev) => new Set([...prev, bubbleId]));
+
+        const successBubble: ChatBubble = {
+          id: genId(),
+          role: "assistant",
+          content: `✅ Đã lưu giao dịch **"${txData.note || txData.categoryName}"** (${formatVND(txData.amount)}) vào ví **${targetWallet.name}** thành công! 💰`,
+          timestamp: new Date(),
+          intent: "GENERAL_CHAT",
+          quickReplies: ["Tháng này tiêu bao nhiêu rồi?", "Số dư hiện tại"],
+        };
+        setMessages((prev) => [...prev, successBubble]);
+      } catch (err: any) {
+        Alert.alert("Lỗi", "Không thể lưu giao dịch. Vui lòng thử lại!");
+      } finally {
+        setSavingTxId(null);
+      }
+    },
+    []
+  );
+
   // Render Chat Bubble
   const renderBubble = useCallback(
     ({ item }: { item: ChatBubble }) => {
@@ -499,7 +586,15 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({ visible, onClose
             )}
 
             {/* Transaction Card */}
-            {item.transactionData && <TransactionCard data={item.transactionData} />}
+            {item.transactionData && (
+              <TransactionCard
+                bubbleId={item.id}
+                data={item.transactionData}
+                isSaving={savingTxId === item.id}
+                isSaved={savedTxIds.has(item.id)}
+                onSave={handleSaveTransaction}
+              />
+            )}
 
             {/* Quick Replies */}
             {item.quickReplies && item.quickReplies.length > 0 && (
@@ -532,7 +627,7 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({ visible, onClose
         </View>
       );
     },
-    [handleActivateGoal, handleSend, isActivating]
+    [handleActivateGoal, handleSaveTransaction, handleSend, isActivating, savedTxIds, savingTxId]
   );
 
   return (

@@ -557,211 +557,217 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         visible={configModalType !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setConfigModalType(null)}
+        onRequestClose={() => {
+          if (bankPickerVisible) {
+            setBankPickerVisible(false);
+            setSearchBank("");
+          } else {
+            setConfigModalType(null);
+          }
+        }}
       >
         <View style={styles.modalBackdrop}>
           <View style={[styles.configModalCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-            {/* Modal Header */}
-            <View style={styles.configModalHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>
-                  {configModalType === "main" ? "Cấu hình Ngân hàng giao dịch" : "Cấu hình Ngân hàng tiết kiệm"}
-                </Text>
-                <Text style={[styles.configModalSub, { color: themeColors.textSecondary }]}>
-                  {configModalType === "main"
-                    ? "Nhận tiền thanh toán chia sẻ chi phí & VietQR"
-                    : "Nhận tiền phân bổ vào quỹ tích lũy an toàn"}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setConfigModalType(null)}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 480 }}>
-              {/* Chọn ngân hàng */}
-              <Text style={[styles.fieldLabel, { color: themeColors.textPrimary }]}>Ngân hàng (*)</Text>
-              <TouchableOpacity
-                style={[styles.bankSelectBtn, { borderColor: themeColors.border, backgroundColor: themeColors.background }]}
-                onPress={() => setBankPickerVisible(true)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.bankSelectLeft}>
-                  <Image
-                    source={{ uri: configModalType === "main" ? selectedBank.logo : selectedSavingsBank.logo }}
-                    style={styles.bankSelectLogo}
-                    resizeMode="contain"
-                  />
-                  <View style={styles.bankSelectTextGroup}>
-                    <Text style={[styles.bankSelectShortName, { color: themeColors.textPrimary }]}>
-                      {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}
-                    </Text>
-                    <Text style={[styles.bankSelectFullName, { color: themeColors.textSecondary }]} numberOfLines={1}>
-                      {configModalType === "main" ? selectedBank.name : selectedSavingsBank.name}
+            
+            {bankPickerVisible ? (
+              /* ─── GIAO DIỆN CHỌN NGÂN HÀNG TRỰC TIẾP TRONG MODAL (HOẠT ĐỘNG 100% TRÊN IOS & ANDROID) ─── */
+              <View>
+                <View style={styles.configModalHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>Chọn ngân hàng</Text>
+                    <Text style={[styles.configModalSub, { color: themeColors.textSecondary }]}>
+                      Hỗ trợ chuyển nhanh Napas 247 & VietQR
                     </Text>
                   </View>
-                </View>
-                <View style={styles.bankSelectArrowBox}>
-                  <Text style={styles.bankSelectArrow}>▼</Text>
-                </View>
-              </TouchableOpacity>
-
-              {/* Nhập số tài khoản */}
-              <Input
-                label="Số tài khoản ngân hàng (*)"
-                placeholder="Nhập số tài khoản chính xác..."
-                keyboardType="number-pad"
-                value={configModalType === "main" ? accountNo : savingsAccountNo}
-                onChangeText={(text) => {
-                  if (configModalType === "main") {
-                    setAccountNo(text);
-                    setLookupVerified(false);
-                  } else {
-                    setSavingsAccountNo(text);
-                    setSavingsLookupVerified(false);
-                  }
-                }}
-              />
-
-              {/* Trạng thái tra cứu Napas */}
-              {(configModalType === "main" ? lookupLoading : savingsLookupLoading) && (
-                <View style={styles.lookupStatusRow}>
-                  <ActivityIndicator size="small" color={colors.indigo600} />
-                  <Text style={styles.lookupLoadingText}>Đang tự động tra cứu tên chủ tài khoản...</Text>
-                </View>
-              )}
-
-              {(configModalType === "main" ? lookupVerified : savingsLookupVerified) && (
-                <View style={styles.lookupVerifiedRow}>
-                  <Text style={styles.lookupVerifiedText}>✓ Đã khớp chủ tài khoản Napas 247</Text>
-                </View>
-              )}
-
-              {/* Nhập tên chủ tài khoản */}
-              <Input
-                label="Tên chủ tài khoản (*)"
-                placeholder="Tự động điền hoặc nhập tên in hoa..."
-                value={configModalType === "main" ? accountName : savingsAccountName}
-                onChangeText={(text) => {
-                  if (configModalType === "main") setAccountName(text);
-                  else setSavingsAccountName(text);
-                }}
-              />
-
-              {/* Xem trước VietQR */}
-              <Text style={[styles.previewQrLabel, { color: themeColors.textPrimary }]}>Xem trước mã VietQR:</Text>
-              <View style={{ marginBottom: 16 }}>
-                <VietQRCard
-                  bankBin={configModalType === "main" ? bankBin.trim() : savingsBankBin.trim()}
-                  accountNo={configModalType === "main" ? accountNo.trim() : savingsAccountNo.trim()}
-                  accountName={(configModalType === "main" ? accountName : savingsAccountName).trim().toUpperCase()}
-                  description={configModalType === "main" ? `Chuyen tien cho ${accountName || user?.name || "ShareMoney"}` : "Nap quy Vi Tiet Kiem"}
-                />
-              </View>
-
-              {/* Nút thao tác */}
-              <View style={styles.actionRow}>
-                <Button
-                  title="Hủy"
-                  variant="secondary"
-                  onPress={() => setConfigModalType(null)}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  title={configModalType === "main" ? "Lưu ngân hàng giao dịch" : "Lưu ngân hàng tiết kiệm"}
-                  variant={configModalType === "main" ? "primary" : "amber"}
-                  onPress={configModalType === "main" ? handleSaveMainBank : handleSaveSavingsBank}
-                  loading={configModalType === "main" ? mainBankLoading : savingsLoading}
-                  style={{ flex: 1.8 }}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ══════════════════════════════════════════════════════════════
-          MODAL DANH SÁCH CHỌN NGÂN HÀNG
-         ══════════════════════════════════════════════════════════════ */}
-      <Modal
-        visible={bankPickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setBankPickerVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setBankPickerVisible(false)}
-        >
-          <TouchableOpacity
-            style={[styles.bankPickerCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
-            activeOpacity={1}
-          >
-            <View style={styles.configModalHeader}>
-              <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>Chọn ngân hàng 🏦</Text>
-              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setBankPickerVisible(false)}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Input
-              placeholder="🔍 Tìm ngân hàng (MB, VCB, TCB...)"
-              value={searchBank}
-              onChangeText={setSearchBank}
-              containerStyle={{ marginBottom: 10 }}
-            />
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 340 }}>
-              {filteredBanks.map((bank) => {
-                const isSelected =
-                  configModalType === "main" ? bank.bin === bankBin : bank.bin === savingsBankBin;
-
-                return (
                   <TouchableOpacity
-                    key={bank.bin}
-                    style={[
-                      styles.bankPickRow,
-                      { borderBottomColor: themeColors.borderLight || "#F1F5F9" },
-                      isSelected && styles.bankPickRowActive,
-                    ]}
+                    style={styles.modalCloseBtn}
                     onPress={() => {
-                      if (configModalType === "main") {
-                        setBankBin(bank.bin);
-                        if (accountNo.trim().length >= 6) {
-                          handleLookupAccount(bank.bin, accountNo.trim());
-                        }
-                      } else {
-                        setSavingsBankBin(bank.bin);
-                        if (savingsAccountNo.trim().length >= 6) {
-                          handleLookupSavingsAccount(bank.bin, savingsAccountNo.trim());
-                        }
-                      }
                       setBankPickerVisible(false);
                       setSearchBank("");
                     }}
-                    activeOpacity={0.7}
                   >
-                    <Image source={{ uri: bank.logo }} style={styles.bankPickLogo} resizeMode="contain" />
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={[styles.bankPickShortName, { color: isSelected ? colors.indigo600 : themeColors.textPrimary }]}>
-                        {bank.shortName}
-                      </Text>
-                      <Text style={[styles.bankPickFullName, { color: themeColors.textSecondary }]} numberOfLines={1}>
-                        {bank.name}
-                      </Text>
-                    </View>
-                    {isSelected && (
-                      <View style={styles.checkCircle}>
-                        <Text style={styles.checkCircleText}>✓</Text>
-                      </View>
-                    )}
+                    <Text style={styles.modalCloseText}>✕</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
+                </View>
+
+                <Input
+                  placeholder="🔍 Tìm ngân hàng (MB, VCB, TCB, ACB, TPB...)"
+                  value={searchBank}
+                  onChangeText={setSearchBank}
+                  containerStyle={{ marginBottom: 10 }}
+                />
+
+                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+                  {filteredBanks.map((bank) => {
+                    const isSelected =
+                      configModalType === "main" ? bank.bin === bankBin : bank.bin === savingsBankBin;
+
+                    return (
+                      <TouchableOpacity
+                        key={bank.bin}
+                        style={[
+                          styles.bankPickRow,
+                          { borderBottomColor: themeColors.borderLight || "#F1F5F9" },
+                          isSelected && styles.bankPickRowActive,
+                        ]}
+                        onPress={() => {
+                          if (configModalType === "main") {
+                            setBankBin(bank.bin);
+                            if (accountNo.trim().length >= 6) {
+                              handleLookupAccount(bank.bin, accountNo.trim());
+                            }
+                          } else {
+                            setSavingsBankBin(bank.bin);
+                            if (savingsAccountNo.trim().length >= 6) {
+                              handleLookupSavingsAccount(bank.bin, savingsAccountNo.trim());
+                            }
+                          }
+                          setBankPickerVisible(false);
+                          setSearchBank("");
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Image source={{ uri: bank.logo }} style={styles.bankPickLogo} resizeMode="contain" />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={[styles.bankPickShortName, { color: isSelected ? colors.indigo600 : themeColors.textPrimary }]}>
+                            {bank.shortName}
+                          </Text>
+                          <Text style={[styles.bankPickFullName, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                            {bank.name}
+                          </Text>
+                        </View>
+                        {isSelected && (
+                          <View style={styles.checkCircle}>
+                            <Text style={styles.checkCircleText}>✓</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            ) : (
+              /* ─── GIAO DIỆN NHẬP FORM CẤU HÌNH TÀI KHOẢN ─── */
+              <View>
+                {/* Modal Header */}
+                <View style={styles.configModalHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>
+                      {configModalType === "main" ? "Cấu hình Ngân hàng giao dịch" : "Cấu hình Ngân hàng tiết kiệm"}
+                    </Text>
+                    <Text style={[styles.configModalSub, { color: themeColors.textSecondary }]}>
+                      {configModalType === "main"
+                        ? "Nhận tiền thanh toán chia sẻ chi phí & VietQR"
+                        : "Nhận tiền phân bổ vào quỹ tích lũy an toàn"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setConfigModalType(null)}>
+                    <Text style={styles.modalCloseText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 480 }}>
+                  {/* Chọn ngân hàng */}
+                  <Text style={[styles.fieldLabel, { color: themeColors.textPrimary }]}>Ngân hàng (*)</Text>
+                  <TouchableOpacity
+                    style={[styles.bankSelectBtn, { borderColor: themeColors.border, backgroundColor: themeColors.background }]}
+                    onPress={() => setBankPickerVisible(true)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.bankSelectLeft}>
+                      <Image
+                        source={{ uri: configModalType === "main" ? selectedBank.logo : selectedSavingsBank.logo }}
+                        style={styles.bankSelectLogo}
+                        resizeMode="contain"
+                      />
+                      <View style={styles.bankSelectTextGroup}>
+                        <Text style={[styles.bankSelectShortName, { color: themeColors.textPrimary }]}>
+                          {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}
+                        </Text>
+                        <Text style={[styles.bankSelectFullName, { color: themeColors.textSecondary }]} numberOfLines={1}>
+                          {configModalType === "main" ? selectedBank.name : selectedSavingsBank.name}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.bankSelectArrowBox}>
+                      <Text style={styles.bankSelectArrow}>▼</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Nhập số tài khoản */}
+                  <Input
+                    label="Số tài khoản ngân hàng (*)"
+                    placeholder="Nhập số tài khoản chính xác..."
+                    keyboardType="number-pad"
+                    value={configModalType === "main" ? accountNo : savingsAccountNo}
+                    onChangeText={(text) => {
+                      if (configModalType === "main") {
+                        setAccountNo(text);
+                        setLookupVerified(false);
+                      } else {
+                        setSavingsAccountNo(text);
+                        setSavingsLookupVerified(false);
+                      }
+                    }}
+                  />
+
+                  {/* Trạng thái tra cứu Napas */}
+                  {(configModalType === "main" ? lookupLoading : savingsLookupLoading) && (
+                    <View style={styles.lookupStatusRow}>
+                      <ActivityIndicator size="small" color={colors.indigo600} />
+                      <Text style={styles.lookupLoadingText}>Đang tự động tra cứu tên chủ tài khoản...</Text>
+                    </View>
+                  )}
+
+                  {(configModalType === "main" ? lookupVerified : savingsLookupVerified) && (
+                    <View style={styles.lookupVerifiedRow}>
+                      <Text style={styles.lookupVerifiedText}>✓ Đã khớp chủ tài khoản Napas 247</Text>
+                    </View>
+                  )}
+
+                  {/* Nhập tên chủ tài khoản */}
+                  <Input
+                    label="Tên chủ tài khoản (*)"
+                    placeholder="Tự động điền hoặc nhập tên in hoa..."
+                    value={configModalType === "main" ? accountName : savingsAccountName}
+                    onChangeText={(text) => {
+                      if (configModalType === "main") setAccountName(text);
+                      else setSavingsAccountName(text);
+                    }}
+                  />
+
+                  {/* Xem trước VietQR */}
+                  <Text style={[styles.previewQrLabel, { color: themeColors.textPrimary }]}>Xem trước mã VietQR:</Text>
+                  <View style={{ marginBottom: 16 }}>
+                    <VietQRCard
+                      bankBin={configModalType === "main" ? bankBin.trim() : savingsBankBin.trim()}
+                      accountNo={configModalType === "main" ? accountNo.trim() : savingsAccountNo.trim()}
+                      accountName={(configModalType === "main" ? accountName : savingsAccountName).trim().toUpperCase()}
+                      description={configModalType === "main" ? `Chuyen tien cho ${accountName || user?.name || "ShareMoney"}` : "Nap quy Vi Tiet Kiem"}
+                    />
+                  </View>
+
+                  {/* Nút thao tác */}
+                  <View style={styles.actionRow}>
+                    <Button
+                      title="Hủy"
+                      variant="secondary"
+                      onPress={() => setConfigModalType(null)}
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      title={configModalType === "main" ? "Lưu ngân hàng giao dịch" : "Lưu ngân hàng tiết kiệm"}
+                      variant={configModalType === "main" ? "primary" : "amber"}
+                      onPress={configModalType === "main" ? handleSaveMainBank : handleSaveSavingsBank}
+                      loading={configModalType === "main" ? mainBankLoading : savingsLoading}
+                      style={{ flex: 1.8 }}
+                    />
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        </View>
       </Modal>
 
       {/* ══════════════════════════════════════════════════════════════

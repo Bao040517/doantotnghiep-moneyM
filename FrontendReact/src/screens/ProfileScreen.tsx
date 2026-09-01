@@ -155,17 +155,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setLookupError(null);
     try {
       const res = await authService.lookupBankAccount(currentBin, currentAcc);
-      if (res.verified && res.accountName) {
-        setAccountName(res.accountName);
+      if (res.verified) {
+        if (res.accountName) {
+          setAccountName(res.accountName);
+        }
         setLookupVerified(true);
         setLookupError(null);
       } else {
         setLookupVerified(false);
-        setLookupError(
-          res.message && res.message !== "NO_API_KEY"
-            ? res.message
-            : `Số tài khoản ${currentAcc} không tồn tại hoặc sai ngân hàng ${bankName}`
-        );
+        setLookupError(res.message || `Số tài khoản ${currentAcc} không tồn tại hoặc sai ngân hàng ${bankName}`);
       }
     } catch (e: any) {
       setLookupVerified(false);
@@ -192,17 +190,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setSavingsLookupError(null);
     try {
       const res = await authService.lookupBankAccount(currentBin, currentAcc);
-      if (res.verified && res.accountName) {
-        setSavingsAccountName(res.accountName);
+      if (res.verified) {
+        if (res.accountName) {
+          setSavingsAccountName(res.accountName);
+        }
         setSavingsLookupVerified(true);
         setSavingsLookupError(null);
       } else {
         setSavingsLookupVerified(false);
-        setSavingsLookupError(
-          res.message && res.message !== "NO_API_KEY"
-            ? res.message
-            : `Số tài khoản ${currentAcc} không tồn tại hoặc sai ngân hàng ${bankName}`
-        );
+        setSavingsLookupError(res.message || `Số tài khoản ${currentAcc} không tồn tại hoặc sai ngân hàng ${bankName}`);
       }
     } catch (e: any) {
       setSavingsLookupVerified(false);

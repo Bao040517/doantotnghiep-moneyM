@@ -49,7 +49,7 @@ public class AiAssistantService {
     private String apiKey;
 
     @Value(
-            "${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent}")
+            "${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent}")
     private String apiUrl;
 
     private final UserRepository userRepository;
@@ -64,8 +64,8 @@ public class AiAssistantService {
     private static RestTemplate createFastRestTemplate() {
         org.springframework.http.client.SimpleClientHttpRequestFactory factory =
                 new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(12000);
+        factory.setConnectTimeout(10000);
+        factory.setReadTimeout(60000);
         return new RestTemplate(factory);
     }
 

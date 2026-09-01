@@ -43,7 +43,7 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 60000,
+  timeout: 90000,
 });
 
 // Request Interceptor: Tự động đính kèm Access Token vào Authorization header

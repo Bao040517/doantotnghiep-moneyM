@@ -97,7 +97,19 @@ export const BankNotificationDetectorModal: React.FC<BankNotificationDetectorMod
       return;
     }
 
-    const num = parseInt(customAmount.replace(/[^0-9]/g, ""), 10);
+    let clean = customAmount.toLowerCase().trim().replace(/,/g, ".");
+    let num = 0;
+    if (clean.endsWith("k") || clean.endsWith(" cành")) {
+      const val = parseFloat(clean.replace(/[^0-9.]/g, ""));
+      num = isNaN(val) ? 0 : Math.round(val * 1000);
+    } else if (clean.endsWith("tr") || clean.endsWith(" củ") || clean.endsWith(" triệu") || clean.endsWith("m")) {
+      const val = parseFloat(clean.replace(/[^0-9.]/g, ""));
+      num = isNaN(val) ? 0 : Math.round(val * 1000000);
+    } else {
+      const numOnly = parseInt(clean.replace(/[^0-9]/g, ""), 10);
+      num = isNaN(numOnly) ? 0 : numOnly;
+    }
+
     if (!num || num <= 0) {
       Alert.alert("Lỗi", "Số tiền không hợp lệ.");
       return;

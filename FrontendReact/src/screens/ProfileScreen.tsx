@@ -102,14 +102,32 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       setBankBin(user.bankBin || "970422");
       setAccountNo(user.bankAccountNo || "");
       setAccountName(cleanAccountName(user.bankAccountName || user.name || ""));
-      setLookupVerified(Boolean(user.bankAccountNo && user.bankAccountNo.trim().length >= 4));
+      setLookupVerified(false);
 
       setSavingsBankBin(user.savingsBankBin || "970407");
       setSavingsAccountNo(user.savingsBankAccountNo || "");
       setSavingsAccountName(cleanAccountName(user.savingsBankAccountName || user.name || ""));
-      setSavingsLookupVerified(Boolean(user.savingsBankAccountNo && user.savingsBankAccountNo.trim().length >= 4));
+      setSavingsLookupVerified(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (configModalType === "main") {
+      setLookupError(null);
+      if (bankBin && accountNo.trim().length >= 6) {
+        handleLookupAccount(bankBin, accountNo.trim());
+      } else {
+        setLookupVerified(false);
+      }
+    } else if (configModalType === "savings") {
+      setSavingsLookupError(null);
+      if (savingsBankBin && savingsAccountNo.trim().length >= 6) {
+        handleLookupSavingsAccount(savingsBankBin, savingsAccountNo.trim());
+      } else {
+        setSavingsLookupVerified(false);
+      }
+    }
+  }, [configModalType]);
 
   const selectedBank = VIETQR_BANKS.find((b) => b.bin === bankBin) || VIETQR_BANKS[0];
   const selectedSavingsBank = VIETQR_BANKS.find((b) => b.bin === savingsBankBin) || VIETQR_BANKS[0];
@@ -141,16 +159,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         setAccountName(res.accountName);
         setLookupVerified(true);
         setLookupError(null);
-      } else if (res.message === "NO_API_KEY") {
-        setLookupVerified(false);
-        setLookupError(null);
       } else {
         setLookupVerified(false);
-        setLookupError(res.message || `Số tài khoản không tồn tại tại ngân hàng ${bankName}`);
+        setLookupError(
+          res.message && res.message !== "NO_API_KEY"
+            ? res.message
+            : `Số tài khoản ${currentAcc} không tồn tại hoặc sai ngân hàng ${bankName}`
+        );
       }
     } catch (e: any) {
       setLookupVerified(false);
-      setLookupError(null);
+      setLookupError(`Không thể xác thực số tài khoản tại ${bankName}`);
     } finally {
       setLookupLoading(false);
     }
@@ -177,16 +196,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         setSavingsAccountName(res.accountName);
         setSavingsLookupVerified(true);
         setSavingsLookupError(null);
-      } else if (res.message === "NO_API_KEY") {
-        setSavingsLookupVerified(false);
-        setSavingsLookupError(null);
       } else {
         setSavingsLookupVerified(false);
-        setSavingsLookupError(res.message || `Số tài khoản không tồn tại tại ngân hàng ${bankName}`);
+        setSavingsLookupError(
+          res.message && res.message !== "NO_API_KEY"
+            ? res.message
+            : `Số tài khoản ${currentAcc} không tồn tại hoặc sai ngân hàng ${bankName}`
+        );
       }
     } catch (e: any) {
       setSavingsLookupVerified(false);
-      setSavingsLookupError(null);
+      setSavingsLookupError(`Không thể xác thực số tài khoản tại ${bankName}`);
     } finally {
       setSavingsLookupLoading(false);
     }
@@ -843,18 +863,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                           {configModalType === "main" ? lookupError : savingsLookupError}
                         </Text>
                       </View>
-                    ) : (configModalType === "main" ? accountNo.trim().length >= 6 : savingsAccountNo.trim().length >= 6) ? (
+                    ) : (configModalType === "main" ? lookupVerified : savingsLookupVerified) ? (
                       <VietQRCard
                         bankBin={configModalType === "main" ? bankBin.trim() : savingsBankBin.trim()}
                         accountNo={configModalType === "main" ? accountNo.trim() : savingsAccountNo.trim()}
                         accountName={(configModalType === "main" ? accountName : savingsAccountName).trim().toUpperCase()}
                         description={configModalType === "main" ? `Chuyen tien cho ${accountName || user?.name || "ShareMoney"}` : "Nap quy Vi Tiet Kiem"}
                       />
+                    ) : (configModalType === "main" ? accountNo.trim().length >= 6 : savingsAccountNo.trim().length >= 6) ? (
+                      <View style={styles.errorQrBox}>
+                        <Text style={{ fontSize: 32, marginBottom: 6 }}>❌</Text>
+                        <Text style={styles.errorQrTitle}>Tài khoản chưa được xác thực</Text>
+                        <Text style={styles.errorQrDesc}>
+                          {`Số tài khoản không tồn tại hoặc không khớp với ngân hàng ${
+                            configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName
+                          }. Hệ thống không thể sinh mã VietQR!`}
+                        </Text>
+                      </View>
                     ) : (
                       <View style={styles.emptyQrBox}>
                         <Text style={{ fontSize: 32, marginBottom: 6 }}>🏦</Text>
                         <Text style={styles.emptyQrText}>Chưa có số tài khoản</Text>
-                        <Text style={styles.emptyQrSubText}>Vui lòng nhập số tài khoản (tối thiểu 6 số) để tạo mã VietQR</Text>
+                        <Text style={styles.emptyQrSubText}>Vui lòng nhập đầy đủ số tài khoản để hệ thống xác thực từ ngân hàng và tạo mã VietQR</Text>
                       </View>
                     )}
                   </View>

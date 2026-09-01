@@ -24,7 +24,7 @@ services:
       - DB_USER=${DB_USER:-postgres.yzocyymegnmqkncdprkl}
       - DB_PASSWORD=${DB_PASSWORD:-0986523787Bao@}
       - DB_MAX_POOL_SIZE=${DB_MAX_POOL_SIZE:-5}
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_API_URL=${GEMINI_API_URL:-https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent}
       - JWT_SECRET=${JWT_SECRET:-9a4f2c8d3b7a1e6f45c8a0b3f267d8b1d4e6f3c8a9d2b5f8e3a9c8b5f6v8a3d9}

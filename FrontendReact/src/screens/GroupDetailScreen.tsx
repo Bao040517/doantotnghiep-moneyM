@@ -995,6 +995,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
       <AddMemberBottomSheet
         visible={addMemberVisible}
         groupId={groupId}
+        existingMemberIds={group?.members?.map((m: any) => m.user?.id || m.id) || []}
         onClose={() => setAddMemberVisible(false)}
         onMemberAdded={fetchGroupDetails}
       />

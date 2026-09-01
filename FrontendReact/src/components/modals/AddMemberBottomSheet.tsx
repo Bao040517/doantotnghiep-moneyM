@@ -22,6 +22,7 @@ import { ScanReceiptModal } from "./ScanReceiptModal";
 interface AddMemberBottomSheetProps {
   visible: boolean;
   groupId: string;
+  existingMemberIds?: string[];
   onClose: () => void;
   onMemberAdded: () => void;
 }
@@ -37,6 +38,7 @@ interface MemberCandidate {
 export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
   visible,
   groupId,
+  existingMemberIds = [],
   onClose,
   onMemberAdded,
 }) => {
@@ -171,28 +173,40 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
                   contentContainerStyle={styles.pastMemberVerticalList}
                   nestedScrollEnabled={true}
                 >
-                  {pastMembers.map((m) => (
-                    <TouchableOpacity
-                      key={m.id}
-                      onPress={() => handleAddMemberById(m.id, m.name)}
-                      style={styles.pastMemberVerticalRow}
-                    >
-                      <View style={styles.avatarCircle}>
-                        {m.avatarUrl ? (
-                          <Image source={{ uri: m.avatarUrl }} style={styles.avatarImg} />
-                        ) : (
-                          <Text style={styles.avatarLetter}>{m.name.charAt(0)}</Text>
-                        )}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.pastMemberName}>{m.name}</Text>
-                        {m.phone && <Text style={styles.pastMemberPhone}>📞 {m.phone}</Text>}
-                      </View>
-                      <View style={styles.addMemberBtnPill}>
-                        <Text style={styles.addMemberBtnText}>+ Thêm</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                  {pastMembers.map((m) => {
+                    const isAlreadyMember = existingMemberIds.includes(m.id);
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        onPress={() => {
+                          if (isAlreadyMember) {
+                            showToast("Người dùng này đã là thành viên trong nhóm.", "info");
+                            return;
+                          }
+                          handleAddMemberById(m.id, m.name);
+                        }}
+                        disabled={isAlreadyMember}
+                        style={[styles.pastMemberVerticalRow, isAlreadyMember && { opacity: 0.65 }]}
+                      >
+                        <View style={styles.avatarCircle}>
+                          {m.avatarUrl ? (
+                            <Image source={{ uri: m.avatarUrl }} style={styles.avatarImg} />
+                          ) : (
+                            <Text style={styles.avatarLetter}>{m.name.charAt(0)}</Text>
+                          )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.pastMemberName}>{m.name}</Text>
+                          {m.phone && <Text style={styles.pastMemberPhone}>📞 {m.phone}</Text>}
+                        </View>
+                        <View style={[styles.addMemberBtnPill, isAlreadyMember && { backgroundColor: colors.slate200 }]}>
+                          <Text style={[styles.addMemberBtnText, isAlreadyMember && { color: colors.slate500 }]}>
+                            {isAlreadyMember ? "Đã trong nhóm" : "+ Thêm"}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </ScrollView>
               )}
             </View>
@@ -233,12 +247,18 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
                     <Text style={styles.searchResultPhone}>📞 {searchResult.phone}</Text>
                   </View>
 
-                  <TouchableOpacity
-                    onPress={() => handleAddMemberById(searchResult.id, searchResult.name)}
-                    style={styles.addBtn}
-                  >
-                    <Text style={styles.addBtnText}>+ Thêm vào nhóm</Text>
-                  </TouchableOpacity>
+                  {existingMemberIds.includes(searchResult.id) ? (
+                    <View style={[styles.addBtn, { backgroundColor: colors.slate200 }]}>
+                      <Text style={[styles.addBtnText, { color: colors.slate500 }]}>Đã trong nhóm</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => handleAddMemberById(searchResult.id, searchResult.name)}
+                      style={styles.addBtn}
+                    >
+                      <Text style={styles.addBtnText}>+ Thêm vào nhóm</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : (
                 <Text style={styles.searchHintText}>

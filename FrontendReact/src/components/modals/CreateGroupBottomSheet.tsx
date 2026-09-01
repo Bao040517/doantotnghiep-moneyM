@@ -145,24 +145,13 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
     }
     setIsCreating(true);
     try {
-      // 1. Create Group with avatarUrl
-      const newGroup = await groupService.createGroup({
+      // 1. Create Group with avatarUrl & members (backend tự động thêm tất cả thành viên trong memberIds)
+      await groupService.createGroup({
         name: cleanName,
         description: groupDesc.trim(),
         avatarUrl: groupAvatar,
         memberIds: selectedMembers.map((m) => m.id),
       });
-
-      // 2. Add selected members to the group (fallback if not auto-added)
-      if (newGroup && newGroup.id && selectedMembers.length > 0) {
-        await Promise.all(
-          selectedMembers.map((m) =>
-            groupService.addMemberToGroup(newGroup.id, m.id).catch((err) => {
-              console.log(`Failed to add member ${m.name}:`, err);
-            })
-          )
-        );
-      }
 
       Alert.alert(
         "Thành công 🎉",

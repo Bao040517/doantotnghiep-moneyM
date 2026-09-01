@@ -854,7 +854,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     ) : (configModalType === "main" ? lookupError : savingsLookupError) ? (
                       <View style={styles.errorQrBox}>
                         <Text style={{ fontSize: 32, marginBottom: 6 }}>❌</Text>
-                        <Text style={styles.errorQrTitle}>Tài khoản không tồn tại</Text>
+                        <Text style={styles.errorQrTitle}>Số tài khoản không hợp lệ</Text>
                         <Text style={styles.errorQrDesc}>
                           {configModalType === "main" ? lookupError : savingsLookupError}
                         </Text>
@@ -866,21 +866,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                         accountName={(configModalType === "main" ? accountName : savingsAccountName).trim().toUpperCase()}
                         description={configModalType === "main" ? `Chuyen tien cho ${accountName || user?.name || "ShareMoney"}` : "Nap quy Vi Tiet Kiem"}
                       />
-                    ) : (configModalType === "main" ? accountNo.trim().length >= 6 : savingsAccountNo.trim().length >= 6) ? (
-                      <View style={styles.errorQrBox}>
-                        <Text style={{ fontSize: 32, marginBottom: 6 }}>❌</Text>
-                        <Text style={styles.errorQrTitle}>Tài khoản chưa được xác thực</Text>
-                        <Text style={styles.errorQrDesc}>
-                          {`Số tài khoản không tồn tại hoặc không khớp với ngân hàng ${
-                            configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName
-                          }. Hệ thống không thể sinh mã VietQR!`}
-                        </Text>
-                      </View>
                     ) : (
                       <View style={styles.emptyQrBox}>
                         <Text style={{ fontSize: 32, marginBottom: 6 }}>🏦</Text>
                         <Text style={styles.emptyQrText}>Chưa có số tài khoản</Text>
-                        <Text style={styles.emptyQrSubText}>Vui lòng nhập đầy đủ số tài khoản để hệ thống xác thực từ ngân hàng và tạo mã VietQR</Text>
+                        <Text style={styles.emptyQrSubText}>Vui lòng nhập số tài khoản hợp lệ (từ 6 đến 19 chữ số) để tạo mã VietQR</Text>
                       </View>
                     )}
                   </View>

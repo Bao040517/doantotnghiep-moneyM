@@ -123,15 +123,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   // Tra cứu Napas tự động cho ngân hàng giao dịch
   const handleLookupAccount = async (targetBin?: string, targetAccNo?: string) => {
     const currentBin = targetBin || bankBin;
-    const currentAcc = (targetAccNo !== undefined ? targetAccNo : accountNo).trim();
-    if (!currentBin || currentAcc.length < 4) {
+    const currentAcc = (targetAccNo !== undefined ? targetAccNo : accountNo).replace(/\D/g, "");
+    if (!currentBin || currentAcc.length < 6) {
       setLookupVerified(false);
       setLookupError(null);
       return;
     }
-
-    const currentBankObj = VIETQR_BANKS.find((b) => b.bin === currentBin);
-    const bankName = currentBankObj ? currentBankObj.shortName : "Ngân hàng";
 
     setLookupLoading(true);
     setLookupError(null);
@@ -143,15 +140,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         setLookupError(null);
       } else {
         setLookupVerified(false);
-        setLookupError(
-          res.message && !res.message.includes("API Key")
-            ? res.message
-            : `Không tìm thấy tài khoản ${currentAcc} tại ${bankName}. Vui lòng kiểm tra lại ngân hàng hoặc STK!`
-        );
+        setLookupError(null);
       }
     } catch (e: any) {
       setLookupVerified(false);
-      setLookupError(`Không thể xác thực số tài khoản tại ${bankName}.`);
+      setLookupError(null);
     } finally {
       setLookupLoading(false);
     }
@@ -160,15 +153,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   // Tra cứu Napas tự động cho ngân hàng tiết kiệm
   const handleLookupSavingsAccount = async (targetBin?: string, targetAccNo?: string) => {
     const currentBin = targetBin || savingsBankBin;
-    const currentAcc = (targetAccNo !== undefined ? targetAccNo : savingsAccountNo).trim();
-    if (!currentBin || currentAcc.length < 4) {
+    const currentAcc = (targetAccNo !== undefined ? targetAccNo : savingsAccountNo).replace(/\D/g, "");
+    if (!currentBin || currentAcc.length < 6) {
       setSavingsLookupVerified(false);
       setSavingsLookupError(null);
       return;
     }
-
-    const currentBankObj = VIETQR_BANKS.find((b) => b.bin === currentBin);
-    const bankName = currentBankObj ? currentBankObj.shortName : "Ngân hàng";
 
     setSavingsLookupLoading(true);
     setSavingsLookupError(null);
@@ -180,15 +170,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         setSavingsLookupError(null);
       } else {
         setSavingsLookupVerified(false);
-        setSavingsLookupError(
-          res.message && !res.message.includes("API Key")
-            ? res.message
-            : `Không tìm thấy tài khoản ${currentAcc} tại ${bankName}. Vui lòng kiểm tra lại ngân hàng hoặc STK!`
-        );
+        setSavingsLookupError(null);
       }
     } catch (e: any) {
       setSavingsLookupVerified(false);
-      setSavingsLookupError(`Không thể xác thực số tài khoản tại ${bankName}.`);
+      setSavingsLookupError(null);
     } finally {
       setSavingsLookupLoading(false);
     }
@@ -275,37 +261,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   // Cập nhật Ngân hàng giao dịch
   const handleSaveMainBank = async () => {
-    if (!bankBin.trim() || !accountNo.trim() || !accountName.trim()) {
-      Alert.alert("Lỗi", "Vui lòng điền đầy đủ thông tin ngân hàng giao dịch");
+    const cleanAcc = accountNo.replace(/\D/g, "");
+    if (!bankBin.trim()) {
+      Alert.alert("Lỗi", "Vui lòng chọn ngân hàng giao dịch");
       return;
     }
-    if (!lookupVerified) {
-      Alert.alert(
-        "Cảnh báo thông tin tài khoản",
-        `Số tài khoản "${accountNo}" chưa được xác thực thành công tại ${selectedBank.shortName}.\n\nBạn có chắc chắn muốn lưu thông tin này không?`,
-        [
-          { text: "Kiểm tra lại", style: "cancel" },
-          {
-            text: "Vẫn lưu",
-            style: "destructive",
-            onPress: () => doSaveMainBank(),
-          },
-        ]
-      );
+    if (!cleanAcc || cleanAcc.length < 6) {
+      Alert.alert("Lỗi", "Số tài khoản không hợp lệ (cần từ 6 đến 19 chữ số)");
       return;
     }
-    await doSaveMainBank();
-  };
+    if (!accountName.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập tên chủ tài khoản");
+      return;
+    }
 
-  const doSaveMainBank = async () => {
     setMainBankLoading(true);
     try {
       await authService.updateVietQRLink({
         bankBin: bankBin.trim(),
-        bankAccountNo: accountNo.trim(),
+        bankAccountNo: cleanAcc,
         bankAccountName: accountName.trim().toUpperCase(),
       });
-      Alert.alert("Thành công 🎉", "Đã lưu thông tin Ngân hàng giao dịch!");
+      Alert.alert("Thành công 🎉", `Đã lưu thông tin Ngân hàng giao dịch (${selectedBank.shortName})!`);
       setConfigModalType(null);
       onRefreshUser();
     } catch (e: any) {
@@ -317,37 +294,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   // Cập nhật Ngân hàng tiết kiệm
   const handleSaveSavingsBank = async () => {
-    if (!savingsBankBin.trim() || !savingsAccountNo.trim() || !savingsAccountName.trim()) {
-      Alert.alert("Lỗi", "Vui lòng điền đầy đủ thông tin ngân hàng tiết kiệm");
+    const cleanAcc = savingsAccountNo.replace(/\D/g, "");
+    if (!savingsBankBin.trim()) {
+      Alert.alert("Lỗi", "Vui lòng chọn ngân hàng tiết kiệm");
       return;
     }
-    if (!savingsLookupVerified) {
-      Alert.alert(
-        "Cảnh báo thông tin tài khoản",
-        `Số tài khoản "${savingsAccountNo}" chưa được xác thực thành công tại ${selectedSavingsBank.shortName}.\n\nBạn có chắc chắn muốn lưu thông tin này không?`,
-        [
-          { text: "Kiểm tra lại", style: "cancel" },
-          {
-            text: "Vẫn lưu",
-            style: "destructive",
-            onPress: () => doSaveSavingsBank(),
-          },
-        ]
-      );
+    if (!cleanAcc || cleanAcc.length < 6) {
+      Alert.alert("Lỗi", "Số tài khoản không hợp lệ (cần từ 6 đến 19 chữ số)");
       return;
     }
-    await doSaveSavingsBank();
-  };
+    if (!savingsAccountName.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập tên chủ tài khoản");
+      return;
+    }
 
-  const doSaveSavingsBank = async () => {
     setSavingsLoading(true);
     try {
       await authService.updateVietQRLink({
         savingsBankBin: savingsBankBin.trim(),
-        savingsBankAccountNo: savingsAccountNo.trim(),
+        savingsBankAccountNo: cleanAcc,
         savingsBankAccountName: savingsAccountName.trim().toUpperCase(),
       });
-      Alert.alert("Thành công 🎉", "Đã lưu thông tin Ngân hàng tiết kiệm!");
+      Alert.alert("Thành công 🎉", `Đã lưu thông tin Ngân hàng tiết kiệm (${selectedSavingsBank.shortName})!`);
       setConfigModalType(null);
       onRefreshUser();
     } catch (e: any) {
@@ -794,7 +762,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     <View style={styles.lookupStatusRow}>
                       <ActivityIndicator size="small" color={colors.indigo600} />
                       <Text style={styles.lookupLoadingText}>
-                        Đang xác thực thông tin tài khoản với ngân hàng...
+                        Đang tra cứu tên chủ tài khoản từ Napas 247...
                       </Text>
                     </View>
                   )}
@@ -806,20 +774,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                       </View>
                     )}
 
-                  {!(configModalType === "main" ? lookupLoading : savingsLookupLoading) &&
-                    !(configModalType === "main" ? lookupVerified : savingsLookupVerified) &&
-                    (configModalType === "main" ? lookupError : savingsLookupError) && (
-                      <View style={styles.lookupErrorRow}>
-                        <Text style={styles.lookupErrorText}>
-                          ❌ {configModalType === "main" ? lookupError : savingsLookupError}
-                        </Text>
-                      </View>
-                    )}
-
                   {/* Nhập tên chủ tài khoản */}
                   <Input
                     label="Tên chủ tài khoản (*)"
-                    placeholder="Tự động điền theo tài khoản ngân hàng..."
+                    placeholder="Nhập tên chủ tài khoản (in hoa)..."
                     value={configModalType === "main" ? accountName : savingsAccountName}
                     onChangeText={(text) => {
                       if (configModalType === "main") setAccountName(text.toUpperCase());
@@ -827,40 +785,37 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     }}
                   />
 
+                  {/* Chỉ báo ngân hàng nhận tiền */}
+                  {(configModalType === "main" ? accountNo.trim().length >= 6 : savingsAccountNo.trim().length >= 6) && (
+                    <View style={styles.qrBankHintBadge}>
+                      <Text style={styles.qrBankHintText}>
+                        📌 Mã VietQR sẽ nhận tiền về:{" "}
+                        <Text style={{ fontWeight: "900", color: "#4338CA" }}>
+                          {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}
+                        </Text>
+                        {" • STK: "}
+                        <Text style={{ fontWeight: "900", color: "#0F172A" }}>
+                          {configModalType === "main" ? accountNo.trim() : savingsAccountNo.trim()}
+                        </Text>
+                      </Text>
+                    </View>
+                  )}
+
                   {/* Xem trước VietQR */}
                   <Text style={[styles.previewQrLabel, { color: themeColors.textPrimary }]}>Xem trước mã VietQR:</Text>
                   <View style={{ marginBottom: 16 }}>
-                    {(configModalType === "main" ? lookupLoading : savingsLookupLoading) ? (
-                      <View style={styles.validatingQrBox}>
-                        <ActivityIndicator size="large" color={colors.indigo600} />
-                        <Text style={styles.validatingQrText}>
-                          Đang kiểm tra tài khoản tại {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}...
-                        </Text>
-                        <Text style={styles.validatingQrSubText}>Vui lòng chờ xác thực hệ thống Napas 247</Text>
-                      </View>
-                    ) : (configModalType === "main" ? lookupVerified : savingsLookupVerified) ? (
+                    {(configModalType === "main" ? accountNo.trim().length >= 6 : savingsAccountNo.trim().length >= 6) ? (
                       <VietQRCard
                         bankBin={configModalType === "main" ? bankBin.trim() : savingsBankBin.trim()}
                         accountNo={configModalType === "main" ? accountNo.trim() : savingsAccountNo.trim()}
                         accountName={(configModalType === "main" ? accountName : savingsAccountName).trim().toUpperCase()}
                         description={configModalType === "main" ? `Chuyen tien cho ${accountName || user?.name || "ShareMoney"}` : "Nap quy Vi Tiet Kiem"}
                       />
-                    ) : (configModalType === "main" ? accountNo.trim().length >= 4 : savingsAccountNo.trim().length >= 4) ? (
-                      <View style={styles.errorQrBox}>
-                        <Text style={{ fontSize: 32, marginBottom: 6 }}>❌</Text>
-                        <Text style={styles.errorQrTitle}>Thông tin tài khoản chưa đúng</Text>
-                        <Text style={styles.errorQrDesc}>
-                          {(configModalType === "main" ? lookupError : savingsLookupError) ||
-                            `Số tài khoản không tồn tại hoặc không khớp với ngân hàng ${
-                              configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName
-                            }. Vui lòng kiểm tra lại!`}
-                        </Text>
-                      </View>
                     ) : (
                       <View style={styles.emptyQrBox}>
                         <Text style={{ fontSize: 32, marginBottom: 6 }}>🏦</Text>
                         <Text style={styles.emptyQrText}>Chưa có số tài khoản</Text>
-                        <Text style={styles.emptyQrSubText}>Vui lòng nhập STK hợp lệ để tự động xác thực và tạo mã VietQR</Text>
+                        <Text style={styles.emptyQrSubText}>Vui lòng nhập số tài khoản (tối thiểu 6 số) để tạo mã VietQR</Text>
                       </View>
                     )}
                   </View>
@@ -1503,6 +1458,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#94A3B8",
     textAlign: "center",
+  },
+  qrBankHintBadge: {
+    backgroundColor: "#EEF2FF",
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  qrBankHintText: {
+    fontSize: 12,
+    color: "#3730A3",
+    lineHeight: 18,
   },
   previewQrLabel: {
     fontSize: 12,

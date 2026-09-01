@@ -313,7 +313,7 @@ export const QuickBankTransactionModal: React.FC<QuickBankTransactionModalProps>
               </ScrollView>
             </View>
 
-            {/* Category Selector with Smart Rules */}
+            {/* Category Selector as a Sleek Dropdown List */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionLabel}>
@@ -321,16 +321,20 @@ export const QuickBankTransactionModal: React.FC<QuickBankTransactionModalProps>
                 </Text>
                 <View style={styles.autoBadge}>
                   <Sparkles size={12} color="#D97706" />
-                  <Text style={styles.autoBadgeText}>Khớp Rule 0ms</Text>
+                  <Text style={styles.autoBadgeText}>Tự động nhận diện (0ms)</Text>
                 </View>
               </View>
 
-              {/* Current Active Category Card */}
+              {/* Dropdown Trigger Box */}
               <TouchableOpacity
-                style={styles.currentCategoryCard}
+                style={[
+                  styles.dropdownTrigger,
+                  showAllCategories && styles.dropdownTriggerActive,
+                ]}
                 onPress={() => setShowAllCategories(!showAllCategories)}
+                activeOpacity={0.8}
               >
-                <View style={styles.currentCategoryLeft}>
+                <View style={styles.dropdownTriggerLeft}>
                   <View
                     style={[
                       styles.categoryEmojiBox,
@@ -342,74 +346,61 @@ export const QuickBankTransactionModal: React.FC<QuickBankTransactionModalProps>
                     </Text>
                   </View>
                   <View>
-                    <Text style={styles.categoryNameText}>{selectedCategoryName}</Text>
-                    <Text style={styles.categoryHintText}>Bấm để mở toàn bộ 16 danh mục</Text>
+                    <Text style={styles.categoryNameText}>{selectedCategoryName || "Chọn danh mục"}</Text>
+                    <Text style={styles.dropdownSubtext}>
+                      {showAllCategories ? "Chạm để đóng danh sách" : "Chạm để chọn danh mục khác"}
+                    </Text>
                   </View>
                 </View>
-                <View style={styles.changeBtnBadge}>
-                  <Edit2 size={13} color="#2563EB" />
-                  <Text style={styles.changeBtnText}>Đổi</Text>
+                <View style={styles.dropdownArrowBox}>
+                  <ChevronDown
+                    size={20}
+                    color="#2563EB"
+                    style={{ transform: [{ rotate: showAllCategories ? "180deg" : "0deg" }] }}
+                  />
                 </View>
               </TouchableOpacity>
 
-              {/* Quick 1-Touch Chips */}
-              <Text style={styles.quickLabel}>⚡ Đổi nhanh 1-chạm:</Text>
-              <View style={styles.quickGrid}>
-                {quickList.map((item) => {
-                  const isSelected = selectedCategoryName === item.name;
-                  return (
-                    <TouchableOpacity
-                      key={item.name}
-                      style={[
-                        styles.quickChip,
-                        isSelected && styles.quickChipSelected,
-                      ]}
-                      onPress={() => handleSelectCategory(item)}
-                    >
-                      <Text style={styles.quickChipEmoji}>{item.emoji}</Text>
-                      <Text
-                        style={[
-                          styles.quickChipText,
-                          isSelected && styles.quickChipTextSelected,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Expanded Full Categories Picker */}
+              {/* Dropdown Options List */}
               {showAllCategories && (
-                <View style={styles.fullCategoryPicker}>
-                  <Text style={styles.fullPickerTitle}>Tất cả danh mục chuẩn:</Text>
-                  <View style={styles.fullPickerGrid}>
+                <View style={styles.dropdownListContainer}>
+                  <ScrollView
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={true}
+                    style={styles.dropdownScroll}
+                  >
                     {fullCategoryList.map((item) => {
                       const isSelected = selectedCategoryName === item.name;
                       return (
                         <TouchableOpacity
                           key={item.name}
                           style={[
-                            styles.fullCatItem,
-                            isSelected && styles.fullCatItemSelected,
+                            styles.dropdownItem,
+                            isSelected && styles.dropdownItemSelected,
                           ]}
                           onPress={() => handleSelectCategory(item)}
+                          activeOpacity={0.7}
                         >
-                          <Text style={styles.fullCatEmoji}>{item.emoji}</Text>
-                          <Text
-                            style={[
-                              styles.fullCatText,
-                              isSelected && styles.fullCatTextSelected,
-                            ]}
-                          >
-                            {item.name}
-                          </Text>
+                          <View style={styles.dropdownItemLeft}>
+                            <Text style={styles.dropdownItemEmoji}>{item.emoji}</Text>
+                            <Text
+                              style={[
+                                styles.dropdownItemText,
+                                isSelected && styles.dropdownItemTextSelected,
+                              ]}
+                            >
+                              {item.name}
+                            </Text>
+                          </View>
+                          {isSelected && (
+                            <View style={styles.checkBadge}>
+                              <Check size={14} color="#2563EB" />
+                            </View>
+                          )}
                         </TouchableOpacity>
                       );
                     })}
-                  </View>
+                  </ScrollView>
                 </View>
               )}
             </View>
@@ -645,18 +636,21 @@ const styles = StyleSheet.create({
   walletChipTextSelected: {
     color: "#FFFFFF",
   },
-  currentCategoryCard: {
+  dropdownTrigger: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
     padding: 12,
-    borderWidth: 2,
-    borderColor: "#2563EB",
-    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
   },
-  currentCategoryLeft: {
+  dropdownTriggerActive: {
+    borderColor: "#2563EB",
+    backgroundColor: "#F8FAFC",
+  },
+  dropdownTriggerLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -676,107 +670,72 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0F172A",
   },
-  categoryHintText: {
+  dropdownSubtext: {
     fontSize: 11,
     color: "#64748B",
     marginTop: 2,
   },
-  changeBtnBadge: {
+  dropdownArrowBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dropdownListContainer: {
+    marginTop: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#BFDBFE",
+    maxHeight: 220,
+    overflow: "hidden",
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  dropdownScroll: {
+    paddingVertical: 4,
+  },
+  dropdownItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  dropdownItemSelected: {
     backgroundColor: "#EFF6FF",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
   },
-  changeBtnText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#2563EB",
-  },
-  quickLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#64748B",
-    marginBottom: 6,
-  },
-  quickGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  quickChip: {
+  dropdownItemLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    gap: 10,
   },
-  quickChipSelected: {
-    backgroundColor: "#EFF6FF",
-    borderColor: "#3B82F6",
+  dropdownItemEmoji: {
+    fontSize: 16,
   },
-  quickChipEmoji: {
+  dropdownItemText: {
     fontSize: 13,
-  },
-  quickChipText: {
-    fontSize: 12,
+    fontWeight: "600",
     color: "#334155",
-    fontWeight: "500",
   },
-  quickChipTextSelected: {
+  dropdownItemTextSelected: {
     color: "#1D4ED8",
     fontWeight: "700",
   },
-  fullCategoryPicker: {
-    marginTop: 12,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  fullPickerTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#334155",
-    marginBottom: 8,
-  },
-  fullPickerGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  fullCatItem: {
-    flexDirection: "row",
+  checkBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#DBEAFE",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  fullCatItemSelected: {
-    backgroundColor: "#2563EB",
-    borderColor: "#1D4ED8",
-  },
-  fullCatEmoji: {
-    fontSize: 14,
-  },
-  fullCatText: {
-    fontSize: 12,
-    color: "#334155",
-  },
-  fullCatTextSelected: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    justifyContent: "center",
   },
   footer: {
     flexDirection: "row",

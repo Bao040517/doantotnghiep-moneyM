@@ -13,10 +13,11 @@ import {
 import {
   Zap,
   X,
-  Clipboard,
   Sparkles,
   ArrowRight,
   ShieldCheck,
+  Building2,
+  Send,
   CheckCircle2,
 } from "lucide-react-native";
 import { parseBankNotificationText, ParsedBankNotification } from "../../utils/bankNotificationParser";
@@ -27,30 +28,56 @@ interface BankNotificationDetectorModalProps {
   onParsedResult: (result: ParsedBankNotification) => void;
 }
 
-const SAMPLE_NOTIFICATIONS = [
+const BANKS = ["MBBank", "Vietcombank", "Techcombank", "TPBank", "MoMo"];
+
+const PRESET_SCENARIOS = [
   {
-    label: "MBBank - Quần áo Uniqlo (-350k)",
-    text: "GD: -350,000VND 26/08/26 14:30 TK: 6617052004888 tai MB. ND: Uniqlo Vincom mua ao so mi",
+    icon: "🍲",
+    title: "Ăn phở Thìn Lò Đúc",
+    amount: "-50,000",
+    bank: "MBBank",
+    note: "Pho Thin Lo Duc bat tai nam",
+    text: "GD: -50,000VND 01/09/26 12:30 TK: 6617052004 tai MB. ND: Pho Thin Lo Duc bat tai nam",
   },
   {
-    label: "Techcombank - Tiền phòng trọ (-1.85tr)",
-    text: "Tai khoan: 6617052004. So tien: -1,850,000 VND. Noi dung: Chuyen tien phong tro thang 8",
+    icon: "☕",
+    title: "Highlands Coffee Phin Sữa Đá",
+    amount: "-39,000",
+    bank: "Vietcombank",
+    note: "Highlands Coffee Phin sua da size Vua",
+    text: "SD TK 0011004123456 -39,000VND luc 01-09-2026 09:15. ND: Highlands Coffee Phin sua da",
   },
   {
-    label: "Vietcombank - Tiền điện EVN (-650k)",
-    text: "SD TK 0011004123456 -650,000VND luc 26-08-2026 14:00:00. Ref EVNHCMC123 ND: Thanh toan tien dien EVN T8",
+    icon: "🏠",
+    title: "Tiền phòng trọ tháng 9",
+    amount: "-1,850,000",
+    bank: "Techcombank",
+    note: "Chuyen tien phong tro thang 9",
+    text: "Tai khoan: 6617052004. So tien: -1,850,000 VND. Noi dung: Chuyen tien phong tro thang 9",
   },
   {
-    label: "Sawaco - Tiền nước (-165k)",
-    text: "TK 6617052004888 tai MB: -165,000 VND. ND: Thanh toan tien nuoc sinh hoat Sawaco T8",
+    icon: "⚡",
+    title: "Hóa đơn tiền điện EVN",
+    amount: "-650,000",
+    bank: "Vietcombank",
+    note: "Thanh toan tien dien EVN",
+    text: "SD TK 0011004123456 -650,000VND luc 01-09-2026 14:00. Ref EVNHCMC123 ND: Thanh toan tien dien EVN",
   },
   {
-    label: "MoMo - Ăn uống Phở Thìn (-45k)",
-    text: "Giao dịch thành công -45.000đ cho Phở Thìn Lò Đúc. Mã GD 99882233",
+    icon: "👕",
+    title: "Uniqlo Vincom Mua áo",
+    amount: "-350,000",
+    bank: "MBBank",
+    note: "Uniqlo Vincom mua ao so mi",
+    text: "GD: -350,000VND 01/09/26 15:45 TK: 6617052004 tai MB. ND: Uniqlo Vincom mua ao so mi",
   },
   {
-    label: "Lương Công Ty (+18tr)",
-    text: "+18,000,000 VND tai MBBank luc 05/08/2026. ND: Cong ty ABC chuyen luong thang 08/2026",
+    icon: "💰",
+    title: "Nhận Lương Công Ty",
+    amount: "+18,000,000",
+    bank: "Techcombank",
+    note: "Cong ty chuyen luong thang 9",
+    text: "+18,000,000 VND tai Techcombank luc 01/09/2026. ND: Cong ty ABC chuyen luong thang 09/2026",
   },
 ];
 
@@ -59,23 +86,37 @@ export const BankNotificationDetectorModal: React.FC<BankNotificationDetectorMod
   onClose,
   onParsedResult,
 }) => {
-  const [inputText, setInputText] = useState("");
+  const [selectedBank, setSelectedBank] = useState("MBBank");
+  const [customAmount, setCustomAmount] = useState("");
+  const [customNote, setCustomNote] = useState("");
+  const [isExpense, setIsExpense] = useState(true);
 
-  const handleParse = (textToParse: string) => {
-    if (!textToParse.trim()) {
-      Alert.alert("Thông báo", "Vui lòng nhập hoặc dán nội dung thông báo ngân hàng.");
+  const handleSimulateCustom = () => {
+    if (!customAmount.trim()) {
+      Alert.alert("Thông báo", "Vui lòng nhập số tiền muốn giả lập chuyển khoản.");
       return;
     }
 
-    const result = parseBankNotificationText(textToParse);
-    if (!result.isValid || result.amount <= 0) {
-      Alert.alert(
-        "Không nhận diện được số tiền",
-        "Nội dung chưa chứa định dạng số tiền chuyển khoản hợp lệ (ví dụ: -50,000 VND hoặc -50.000đ)."
-      );
+    const num = parseInt(customAmount.replace(/[^0-9]/g, ""), 10);
+    if (!num || num <= 0) {
+      Alert.alert("Lỗi", "Số tiền không hợp lệ.");
       return;
     }
 
+    const sign = isExpense ? "-" : "+";
+    const formattedNum = num.toLocaleString("vi-VN");
+    const noteText = customNote.trim() || (isExpense ? "Chi tieu ca nhan" : "Thu nhap");
+
+    // Tạo thông báo chuẩn định dạng ngân hàng
+    const fakeRawText = `GD: ${sign}${formattedNum}VND 01/09/26 12:30 TK: 6617052004 tai ${selectedBank}. ND: ${noteText}`;
+
+    const result = parseBankNotificationText(fakeRawText);
+    onClose();
+    onParsedResult(result);
+  };
+
+  const handleSimulatePreset = (rawText: string) => {
+    const result = parseBankNotificationText(rawText);
     onClose();
     onParsedResult(result);
   };
@@ -88,11 +129,11 @@ export const BankNotificationDetectorModal: React.FC<BankNotificationDetectorMod
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Zap size={22} color="#2563EB" />
+                <Building2 size={22} color="#2563EB" />
               </View>
               <View>
-                <Text style={styles.headerTitle}>Bắt biến động ngân hàng</Text>
-                <Text style={styles.headerSubtitle}>Phân loại tức thì 0ms (Zero Latency - Offline)</Text>
+                <Text style={styles.headerTitle}>Giả Lập Chuyển Khoản Ngân Hàng</Text>
+                <Text style={styles.headerSubtitle}>Mô phỏng biến động số dư & bóc tách 0ms</Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -101,59 +142,118 @@ export const BankNotificationDetectorModal: React.FC<BankNotificationDetectorMod
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {/* Value Proposition Box */}
+            {/* Info Banner */}
             <View style={styles.infoBanner}>
               <ShieldCheck size={18} color="#16A34A" />
               <Text style={styles.infoBannerText}>
-                Khi bạn chuyển khoản trên App ngân hàng, hệ thống tự động bóc tách số tiền và phân loại danh mục mà không cần qua AI.
+                Chọn kịch bản có sẵn hoặc tự nhập số tiền để xem Pop-up tự động bóc tách & phân loại danh mục trong 0ms.
               </Text>
             </View>
 
-            {/* Input Box */}
-            <Text style={styles.inputLabel}>Dán nội dung thông báo / SMS ngân hàng:</Text>
-            <TextInput
-              style={styles.textInput}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Ví dụ: GD: -350,000VND TK: 6617052004888 tai MB. ND: Mua ao so mi Uniqlo..."
-              placeholderTextColor="#94A3B8"
-              multiline
-              numberOfLines={3}
-            />
+            {/* Quick 1-Tap Presets */}
+            <View style={styles.sectionHeaderRow}>
+              <Sparkles size={15} color="#D97706" />
+              <Text style={styles.sectionTitle}>Chạm 1-chạm để giả lập ngay:</Text>
+            </View>
 
-            <TouchableOpacity
-              style={styles.parseBtn}
-              onPress={() => handleParse(inputText)}
-              activeOpacity={0.8}
-            >
-              <Zap size={18} color="#FFFFFF" />
-              <Text style={styles.parseBtnText}>Bóc Tách & Phân Loại Ngay (0ms)</Text>
-            </TouchableOpacity>
-
-            {/* Sample Notifications to Test 1-Tap */}
-            <View style={styles.sampleSection}>
-              <View style={styles.sampleHeaderRow}>
-                <Sparkles size={14} color="#D97706" />
-                <Text style={styles.sampleTitle}>Thử nhanh với thông báo mẫu:</Text>
-              </View>
-
-              {SAMPLE_NOTIFICATIONS.map((sample, idx) => (
+            <View style={styles.presetGrid}>
+              {PRESET_SCENARIOS.map((preset, idx) => (
                 <TouchableOpacity
                   key={idx}
-                  style={styles.sampleItem}
-                  onPress={() => {
-                    setInputText(sample.text);
-                    handleParse(sample.text);
-                  }}
+                  style={styles.presetCard}
+                  onPress={() => handleSimulatePreset(preset.text)}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.sampleItemLeft}>
-                    <CheckCircle2 size={16} color="#2563EB" />
-                    <Text style={styles.sampleItemText}>{sample.label}</Text>
+                  <View style={styles.presetCardTop}>
+                    <Text style={styles.presetEmoji}>{preset.icon}</Text>
+                    <View style={styles.presetBankBadge}>
+                      <Text style={styles.presetBankText}>{preset.bank}</Text>
+                    </View>
                   </View>
-                  <ArrowRight size={14} color="#94A3B8" />
+                  <Text style={styles.presetTitle} numberOfLines={1}>
+                    {preset.title}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.presetAmount,
+                      { color: preset.amount.startsWith("-") ? "#DC2626" : "#16A34A" },
+                    ]}
+                  >
+                    {preset.amount} ₫
+                  </Text>
                 </TouchableOpacity>
               ))}
+            </View>
+
+            {/* Custom Simulation Form */}
+            <View style={styles.customSection}>
+              <Text style={styles.sectionTitle}>Tùy chỉnh số tiền & nội dung:</Text>
+
+              {/* Bank Selector */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bankScroll}>
+                {BANKS.map((b) => {
+                  const isSelected = b === selectedBank;
+                  return (
+                    <TouchableOpacity
+                      key={b}
+                      style={[styles.bankChip, isSelected && styles.bankChipSelected]}
+                      onPress={() => setSelectedBank(b)}
+                    >
+                      <Text style={[styles.bankChipText, isSelected && styles.bankChipTextSelected]}>
+                        {b}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Type Switcher */}
+              <View style={styles.typeSwitcher}>
+                <TouchableOpacity
+                  style={[styles.typeBtn, isExpense && styles.typeBtnExpenseActive]}
+                  onPress={() => setIsExpense(true)}
+                >
+                  <Text style={[styles.typeBtnText, isExpense && styles.typeBtnTextActive]}>
+                    🔴 Chi Tiền (-)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.typeBtn, !isExpense && styles.typeBtnIncomeActive]}
+                  onPress={() => setIsExpense(false)}
+                >
+                  <Text style={[styles.typeBtnText, !isExpense && styles.typeBtnTextActive]}>
+                    🟢 Nhận Tiền (+)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Amount Input */}
+              <TextInput
+                style={styles.textInput}
+                value={customAmount}
+                onChangeText={setCustomAmount}
+                placeholder="Nhập số tiền (ví dụ: 75000)"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+              />
+
+              {/* Note Input */}
+              <TextInput
+                style={styles.textInput}
+                value={customNote}
+                onChangeText={setCustomNote}
+                placeholder="Nội dung chuyển khoản (ví dụ: Bún chả Hương Liên)"
+                placeholderTextColor="#94A3B8"
+              />
+
+              <TouchableOpacity
+                style={styles.simulateBtn}
+                onPress={handleSimulateCustom}
+                activeOpacity={0.8}
+              >
+                <Send size={16} color="#FFFFFF" />
+                <Text style={styles.simulateBtnText}>Bắn Thông Báo Chuyển Khoản Giả Lập</Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
@@ -168,13 +268,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15, 23, 42, 0.65)",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   container: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     width: "100%",
-    maxHeight: "85%",
+    maxHeight: "88%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
@@ -186,20 +286,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 14,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
   iconCircle: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: "#EFF6FF",
     alignItems: "center",
@@ -208,12 +308,12 @@ const styles = StyleSheet.create({
     borderColor: "#DBEAFE",
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: "#0F172A",
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#64748B",
     marginTop: 2,
   },
@@ -223,104 +323,174 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1F5F9",
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   infoBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     backgroundColor: "#F0FDF4",
-    padding: 12,
+    padding: 10,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#DCFCE7",
-    marginBottom: 16,
+    marginBottom: 14,
   },
   infoBannerText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 11,
     color: "#166534",
-    lineHeight: 18,
+    lineHeight: 16,
     fontWeight: "500",
   },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#334155",
-    marginBottom: 8,
-  },
-  textInput: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    fontSize: 13,
-    color: "#1E293B",
-    minHeight: 70,
-    textAlignVertical: "top",
-    marginBottom: 12,
-  },
-  parseBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#2563EB",
-    paddingVertical: 13,
-    borderRadius: 14,
-    shadowColor: "#2563EB",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 20,
-  },
-  parseBtnText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  sampleSection: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  sampleHeaderRow: {
+  sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     marginBottom: 10,
   },
-  sampleTitle: {
+  sectionTitle: {
     fontSize: 13,
     fontWeight: "700",
     color: "#334155",
   },
-  sampleItem: {
+  presetGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+  presetCard: {
+    width: "48%",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  presetCardTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
     marginBottom: 6,
   },
-  sampleItemLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flex: 1,
+  presetEmoji: {
+    fontSize: 20,
   },
-  sampleItemText: {
+  presetBankBadge: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  presetBankText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#2563EB",
+  },
+  presetTitle: {
     fontSize: 12,
     fontWeight: "600",
     color: "#1E293B",
+    marginBottom: 2,
+  },
+  presetAmount: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  customSection: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  bankScroll: {
+    flexDirection: "row",
+    marginVertical: 10,
+  },
+  bankChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    marginRight: 6,
+  },
+  bankChipSelected: {
+    backgroundColor: "#2563EB",
+    borderColor: "#1D4ED8",
+  },
+  bankChipText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  bankChipTextSelected: {
+    color: "#FFFFFF",
+  },
+  typeSwitcher: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  typeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    alignItems: "center",
+  },
+  typeBtnExpenseActive: {
+    backgroundColor: "#FEE2E2",
+    borderColor: "#DC2626",
+  },
+  typeBtnIncomeActive: {
+    backgroundColor: "#DCFCE7",
+    borderColor: "#16A34A",
+  },
+  typeBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  typeBtnTextActive: {
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  textInput: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    fontSize: 13,
+    color: "#1E293B",
+    marginBottom: 8,
+  },
+  simulateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#2563EB",
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 4,
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  simulateBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });

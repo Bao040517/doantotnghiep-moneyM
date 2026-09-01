@@ -158,17 +158,29 @@ public class BudgetService {
         List<Budget> currentBudgets = budgetRepository.findByUser_IdAndMonthAndYear(userId, m, y);
 
         for (Budget prev : prevBudgets) {
-            if (prev.isRecurring()) {
-                boolean exists =
+            if (prev.isRecurring() && prev.getCategory() != null) {
+                String prevName = prev.getName() != null ? prev.getName().trim() : "";
+
+                boolean existsInList =
                         currentBudgets.stream()
                                 .anyMatch(
                                         c ->
-                                                c.getCategory()
+                                                c.getCategory() != null
+                                                        && c.getCategory()
                                                                 .getId()
                                                                 .equals(prev.getCategory().getId())
                                                         && java.util.Objects.equals(
-                                                                c.getName(), prev.getName()));
-                if (!exists) {
+                                                                c.getName() != null ? c.getName().trim() : "",
+                                                                prevName));
+
+                boolean existsInDb =
+                        !prevName.isEmpty()
+                                ? budgetRepository.existsByUser_IdAndCategory_IdAndMonthAndYearAndName(
+                                        userId, prev.getCategory().getId(), m, y, prevName)
+                                : budgetRepository.existsByUser_IdAndCategory_IdAndMonthAndYear(
+                                        userId, prev.getCategory().getId(), m, y);
+
+                if (!existsInList && !existsInDb) {
                     Budget newBudget =
                             Budget.builder()
                                     .user(prev.getUser())
@@ -189,11 +201,22 @@ public class BudgetService {
                                     .payeeAccountName(prev.getPayeeAccountName())
                                     .build();
 
-                    try {
-                        budgetRepository.saveAndFlush(newBudget);
-                        currentBudgets.add(newBudget);
-                    } catch (org.springframework.dao.DataIntegrityViolationException e) {
-                        // Bỏ qua lỗi trùng lặp do race condition (luồng khác đã insert trước)
+                    Budget saved = budgetRepository.save(newBudget);
+                    currentBudgets.add(saved);
+                } else if (existsInDb && !existsInList) {
+                    List<Budget> inDb =
+                            !prevName.isEmpty()
+                                    ? budgetRepository
+                                            .findByUser_IdAndCategory_IdAndMonthAndYearAndName(
+                                                    userId, prev.getCategory().getId(), m, y, prevName)
+                                    : budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
+                                            userId, prev.getCategory().getId(), m, y);
+                    if (inDb != null && !inDb.isEmpty()) {
+                        for (Budget b : inDb) {
+                            if (currentBudgets.stream().noneMatch(cb -> cb.getId().equals(b.getId()))) {
+                                currentBudgets.add(b);
+                            }
+                        }
                     }
                 }
             }

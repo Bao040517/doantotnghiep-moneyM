@@ -118,21 +118,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
       }
 
-      // Safe cross-platform redirect URI matching Google Cloud Console
-      let redirectUri: string;
-      if (Platform.OS === "web" && typeof window !== "undefined" && window?.location?.origin) {
-        redirectUri = window.location.origin;
-      } else {
-        // Expo Auth Proxy URL registered in Google Cloud Console
-        redirectUri = "https://auth.expo.io/@ducbao/FrontendReact";
-      }
+      // Safe cross-platform redirect URI for standalone & Expo Go
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: "sharemoney",
+      });
 
       // Build Google OAuth2 Authorization URL
       const authUrl =
         `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(GOOGLE_CLIENT_ID_WEB)}` +
         `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&response_type=id_token` +
+        `&response_type=token%20id_token` +
         `&scope=${encodeURIComponent("openid email profile")}` +
         `&nonce=${Date.now()}` +
         `&prompt=select_account`;
@@ -141,28 +137,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (result.type === "success" && result.url) {
         const url = result.url;
-        let idToken = "";
+        let token = "";
 
-        // Extract id_token from hash fragment (#id_token=...)
+        // Extract id_token or access_token from hash fragment (#id_token=... or #access_token=...)
         if (url.includes("#")) {
           const fragment = url.split("#")[1];
           const params = new URLSearchParams(fragment);
-          idToken = params.get("id_token") || "";
+          token = params.get("id_token") || params.get("access_token") || "";
         }
 
-        // Extract id_token from query params (?id_token=...) as fallback
-        if (!idToken && url.includes("?")) {
+        // Fallback to query params (?id_token=... or ?access_token=...)
+        if (!token && url.includes("?")) {
           const queryString = url.split("?")[1].split("#")[0];
           const params = new URLSearchParams(queryString);
-          idToken = params.get("id_token") || "";
+          token = params.get("id_token") || params.get("access_token") || "";
         }
 
-        if (!idToken) {
+        if (!token) {
           throw new Error("Không nhận được token xác thực từ Google");
         }
 
-        // Send id_token to backend for verification
-        const res = await authService.googleLogin(idToken);
+        // Send token to backend for verification
+        const res = await authService.googleLogin(token);
         const activeToken = res.token || res.accessToken || "";
         await safeStorage.setItem("token", activeToken);
         if (res.refreshToken) {

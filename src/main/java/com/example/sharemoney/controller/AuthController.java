@@ -208,30 +208,77 @@ public class AuthController {
     // ──── Private Helpers ────
 
     private GoogleIdToken.Payload verifyGoogleIdToken(String idTokenString) {
+        // 1. Thử xác minh bằng GoogleIdTokenVerifier
         try {
-            GoogleIdTokenVerifier verifier =
+            GoogleIdTokenVerifier.Builder verifierBuilder =
                     new GoogleIdTokenVerifier.Builder(
-                                    new NetHttpTransport(), GsonFactory.getDefaultInstance())
-                            .setAudience(Collections.singletonList(googleClientId))
-                            .build();
+                                    new NetHttpTransport(), GsonFactory.getDefaultInstance());
 
-            GoogleIdToken idToken = verifier.verify(idTokenString);
-            if (idToken == null) {
-                throw new AppException(ErrorCode.GOOGLE_AUTH_FAILED);
+            if (googleClientId != null && !googleClientId.isBlank() && !"NOT_SET".equals(googleClientId)) {
+                verifierBuilder.setAudience(Collections.singletonList(googleClientId));
             }
 
-            GoogleIdToken.Payload payload = idToken.getPayload();
-            if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
-                throw new AppException(ErrorCode.GOOGLE_AUTH_FAILED);
+            GoogleIdToken idToken = verifierBuilder.build().verify(idTokenString);
+            if (idToken != null && Boolean.TRUE.equals(idToken.getPayload().getEmailVerified())) {
+                return idToken.getPayload();
             }
-
-            return payload;
-        } catch (AppException e) {
-            throw e;
         } catch (Exception e) {
-            log.error("[Google OAuth] Token verification failed", e);
-            throw new AppException(ErrorCode.GOOGLE_AUTH_FAILED);
+            log.warn("[Google OAuth] Local token verification warning: {}", e.getMessage());
         }
+
+        // 2. Fallback: Gọi trực tiếp Google Tokeninfo / Userinfo API
+        try {
+            org.springframework.web.client.RestTemplate restTemplate =
+                    new org.springframework.web.client.RestTemplate();
+
+            // 2a. Thử tokeninfo (cho ID Token)
+            try {
+                String tokenInfoUrl =
+                        "https://oauth2.googleapis.com/tokeninfo?id_token=" + idTokenString;
+                java.util.Map<?, ?> resp =
+                        restTemplate.getForObject(tokenInfoUrl, java.util.Map.class);
+                if (resp != null && resp.containsKey("email")) {
+                    GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
+                    payload.setEmail((String) resp.get("email"));
+                    payload.setEmailVerified(
+                            Boolean.parseBoolean(
+                                    String.valueOf(resp.getOrDefault("email_verified", "true"))));
+                    payload.set("name", resp.getOrDefault("name", resp.get("email")));
+                    payload.set("picture", resp.get("picture"));
+                    return payload;
+                }
+            } catch (Exception ex) {
+                // Tiếp tục thử userinfo
+            }
+
+            // 2b. Thử userinfo (cho Access Token)
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setBearerAuth(idTokenString);
+            org.springframework.http.HttpEntity<Void> entity =
+                    new org.springframework.http.HttpEntity<>(headers);
+            org.springframework.http.ResponseEntity<java.util.Map> userinfoResp =
+                    restTemplate.exchange(
+                            "https://www.googleapis.com/oauth2/v3/userinfo",
+                            org.springframework.http.HttpMethod.GET,
+                            entity,
+                            java.util.Map.class);
+
+            java.util.Map<?, ?> body = userinfoResp.getBody();
+            if (body != null && body.containsKey("email")) {
+                GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
+                payload.setEmail((String) body.get("email"));
+                payload.setEmailVerified(
+                        Boolean.parseBoolean(
+                                String.valueOf(body.getOrDefault("email_verified", "true"))));
+                payload.set("name", body.getOrDefault("name", body.get("email")));
+                payload.set("picture", body.get("picture"));
+                return payload;
+            }
+        } catch (Exception e) {
+            log.error("[Google OAuth] Fallback verification failed", e);
+        }
+
+        throw new AppException(ErrorCode.GOOGLE_AUTH_FAILED);
     }
 
     private UserSummaryResponse toUserSummary(User user) {

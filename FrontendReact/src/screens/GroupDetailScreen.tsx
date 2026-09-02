@@ -24,7 +24,7 @@ import { PaymentSandboxModal } from "../components/modals/PaymentSandboxModal";
 import { PayeeSelectorModal } from "../components/modals/PayeeSelectorModal";
 import { Toast } from "../components/ui/Toast";
 import { GroupDetailSkeleton } from "../components/ui/SkeletonLoader";
-import { QrCode, AlertTriangle, Receipt, Camera } from "lucide-react-native";
+import { QrCode, AlertTriangle, Receipt, Camera, UserPlus } from "lucide-react-native";
 import QRCode from "react-native-qrcode-svg";
 import { colors } from "../constants/colors";
 import { groupService } from "../services/groupService";
@@ -345,12 +345,21 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
           <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{group.name}</Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <TouchableOpacity style={styles.qrHeaderBtn} onPress={() => setGroupQrVisible(true)} activeOpacity={0.8}>
-            <QrCode size={15} color="#0F172A" />
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.qrHeaderBtn}
+            onPress={() => setGroupQrVisible(true)}
+            activeOpacity={0.8}
+          >
+            <QrCode size={15} color="#4F46E5" strokeWidth={2.4} />
             <Text style={styles.qrHeaderBtnText}>Mã QR</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.inviteBtn} onPress={() => setAddMemberVisible(true)} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.inviteBtn}
+            onPress={() => setAddMemberVisible(true)}
+            activeOpacity={0.8}
+          >
+            <UserPlus size={15} color="#FFFFFF" strokeWidth={2.4} />
             <Text style={styles.inviteBtnText}>+ Thêm</Text>
           </TouchableOpacity>
         </View>
@@ -672,29 +681,8 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         {/* ─── MEMBERS TAB ─── */}
         {activeTab === "members" && (
           <View style={styles.tabContent}>
-            {/* Group QR Quick Action Card */}
-            <TouchableOpacity
-              style={styles.groupQrInviteCard}
-              onPress={() => setGroupQrVisible(true)}
-              activeOpacity={0.85}
-            >
-              <View style={styles.groupQrCardIconBg}>
-                <QrCode size={22} color="#4F46E5" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.groupQrCardTitle}>Mã QR Tham Gia Nhóm 📲</Text>
-                <Text style={styles.groupQrCardSub}>
-                  Mở mã để thành viên mới quét camera vào nhóm ngay
-                </Text>
-              </View>
-              <Text style={styles.groupQrCardArrow}>→</Text>
-            </TouchableOpacity>
-
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionHeaderTitle}>Danh sách thành viên ({group.members?.length || 0})</Text>
-              <TouchableOpacity onPress={() => setAddMemberVisible(true)} activeOpacity={0.7}>
-                <Text style={{ fontSize: 13, fontWeight: "800", color: "#4F46E5" }}>+ Thêm thành viên</Text>
-              </TouchableOpacity>
             </View>
             {group.members?.map((m) => (
               <View key={m.id} style={styles.memberRow}>
@@ -1175,21 +1163,50 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 12,
   },
-  inviteBtn: {
-    backgroundColor: "#FEF7E6",
-    paddingHorizontal: 14,
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  qrHeaderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#EEF2FF",
+    borderWidth: 1.5,
+    borderColor: "#C7D2FE",
+    paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowColor: "#6366F1",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  qrHeaderBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#4F46E5",
+  },
+  inviteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#4F46E5",
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 20,
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   inviteBtnText: {
     fontSize: 13,
-    fontWeight: "700",
-    color: "#374151",
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
   loadingContainer: {
     flex: 1,
@@ -2005,62 +2022,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     borderRadius: 14,
-  },
-  qrHeaderBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#EEF2FF",
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
-  },
-  qrHeaderBtnText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#4F46E5",
-  },
-  groupQrInviteCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: "#EEF2FF",
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: "#C7D2FE",
-    marginBottom: 16,
-  },
-  groupQrCardIconBg: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  groupQrCardTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#312E81",
-  },
-  groupQrCardSub: {
-    fontSize: 11,
-    color: "#6366F1",
-    marginTop: 2,
-    fontWeight: "500",
-  },
-  groupQrCardArrow: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#4F46E5",
   },
   groupQrModalOverlay: {
     flex: 1,

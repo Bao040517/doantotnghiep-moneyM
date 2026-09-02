@@ -1,8 +1,10 @@
 package com.example.sharemoney.controller;
 
+import com.example.sharemoney.dto.request.ForgotPasswordRequest;
 import com.example.sharemoney.dto.request.LoginRequest;
 import com.example.sharemoney.dto.request.RefreshTokenRequest;
 import com.example.sharemoney.dto.request.RegisterRequest;
+import com.example.sharemoney.dto.request.ResetPasswordRequest;
 import com.example.sharemoney.dto.response.AuthResponse;
 import com.example.sharemoney.dto.response.UserSummaryResponse;
 import com.example.sharemoney.entity.RefreshToken;
@@ -12,8 +14,11 @@ import com.example.sharemoney.exception.ErrorCode;
 import com.example.sharemoney.repository.UserRepository;
 import com.example.sharemoney.security.CustomUserDetails;
 import com.example.sharemoney.security.JwtUtil;
+import com.example.sharemoney.service.EmailService;
+import com.example.sharemoney.service.OtpService;
 import com.example.sharemoney.service.RefreshTokenService;
 import jakarta.validation.Valid;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -41,6 +46,8 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
+    private final OtpService otpService;
+    private final EmailService emailService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -135,6 +142,48 @@ public class AuthController {
             refreshTokenService.revokeToken(request.getRefreshToken());
         }
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, Object>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+        userRepository
+                .findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String otpCode = otpService.generateOtp(email);
+        emailService.sendOtpEmail(email, otpCode);
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", "Mã xác thực OTP đã được gửi tới email " + email,
+                        "expiresInSeconds", 300));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, Object>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // 1. Xác thực OTP
+        otpService.validateOtp(email, request.getOtp());
+
+        // 2. Cập nhật mật khẩu mới mã hóa BCrypt
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("[Auth] Đặt lại mật khẩu thành công cho user: {}", email);
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", "Đặt lại mật khẩu thành công. Vui lòng đăng nhập với mật khẩu mới."));
     }
 
     // ──── Private Helpers ────

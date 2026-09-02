@@ -74,4 +74,14 @@ export const authService = {
     }>("/bank/lookup", { bin, accountNumber });
     return response.data;
   },
+
+  forgotPassword: async (email: string): Promise<{ success: boolean; message: string; expiresInSeconds?: number }> => {
+    const response = await api.post<{ success: boolean; message: string; expiresInSeconds?: number }>("/auth/forgot-password", { email });
+    return response.data;
+  },
+
+  resetPassword: async (data: { email: string; otp: string; newPassword: string }): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post<{ success: boolean; message: string }>("/auth/reset-password", data);
+    return response.data;
+  },
 };

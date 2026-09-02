@@ -66,7 +66,12 @@ public enum ErrorCode {
     REFRESH_TOKEN_EXPIRED(
             HttpStatus.UNAUTHORIZED, "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."),
     INVALID_REFRESH_TOKEN(
-            HttpStatus.UNAUTHORIZED, "Mã làm mới (Refresh Token) không hợp lệ hoặc đã bị thu hồi.");
+            HttpStatus.UNAUTHORIZED, "Mã làm mới (Refresh Token) không hợp lệ hoặc đã bị thu hồi."),
+    OTP_INVALID(HttpStatus.BAD_REQUEST, "Mã xác thực OTP không chính xác."),
+    OTP_EXPIRED(HttpStatus.BAD_REQUEST, "Mã xác thực OTP đã hết hạn. Vui lòng yêu cầu mã mới."),
+    OTP_MAX_ATTEMPTS_EXCEEDED(
+            HttpStatus.BAD_REQUEST,
+            "Bạn đã nhập sai mã OTP quá số lần quy định. Vui lòng yêu cầu mã mới.");
 
     private final HttpStatus status;
     private final String message;

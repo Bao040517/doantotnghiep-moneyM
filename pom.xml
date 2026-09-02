@@ -43,6 +43,12 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 
+		<!-- Spring Boot Starter Mail (Gmail SMTP) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<!-- WebSocket (STOMP) cho Real-time Notification -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

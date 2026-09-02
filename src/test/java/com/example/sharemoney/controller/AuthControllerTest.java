@@ -44,6 +44,8 @@ class AuthControllerTest {
     @Mock private AuthenticationManager authenticationManager;
     @Mock private JwtUtil jwtUtil;
     @Mock private RefreshTokenService refreshTokenService;
+    @Mock private com.example.sharemoney.service.OtpService otpService;
+    @Mock private com.example.sharemoney.service.EmailService emailService;
 
     @InjectMocks private AuthController authController;
 
@@ -289,5 +291,67 @@ class AuthControllerTest {
         assertTrue(
                 violations.stream()
                         .anyMatch(v -> v.getPropertyPath().toString().equals("password")));
+    }
+
+    @Test
+    @DisplayName("API ForgotPassword: Gửi mã OTP thành công khi email tồn tại")
+    void testForgotPassword_Success() {
+        when(userRepository.findByEmail("vana@example.com")).thenReturn(Optional.of(user));
+        when(otpService.generateOtp("vana@example.com")).thenReturn("123456");
+
+        com.example.sharemoney.dto.request.ForgotPasswordRequest request =
+                com.example.sharemoney.dto.request.ForgotPasswordRequest.builder()
+                        .email("vana@example.com")
+                        .build();
+
+        ResponseEntity<java.util.Map<String, Object>> response =
+                authController.forgotPassword(request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(true, response.getBody().get("success"));
+        verify(emailService).sendOtpEmail("vana@example.com", "123456");
+    }
+
+    @Test
+    @DisplayName("API ForgotPassword: Ném USER_NOT_FOUND khi email không tồn tại")
+    void testForgotPassword_UserNotFound() {
+        when(userRepository.findByEmail("nonexistent@example.com")).thenReturn(Optional.empty());
+
+        com.example.sharemoney.dto.request.ForgotPasswordRequest request =
+                com.example.sharemoney.dto.request.ForgotPasswordRequest.builder()
+                        .email("nonexistent@example.com")
+                        .build();
+
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> authController.forgotPassword(request));
+
+        assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("API ResetPassword: Đặt lại mật khẩu thành công khi OTP đúng")
+    void testResetPassword_Success() {
+        when(userRepository.findByEmail("vana@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("NewPass123")).thenReturn("encoded_new_pass");
+
+        com.example.sharemoney.dto.request.ResetPasswordRequest request =
+                com.example.sharemoney.dto.request.ResetPasswordRequest.builder()
+                        .email("vana@example.com")
+                        .otp("123456")
+                        .newPassword("NewPass123")
+                        .build();
+
+        ResponseEntity<java.util.Map<String, Object>> response =
+                authController.resetPassword(request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(true, response.getBody().get("success"));
+        verify(otpService).validateOtp("vana@example.com", "123456");
+        verify(userRepository).save(user);
+        assertEquals("encoded_new_pass", user.getPasswordHash());
     }
 }

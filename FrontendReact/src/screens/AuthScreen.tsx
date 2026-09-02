@@ -7,12 +7,14 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { colors } from "../constants/colors";
 import { useTheme } from "../context/ThemeContext";
+import { ForgotPasswordModal } from "../components/modals/ForgotPasswordModal";
 
 import { LoginPayload, RegisterPayload } from "../types";
 import { useAuth } from "../hooks/useAuth";
@@ -35,6 +37,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const trimmedEmail = email.trim();
   const trimmedName = name.trim();
@@ -162,6 +165,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             onChangeText={setPassword}
           />
 
+          {!isRegister && (
+            <View style={styles.forgotRow}>
+              <TouchableOpacity
+                onPress={() => setShowForgotPassword(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={[styles.forgotText, isDark ? styles.forgotTextDark : undefined]}>
+                  Quên mật khẩu?
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {isRegister && (
             <View
               style={[
@@ -237,6 +254,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             style={styles.switchBtn}
           />
         </Card>
+
+        {/* Modal Quên Mật Khẩu (Xác thực OTP 6 số qua Gmail) */}
+        <ForgotPasswordModal
+          visible={showForgotPassword}
+          onClose={() => setShowForgotPassword(false)}
+          initialEmail={trimmedEmail}
+          onSuccess={(updatedEmail) => {
+            setEmail(updatedEmail);
+            setPassword("");
+            setIsRegister(false);
+          }}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -351,5 +380,18 @@ const styles = StyleSheet.create({
   },
   switchBtn: {
     marginTop: 12,
+  },
+  forgotRow: {
+    alignItems: "flex-end",
+    marginTop: -4,
+    marginBottom: 16,
+  },
+  forgotText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.indigo600,
+  },
+  forgotTextDark: {
+    color: "#818CF8",
   },
 });

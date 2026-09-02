@@ -9,33 +9,32 @@ try {
   Constants = {};
 }
 
+const CLOUD_API_URL = "http://18.142.90.90:8080/api";
+
 export const getBaseUrl = () => {
-  // 0. Production / Environment configured URL (if not stale duckdns)
+  // 0. Production / Environment configured URL
   if (process.env.EXPO_PUBLIC_API_URL && !process.env.EXPO_PUBLIC_API_URL.includes("duckdns")) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, "");
   }
 
-  // 1. Try extracting host IP dynamically from Expo (Metro hostUri e.g. "192.168.10.106:8081")
-  const hostUri =
-    Constants.expoConfig?.hostUri ||
-    (Constants.manifest as any)?.hostUri ||
-    (Constants.manifest2 as any)?.extra?.expoGo?.debuggerHost ||
-    (Constants as any).debuggerHost;
+  // 1. Try extracting host IP dynamically from Expo (Metro hostUri) in DEV ONLY
+  if (__DEV__) {
+    const hostUri =
+      Constants.expoConfig?.hostUri ||
+      (Constants.manifest as any)?.hostUri ||
+      (Constants.manifest2 as any)?.extra?.expoGo?.debuggerHost ||
+      (Constants as any).debuggerHost;
 
-  if (hostUri) {
-    const ip = hostUri.split(":")[0];
-    if (ip && ip !== "localhost" && ip !== "127.0.0.1") {
-      return `http://${ip}:8080/api`;
+    if (hostUri) {
+      const ip = hostUri.split(":")[0];
+      if (ip && ip !== "localhost" && ip !== "127.0.0.1" && !ip.startsWith("10.0.2")) {
+        return `http://${ip}:8080/api`;
+      }
     }
   }
 
-  // 2. Android specific fallback (10.0.2.2 is Android Emulator alias for PC localhost)
-  if (Platform.OS === "android") {
-    return "http://10.0.2.2:8080/api";
-  }
-
-  // 3. Fallback for Web / Local
-  return "http://localhost:8080/api";
+  // 2. Production default: Always connect to AWS EC2 Cloud Backend
+  return CLOUD_API_URL;
 };
 
 export const api = axios.create({

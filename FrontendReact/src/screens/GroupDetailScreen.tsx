@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
   Modal,
+  TextInput,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Button } from "../components/ui/Button";
@@ -268,6 +269,40 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
     setAmount(formatted);
   };
 
+  const handleAutoFillRemainder = () => {
+    const rawNumber = parseFloat(amount.replace(/\./g, "")) || 0;
+    if (rawNumber <= 0 || !group?.members) return;
+
+    let currentSum = 0;
+    const members = group.members;
+    for (const m of members) {
+      const uId = m.user?.id || m.id;
+      const val = parseFloat((customAmounts[uId] || "0").replace(/\./g, "")) || 0;
+      currentSum += val;
+    }
+    const remainder = rawNumber - currentSum;
+    if (remainder <= 0) return;
+
+    const zeroMembers = members.filter((m: any) => {
+      const uId = m.user?.id || m.id;
+      const val = parseFloat((customAmounts[uId] || "0").replace(/\./g, "")) || 0;
+      return val === 0;
+    });
+
+    const targetMembers = zeroMembers.length > 0 ? zeroMembers : members;
+    const splitVal = Math.floor(remainder / targetMembers.length);
+    const modVal = remainder % targetMembers.length;
+
+    const newAmounts = { ...customAmounts };
+    targetMembers.forEach((m: any, idx: number) => {
+      const uId = m.user?.id || m.id;
+      const prevVal = parseFloat((newAmounts[uId] || "0").replace(/\./g, "")) || 0;
+      const addVal = splitVal + (idx === 0 ? modVal : 0);
+      newAmounts[uId] = (prevVal + addVal).toLocaleString("vi-VN");
+    });
+    setCustomAmounts(newAmounts);
+  };
+
   const handleSaveExpense = async () => {
     const rawNumber = parseFloat(amount.replace(/\./g, "")) || 0;
     if (!title.trim() || rawNumber <= 0 || !groupId || !group) {
@@ -281,26 +316,36 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
       return;
     }
 
-    const targetSplitIds = splitMode === "all"
-      ? (group.members?.map((m) => m.user?.id || m.id) || [])
-      : selectedSplitUserIds;
-
-    if (targetSplitIds.length === 0) {
-      showToast("Vui lòng chọn ít nhất 1 người để chia tiền", "error");
-      return;
-    }
-
+    let targetSplitIds: string[] = [];
     let parsedCustomAmounts: Record<string, number> | undefined = undefined;
-    if (splitType === "EXACT") {
+
+    if (splitType === "EQUAL") {
+      targetSplitIds = selectedSplitUserIds;
+      if (targetSplitIds.length === 0) {
+        showToast("Vui lòng chọn ít nhất 1 người để chia tiền", "error");
+        return;
+      }
+    } else {
       parsedCustomAmounts = {};
       let sum = 0;
-      for (const id of targetSplitIds) {
-        const val = parseFloat((customAmounts[id] || "0").replace(/\./g, "")) || 0;
-        parsedCustomAmounts[id] = val;
+      const members = group.members || [];
+      for (const m of members) {
+        const uId = m.user?.id || m.id;
+        const val = parseFloat((customAmounts[uId] || "0").replace(/\./g, "")) || 0;
+        if (val > 0) {
+          parsedCustomAmounts[uId] = val;
+          targetSplitIds.push(uId);
+        }
         sum += val;
       }
+
+      if (targetSplitIds.length === 0) {
+        showToast("Vui lòng nhập số tiền cho ít nhất 1 người", "error");
+        return;
+      }
+
       if (sum !== rawNumber) {
-        showToast(`Tổng chia tiền (${sum.toLocaleString("vi-VN")}) không khớp với hóa đơn (${rawNumber.toLocaleString("vi-VN")})`, "error");
+        showToast(`Tổng chia (${sum.toLocaleString("vi-VN")} ₫) chưa khớp hóa đơn (${rawNumber.toLocaleString("vi-VN")} ₫)`, "error");
         return;
       }
     }
@@ -919,139 +964,253 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
             </View>
           )}
 
-          {/* Chia cho những ai? */}
-          <View style={styles.splitSectionHeader}>
-            <Text style={styles.label}>Chia cho những ai? (*)</Text>
-            <View style={styles.splitModeToggle}>
-              <TouchableOpacity
-                onPress={() => setSplitMode("all")}
-                style={[styles.splitModeBtn, splitMode === "all" && styles.splitModeBtnActive]}
-              >
-                <Text style={[styles.splitModeText, splitMode === "all" && styles.splitModeTextActive]}>
-                  Tất cả ({group?.members?.length || 0})
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  setSplitMode("custom");
-                  if (selectedSplitUserIds.length === 0) {
-                    setSelectedSplitUserIds(group?.members?.map((m) => m.user?.id || m.id) || []);
-                  }
-                }}
-                style={[styles.splitModeBtn, splitMode === "custom" && styles.splitModeBtnActive]}
-              >
-                <Text style={[styles.splitModeText, splitMode === "custom" && styles.splitModeTextActive]}>
-                  Tùy chọn
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          {/* ─── PHÂN CHIA HÓA ĐƠN ─── */}
+          <View style={{ marginTop: 14, marginBottom: 8 }}>
+            <Text style={styles.label}>Cách phân chia hóa đơn (*)</Text>
 
-          {splitMode === "all" ? (
-            <View style={styles.splitAllNotice}>
-              <Text style={styles.splitAllNoticeText}>
-                👥 Hóa đơn sẽ được chia đều cho tất cả {group?.members?.length || 0} thành viên trong nhóm.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.splitCustomList}>
-              {group?.members?.map((m) => {
-                const uId = m.user?.id || m.id;
-                const uName = m.user?.name || "Thành viên";
-                const isSelected = selectedSplitUserIds.includes(uId);
-                return (
-                  <TouchableOpacity
-                    key={uId}
-                    onPress={() => {
-                      if (isSelected) {
-                        setSelectedSplitUserIds(selectedSplitUserIds.filter((id) => id !== uId));
-                      } else {
-                        setSelectedSplitUserIds([...selectedSplitUserIds, uId]);
-                      }
-                    }}
-                    style={[styles.memberCheckRow, isSelected && styles.memberCheckRowActive]}
-                  >
-                    <View style={styles.memberCheckLeft}>
-                      <View style={styles.memberAvatarCircle}>
-                        {m.user?.avatarUrl ? (
-                          <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
-                        ) : (
-                          <Text style={styles.memberAvatarText}>{uName.charAt(0)}</Text>
-                        )}
-                      </View>
-                      <Text style={styles.memberCheckName}>{uName}</Text>
-                    </View>
-                    <View style={[styles.checkCircle, isSelected && styles.checkCircleActive]}>
-                      {isSelected && <Text style={styles.checkMark}>✓</Text>}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Cách chia tiền */}
-          <View style={[styles.splitSectionHeader, { marginTop: 16 }]}>
-            <Text style={styles.label}>Cách chia tiền (*)</Text>
-            <View style={styles.splitModeToggle}>
+            {/* Split Type Selector Tabs */}
+            <View style={styles.splitTabContainer}>
               <TouchableOpacity
                 onPress={() => setSplitType("EQUAL")}
-                style={[styles.splitModeBtn, splitType === "EQUAL" && styles.splitModeBtnActive]}
+                style={[styles.splitTabBtn, splitType === "EQUAL" && styles.splitTabBtnActive]}
+                activeOpacity={0.8}
               >
-                <Text style={[styles.splitModeText, splitType === "EQUAL" && styles.splitModeTextActive]}>
-                  Chia Đều
+                <Text style={styles.splitTabIcon}>⚖️</Text>
+                <Text style={[styles.splitTabText, splitType === "EQUAL" && styles.splitTabTextActive]}>
+                  Chia đều
                 </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                onPress={() => setSplitType("EXACT")}
-                style={[styles.splitModeBtn, splitType === "EXACT" && styles.splitModeBtnActive]}
+                onPress={() => {
+                  setSplitType("EXACT");
+                  if (Object.keys(customAmounts).length === 0 && group?.members) {
+                    const rawNum = parseFloat(amount.replace(/\./g, "")) || 0;
+                    if (rawNum > 0 && selectedSplitUserIds.length > 0) {
+                      const splitVal = Math.floor(rawNum / selectedSplitUserIds.length);
+                      const modVal = rawNum % selectedSplitUserIds.length;
+                      const initial: Record<string, string> = {};
+                      selectedSplitUserIds.forEach((uId, idx) => {
+                        initial[uId] = (splitVal + (idx === 0 ? modVal : 0)).toLocaleString("vi-VN");
+                      });
+                      setCustomAmounts(initial);
+                    }
+                  }
+                }}
+                style={[styles.splitTabBtn, splitType === "EXACT" && styles.splitTabBtnActive]}
+                activeOpacity={0.8}
               >
-                <Text style={[styles.splitModeText, splitType === "EXACT" && styles.splitModeTextActive]}>
-                  Tùy Chỉnh
+                <Text style={styles.splitTabIcon}>✍️</Text>
+                <Text style={[styles.splitTabText, splitType === "EXACT" && styles.splitTabTextActive]}>
+                  Số tiền cụ thể
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
 
-          {splitType === "EXACT" && (
-            <View style={styles.splitCustomList}>
-              {group?.members?.filter((m: any) => (splitMode === "all" ? true : selectedSplitUserIds.includes(m.user?.id || m.id))).map((m: any) => {
-                const uId = m.user?.id || m.id;
-                const uName = m.user?.name || "Thành viên";
-                return (
-                  <View key={`amount-${uId}`} style={[styles.memberCheckRow, { paddingVertical: 8 }]}>
-                    <View style={styles.memberCheckLeft}>
-                      <View style={styles.memberAvatarCircle}>
-                        {m.user?.avatarUrl ? (
-                          <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
-                        ) : (
-                          <Text style={styles.memberAvatarText}>{uName.charAt(0)}</Text>
-                        )}
-                      </View>
-                      <Text style={[styles.memberCheckName, { flex: 1 }]} numberOfLines={1}>{uName}</Text>
-                    </View>
-                    <View style={{ width: 140 }}>
-                      <Input
-                        placeholder="VND"
-                        keyboardType="numeric"
-                        value={customAmounts[uId] || ""}
-                        onChangeText={(txt) => {
-                          const cleanDigits = txt.replace(/\D/g, "");
-                          if (!cleanDigits) {
-                            setCustomAmounts(prev => ({ ...prev, [uId]: "" }));
-                            return;
+            {splitType === "EQUAL" ? (
+              <View style={styles.splitContentBox}>
+                {/* Header bar */}
+                <View style={styles.splitHeaderRow}>
+                  <Text style={styles.splitHeaderSubText}>
+                    Chọn người tham gia ({selectedSplitUserIds.length}/{group?.members?.length || 0})
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (selectedSplitUserIds.length === (group?.members?.length || 0)) {
+                        const myId = user?.id || group?.members?.[0]?.user?.id || group?.members?.[0]?.id;
+                        setSelectedSplitUserIds(myId ? [myId] : []);
+                      } else {
+                        setSelectedSplitUserIds(group?.members?.map((m: any) => m.user?.id || m.id) || []);
+                      }
+                    }}
+                    style={styles.selectAllBtn}
+                  >
+                    <Text style={styles.selectAllBtnText}>
+                      {selectedSplitUserIds.length === (group?.members?.length || 0) ? "Bỏ chọn bớt" : "Chọn tất cả"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Member checklist */}
+                <View style={styles.memberListGrid}>
+                  {group?.members?.map((m: any) => {
+                    const uId = m.user?.id || m.id;
+                    const uName = m.user?.name || "Thành viên";
+                    const isSelected = selectedSplitUserIds.includes(uId);
+                    const rawNum = parseFloat(amount.replace(/\./g, "")) || 0;
+                    const perPerson = selectedSplitUserIds.length > 0 && isSelected
+                      ? Math.round(rawNum / selectedSplitUserIds.length)
+                      : 0;
+
+                    return (
+                      <TouchableOpacity
+                        key={uId}
+                        onPress={() => {
+                          if (isSelected) {
+                            if (selectedSplitUserIds.length > 1) {
+                              setSelectedSplitUserIds(selectedSplitUserIds.filter((id) => id !== uId));
+                            } else {
+                              showToast("Phải có ít nhất 1 người chia tiền", "info");
+                            }
+                          } else {
+                            setSelectedSplitUserIds([...selectedSplitUserIds, uId]);
                           }
-                          const formatted = parseInt(cleanDigits, 10).toLocaleString("vi-VN");
-                          setCustomAmounts(prev => ({ ...prev, [uId]: formatted }));
                         }}
-                      />
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          )}
+                        style={[styles.memberCard, isSelected && styles.memberCardActive]}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.memberCardLeft}>
+                          <View style={[styles.memberAvatarCircle, isSelected && { backgroundColor: "#10b981" }]}>
+                            {m.user?.avatarUrl ? (
+                              <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
+                            ) : (
+                              <Text style={[styles.memberAvatarText, isSelected && { color: colors.white }]}>
+                                {uName.charAt(0)}
+                              </Text>
+                            )}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.memberCardName, isSelected && styles.memberCardNameActive]} numberOfLines={1}>
+                              {uName} {uId === user?.id ? "(Bạn)" : ""}
+                            </Text>
+                            <Text style={styles.memberCardRole}>
+                              {m.role === "OWNER" ? "Chủ nhóm" : "Thành viên"}
+                            </Text>
+                          </View>
+                        </View>
 
+                        <View style={styles.memberCardRight}>
+                          {isSelected ? (
+                            <View style={styles.amountBadgeActive}>
+                              <Text style={styles.amountBadgeText}>{perPerson.toLocaleString("vi-VN")} ₫</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.amountBadgeInactive}>
+                              <Text style={styles.amountBadgeInactiveText}>Không chia</Text>
+                            </View>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Equal summary tip */}
+                {selectedSplitUserIds.length > 0 && (
+                  <View style={styles.equalTipBox}>
+                    <Text style={styles.equalTipText}>
+                      💡 Chia đều cho <Text style={{ fontWeight: "800", color: "#065f46" }}>{selectedSplitUserIds.length} người</Text>: mỗi người trả <Text style={{ fontWeight: "800", color: "#065f46" }}>{Math.round((parseFloat(amount.replace(/\./g, "")) || 0) / selectedSplitUserIds.length).toLocaleString("vi-VN")} ₫</Text>
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.splitContentBox}>
+                <Text style={[styles.splitHeaderSubText, { marginBottom: 10 }]}>
+                  Nhập số tiền nợ chính xác cho từng thành viên:
+                </Text>
+
+                <View style={styles.memberListGrid}>
+                  {group?.members?.map((m: any) => {
+                    const uId = m.user?.id || m.id;
+                    const uName = m.user?.name || "Thành viên";
+                    const currentVal = customAmounts[uId] || "";
+                    const numVal = parseFloat(currentVal.replace(/\./g, "")) || 0;
+
+                    return (
+                      <View key={`exact-${uId}`} style={[styles.memberInputRow, numVal > 0 && styles.memberInputRowActive]}>
+                        <View style={styles.memberCardLeft}>
+                          <View style={[styles.memberAvatarCircle, numVal > 0 && { backgroundColor: "#10b981" }]}>
+                            {m.user?.avatarUrl ? (
+                              <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
+                            ) : (
+                              <Text style={[styles.memberAvatarText, numVal > 0 && { color: colors.white }]}>
+                                {uName.charAt(0)}
+                              </Text>
+                            )}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.memberCardName} numberOfLines={1}>
+                              {uName} {uId === user?.id ? "(Bạn)" : ""}
+                            </Text>
+                            <Text style={styles.memberCardRole}>
+                              {numVal > 0 ? `${numVal.toLocaleString("vi-VN")} ₫` : "0 ₫"}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={{ width: 130 }}>
+                          <TextInput
+                            placeholder="0 ₫"
+                            placeholderTextColor={colors.slate400}
+                            keyboardType="numeric"
+                            value={currentVal}
+                            onChangeText={(txt) => {
+                              const cleanDigits = txt.replace(/\D/g, "");
+                              if (!cleanDigits) {
+                                setCustomAmounts((prev) => ({ ...prev, [uId]: "" }));
+                                return;
+                              }
+                              const formatted = parseInt(cleanDigits, 10).toLocaleString("vi-VN");
+                              setCustomAmounts((prev) => ({ ...prev, [uId]: formatted }));
+                            }}
+                            style={styles.customAmountInput}
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {/* Custom Split Calculation Status Card */}
+                {(() => {
+                  const rawNum = parseFloat(amount.replace(/\./g, "")) || 0;
+                  let sum = 0;
+                  Object.values(customAmounts).forEach((val) => {
+                    sum += parseFloat((val || "0").replace(/\./g, "")) || 0;
+                  });
+                  const diff = rawNum - sum;
+                  const isMatch = rawNum > 0 && diff === 0;
+
+                  return (
+                    <View style={[styles.customCalcCard, isMatch ? styles.customCalcCardMatch : styles.customCalcCardMismatch]}>
+                      <View style={styles.calcRow}>
+                        <Text style={styles.calcLabel}>Tổng hóa đơn:</Text>
+                        <Text style={styles.calcValue}>{rawNum.toLocaleString("vi-VN")} ₫</Text>
+                      </View>
+                      <View style={styles.calcRow}>
+                        <Text style={styles.calcLabel}>Đã phân chia:</Text>
+                        <Text style={[styles.calcValue, isMatch ? { color: "#059669" } : { color: "#dc2626" }]}>
+                          {sum.toLocaleString("vi-VN")} ₫
+                        </Text>
+                      </View>
+
+                      <View style={styles.calcDivider} />
+
+                      <View style={styles.calcRow}>
+                        <Text style={styles.calcStatusLabel}>
+                          {isMatch ? "✅ Trạng thái:" : diff > 0 ? "⚠️ Còn thiếu:" : "⚠️ Vượt quá:"}
+                        </Text>
+                        <Text style={[styles.calcStatusValue, isMatch ? { color: "#059669" } : { color: "#dc2626" }]}>
+                          {isMatch ? "Khớp 100% ✨" : `${Math.abs(diff).toLocaleString("vi-VN")} ₫`}
+                        </Text>
+                      </View>
+
+                      {!isMatch && diff > 0 && (
+                        <TouchableOpacity
+                          onPress={handleAutoFillRemainder}
+                          style={styles.autoFillBtn}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.autoFillBtnText}>⚡ Tự chia đều {diff.toLocaleString("vi-VN")} ₫ còn lại</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })()}
+              </View>
+            )}
+          </View>
           </ScrollView>
 
           {/* Sticky Bottom Footer */}
@@ -1924,99 +2083,231 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#065f46",
   },
-  splitSectionHeader: {
+  splitTabContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    backgroundColor: "#F1F5F9",
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 12,
+    gap: 6,
+  },
+  splitTabBtn: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
-  },
-  splitModeToggle: {
-    flexDirection: "row",
-    backgroundColor: colors.slate100,
-    borderRadius: 12,
-    padding: 2,
-  },
-  splitModeBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    justifyContent: "center",
+    paddingVertical: 9,
     borderRadius: 10,
+    gap: 6,
   },
-  splitModeBtnActive: {
+  splitTabBtnActive: {
     backgroundColor: colors.white,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  splitModeText: {
+  splitTabIcon: {
+    fontSize: 14,
+  },
+  splitTabText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.slate600,
+  },
+  splitTabTextActive: {
+    color: colors.slate900,
+    fontWeight: "800",
+  },
+  splitContentBox: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 12,
+    marginBottom: 8,
+  },
+  splitHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  splitHeaderSubText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.slate600,
+  },
+  selectAllBtn: {
+    backgroundColor: "#E2E8F0",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  selectAllBtnText: {
     fontSize: 11,
     fontWeight: "700",
-    color: colors.slate500,
+    color: colors.slate700,
   },
-  splitModeTextActive: {
-    color: colors.slate900,
-  },
-  splitAllNotice: {
-    backgroundColor: "#ecfdf5",
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#a7f3d0",
-  },
-  splitAllNoticeText: {
-    fontSize: 12,
-    color: "#065f46",
-    fontWeight: "600",
-    lineHeight: 18,
-  },
-  splitCustomList: {
+  memberListGrid: {
     gap: 8,
-    marginBottom: 16,
   },
-  memberCheckRow: {
+  memberCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: colors.slate50,
+    backgroundColor: colors.white,
     padding: 10,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.slate200,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
   },
-  memberCheckRowActive: {
-    backgroundColor: "#f0fdf4",
-    borderColor: "#86efac",
+  memberCardActive: {
+    borderColor: "#10B981",
+    backgroundColor: "#F0FDF4",
   },
-  memberCheckLeft: {
+  memberCardLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    flex: 1,
+    marginRight: 8,
   },
-  memberCheckName: {
+  memberCardName: {
     fontSize: 13,
     fontWeight: "700",
     color: colors.slate800,
   },
-  checkCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  memberCardNameActive: {
+    color: "#065F46",
+    fontWeight: "800",
+  },
+  memberCardRole: {
+    fontSize: 11,
+    color: colors.slate400,
+    marginTop: 2,
+  },
+  memberCardRight: {
+    alignItems: "flex-end",
+  },
+  amountBadgeActive: {
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  amountBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#059669",
+  },
+  amountBadgeInactive: {
+    backgroundColor: colors.slate100,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  amountBadgeInactiveText: {
+    fontSize: 11,
+    color: colors.slate400,
+    fontWeight: "600",
+  },
+  equalTipBox: {
+    marginTop: 10,
+    backgroundColor: "#ECFDF5",
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  equalTipText: {
+    fontSize: 12,
+    color: "#065F46",
+    lineHeight: 18,
+  },
+  memberInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.white,
+    padding: 10,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: colors.slate300,
+    borderColor: "#E2E8F0",
+  },
+  memberInputRowActive: {
+    borderColor: "#10B981",
+    backgroundColor: "#F0FDF4",
+  },
+  customAmountInput: {
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.slate900,
+    textAlign: "right",
+  },
+  customCalcCard: {
+    marginTop: 12,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+  },
+  customCalcCardMatch: {
+    backgroundColor: "#ECFDF5",
+    borderColor: "#6EE7B7",
+  },
+  customCalcCardMismatch: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FCA5A5",
+  },
+  calcRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  calcLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.slate600,
+  },
+  calcValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.slate800,
+  },
+  calcDivider: {
+    height: 1,
+    backgroundColor: "rgba(0,0,0,0.06)",
+    marginVertical: 6,
+  },
+  calcStatusLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.slate800,
+  },
+  calcStatusValue: {
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  autoFillBtn: {
+    marginTop: 8,
+    backgroundColor: colors.indigo600,
+    paddingVertical: 8,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.white,
   },
-  checkCircleActive: {
-    backgroundColor: "#10b981",
-    borderColor: "#10b981",
-  },
-  checkMark: {
-    color: colors.white,
+  autoFillBtnText: {
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "800",
+    color: colors.white,
   },
   btnRow: {
     flexDirection: "row",

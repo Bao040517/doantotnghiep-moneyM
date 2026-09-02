@@ -176,6 +176,41 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
     setAmount(formatted);
   };
 
+  const handleCustomAmountChange = (targetUserId: string, text: string) => {
+    const cleanDigits = text.replace(/\D/g, "");
+    const formatted = cleanDigits ? parseInt(cleanDigits, 10).toLocaleString("vi-VN") : "";
+
+    const updatedAmounts = { ...customAmounts, [targetUserId]: formatted };
+
+    const rawTotal = parseFloat(amount.replace(/\./g, "")) || 0;
+    if (rawTotal > 0 && selectedSplitUserIds.length > 1) {
+      const otherSelectedIds = selectedSplitUserIds.filter((id) => id !== targetUserId);
+      const filledOtherIds = otherSelectedIds.filter((id) => {
+        const val = parseFloat((updatedAmounts[id] || "").replace(/\./g, "")) || 0;
+        return val > 0;
+      });
+      const emptyOtherIds = otherSelectedIds.filter((id) => {
+        const val = parseFloat((updatedAmounts[id] || "").replace(/\./g, "")) || 0;
+        return val === 0;
+      });
+
+      if (emptyOtherIds.length === 1 && cleanDigits) {
+        const lastId = emptyOtherIds[0];
+        let currentSum = parseFloat(cleanDigits, 10);
+        filledOtherIds.forEach((id) => {
+          currentSum += parseFloat((updatedAmounts[id] || "0").replace(/\./g, "")) || 0;
+        });
+
+        const remainder = rawTotal - currentSum;
+        if (remainder >= 0) {
+          updatedAmounts[lastId] = remainder.toLocaleString("vi-VN");
+        }
+      }
+    }
+
+    setCustomAmounts(updatedAmounts);
+  };
+
   const handleAutoFillRemainder = () => {
     const rawNumber = parseFloat(amount.replace(/\./g, "")) || 0;
     if (!rawNumber || !group?.members) return;
@@ -665,15 +700,7 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
                               placeholderTextColor={colors.slate400}
                               keyboardType="numeric"
                               value={currentVal}
-                              onChangeText={(txt) => {
-                                const cleanDigits = txt.replace(/\D/g, "");
-                                if (!cleanDigits) {
-                                  setCustomAmounts((prev) => ({ ...prev, [uId]: "" }));
-                                  return;
-                                }
-                                const formatted = parseInt(cleanDigits, 10).toLocaleString("vi-VN");
-                                setCustomAmounts((prev) => ({ ...prev, [uId]: formatted }));
-                              }}
+                              onChangeText={(txt) => handleCustomAmountChange(uId, txt)}
                               style={styles.customAmountInput}
                             />
                           </View>

@@ -44,12 +44,13 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail, "ShareMoney App");
+            helper.setFrom(fromEmail, "ShareMoney");
             helper.setTo(toEmail);
-            helper.setSubject("💎 [" + otpCode + "] Mã xác thực đặt lại mật khẩu ShareMoney");
+            helper.setSubject("[" + otpCode + "] Mã xác thực đặt lại mật khẩu ShareMoney");
 
             String htmlContent = buildOtpHtmlTemplate(toEmail, otpCode);
-            helper.setText(htmlContent, true);
+            String plainText = "Xin chào,\n\nMã xác thực OTP đặt lại mật khẩu ShareMoney của bạn là: " + otpCode + "\nMã có hiệu lực trong vòng 5 phút.\n\nTrân trọng,\nShareMoney Team";
+            helper.setText(plainText, htmlContent);
 
             mailSender.send(message);
             log.info("[EmailService] Gửi email OTP thành công tới: {}", toEmail);

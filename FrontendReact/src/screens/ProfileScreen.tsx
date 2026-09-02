@@ -807,7 +807,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.galleryPickTitle}>Tải ảnh từ điện thoại</Text>
-                <Text style={styles.galleryPickSub}>Chọn bất kỳ hình ảnh nào từ máy của bạn</Text>
               </View>
             </TouchableOpacity>
 

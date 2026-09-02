@@ -146,7 +146,6 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   const [selectedSplitUserIds, setSelectedSplitUserIds] = useState<string[]>([]);
   const [splitType, setSplitType] = useState<"EQUAL" | "EXACT">("EQUAL");
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
-  const [manualUserIds, setManualUserIds] = useState<string[]>([]);
   const [savingExpense, setSavingExpense] = useState(false);
 
   // VietQR settlement state
@@ -268,99 +267,61 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
     }
     const formatted = parseInt(cleanDigits, 10).toLocaleString("vi-VN");
     setAmount(formatted);
-
-    if (splitType === "EXACT" && selectedSplitUserIds.length > 1) {
-      const balanced = recalculateAmounts(customAmounts, selectedSplitUserIds, manualUserIds, formatted);
-      setCustomAmounts(balanced);
-    }
-  };
-
-  const recalculateAmounts = (
-    currentAmounts: Record<string, string>,
-    selectedIds: string[],
-    manualIds: string[],
-    totalAmountStr: string,
-    lastEditedId?: string
-  ) => {
-    const rawTotal = parseFloat(totalAmountStr.replace(/\./g, "")) || 0;
-    if (rawTotal <= 0 || selectedIds.length <= 1) {
-      return currentAmounts;
-    }
-
-    const updated: Record<string, string> = { ...currentAmounts };
-
-    const activeManualIds = selectedIds.filter((id) => {
-      const val = parseFloat((updated[id] || "").replace(/\./g, "")) || 0;
-      return manualIds.includes(id) && val > 0;
-    });
-
-    const unassignedIds = selectedIds.filter((id) => !activeManualIds.includes(id));
-
-    if (unassignedIds.length === 1) {
-      const autoId = unassignedIds[0];
-      let manualSum = 0;
-      activeManualIds.forEach((id) => {
-        manualSum += parseFloat((updated[id] || "0").replace(/\./g, "")) || 0;
-      });
-
-      const remainder = rawTotal - manualSum;
-      updated[autoId] = remainder >= 0 ? remainder.toLocaleString("vi-VN") : "0";
-    } else if (selectedIds.length === 2 && lastEditedId) {
-      const otherId = selectedIds.find((id) => id !== lastEditedId);
-      if (otherId) {
-        const myVal = parseFloat((updated[lastEditedId] || "0").replace(/\./g, "")) || 0;
-        const remainder = rawTotal - myVal;
-        updated[otherId] = remainder >= 0 ? remainder.toLocaleString("vi-VN") : "0";
-      }
-    }
-
-    return updated;
   };
 
   const handleCustomAmountChange = (targetUserId: string, text: string) => {
     const cleanDigits = text.replace(/\D/g, "");
     const formatted = cleanDigits ? parseInt(cleanDigits, 10).toLocaleString("vi-VN") : "";
-
-    let newManual = [...manualUserIds];
-    if (cleanDigits && parseInt(cleanDigits, 10) > 0) {
-      if (!newManual.includes(targetUserId)) {
-        newManual.push(targetUserId);
-      }
-    } else {
-      newManual = newManual.filter((id) => id !== targetUserId);
-    }
-    setManualUserIds(newManual);
-
-    const newAmounts = { ...customAmounts, [targetUserId]: formatted };
-    const balanced = recalculateAmounts(newAmounts, selectedSplitUserIds, newManual, amount, targetUserId);
-    setCustomAmounts(balanced);
+    setCustomAmounts((prev) => ({ ...prev, [targetUserId]: formatted }));
   };
 
   const handleToggleMemberExact = (uId: string) => {
-    let newSelected: string[];
-    let newManual = [...manualUserIds];
-
     if (selectedSplitUserIds.includes(uId)) {
       if (selectedSplitUserIds.length <= 1) {
         showToast("Phải có ít nhất 1 người tham gia", "info");
         return;
       }
-      newSelected = selectedSplitUserIds.filter((id) => id !== uId);
-      newManual = newManual.filter((id) => id !== uId);
-      setManualUserIds(newManual);
+      setSelectedSplitUserIds(selectedSplitUserIds.filter((id) => id !== uId));
     } else {
-      newSelected = [...selectedSplitUserIds, uId];
+      setSelectedSplitUserIds([...selectedSplitUserIds, uId]);
+    }
+  };
+
+  const handleAutoFillRemainder = () => {
+    const rawNumber = parseFloat(amount.replace(/\./g, "")) || 0;
+    if (rawNumber <= 0 || !group?.members) return;
+
+    let currentSum = 0;
+    const targetIds = selectedSplitUserIds;
+    if (targetIds.length === 0) {
+      showToast("Vui lòng chọn ít nhất 1 người tham gia", "info");
+      return;
     }
 
-    setSelectedSplitUserIds(newSelected);
-
-    const newAmounts: Record<string, string> = {};
-    newSelected.forEach((id) => {
-      newAmounts[id] = customAmounts[id] || "";
+    targetIds.forEach((uId) => {
+      const val = parseFloat((customAmounts[uId] || "0").replace(/\./g, "")) || 0;
+      currentSum += val;
     });
 
-    const balanced = recalculateAmounts(newAmounts, newSelected, newManual, amount);
-    setCustomAmounts(balanced);
+    const remainder = rawNumber - currentSum;
+    if (remainder <= 0) return;
+
+    const zeroIds = targetIds.filter((uId) => {
+      const val = parseFloat((customAmounts[uId] || "0").replace(/\./g, "")) || 0;
+      return val === 0;
+    });
+
+    const fillIds = zeroIds.length > 0 ? zeroIds : targetIds;
+    const splitVal = Math.floor(remainder / fillIds.length);
+    const modVal = remainder % fillIds.length;
+
+    const newAmounts = { ...customAmounts };
+    fillIds.forEach((uId, idx) => {
+      const prevVal = parseFloat((newAmounts[uId] || "0").replace(/\./g, "")) || 0;
+      const addVal = splitVal + (idx === 0 ? modVal : 0);
+      newAmounts[uId] = (prevVal + addVal).toLocaleString("vi-VN");
+    });
+    setCustomAmounts(newAmounts);
   };
 
   const handleAutoFillRemainder = () => {
@@ -1254,12 +1215,8 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                             <Text style={[styles.memberCardName, isSelected && styles.memberCardNameActive]} numberOfLines={1}>
                               {uName} {uId === user?.id ? "(Bạn)" : ""}
                             </Text>
-                            <Text style={[styles.memberCardRole, isSelected && !manualUserIds.includes(uId) && parseFloat((customAmounts[uId] || "").replace(/\./g, "")) > 0 && selectedSplitUserIds.length > 1 && { color: "#059669", fontWeight: "700" }]}>
-                              {isSelected
-                                ? !manualUserIds.includes(uId) && parseFloat((customAmounts[uId] || "").replace(/\./g, "")) > 0 && selectedSplitUserIds.length > 1
-                                  ? "🤖 Tự động bù"
-                                  : "Được phân chia"
-                                : "Không tham gia"}
+                            <Text style={styles.memberCardRole}>
+                              {isSelected ? "Được phân chia" : "Không tham gia"}
                             </Text>
                           </View>
                         </TouchableOpacity>
@@ -1288,7 +1245,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                   })}
                 </View>
 
-                {/* Custom Split Calculation Status Card */}
+                {/* Only show warning if there is a mismatch */}
                 {(() => {
                   const rawNum = parseFloat(amount.replace(/\./g, "")) || 0;
                   let sum = 0;
@@ -1296,39 +1253,32 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                     sum += parseFloat((customAmounts[uId] || "0").replace(/\./g, "")) || 0;
                   });
                   const diff = rawNum - sum;
-                  const isMatch = rawNum > 0 && diff === 0 && selectedSplitUserIds.length > 0;
+
+                  if (diff === 0 || rawNum <= 0 || selectedSplitUserIds.length === 0) {
+                    return null;
+                  }
 
                   return (
-                    <View style={[styles.customCalcCard, isMatch ? styles.customCalcCardMatch : styles.customCalcCardMismatch]}>
-                      <View style={styles.calcRow}>
-                        <Text style={styles.calcLabel}>Tổng hóa đơn:</Text>
-                        <Text style={styles.calcValue}>{rawNum.toLocaleString("vi-VN")} ₫</Text>
-                      </View>
-                      <View style={styles.calcRow}>
-                        <Text style={styles.calcLabel}>Đã phân chia ({selectedSplitUserIds.length} người):</Text>
-                        <Text style={[styles.calcValue, isMatch ? { color: "#059669" } : { color: "#dc2626" }]}>
-                          {sum.toLocaleString("vi-VN")} ₫
+                    <View style={styles.warningMismatchCard}>
+                      <View style={styles.warningMismatchHeader}>
+                        <Text style={styles.warningMismatchTitle}>
+                          {diff > 0 ? "⚠️ Chưa khớp: Còn thiếu tiền" : "⚠️ Chưa khớp: Vượt quá hóa đơn"}
+                        </Text>
+                        <Text style={[styles.warningMismatchDiff, diff > 0 ? { color: "#D97706" } : { color: "#DC2626" }]}>
+                          {diff > 0 ? `Thiếu ${diff.toLocaleString("vi-VN")} ₫` : `Thừa ${Math.abs(diff).toLocaleString("vi-VN")} ₫`}
                         </Text>
                       </View>
+                      <Text style={styles.warningMismatchSubText}>
+                        Đã chia: <Text style={{ fontWeight: "800", color: colors.slate800 }}>{sum.toLocaleString("vi-VN")} ₫</Text> / Tổng: <Text style={{ fontWeight: "800", color: colors.slate800 }}>{rawNum.toLocaleString("vi-VN")} ₫</Text>
+                      </Text>
 
-                      <View style={styles.calcDivider} />
-
-                      <View style={styles.calcRow}>
-                        <Text style={styles.calcStatusLabel}>
-                          {isMatch ? "✅ Trạng thái:" : diff > 0 ? "⚠️ Còn thiếu:" : "⚠️ Vượt quá:"}
-                        </Text>
-                        <Text style={[styles.calcStatusValue, isMatch ? { color: "#059669" } : { color: "#dc2626" }]}>
-                          {isMatch ? "Khớp 100% ✨" : `${Math.abs(diff).toLocaleString("vi-VN")} ₫`}
-                        </Text>
-                      </View>
-
-                      {!isMatch && diff > 0 && selectedSplitUserIds.length > 0 && (
+                      {diff > 0 && (
                         <TouchableOpacity
                           onPress={handleAutoFillRemainder}
                           style={styles.autoFillBtn}
                           activeOpacity={0.8}
                         >
-                          <Text style={styles.autoFillBtnText}>⚡ Tự chia đều {diff.toLocaleString("vi-VN")} ₫ cho người đã chọn</Text>
+                          <Text style={styles.autoFillBtnText}>⚡ Tự chia đều {diff.toLocaleString("vi-VN")} ₫ còn thiếu</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -2391,6 +2341,34 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.slate900,
     textAlign: "right",
+  },
+  warningMismatchCard: {
+    marginTop: 12,
+    backgroundColor: "#FFFBEB",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: "#FCD34D",
+  },
+  warningMismatchHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  warningMismatchTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#92400E",
+  },
+  warningMismatchDiff: {
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  warningMismatchSubText: {
+    fontSize: 12,
+    color: colors.slate600,
+    marginTop: 2,
   },
   customCalcCard: {
     marginTop: 12,

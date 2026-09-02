@@ -23,7 +23,6 @@ import { AddTransactionModal } from "../components/modals/AddTransactionModal";
 import { TransferBottomSheet } from "../components/modals/TransferBottomSheet";
 import { ExternalLoanManagerBottomSheet } from "../components/modals/ExternalLoanManagerBottomSheet";
 import { NotificationsBottomSheet } from "../components/modals/NotificationsBottomSheet";
-import { NotificationsBottomSheet } from "../components/modals/NotificationsBottomSheet";
 import { FinancialHealthCard } from "../components/features/FinancialHealthCard";
 import { colors } from "../constants/colors";
 import { DashboardSkeleton } from "../components/ui/SkeletonLoader";

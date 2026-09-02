@@ -60,6 +60,40 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 55. **Chế Độ Tối Toàn Diện Hệ Thống (Comprehensive Dark Mode System):** Đồng bộ Dark Mode trên toàn bộ ứng dụng (Tab Tư vấn `AdvisorScreen`, Tab Thống kê `ReportScreen`, `TotalExpenseDetailBottomSheet`, `NotificationBottomSheet`, `BottomSheet`, `Card`, `BudgetScreen`, `SavingsScreen`, `GroupsScreen`, `HistoryScreen`), áp dụng nền tối sang trọng (`#0F172A`), card tối (`#1E293B`), chữ sáng rõ nét (`#F1F5F9`), loại bỏ hoàn toàn tình trạng chói mắt.
 56. **Chuẩn Hóa Xác Thực Đăng Ký Tài Khoản Mới (Gmail Format & Alphanumeric Password Enforcer):** Kiểm soát nghiêm ngặt luồng đăng ký user mới trên toàn bộ hệ thống: Bắt buộc email đăng ký phải đúng định dạng Gmail (`@gmail.com`), mật khẩu tối thiểu 6 ký tự và bắt buộc phải chứa đồng thời cả chữ cái lẫn chữ số. Tích hợp checklist yêu cầu trực quan realtime đổi màu xanh `✓` trên Frontend và bảo vệ 2 lớp với Bean Validation `@Pattern` trên Spring Boot Backend.
 57. **Gỡ Bỏ Hoàn Toàn Luồng OCR & Quét Hóa Đơn Khỏi Dự Án (Complete Receipt OCR Decommissioning):** Gỡ bỏ toàn bộ mã nguồn, endpoints, DTOs, cấu hình bên thứ 3 (Mindee / ZXing / Jsoup), các nút bấm và modal liên quan đến tính năng quét OCR hóa đơn giấy / E-Invoice khỏi toàn bộ Backend và Frontend. Chuyển đổi bộ quét Camera sang chức năng thuần túy quét mã QR tham gia nhóm (`GROUP_INVITE`) và kết nối thành viên (`USER_PROFILE`).
+58. **Chuẩn Hóa Kết Nối AWS EC2 - Supabase Cloud, Thông Báo Nhóm 2 Chiều & Tinh Gọn UX Thêm Thành Viên (Cloud DB Sync, 2-Way Group Notifications & Seamless Modal Flow):** Khắc phục triệt để lỗi schema mismatch trên EC2 Supabase Cloud, kiểm thử thông suốt End-to-End Live API (200 OK), gỡ bỏ trùng lặp request gây lỗi 409 `ALREADY_GROUP_MEMBER`, tích hợp thông báo đẩy đa kênh (Realtime WebSocket + Push Notification) khi thêm thành viên vào nhóm và tối ưu hóa đóng tự động modal quét QR.
+
+### Session [2026-09-01 / 2026-09-02] - Chuẩn Hóa Kết Nối AWS EC2 Supabase Cloud, Thông Báo Đa Kênh Khi Thêm Thành Viên & Tối Ưu UX Quét QR
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Kiểm Tra & Chuẩn Hóa Kết Nối AWS EC2 Với Supabase Cloud Database:**
+   - **Kết nối trực tiếp:** Kiểm tra thông suốt kết nối JDBC giữa Spring Boot Backend trên AWS EC2 (`18.142.90.90:8080`) và PostgreSQL Supabase Cloud (`aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres` - PostgreSQL 17.6).
+   - **Khắc phục lỗi Schema Mismatch:** Phân tích và xử lý lỗi thiếu cột `parent_transaction_id` và `linked_expense_id` trên môi trường EC2 thông qua migration script `seed_v19.sql`.
+   - **Cấu hình động Hibernate DDL:** Chỉnh sửa `docker-compose.yml` chuyển `SPRING_JPA_HIBERNATE_DDL_AUTO` từ cố định `none` sang `${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}` giúp tự động cập nhật schema khi triển khai container mới.
+   - **Live API Validation:** Kiểm thử trực tiếp từ Internet tới Backend EC2: `POST /api/auth/login` (User A `nguyenvana@gmail.com` / `123456`), `GET /api/wallets`, `GET /api/transactions` đạt **200 OK (100% Passed)**.
+
+2. **Khắc phục Triệt Để Lỗi Tạo Nhóm & Trùng Lặp 409 `ALREADY_GROUP_MEMBER`:**
+   - **Khử trùng lặp `CreateGroupBottomSheet.tsx`:** Phát hiện và loại bỏ vòng lặp `addMemberToGroup` thừa thãi sau khi gọi `createGroup`. Vì backend `GroupService.createGroup` đã tự động thêm tất cả thành viên trong `memberIds`, việc gọi tiếp request `POST /members` thứ 2 dẫn tới ngoại lệ 409.
+   - **Huy hiệu thông minh `Đã trong nhóm` (`AddMemberBottomSheet.tsx` & `GroupDetailScreen.tsx`):** Truyền `existingMemberIds` từ màn hình chi tiết nhóm; tự động phát hiện và vô hiệu hóa nút bấm chuyển thành `"Đã trong nhóm"` cho các thành viên hiện có ở cả tab Bạn bè lẫn tab Tìm kiếm theo SĐT, ngăn chặn hoàn toàn thao tác bấm nhầm.
+
+3. **Hệ Thống Thông Báo 2 Chiều Đa Kênh Khi Thêm Thành Viên Vào Nhóm:**
+   - **Tích hợp `NotificationService` vào `GroupService.java`:**
+     - Khi tạo nhóm có thành viên (`createGroup`) hoặc thêm thành viên mới (`addMember`), hệ thống tự động gửi thông báo đến thành viên được thêm: `"[Tên người thêm] đã thêm bạn vào nhóm \"[Tên nhóm]\"."`
+     - Khi thành viên tự quét mã QR tham gia nhóm (`joinGroup`), hệ thống gửi thông báo đến Chủ nhóm (`owner`).
+   - **Đa kênh thông báo:** Tự động kích hoạt đồng thời:
+     - **In-App Realtime WebSocket:** Icon chuông nhảy số đỏ, lưu trữ trong `NotificationBottomSheet.tsx`.
+     - **Native Push Notification:** Bắn thông báo đẩy ra màn hình khóa với tiêu đề chuẩn `👥 Nhóm chi tiêu ShareMoney`.
+   - **Cập nhật Push Title:** Bổ sung ánh xạ `GROUP_MEMBER_ADDED`, `GROUP_JOINED`, `GROUP_INVITED` trong `NotificationService.java`.
+   - **Kiểm thử đơn vị:** Cập nhật `GroupServiceTest.java` đạt toàn bộ **12/12 unit tests passed (100%)**.
+
+4. **Tối Ưu Hóa Trải Nghiệm Modal Quét Mã QR Thành Viên (`ScanReceiptModal.tsx`):**
+   - **Đóng modal quét tức thì:** Đưa lệnh `handleClose()` ra khỏi callback `Alert.alert -> onPress`, giúp modal quét camera tự động thu lại ngay khi API trả về 201 Created.
+   - **Hiển thị Toast thành công:** Kích hoạt ngay Toast thông báo màu xanh `🎉 Đã thêm [Tên] vào nhóm!`, sau đó tự động đóng `AddMemberBottomSheet` và làm mới danh sách thành viên trong `GroupDetailScreen`.
+
+5. **Kiểm Thử & Đóng Gói Git Sync (Full-Stack 100% Passed):**
+   - **Frontend:** `npx tsc --noEmit` đạt **0 errors**.
+   - **Backend:** `./mvnw test` đạt **BUILD SUCCESS (100% Passed)**.
+   - **Git Sync:** Đã đóng gói và đẩy toàn bộ các commit lên nhánh `main` (`commit 6e1d00f`, `1cc2ad1`, `ab8cfbb`).
 
 ### Session [2026-08-30] (Phần 2) - Gỡ Bỏ Hoàn Toàn Luồng OCR & Quét Hóa Đơn Khỏi Dự Án
 

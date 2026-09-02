@@ -11,8 +11,10 @@ public enum ErrorCode {
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Dữ liệu không hợp lệ."),
 
     // --- User ---
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng."),
-    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "Email đã được sử dụng."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Tài khoản không tồn tại trên hệ thống."),
+    EMAIL_ALREADY_EXISTS(
+            HttpStatus.CONFLICT,
+            "Địa chỉ email này đã được đăng ký. Mỗi tài khoản chỉ được dùng 1 email duy nhất."),
     PHONE_ALREADY_EXISTS(HttpStatus.CONFLICT, "Số điện thoại đã được sử dụng."),
     BANK_ACCOUNT_NOT_VERIFIED(
             HttpStatus.BAD_REQUEST,

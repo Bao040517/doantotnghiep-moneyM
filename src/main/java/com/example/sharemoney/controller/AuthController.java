@@ -51,14 +51,15 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
         User user =
                 User.builder()
-                        .name(request.getName())
-                        .email(request.getEmail())
+                        .name(request.getName().trim())
+                        .email(normalizedEmail)
                         .passwordHash(passwordEncoder.encode(request.getPassword()))
                         .build();
 
@@ -81,10 +82,11 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         try {
+            String normalizedEmail = request.getEmail().trim().toLowerCase();
             Authentication authentication =
                     authenticationManager.authenticate(
                             new UsernamePasswordAuthenticationToken(
-                                    request.getEmail(), request.getPassword()));
+                                    normalizedEmail, request.getPassword()));
 
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
             User user = userDetails.getUser();

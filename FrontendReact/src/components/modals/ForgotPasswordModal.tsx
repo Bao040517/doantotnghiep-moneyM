@@ -22,6 +22,7 @@ interface ForgotPasswordModalProps {
   visible: boolean;
   onClose: () => void;
   onSuccess: (email: string) => void;
+  onSwitchToRegister?: () => void;
   initialEmail?: string;
 }
 
@@ -29,6 +30,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   visible,
   onClose,
   onSuccess,
+  onSwitchToRegister,
   initialEmail = "",
 }) => {
   const { isDark } = useTheme();
@@ -96,10 +98,35 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       setCountdown(60);
     } catch (e: any) {
       console.error("Forgot password error:", e);
-      Alert.alert(
-        "Lỗi",
-        e.response?.data?.message || e.message || "Không thể gửi mã OTP, vui lòng thử lại sau"
-      );
+      const errorMsg = e.response?.data?.message || e.message;
+      if (
+        errorMsg &&
+        (errorMsg.includes("không tồn tại") ||
+          errorMsg.includes("USER_NOT_FOUND") ||
+          errorMsg.includes("Không tìm thấy"))
+      ) {
+        Alert.alert(
+          "Tài khoản không tồn tại",
+          "Email này chưa được đăng ký trong hệ thống ShareMoney. Vui lòng kiểm tra lại hoặc đăng ký tài khoản mới.",
+          [
+            { text: "Đóng", style: "cancel" },
+            {
+              text: "Đăng ký ngay",
+              onPress: () => {
+                onClose();
+                if (onSwitchToRegister) {
+                  onSwitchToRegister();
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Lỗi",
+          errorMsg || "Không thể gửi mã OTP, vui lòng thử lại sau"
+        );
+      }
     } finally {
       setLoading(false);
     }

@@ -260,6 +260,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           visible={showForgotPassword}
           onClose={() => setShowForgotPassword(false)}
           initialEmail={trimmedEmail}
+          onSwitchToRegister={() => {
+            setIsRegister(true);
+          }}
           onSuccess={(updatedEmail) => {
             setEmail(updatedEmail);
             setPassword("");

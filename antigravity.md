@@ -63,6 +63,33 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 58. **Chuẩn Hóa Kết Nối AWS EC2 - Supabase Cloud, Thông Báo Nhóm 2 Chiều & Tinh Gọn UX Thêm Thành Viên (Cloud DB Sync, 2-Way Group Notifications & Seamless Modal Flow):** Khắc phục triệt để lỗi schema mismatch trên EC2 Supabase Cloud, kiểm thử thông suốt End-to-End Live API (200 OK), gỡ bỏ trùng lặp request gây lỗi 409 `ALREADY_GROUP_MEMBER`, tích hợp thông báo đẩy đa kênh (Realtime WebSocket + Push Notification) khi thêm thành viên vào nhóm và tối ưu hóa đóng tự động modal quét QR.
 59. **Trợ Lý AI Tự Động Thiết Lập Kế Hoạch Tài Chính, Tạo Toàn Bộ Ngân Sách & Ghi Nhận Thu Nhập 1-Chạm (Autonomous AI Financial Planner & Full-Budget / Income Setup Engine):** Nâng cấp Google Gemini AI và bộ giải mã Heuristic Fallback Engine nhận diện ý định `SETUP_FINANCIAL_PLAN` khi người dùng khai báo kế hoạch thu chi tháng (Lương, tiền nhà, tiền điện, tiền nước, ăn uống, đi chơi...). Trả về Thẻ Hành Động Kế Hoạch Tài Chính `FinancialPlanCard` trực quan với phân tích thặng dư dòng tiền, tỷ lệ tiết kiệm (%) và 2 nút 1-chạm: `⚡ Tạo Toàn Bộ Ngân Sách Tháng (Khuyên dùng)` và `📝 Ghi nhận là đã chi tiêu thực tế` giúp người dùng quản lý tài chính hoàn toàn tự động chỉ với 1 tin nhắn.
 60. **Đóng Gói Mobile Standalone APK Cloud, Mở Quyền Mạng Cleartext Traffic & Tự Động Xóa Phiên Khi Thoát App (Mobile APK Cloud Build, Network Security & Bank-Grade Auto-Logout):** Đóng gói thành công file APK Android độc lập chạy 24/7 qua EAS Cloud Build, cấu hình `expo-build-properties` mở quyền `usesCleartextTraffic: true` kết nối server AWS EC2. Tích hợp cơ chế tự động xóa token và đăng xuất an toàn cấp ngân hàng (`AppState`) mỗi khi người dùng thoát app hoặc đóng app, chuẩn hóa thông báo lỗi đăng nhập và gỡ bỏ hoàn toàn luồng Google OAuth để bảo đảm tính ổn định thuần túy của hệ thống.
+61. **Tính Năng Quên Mật Khẩu & Đặt Lại Mật Khẩu Qua Mã Xác Thực OTP 6 Số Gửi Về Gmail (Forgot Password with 6-Digit OTP via Gmail SMTP & Rate-Limited OTP Engine):** Tích hợp luồng khôi phục mật khẩu 2 bước: Backend tự động sinh mã OTP 6 số ngẫu nhiên (hạn dùng 5 phút, giới hạn 5 lần thử), gửi email HTML template ShareMoney qua `spring-boot-starter-mail` (kèm safe console log fallback), mã hóa BCrypt mật khẩu mới. Frontend modal `ForgotPasswordModal.tsx` với ô nhập OTP, đếm ngược 60s gửi lại mã và kiểm soát độ mạnh mật khẩu.
+
+### Session [2026-09-02] (Phần 3) - Tích Hợp Tính Năng Quên Mật Khẩu Qua Mã OTP 6 Chữ Số Gửi Về Gmail
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Phân Hệ Backend Spring Boot Quản Lý OTP & Gửi Email (`OtpService.java` & `EmailService.java`):**
+   - **`spring-boot-starter-mail`:** Bổ sung dependency vào `pom.xml` hỗ trợ kết nối SMTP Gmail.
+   - **`OtpService.java`:** Bộ quản lý bộ nhớ tạm an toàn luồng (Thread-safe `ConcurrentHashMap`), sinh mã OTP ngẫu nhiên 6 chữ số (`SecureRandom`), thời gian hết hạn tự động 5 phút (`expiresAt`), giới hạn tối đa 5 lần thử sai chống brute-force và tự động dọn dẹp mã sau khi sử dụng thành công.
+   - **`EmailService.java`:** Soạn thảo và gửi email HTML định dạng thương hiệu ShareMoney 💎 (hộp viền bo góc, mã số tím nổi bật, hướng dẫn an toàn). Tích hợp cơ chế **Safe Console Fallback** giúp ghi mã OTP ra Server Console khi chưa cấu hình mật khẩu SMTP, bảo đảm 100% không bao giờ xảy ra lỗi 500.
+   - **Mã lỗi `ErrorCode.java`:** Thêm `OTP_INVALID`, `OTP_EXPIRED`, `OTP_MAX_ATTEMPTS_EXCEEDED`.
+   - **REST Endpoints (`AuthController.java`):**
+     - `POST /api/auth/forgot-password`: Kiểm tra email tồn tại $\rightarrow$ Sinh OTP $\rightarrow$ Gửi email.
+     - `POST /api/auth/reset-password`: Xác thực OTP $\rightarrow$ Mã hóa BCrypt $\rightarrow$ Lưu mật khẩu mới vào cơ sở dữ liệu.
+
+2. **Giao Diện Frontend React Native (`ForgotPasswordModal.tsx` & `AuthScreen.tsx`):**
+   - **Nút liên kết "Quên mật khẩu?":** Xuất hiện tinh tế dưới ô nhập mật khẩu khi ở chế độ Đăng nhập trên `AuthScreen.tsx`.
+   - **Component `ForgotPasswordModal.tsx`:** Modal Card nổi 2 bước thông minh:
+     - *Bước 1:* Nhập địa chỉ Gmail $\rightarrow$ Nút *"Gửi mã xác thực"*.
+     - *Bước 2:* Nhập mã OTP 6 số, đồng hồ đếm ngược 60s *"Gửi lại mã"*, ô nhập Mật khẩu mới & Xác nhận mật khẩu mới kèm checklist kiểm tra độ mạnh mật khẩu trực quan.
+     - Hỗ trợ đầy đủ Light Mode và Dark Mode.
+   - **API Client (`authService.ts`):** Bổ sung `forgotPassword` và `resetPassword`.
+
+3. **Kiểm Thử & Đồng Bộ Triển Khai:**
+   - **Backend Tests:** Thêm 3 bài test đơn vị trong `AuthControllerTest.java` (`testForgotPassword_Success`, `testForgotPassword_UserNotFound`, `testResetPassword_Success`), nâng tổng số test Backend lên **168/168 tests PASSED (100%)** (`BUILD SUCCESS`).
+   - **Frontend Check:** `npx tsc --noEmit` đạt 0 lỗi typecheck.
+   - **Đồng bộ Git:** Toàn bộ mã nguồn đã được commit và push lên GitHub `origin/main` (`commit f8c6f1e`), sẵn sàng build Docker trên AWS EC2.
 
 ### Session [2026-09-02] (Phần 2) - Đóng Gói File Cài Đặt Android APK Độc Lập, Mở Quyền Mạng Cleartext Traffic & Tự Động Đăng Xuất Khi Thoát App
 

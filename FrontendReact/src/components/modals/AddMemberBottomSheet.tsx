@@ -13,7 +13,7 @@ import {
 import { BottomSheet } from "../ui/BottomSheet";
 import { Button } from "../ui/Button";
 import { Toast } from "../ui/Toast";
-import { Search, Camera, QrCode } from "lucide-react-native";
+import { Search, Camera, QrCode, UserPlus, Users, Phone, Copy } from "lucide-react-native";
 import QRCode from "react-native-qrcode-svg";
 import { colors } from "../../constants/colors";
 import { groupService } from "../../services/groupService";
@@ -124,11 +124,14 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
   const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(inviteUrl)}`;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Thêm Thành Viên Mới 👤">
+    <BottomSheet visible={visible} onClose={onClose} title="Thêm Thành Viên Mới">
       <View style={styles.container}>
         {/* ─── COMMERCIAL MEMBER SELECTION CONTAINER ─── */}
         <View style={styles.fixedMemberCard}>
-          <Text style={styles.memberContainerHeader}>👥 Thêm Thành Viên Nhóm</Text>
+          <View style={styles.cardHeaderRow}>
+            <UserPlus size={16} color="#2563EB" />
+            <Text style={styles.memberContainerHeader}>Thêm Thành Viên Nhóm</Text>
+          </View>
 
           {/* Commercial Segmented Tab Control */}
           <View style={styles.subTabBar}>
@@ -136,27 +139,36 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
               onPress={() => setMemberTab("past")}
               style={[styles.subTabBtn, memberTab === "past" && styles.subTabBtnActive]}
             >
-              <Text style={[styles.subTabText, memberTab === "past" && styles.subTabTextActive]}>
-                👥 Bạn bè
-              </Text>
+              <View style={styles.tabContentRow}>
+                <Users size={14} color={memberTab === "past" ? "#2563EB" : colors.slate500} />
+                <Text style={[styles.subTabText, memberTab === "past" && styles.subTabTextActive]}>
+                  Bạn bè
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setMemberTab("phone")}
               style={[styles.subTabBtn, memberTab === "phone" && styles.subTabBtnActive]}
             >
-              <Text style={[styles.subTabText, memberTab === "phone" && styles.subTabTextActive]}>
-                📱 Tìm SĐT
-              </Text>
+              <View style={styles.tabContentRow}>
+                <Phone size={14} color={memberTab === "phone" ? "#2563EB" : colors.slate500} />
+                <Text style={[styles.subTabText, memberTab === "phone" && styles.subTabTextActive]}>
+                  Tìm SĐT
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setMemberTab("qr")}
               style={[styles.subTabBtn, memberTab === "qr" && styles.subTabBtnActive]}
             >
-              <Text style={[styles.subTabText, memberTab === "qr" && styles.subTabTextActive]}>
-                📲 Quét QR
-              </Text>
+              <View style={styles.tabContentRow}>
+                <QrCode size={14} color={memberTab === "qr" ? "#2563EB" : colors.slate500} />
+                <Text style={[styles.subTabText, memberTab === "qr" && styles.subTabTextActive]}>
+                  Quét QR
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -244,7 +256,10 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
                 <View style={styles.searchResultCard}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.searchResultName}>{searchResult.name}</Text>
-                    <Text style={styles.searchResultPhone}>📞 {searchResult.phone}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                      <Phone size={12} color="#2563EB" />
+                      <Text style={styles.searchResultPhone}>{searchResult.phone}</Text>
+                    </View>
                   </View>
 
                   {existingMemberIds.includes(searchResult.id) ? (
@@ -277,7 +292,7 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
                 activeOpacity={0.8}
               >
                 <Camera size={14} color={colors.white} />
-                <Text style={styles.scanFriendBtnText}>📷 Mở Camera Quét QR Bạn Bè</Text>
+                <Text style={styles.scanFriendBtnText}>Mở Camera Quét QR Bạn Bè</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -298,7 +313,8 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
                 onPress={() => showToast("Đã sao chép link mời nhóm thành công! ✨", "success")}
                 style={styles.copyLinkBtn}
               >
-                <Text style={styles.copyLinkBtnText}>📋 Sao chép Link Mời Nhóm</Text>
+                <Copy size={13} color="#2563EB" />
+                <Text style={styles.copyLinkBtnText}>Sao chép Link Mời Nhóm</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -325,7 +341,7 @@ export const AddMemberBottomSheet: React.FC<AddMemberBottomSheetProps> = ({
               <Text style={styles.fullscreenCloseText}>✕</Text>
             </TouchableOpacity>
 
-            <Text style={styles.fullscreenTitle}>Mã QR Mời Nhóm 📲</Text>
+            <Text style={styles.fullscreenTitle}>Mã QR Mời Nhóm</Text>
             <Text style={styles.fullscreenSub}>Đưa mã này cho bạn bè quét để tham gia nhóm ngay lập tức</Text>
 
             <View style={styles.fullscreenQrFrame}>
@@ -386,11 +402,16 @@ const styles = StyleSheet.create({
     height: 330, // EXPANDED FIXED HEIGHT FOR ROOMIER DISPLAY!
     justifyContent: "flex-start",
   },
+  cardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
   memberContainerHeader: {
     fontSize: 13,
     fontWeight: "900",
     color: colors.slate900,
-    marginBottom: 8,
   },
   subTabBar: {
     flexDirection: "row",
@@ -403,7 +424,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     alignItems: "center",
+    justifyContent: "center",
     borderRadius: 11,
+  },
+  tabContentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
   },
   subTabBtnActive: {
     backgroundColor: colors.white,
@@ -419,7 +447,7 @@ const styles = StyleSheet.create({
     color: colors.slate500,
   },
   subTabTextActive: {
-    color: colors.indigo600,
+    color: "#2563EB",
     fontWeight: "900",
   },
 
@@ -567,13 +595,13 @@ const styles = StyleSheet.create({
   scanFriendBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.indigo600,
+    backgroundColor: "#2563EB",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
     gap: 6,
     marginBottom: 8,
-    shadowColor: colors.indigo600,
+    shadowColor: "#2563EB",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -606,9 +634,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   copyLinkBtn: {
-    backgroundColor: colors.indigo50,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#EFF6FF",
     borderWidth: 1,
-    borderColor: "#C7D2FE",
+    borderColor: "#BFDBFE",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -616,7 +647,7 @@ const styles = StyleSheet.create({
   copyLinkBtnText: {
     fontSize: 11,
     fontWeight: "800",
-    color: colors.indigo600,
+    color: "#2563EB",
   },
   zoomHintText: {
     fontSize: 11,

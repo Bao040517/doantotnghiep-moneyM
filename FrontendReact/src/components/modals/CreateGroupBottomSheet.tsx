@@ -15,7 +15,7 @@ import * as ImagePicker from "expo-image-picker";
 import { BottomSheet } from "../ui/BottomSheet";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
-import { Search } from "lucide-react-native";
+import { Search, UserPlus, Users, Phone, Camera } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { groupService } from "../../services/groupService";
 
@@ -169,7 +169,7 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Tạo Nhóm Chi Tiêu Mới 👥">
+    <BottomSheet visible={visible} onClose={onClose} title="Tạo Nhóm Chi Tiêu Mới">
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* ─── GROUP AVATAR PICKER ─── */}
         <View style={styles.groupAvatarSection}>
@@ -184,7 +184,8 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
                     onPress={handlePickGroupAvatarFromGallery}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.galleryUploadBtnText}>📸 Đổi ảnh</Text>
+                    <Camera size={14} color={colors.indigo600} />
+                    <Text style={styles.galleryUploadBtnText}>Đổi ảnh</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.galleryUploadBtn, { backgroundColor: colors.rose50, borderColor: colors.rose200 }]}
@@ -203,7 +204,7 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
               activeOpacity={0.8}
             >
               <View style={styles.emptyAvatarIconCircle}>
-                <Text style={{ fontSize: 20 }}>📷</Text>
+                <Camera size={20} color={colors.slate400} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.avatarSectionTitle}>Thêm ảnh đại diện nhóm (Tùy chọn)</Text>
@@ -230,7 +231,10 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
         {/* ─── COMMERCIAL MEMBER SELECTION CONTAINER ─── */}
         <View style={styles.fixedMemberCard}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.memberContainerHeader}>👥 Thêm Thành Viên Nhóm</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <UserPlus size={16} color="#2563EB" />
+              <Text style={styles.memberContainerHeader}>Thêm Thành Viên Nhóm</Text>
+            </View>
             {selectedMembers.length > 0 && (
               <View style={styles.selectedCountBadge}>
                 <Text style={styles.selectedCountBadgeText}>
@@ -246,18 +250,24 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
               onPress={() => setMemberTab("past")}
               style={[styles.subTabBtn, memberTab === "past" && styles.subTabBtnActive]}
             >
-              <Text style={[styles.subTabText, memberTab === "past" && styles.subTabTextActive]}>
-                👥 Bạn bè
-              </Text>
+              <View style={styles.tabContentRow}>
+                <Users size={14} color={memberTab === "past" ? "#2563EB" : colors.slate500} />
+                <Text style={[styles.subTabText, memberTab === "past" && styles.subTabTextActive]}>
+                  Bạn bè
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setMemberTab("phone")}
               style={[styles.subTabBtn, memberTab === "phone" && styles.subTabBtnActive]}
             >
-              <Text style={[styles.subTabText, memberTab === "phone" && styles.subTabTextActive]}>
-                📱 Tìm SĐT
-              </Text>
+              <View style={styles.tabContentRow}>
+                <Phone size={14} color={memberTab === "phone" ? "#2563EB" : colors.slate500} />
+                <Text style={[styles.subTabText, memberTab === "phone" && styles.subTabTextActive]}>
+                  Tìm SĐT
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -337,10 +347,7 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
                   {searching ? (
                     <ActivityIndicator size="small" color={colors.white} />
                   ) : (
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                      <Search size={14} color={colors.white} />
-                      <Text style={styles.integratedSearchBtnText}>Tìm</Text>
-                    </View>
+                    <Search size={18} color={colors.white} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -349,7 +356,10 @@ export const CreateGroupBottomSheet: React.FC<CreateGroupBottomSheetProps> = ({
                 <View style={styles.searchResultCard}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.searchResultName}>{searchResult.name}</Text>
-                    <Text style={styles.searchResultPhone}>📞 {searchResult.phone}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                      <Phone size={12} color="#2563EB" />
+                      <Text style={styles.searchResultPhone}>{searchResult.phone}</Text>
+                    </View>
                   </View>
 
                   <TouchableOpacity
@@ -440,7 +450,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginTop: 10,
     marginBottom: 8,
-    height: 330, // EXPANDED FIXED HEIGHT FOR ROOMIER DISPLAY!
+    height: 330,
     justifyContent: "flex-start",
   },
   cardHeaderRow: {
@@ -480,6 +490,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 11,
   },
+  tabContentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
   subTabBtnActive: {
     backgroundColor: colors.white,
     shadowColor: "#000",
@@ -494,7 +509,7 @@ const styles = StyleSheet.create({
     color: colors.slate500,
   },
   subTabTextActive: {
-    color: colors.indigo600,
+    color: "#2563EB",
     fontWeight: "900",
   },
 

@@ -14,7 +14,7 @@ import {
   AppState,
   DeviceEventEmitter,
 } from "react-native";
-import * as Clipboard from "expo-clipboard";
+
 import { useNavigation } from "@react-navigation/native";
 import { Bell, Sparkles, Eye, EyeOff, Wallet, Users, PiggyBank, Clock, CheckCircle2 } from "lucide-react-native";
 import { Card } from "../components/ui/Card";
@@ -23,9 +23,7 @@ import { AddTransactionModal } from "../components/modals/AddTransactionModal";
 import { TransferBottomSheet } from "../components/modals/TransferBottomSheet";
 import { ExternalLoanManagerBottomSheet } from "../components/modals/ExternalLoanManagerBottomSheet";
 import { NotificationsBottomSheet } from "../components/modals/NotificationsBottomSheet";
-import { QuickBankTransactionModal } from "../components/modals/QuickBankTransactionModal";
-import { BankNotificationDetectorModal } from "../components/modals/BankNotificationDetectorModal";
-import { ParsedBankNotification, parseBankNotificationText } from "../utils/bankNotificationParser";
+import { NotificationsBottomSheet } from "../components/modals/NotificationsBottomSheet";
 import { FinancialHealthCard } from "../components/features/FinancialHealthCard";
 import { colors } from "../constants/colors";
 import { DashboardSkeleton } from "../components/ui/SkeletonLoader";
@@ -71,10 +69,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
   const [loanSheetVisible, setLoanSheetVisible] = useState(false);
   const [notifSheetVisible, setNotifSheetVisible] = useState(false);
 
-  // ⚡ Zero-Latency Bank Notification States
-  const [detectorVisible, setDetectorVisible] = useState(false);
-  const [quickBankTxVisible, setQuickBankTxVisible] = useState(false);
-  const [detectedBankData, setDetectedBankData] = useState<ParsedBankNotification | null>(null);
+
   const [categoriesList, setCategoriesList] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -85,39 +80,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
     }).catch(() => {});
   }, []);
 
-  // ⚡ Tự động bắt biến động ngân hàng từ Clipboard khi người dùng quay lại ShareMoney
-  const lastProcessedClipboard = useRef<string>("");
-  useEffect(() => {
-    const checkClipboardForBankTx = async () => {
-      try {
-        const text = await Clipboard.getStringAsync();
-        if (text && text.trim() && text !== lastProcessedClipboard.current) {
-          const parsed = parseBankNotificationText(text.trim());
-          if (parsed && parsed.isValid && parsed.amount > 0) {
-            lastProcessedClipboard.current = text;
-            setDetectedBankData(parsed);
-            setQuickBankTxVisible(true);
-          }
-        }
-      } catch (e) {
-        // Ignore clipboard errors
-      }
-    };
 
-    // Kiểm tra ngay khi mở màn hình
-    checkClipboardForBankTx();
-
-    // Lắng nghe khi người dùng chuyển từ app ngân hàng quay lại ShareMoney
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active") {
-        checkClipboardForBankTx();
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
 
   const handleAddWallet = async (payload: WalletPayload) => {
     await financialServices.createWallet(payload);
@@ -572,27 +535,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
         onReadAction={() => {}} // Could refresh unread count if needed
       />
 
-      {/* ⚡ Bank Notification Detector Modal (Input / Simulation) */}
-      <BankNotificationDetectorModal
-        visible={detectorVisible}
-        onClose={() => setDetectorVisible(false)}
-        onParsedResult={(result) => {
-          setDetectedBankData(result);
-          setQuickBankTxVisible(true);
-        }}
-      />
 
-      {/* ⚡ Quick Bank Transaction Confirmation & Category Switcher Modal */}
-      <QuickBankTransactionModal
-        visible={quickBankTxVisible}
-        onClose={() => setQuickBankTxVisible(false)}
-        parsedData={detectedBankData}
-        wallets={wallets}
-        categories={categoriesList}
-        onSuccess={() => {
-          refresh();
-        }}
-      />
 
       {/* 🤖 Floating AI Assistant Button */}
       <TouchableOpacity

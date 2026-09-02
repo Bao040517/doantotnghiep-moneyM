@@ -161,7 +161,7 @@ public class FinancialHealthService {
 
             // 1. Nợ nhóm (group debt) — lấy từ DebtService
             UserDebtSummaryResponse debtSummary = debtService.getUserDebtSummary(userId);
-            if (debtSummary.getTotalOwing() != null) {
+            if (debtSummary != null && debtSummary.getTotalOwing() != null) {
                 totalDebt = totalDebt.add(debtSummary.getTotalOwing());
             }
 

@@ -12,11 +12,11 @@ export const groupService = {
     api.get<{ content: GroupExpense[] }>(`/groups/${groupId}/expenses?page=${page}&size=${size}`).then((res) => res.data),
   exportExpenses: (groupId: string) =>
     api.get<any>(`/groups/${groupId}/expenses/export`, { responseType: "blob" }).then((res) => res.data),
-  createGroupExpense: (groupId: string, payload: { title: string; amount: number; category?: string; paidBy?: string; splitUserIds?: string[] }) =>
+  createGroupExpense: (groupId: string, payload: { title: string; amount: number; category?: string; paidBy?: string; splitUserIds?: string[]; splitAmounts?: Record<string, number> }) =>
     api.post<GroupExpense>(`/groups/${groupId}/expenses`, payload).then((res) => res.data),
   getExpenseDetail: (groupId: string, expenseId: string) =>
     api.get<any>(`/groups/${groupId}/expenses/${expenseId}`).then((res) => res.data),
-  updateExpense: (groupId: string, expenseId: string, payload: { paidBy: string; title: string; amount: number; category?: string; splitUserIds?: string[] }) =>
+  updateExpense: (groupId: string, expenseId: string, payload: { paidBy: string; title: string; amount: number; category?: string; splitUserIds?: string[]; splitAmounts?: Record<string, number> }) =>
     api.put<any>(`/groups/${groupId}/expenses/${expenseId}`, payload).then((res) => res.data),
   deleteExpense: (groupId: string, expenseId: string) =>
     api.delete<void>(`/groups/${groupId}/expenses/${expenseId}`).then((res) => res.data),

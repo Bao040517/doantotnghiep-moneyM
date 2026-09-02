@@ -64,6 +64,34 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 59. **Trợ Lý AI Tự Động Thiết Lập Kế Hoạch Tài Chính, Tạo Toàn Bộ Ngân Sách & Ghi Nhận Thu Nhập 1-Chạm (Autonomous AI Financial Planner & Full-Budget / Income Setup Engine):** Nâng cấp Google Gemini AI và bộ giải mã Heuristic Fallback Engine nhận diện ý định `SETUP_FINANCIAL_PLAN` khi người dùng khai báo kế hoạch thu chi tháng (Lương, tiền nhà, tiền điện, tiền nước, ăn uống, đi chơi...). Trả về Thẻ Hành Động Kế Hoạch Tài Chính `FinancialPlanCard` trực quan với phân tích thặng dư dòng tiền, tỷ lệ tiết kiệm (%) và 2 nút 1-chạm: `⚡ Tạo Toàn Bộ Ngân Sách Tháng (Khuyên dùng)` và `📝 Ghi nhận là đã chi tiêu thực tế` giúp người dùng quản lý tài chính hoàn toàn tự động chỉ với 1 tin nhắn.
 60. **Đóng Gói Mobile Standalone APK Cloud, Mở Quyền Mạng Cleartext Traffic & Tự Động Xóa Phiên Khi Thoát App (Mobile APK Cloud Build, Network Security & Bank-Grade Auto-Logout):** Đóng gói thành công file APK Android độc lập chạy 24/7 qua EAS Cloud Build, cấu hình `expo-build-properties` mở quyền `usesCleartextTraffic: true` kết nối server AWS EC2. Tích hợp cơ chế tự động xóa token và đăng xuất an toàn cấp ngân hàng (`AppState`) mỗi khi người dùng thoát app hoặc đóng app, chuẩn hóa thông báo lỗi đăng nhập và gỡ bỏ hoàn toàn luồng Google OAuth để bảo đảm tính ổn định thuần túy của hệ thống.
 61. **Tính Năng Quên Mật Khẩu & Đặt Lại Mật Khẩu Qua Mã Xác Thực OTP 6 Số Gửi Về Gmail (Forgot Password with 6-Digit OTP via Gmail SMTP & Rate-Limited OTP Engine):** Tích hợp luồng khôi phục mật khẩu 2 bước: Backend tự động sinh mã OTP 6 số ngẫu nhiên (hạn dùng 5 phút, giới hạn 5 lần thử), gửi email HTML template ShareMoney qua `spring-boot-starter-mail` (kèm safe console log fallback), mã hóa BCrypt mật khẩu mới. Frontend modal `ForgotPasswordModal.tsx` với ô nhập OTP, đếm ngược 60s gửi lại mã và kiểm soát độ mạnh mật khẩu.
+62. **Rà Soát Toàn Diện Codebase, Bộ Kịch Bản Kiểm Thử Đa Tầng & Gom Thư Mục Kiểm Thử Tập Trung (Full-Stack System Audit, Multi-Tier Test Suite & Unified `ALL_TESTS` Bundle):** Rà soát toàn diện Backend & Frontend, xác thực 100% 168 unit tests Backend và 40 unit tests Mobile. Xây dựng bộ công cụ kiểm thử đa tầng (Postman Collection, Apache JMeter Test Plan, Node.js Benchmark Runner) và đóng gói toàn bộ vào thư mục tập trung `ALL_TESTS/` kèm tài liệu ma trận kiểm thử chi tiết phục vụ báo cáo bảo vệ đồ án.
+
+### Session [2026-09-02] (Phần 4) - Rà Soát Toàn Diện Hệ Thống, Thiết Lập Bộ Công Cụ Kiểm Thử Đa Tầng & Gom Thư Mục `ALL_TESTS`
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Rà Soát & Khắc Phục Lỗi Toàn Diện (Full-Stack Audit & Bug Fixes):**
+   - **Backend Tests:** Chạy toàn bộ 168 bài kiểm thử đơn vị & tích hợp Spring Boot (`.\mvnw.cmd test`), đạt **168/168 PASSED (100%)** với `BUILD SUCCESS`.
+   - **Frontend Tests:** Chạy 40 bài kiểm thử đơn vị React Native (`npm test`), đạt **40/40 PASSED (100%)**.
+   - **Type Safety:** Chạy `npx tsc --noEmit` đạt **0 lỗi** TypeScript compile.
+   - **Fix Null-Safety:** Bổ sung kiểm tra null `debtSummary != null` trong `FinancialHealthService.java` khi tính toán điểm nợ, ngăn ngừa triệt để lỗi NullPointerException.
+   - **Đồng bộ Cơ sở dữ liệu (`seed_v19.sql`):** Cập nhật đầy đủ 4 cột tài khoản ngân hàng (`bank_account_name`, `savings_bank_bin`, `savings_bank_account_no`, `savings_bank_account_name`) vào câu lệnh `CREATE TABLE IF NOT EXISTS users`.
+
+2. **Xây Dựng Bộ Công Cụ & Kịch Bản Kiểm Thử Đa Tầng (Multi-Tier Testing Suite):**
+   - **Kiểm thử Tích hợp API (Postman):** Tạo file `ShareMoney_Integration_Tests.postman_collection.json` tự động hóa luồng Auth $\rightarrow$ User $\rightarrow$ Wallets $\rightarrow$ Groups $\rightarrow$ Financial Health.
+   - **Kiểm thử Hiệu năng & Đo Tải (JMeter & Benchmark):**
+     - Kịch bản Apache JMeter `sharemoney_load_test.jmx` đo P90, P95, P99 và Throughput.
+     - Script Node.js `quick_load_test.js` giả lập 50 virtual users bắn 200–500 requests đo độ trễ P50, P95 và xác thực cơ chế bảo vệ Rate Limiting (`RateLimitingFilter.java`).
+   - **Tài liệu Báo Cáo Ma Trận Kiểm Thử:** Soạn thảo tài liệu `BAO_CAO_KIEM_THU_CHI_TIET_168_TEST_CASES.md` phân loại chi tiết Input, Expected Output và Mục tiêu kiểm thử cho 8 phân hệ.
+
+3. **Gom Toàn Bộ File Kiểm Thử Vào Thư Mục Duy Nhất (`ALL_TESTS/`):**
+   - Khởi tạo thư mục gốc `ALL_TESTS/` với cấu trúc 5 phân vùng khoa học:
+     - `ALL_TESTS/1_Backend_Unit_Tests/` (21 file test Java JUnit 5)
+     - `ALL_TESTS/2_Frontend_Unit_Tests/` (5 file test TypeScript Mobile)
+     - `ALL_TESTS/3_API_Integration_Postman/` (Postman Collection)
+     - `ALL_TESTS/4_Performance_Load_JMeter/` (JMeter JMX & Node.js Benchmark)
+     - `ALL_TESTS/5_Bao_Cao_Doc/` (Báo cáo ma trận kiểm thử Markdown)
+     - `ALL_TESTS/README.md` (Hướng dẫn cách chạy từng loại kiểm thử).
 
 ### Session [2026-09-02] (Phần 3) - Tích Hợp Tính Năng Quên Mật Khẩu Qua Mã OTP 6 Chữ Số Gửi Về Gmail
 

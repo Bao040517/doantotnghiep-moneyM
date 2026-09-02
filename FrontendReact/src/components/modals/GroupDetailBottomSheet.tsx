@@ -81,6 +81,8 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
   const [payerDropdownOpen, setPayerDropdownOpen] = useState(false);
   const [splitMode, setSplitMode] = useState<"all" | "custom">("all");
   const [selectedSplitUserIds, setSelectedSplitUserIds] = useState<string[]>([]);
+  const [splitType, setSplitType] = useState<"EQUAL" | "EXACT">("EQUAL");
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [savingExpense, setSavingExpense] = useState(false);
 
   // VietQR settlement state
@@ -195,6 +197,21 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
       return;
     }
 
+    let parsedCustomAmounts: Record<string, number> | undefined = undefined;
+    if (splitType === "EXACT") {
+      parsedCustomAmounts = {};
+      let sum = 0;
+      for (const id of targetSplitIds) {
+        const val = parseFloat((customAmounts[id] || "0").replace(/\./g, "")) || 0;
+        parsedCustomAmounts[id] = val;
+        sum += val;
+      }
+      if (sum !== rawNumber) {
+        Alert.alert("Lỗi", `Tổng chia tiền (${sum.toLocaleString("vi-VN")}) không khớp với hóa đơn (${rawNumber.toLocaleString("vi-VN")})`);
+        return;
+      }
+    }
+
     setSavingExpense(true);
     try {
       await groupService.createGroupExpense(groupId, {
@@ -203,9 +220,11 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
         category,
         paidBy: currentPayerId,
         splitUserIds: targetSplitIds,
+        splitAmounts: parsedCustomAmounts,
       });
       setTitle("");
       setAmount("");
+      setCustomAmounts({});
       setIsAddingExpense(false);
       fetchGroupDetails();
     } catch (e: any) {
@@ -452,6 +471,69 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
               })}
             </View>
           )}
+
+          {/* Cách chia tiền */}
+          <View style={[styles.splitSectionHeader, { marginTop: 16 }]}>
+            <Text style={styles.label}>Cách chia tiền (*)</Text>
+            <View style={styles.splitModeToggle}>
+              <TouchableOpacity
+                onPress={() => setSplitType("EQUAL")}
+                style={[styles.splitModeBtn, splitType === "EQUAL" && styles.splitModeBtnActive]}
+              >
+                <Text style={[styles.splitModeText, splitType === "EQUAL" && styles.splitModeTextActive]}>
+                  Chia Đều
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setSplitType("EXACT")}
+                style={[styles.splitModeBtn, splitType === "EXACT" && styles.splitModeBtnActive]}
+              >
+                <Text style={[styles.splitModeText, splitType === "EXACT" && styles.splitModeTextActive]}>
+                  Tùy Chỉnh
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {splitType === "EXACT" && (
+            <View style={styles.splitCustomList}>
+              {group?.members?.filter(m => (splitMode === "all" ? true : selectedSplitUserIds.includes(m.user?.id || m.id))).map((m) => {
+                const uId = m.user?.id || m.id;
+                const uName = m.user?.name || "Thành viên";
+                return (
+                  <View key={`amount-${uId}`} style={[styles.memberCheckRow, { paddingVertical: 8 }]}>
+                    <View style={styles.memberCheckLeft}>
+                      <View style={styles.memberAvatarCircle}>
+                        {m.user?.avatarUrl ? (
+                          <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
+                        ) : (
+                          <Text style={styles.memberAvatarText}>{uName.charAt(0)}</Text>
+                        )}
+                      </View>
+                      <Text style={[styles.memberCheckName, { flex: 1 }]} numberOfLines={1}>{uName}</Text>
+                    </View>
+                    <View style={{ width: 140 }}>
+                      <Input
+                        placeholder="VND"
+                        keyboardType="numeric"
+                        value={customAmounts[uId] || ""}
+                        onChangeText={(txt) => {
+                          const cleanDigits = txt.replace(/\D/g, "");
+                          if (!cleanDigits) {
+                            setCustomAmounts(prev => ({ ...prev, [uId]: "" }));
+                            return;
+                          }
+                          const formatted = parseInt(cleanDigits, 10).toLocaleString("vi-VN");
+                          setCustomAmounts(prev => ({ ...prev, [uId]: formatted }));
+                        }}
+                      />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
           </ScrollView>
 
           {/* Sticky Bottom Footer */}

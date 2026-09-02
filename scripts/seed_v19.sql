@@ -32,7 +32,11 @@ CREATE TABLE IF NOT EXISTS users (
     phone VARCHAR(50),
     bank_bin VARCHAR(20),
     bank_account_no VARCHAR(50),
+    bank_account_name VARCHAR(100),
     bank_qr_url TEXT,
+    savings_bank_bin VARCHAR(20),
+    savings_bank_account_no VARCHAR(50),
+    savings_bank_account_name VARCHAR(100),
     push_token TEXT,
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

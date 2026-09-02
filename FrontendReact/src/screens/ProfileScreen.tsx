@@ -95,18 +95,34 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     if (user) {
       setName(user.name || "");
       setPhone(user.phone || "");
-      setBankBin(user.bankBin || "970422");
+      setBankBin(user.bankBin || "");
       setAccountNo(user.bankAccountNo || "");
       setAccountName(cleanAccountName(user.bankAccountName || user.name || ""));
 
-      setSavingsBankBin(user.savingsBankBin || "970407");
+      setSavingsBankBin(user.savingsBankBin || "");
       setSavingsAccountNo(user.savingsBankAccountNo || "");
       setSavingsAccountName(cleanAccountName(user.savingsBankAccountName || user.name || ""));
     }
   }, [user]);
 
-  const selectedBank = VIETQR_BANKS.find((b) => b.bin === bankBin) || VIETQR_BANKS[0];
-  const selectedSavingsBank = VIETQR_BANKS.find((b) => b.bin === savingsBankBin) || VIETQR_BANKS[0];
+  const isMainBankConfigured = Boolean(
+    user?.bankAccountNo && user.bankAccountNo.trim().length > 0 && user?.bankBin && user.bankBin.trim().length > 0
+  );
+  const isSavingsBankConfigured = Boolean(
+    user?.savingsBankAccountNo && user.savingsBankAccountNo.trim().length > 0 && user?.savingsBankBin && user.savingsBankBin.trim().length > 0
+  );
+
+  const selectedBank = isMainBankConfigured
+    ? VIETQR_BANKS.find((b) => b.bin === user?.bankBin) || VIETQR_BANKS[0]
+    : null;
+  const selectedSavingsBank = isSavingsBankConfigured
+    ? VIETQR_BANKS.find((b) => b.bin === user?.savingsBankBin) || VIETQR_BANKS[0]
+    : null;
+
+  const currentModalBank =
+    configModalType === "main"
+      ? VIETQR_BANKS.find((b) => b.bin === (bankBin || user?.bankBin)) || VIETQR_BANKS[0]
+      : VIETQR_BANKS.find((b) => b.bin === (savingsBankBin || user?.savingsBankBin)) || VIETQR_BANKS[0];
 
   const filteredBanks = VIETQR_BANKS.filter(
     (b) =>
@@ -205,7 +221,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         bankAccountNo: verifiedAccount.accountNumber,
         bankAccountName: (verifiedAccount.accountName || accountName).toUpperCase(),
       });
-      Alert.alert("Thành công", `Đã lưu thông tin Ngân hàng giao dịch (${selectedBank.shortName})!`);
+      Alert.alert("Thành công", `Đã lưu thông tin Ngân hàng giao dịch (${currentModalBank.shortName})!`);
       setConfigModalType(null);
       onRefreshUser();
     } catch (e: any) {
@@ -246,7 +262,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         savingsBankAccountNo: verifiedAccount.accountNumber,
         savingsBankAccountName: (verifiedAccount.accountName || savingsAccountName).toUpperCase(),
       });
-      Alert.alert("Thành công", `Đã lưu thông tin Ngân hàng tiết kiệm (${selectedSavingsBank.shortName})!`);
+      Alert.alert("Thành công", `Đã lưu thông tin Ngân hàng tiết kiệm (${currentModalBank.shortName})!`);
       setConfigModalType(null);
       onRefreshUser();
     } catch (e: any) {
@@ -255,14 +271,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       setSavingsLoading(false);
     }
   };
-
-  const isMainBankConfigured = Boolean(
-    user?.bankBin && user?.bankAccountNo && user?.bankAccountNo.trim().length >= 4
-  );
-
-  const isSavingsBankConfigured = Boolean(
-    user?.savingsBankBin && user?.savingsBankAccountNo && user?.savingsBankAccountNo.trim().length >= 4
-  );
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
@@ -421,32 +429,51 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           {/* KHỐI NHỎ 1: NGÂN HÀNG GIAO DỊCH */}
           <TouchableOpacity
             style={[styles.bankCardItem, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}
-            onPress={() => setConfigModalType("main")}
+            onPress={() => {
+              if (!bankBin) setBankBin(user?.bankBin || "970422");
+              setConfigModalType("main");
+            }}
             activeOpacity={0.85}
           >
             <View style={styles.bankCardHeader}>
               <View style={[styles.bankTagMono, { borderColor: themeColors.border, backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}>
                 <Text style={[styles.bankTagMonoText, { color: themeColors.textPrimary }]}>Ngân hàng giao dịch</Text>
               </View>
-              <View style={styles.configPill}>
-                <Text style={styles.configPillText}>Cấu hình ›</Text>
+              <View style={[styles.configPill, !isMainBankConfigured && styles.configPillAdd]}>
+                <Text style={[styles.configPillText, !isMainBankConfigured && styles.configPillAddText]}>
+                  {isMainBankConfigured ? "Cấu hình ›" : "+ Cấu hình ›"}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.bankCardContentRow}>
-              <View style={styles.bankLogoCircle}>
-                <Image source={{ uri: selectedBank.logo }} style={styles.bankLogo} resizeMode="contain" />
+            {isMainBankConfigured && selectedBank ? (
+              <View style={styles.bankCardContentRow}>
+                <View style={styles.bankLogoCircle}>
+                  <Image source={{ uri: selectedBank.logo }} style={styles.bankLogo} resizeMode="contain" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.bankNameTitle, { color: themeColors.textPrimary }]}>{selectedBank.shortName}</Text>
+                  <Text style={[styles.bankAccNoText, { color: themeColors.textPrimary }]}>
+                    {user?.bankAccountNo}
+                  </Text>
+                  <Text style={[styles.bankAccOwnerText, { color: themeColors.textSecondary }]}>
+                    Chủ TK: <Text style={{ fontWeight: "700", color: themeColors.textPrimary }}>{cleanAccountName(user?.bankAccountName || user?.name || "---")}</Text>
+                  </Text>
+                </View>
               </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.bankNameTitle, { color: themeColors.textPrimary }]}>{selectedBank.shortName}</Text>
-                <Text style={[styles.bankAccNoText, { color: themeColors.textPrimary }]}>
-                  {user?.bankAccountNo ? user.bankAccountNo : "Chưa cấu hình tài khoản"}
-                </Text>
-                <Text style={[styles.bankAccOwnerText, { color: themeColors.textSecondary }]}>
-                  Chủ TK: <Text style={{ fontWeight: "700", color: themeColors.textPrimary }}>{accountName || user?.name || "---"}</Text>
-                </Text>
+            ) : (
+              <View style={styles.bankCardContentRow}>
+                <View style={[styles.bankLogoCircleEmpty, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}>
+                  <Building2 size={22} color={isDark ? "#94A3B8" : "#64748B"} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.bankEmptyTitle, { color: themeColors.textPrimary }]}>Chưa liên kết tài khoản</Text>
+                  <Text style={[styles.bankEmptySub, { color: themeColors.textSecondary }]}>
+                    Nhấn vào đây để thiết lập tài khoản nhận tiền
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
 
             <View style={styles.bankCardFooterStrip}>
               <Text style={styles.bankCardFooterDesc}>Dùng nhận tiền chia sẻ chi phí nhóm & thanh toán nợ</Text>
@@ -457,32 +484,51 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           {/* KHỐI NHỎ 2: NGÂN HÀNG TIẾT KIỆM */}
           <TouchableOpacity
             style={[styles.bankCardItem, { backgroundColor: themeColors.card, borderColor: themeColors.border, marginTop: 12 }]}
-            onPress={() => setConfigModalType("savings")}
+            onPress={() => {
+              if (!savingsBankBin) setSavingsBankBin(user?.savingsBankBin || "970407");
+              setConfigModalType("savings");
+            }}
             activeOpacity={0.85}
           >
             <View style={styles.bankCardHeader}>
               <View style={[styles.bankTagMono, { borderColor: themeColors.border, backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}>
                 <Text style={[styles.bankTagMonoText, { color: themeColors.textPrimary }]}>Ngân hàng tiết kiệm</Text>
               </View>
-              <View style={styles.configPill}>
-                <Text style={styles.configPillText}>Cấu hình ›</Text>
+              <View style={[styles.configPill, !isSavingsBankConfigured && styles.configPillAdd]}>
+                <Text style={[styles.configPillText, !isSavingsBankConfigured && styles.configPillAddText]}>
+                  {isSavingsBankConfigured ? "Cấu hình ›" : "+ Cấu hình ›"}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.bankCardContentRow}>
-              <View style={styles.bankLogoCircle}>
-                <Image source={{ uri: selectedSavingsBank.logo }} style={styles.bankLogo} resizeMode="contain" />
+            {isSavingsBankConfigured && selectedSavingsBank ? (
+              <View style={styles.bankCardContentRow}>
+                <View style={styles.bankLogoCircle}>
+                  <Image source={{ uri: selectedSavingsBank.logo }} style={styles.bankLogo} resizeMode="contain" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.bankNameTitle, { color: themeColors.textPrimary }]}>{selectedSavingsBank.shortName}</Text>
+                  <Text style={[styles.bankAccNoText, { color: themeColors.textPrimary }]}>
+                    {user?.savingsBankAccountNo}
+                  </Text>
+                  <Text style={[styles.bankAccOwnerText, { color: themeColors.textSecondary }]}>
+                    Chủ TK: <Text style={{ fontWeight: "700", color: themeColors.textPrimary }}>{cleanAccountName(user?.savingsBankAccountName || user?.name || "---")}</Text>
+                  </Text>
+                </View>
               </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.bankNameTitle, { color: themeColors.textPrimary }]}>{selectedSavingsBank.shortName}</Text>
-                <Text style={[styles.bankAccNoText, { color: themeColors.textPrimary }]}>
-                  {user?.savingsBankAccountNo ? user.savingsBankAccountNo : "Chưa cấu hình tài khoản"}
-                </Text>
-                <Text style={[styles.bankAccOwnerText, { color: themeColors.textSecondary }]}>
-                  Chủ TK: <Text style={{ fontWeight: "700", color: themeColors.textPrimary }}>{savingsAccountName || user?.name || "---"}</Text>
-                </Text>
+            ) : (
+              <View style={styles.bankCardContentRow}>
+                <View style={[styles.bankLogoCircleEmpty, { backgroundColor: isDark ? "#334155" : "#F1F5F9" }]}>
+                  <PiggyBank size={22} color={isDark ? "#94A3B8" : "#64748B"} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.bankEmptyTitle, { color: themeColors.textPrimary }]}>Chưa liên kết tài khoản tiết kiệm</Text>
+                  <Text style={[styles.bankEmptySub, { color: themeColors.textSecondary }]}>
+                    Nhấn vào đây để thiết lập quỹ tiết kiệm tự động
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
 
             <View style={styles.bankCardFooterStrip}>
               <Text style={styles.bankCardFooterDesc}>Dùng nhận tiền phân bổ tiết kiệm tự động an toàn</Text>
@@ -669,16 +715,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   >
                     <View style={styles.bankSelectLeft}>
                       <Image
-                        source={{ uri: configModalType === "main" ? selectedBank.logo : selectedSavingsBank.logo }}
+                        source={{ uri: currentModalBank.logo }}
                         style={styles.bankSelectLogo}
                         resizeMode="contain"
                       />
                       <View style={styles.bankSelectTextGroup}>
                         <Text style={[styles.bankSelectShortName, { color: themeColors.textPrimary }]}>
-                          {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}
+                          {currentModalBank.shortName}
                         </Text>
                         <Text style={[styles.bankSelectFullName, { color: themeColors.textSecondary }]} numberOfLines={1}>
-                          {configModalType === "main" ? selectedBank.name : selectedSavingsBank.name}
+                          {currentModalBank.name}
                         </Text>
                       </View>
                     </View>
@@ -723,7 +769,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                       <Text style={styles.qrBankHintText}>
                         Mã VietQR sẽ nhận tiền về:{" "}
                         <Text style={{ fontWeight: "900", color: "#4338CA" }}>
-                          {configModalType === "main" ? selectedBank.shortName : selectedSavingsBank.shortName}
+                          {currentModalBank.shortName}
                         </Text>
                         {" • STK: "}
                         <Text style={{ fontWeight: "900", color: "#0F172A" }}>
@@ -1109,6 +1155,33 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: colors.slate600,
+  },
+  configPillAdd: {
+    backgroundColor: "#EEF2FF",
+    borderColor: "#C7D2FE",
+  },
+  configPillAddText: {
+    color: "#4F46E5",
+    fontWeight: "800",
+  },
+  bankLogoCircleEmpty: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#CBD5E1",
+  },
+  bankEmptyTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  bankEmptySub: {
+    fontSize: 11,
+    lineHeight: 15,
   },
   bankCardContentRow: {
     flexDirection: "row",

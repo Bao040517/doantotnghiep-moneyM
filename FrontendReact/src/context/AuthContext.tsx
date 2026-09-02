@@ -4,6 +4,7 @@ import { safeStorage } from "../services/storage";
 import { UserSummary, LoginPayload, RegisterPayload } from "../types";
 import { authService } from "../services/authService";
 import * as WebBrowser from "expo-web-browser";
+import * as AuthSession from "expo-auth-session";
 
 // Ensure browser auth sessions complete properly
 WebBrowser.maybeCompleteAuthSession();
@@ -117,31 +118,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
       }
 
-      // Build Google OAuth2 Authorization URL
-      const redirectUri = Platform.select({
-        web: `${window.location.origin}`,
-        default: "https://auth.expo.io/@ducbao/FrontendReact",
-      });
+      // Safe cross-platform redirect URI
+      let redirectUri: string;
+      if (Platform.OS === "web" && typeof window !== "undefined" && window?.location?.origin) {
+        redirectUri = window.location.origin;
+      } else {
+        redirectUri = AuthSession.makeRedirectUri({
+          scheme: "sharemoney",
+          preferLocalhost: true,
+        });
+      }
 
+      // Build Google OAuth2 Authorization URL
       const authUrl =
         `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${GOOGLE_CLIENT_ID_WEB}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri || "")}` +
+        `client_id=${encodeURIComponent(GOOGLE_CLIENT_ID_WEB)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
         `&response_type=id_token` +
         `&scope=${encodeURIComponent("openid email profile")}` +
         `&nonce=${Date.now()}`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri || undefined);
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 
       if (result.type === "success" && result.url) {
-        // Extract id_token from URL fragment (#id_token=...)
         const url = result.url;
-        const fragment = url.split("#")[1];
-        if (!fragment) throw new Error("Không nhận được token từ Google");
+        let idToken = "";
 
-        const params = new URLSearchParams(fragment);
-        const idToken = params.get("id_token");
-        if (!idToken) throw new Error("Không nhận được id_token từ Google");
+        // Extract id_token from hash fragment (#id_token=...)
+        if (url.includes("#")) {
+          const fragment = url.split("#")[1];
+          const params = new URLSearchParams(fragment);
+          idToken = params.get("id_token") || "";
+        }
+
+        // Extract id_token from query params (?id_token=...) as fallback
+        if (!idToken && url.includes("?")) {
+          const queryString = url.split("?")[1].split("#")[0];
+          const params = new URLSearchParams(queryString);
+          idToken = params.get("id_token") || "";
+        }
+
+        if (!idToken) {
+          throw new Error("Không nhận được token xác thực từ Google");
+        }
 
         // Send id_token to backend for verification
         const res = await authService.googleLogin(idToken);

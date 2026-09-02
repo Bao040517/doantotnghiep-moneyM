@@ -159,7 +159,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         scheme: "sharemoney",
       });
 
-      // Build Google OAuth2 Authorization URL
+      // Build Google OAuth2 Authorization URL with forced fresh account selection
       const authUrl =
         `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${encodeURIComponent(GOOGLE_CLIENT_ID_WEB)}` +
@@ -167,9 +167,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         `&response_type=token%20id_token` +
         `&scope=${encodeURIComponent("openid email profile")}` +
         `&nonce=${Date.now()}` +
-        `&prompt=select_account`;
+        `&prompt=select_account%20consent`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      // preferEphemeralSession: true forces iOS Safari / Android to NOT cache cookies or saved Google accounts
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri, {
+        preferEphemeralSession: true,
+      });
 
       if (result.type === "success" && result.url) {
         const url = result.url;

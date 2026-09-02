@@ -235,16 +235,24 @@ public class AuthController {
             try {
                 String tokenInfoUrl =
                         "https://oauth2.googleapis.com/tokeninfo?id_token=" + idTokenString;
-                java.util.Map<?, ?> resp =
-                        restTemplate.getForObject(tokenInfoUrl, java.util.Map.class);
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> resp =
+                        (java.util.Map<String, Object>)
+                                restTemplate.getForObject(tokenInfoUrl, java.util.Map.class);
                 if (resp != null && resp.containsKey("email")) {
                     GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
-                    payload.setEmail((String) resp.get("email"));
+                    payload.setEmail(String.valueOf(resp.get("email")));
                     payload.setEmailVerified(
                             Boolean.parseBoolean(
                                     String.valueOf(resp.getOrDefault("email_verified", "true"))));
-                    payload.set("name", resp.getOrDefault("name", resp.get("email")));
-                    payload.set("picture", resp.get("picture"));
+                    Object nameObj = resp.get("name");
+                    payload.set(
+                            "name",
+                            nameObj != null
+                                    ? String.valueOf(nameObj)
+                                    : String.valueOf(resp.get("email")));
+                    Object picObj = resp.get("picture");
+                    payload.set("picture", picObj != null ? String.valueOf(picObj) : null);
                     return payload;
                 }
             } catch (Exception ex) {
@@ -256,6 +264,7 @@ public class AuthController {
             headers.setBearerAuth(idTokenString);
             org.springframework.http.HttpEntity<Void> entity =
                     new org.springframework.http.HttpEntity<>(headers);
+            @SuppressWarnings("unchecked")
             org.springframework.http.ResponseEntity<java.util.Map> userinfoResp =
                     restTemplate.exchange(
                             "https://www.googleapis.com/oauth2/v3/userinfo",
@@ -263,15 +272,23 @@ public class AuthController {
                             entity,
                             java.util.Map.class);
 
-            java.util.Map<?, ?> body = userinfoResp.getBody();
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> body =
+                    (java.util.Map<String, Object>) userinfoResp.getBody();
             if (body != null && body.containsKey("email")) {
                 GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
-                payload.setEmail((String) body.get("email"));
+                payload.setEmail(String.valueOf(body.get("email")));
                 payload.setEmailVerified(
                         Boolean.parseBoolean(
                                 String.valueOf(body.getOrDefault("email_verified", "true"))));
-                payload.set("name", body.getOrDefault("name", body.get("email")));
-                payload.set("picture", body.get("picture"));
+                Object nameObj = body.get("name");
+                payload.set(
+                        "name",
+                        nameObj != null
+                                ? String.valueOf(nameObj)
+                                : String.valueOf(body.get("email")));
+                Object picObj = body.get("picture");
+                payload.set("picture", picObj != null ? String.valueOf(picObj) : null);
                 return payload;
             }
         } catch (Exception e) {

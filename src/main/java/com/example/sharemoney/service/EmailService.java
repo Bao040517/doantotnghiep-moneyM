@@ -15,8 +15,11 @@ public class EmailService {
     @Autowired(required = false)
     private JavaMailSender mailSender;
 
-    @Value("${spring.mail.username:sharemoney.service@gmail.com}")
+    @Value("${spring.mail.username:}")
     private String fromEmail;
+
+    @Value("${spring.mail.password:}")
+    private String mailPassword;
 
     /**
      * Gửi email chứa mã OTP khôi phục mật khẩu.
@@ -32,8 +35,8 @@ public class EmailService {
                 toEmail,
                 otpCode);
 
-        if (mailSender == null) {
-            log.info("[EmailService] JavaMailSender chưa được kích hoạt, OTP đã ghi vào Server Console.");
+        if (mailSender == null || fromEmail == null || fromEmail.isBlank() || mailPassword == null || mailPassword.isBlank()) {
+            log.info("[EmailService] SMTP chưa được cấu hình tài khoản gửi (MAIL_USERNAME/MAIL_PASSWORD), mã OTP đã ghi an toàn vào Server Console.");
             return;
         }
 

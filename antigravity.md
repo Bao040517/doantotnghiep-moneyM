@@ -62,36 +62,29 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 57. **Gỡ Bỏ Hoàn Toàn Luồng OCR & Quét Hóa Đơn Khỏi Dự Án (Complete Receipt OCR Decommissioning):** Gỡ bỏ toàn bộ mã nguồn, endpoints, DTOs, cấu hình bên thứ 3 (Mindee / ZXing / Jsoup), các nút bấm và modal liên quan đến tính năng quét OCR hóa đơn giấy / E-Invoice khỏi toàn bộ Backend và Frontend. Chuyển đổi bộ quét Camera sang chức năng thuần túy quét mã QR tham gia nhóm (`GROUP_INVITE`) và kết nối thành viên (`USER_PROFILE`).
 58. **Chuẩn Hóa Kết Nối AWS EC2 - Supabase Cloud, Thông Báo Nhóm 2 Chiều & Tinh Gọn UX Thêm Thành Viên (Cloud DB Sync, 2-Way Group Notifications & Seamless Modal Flow):** Khắc phục triệt để lỗi schema mismatch trên EC2 Supabase Cloud, kiểm thử thông suốt End-to-End Live API (200 OK), gỡ bỏ trùng lặp request gây lỗi 409 `ALREADY_GROUP_MEMBER`, tích hợp thông báo đẩy đa kênh (Realtime WebSocket + Push Notification) khi thêm thành viên vào nhóm và tối ưu hóa đóng tự động modal quét QR.
 59. **Trợ Lý AI Tự Động Thiết Lập Kế Hoạch Tài Chính, Tạo Toàn Bộ Ngân Sách & Ghi Nhận Thu Nhập 1-Chạm (Autonomous AI Financial Planner & Full-Budget / Income Setup Engine):** Nâng cấp Google Gemini AI và bộ giải mã Heuristic Fallback Engine nhận diện ý định `SETUP_FINANCIAL_PLAN` khi người dùng khai báo kế hoạch thu chi tháng (Lương, tiền nhà, tiền điện, tiền nước, ăn uống, đi chơi...). Trả về Thẻ Hành Động Kế Hoạch Tài Chính `FinancialPlanCard` trực quan với phân tích thặng dư dòng tiền, tỷ lệ tiết kiệm (%) và 2 nút 1-chạm: `⚡ Tạo Toàn Bộ Ngân Sách Tháng (Khuyên dùng)` và `📝 Ghi nhận là đã chi tiêu thực tế` giúp người dùng quản lý tài chính hoàn toàn tự động chỉ với 1 tin nhắn.
-60. **Tích Hợp Đăng Nhập Bằng Google OAuth2 (1-Chạm), Đóng Gói Mobile Standalone APK Cloud & Chuẩn Hóa Bảo Mật Android Cleartext Traffic (Google OAuth2 Sign-In, EAS Cloud Build & Network Security):** Tích hợp đăng nhập 1-chạm bằng tài khoản Gmail qua Google OAuth2 (`POST /api/auth/google`), tự động đồng bộ avatar và họ tên, bảo đảm 0% thay đổi cấu trúc Database. Đóng gói thành công file APK Android độc lập chạy 24/7 qua EAS Cloud Build, cấu hình `expo-build-properties` mở quyền `usesCleartextTraffic: true` kết nối server AWS EC2 và chuẩn hóa thông báo lỗi đăng nhập.
+60. **Đóng Gói Mobile Standalone APK Cloud, Mở Quyền Mạng Cleartext Traffic & Tự Động Xóa Phiên Khi Thoát App (Mobile APK Cloud Build, Network Security & Bank-Grade Auto-Logout):** Đóng gói thành công file APK Android độc lập chạy 24/7 qua EAS Cloud Build, cấu hình `expo-build-properties` mở quyền `usesCleartextTraffic: true` kết nối server AWS EC2. Tích hợp cơ chế tự động xóa token và đăng xuất an toàn cấp ngân hàng (`AppState`) mỗi khi người dùng thoát app hoặc đóng app, chuẩn hóa thông báo lỗi đăng nhập và gỡ bỏ hoàn toàn luồng Google OAuth để bảo đảm tính ổn định thuần túy của hệ thống.
 
-### Session [2026-09-02] (Phần 2) - Tích Hợp Đăng Nhập Google OAuth2 1-Chạm, Đóng Gói File Cài Đặt Android APK Độc Lập & Mở Quyền Mạng Cleartext Traffic
+### Session [2026-09-02] (Phần 2) - Đóng Gói File Cài Đặt Android APK Độc Lập, Mở Quyền Mạng Cleartext Traffic & Tự Động Đăng Xuất Khi Thoát App
 
 **✅ Đã hoàn thành (Compact Procedure):**
 
-1. **Tích Hợp Đăng Nhập 1-Chạm Bằng Google OAuth2 (Google Sign-In System):**
-   - **Backend Spring Boot (`AuthController.java` & `GoogleLoginRequest.java`):**
-     - Thêm DTO `GoogleLoginRequest.java` nhận `idToken` (hoặc Access Token) từ Client.
-     - Endpoint `POST /api/auth/google`: Sử dụng `GoogleIdTokenVerifier` xác thực token trực tiếp với Google, kết hợp cơ chế fallback truy vấn REST API (`https://oauth2.googleapis.com/tokeninfo` và `https://www.googleapis.com/oauth2/v3/userinfo`) giúp phân giải chính xác `email`, `name`, `picture` trên mọi nền tảng mà không lo lỗi mismatch audience.
-     - Tự động tìm kiếm User theo email: Nếu đã tồn tại $\rightarrow$ Đăng nhập ngay (bảo toàn 100% dữ liệu ví, ngân sách, nợ nần); nếu chưa tồn tại $\rightarrow$ Tự động tạo User mới với mật khẩu ngẫu nhiên an toàn.
-     - Cấp cặp Token chuẩn JWT (`accessToken` 15 phút + `refreshToken` 7 ngày lưu database).
-   - **Frontend React Native (`AuthScreen.tsx`, `AuthContext.tsx`, `authService.ts`):**
-     - Thiết kế nút bấm **`"Tiếp tục với Google 🇬"`** chuẩn thương mại kèm dải phân cách `hoặc` trên màn hình `AuthScreen.tsx`.
-     - Tích hợp `expo-auth-session` và `expo-web-browser` khởi tạo phiên đăng nhập Google trực tiếp qua trình duyệt an toàn.
-     - Bổ sung cấu hình `ios.bundleIdentifier: "com.sharemoney.app"` trong `app.json`.
-   - **Bảo toàn Database:** Không cần sửa đổi schema Database (0 SQL migration), cho phép `password_hash` nullable trên entity `User.java`.
-
-2. **Đóng Gói File Cài Đặt Mobile Standalone APK (EAS Cloud Build & Cleartext Traffic Fix):**
+1. **Đóng Gói File Cài Đặt Mobile Standalone APK (EAS Cloud Build & Cleartext Traffic Fix):**
    - **Cấu hình EAS Build (`eas.json`):** Thiết lập profile `preview` với `"buildType": "apk"` và tự động gán biến môi trường `EXPO_PUBLIC_API_URL: http://18.142.90.90:8080/api`.
    - **Khắc phục lỗi `Network Error` trên Android APK:** Cài đặt plugin `expo-build-properties` vào `package.json` và khai báo `"usesCleartextTraffic": true` trong `app.json`, giải quyết triệt để chính sách Android OS chặn kết nối HTTP không mã hóa tới server AWS EC2.
    - **Ghim cứng `CLOUD_API_URL` trong `api.ts`:** Cho phép file APK hoạt động hoàn toàn độc lập 24/7 trên điện thoại sau khi tắt máy tính mà không cần chạy `npx expo start`.
 
-3. **Chuẩn Hóa Thông Báo Lỗi Đăng Nhập:**
+2. **Cơ Chế Tự Động Đăng Xuất & Xóa Phiên/Token Khi Thoát App (Bank-Grade Security):**
+   - **Lắng nghe sự kiện `AppState` (`AuthContext.tsx`):** Khi người dùng chuyển app sang chạy ngầm (background), khóa màn hình hoặc tắt app, hệ thống tự động xóa sạch `token`, `refreshToken` khỏi `safeStorage` và đưa trạng thái tài khoản về `null`.
+   - **Bảo mật tuyệt đối:** Khi mở lại app, người dùng sẽ luôn ở màn hình Đăng nhập sạch sẽ, bảo vệ hoàn toàn dữ liệu tài chính trước người khác.
+
+3. **Chuẩn Hóa Thông Báo Lỗi Đăng Nhập & Gỡ Bỏ Hoàn Toàn Google OAuth:**
    - Cập nhật mã lỗi `INVALID_CREDENTIALS` trong `ErrorCode.java` và xử lý hiển thị trong `AuthScreen.tsx` thành thông điệp chuẩn xác, thân thiện: **`"Tên đăng nhập hoặc mật khẩu không đúng."`**.
+   - Gỡ bỏ toàn bộ mã nguồn, endpoints `POST /api/auth/google`, DTO `GoogleLoginRequest.java`, thư viện `google-api-client` khỏi Backend và Frontend, duy trì hệ thống xác thực tiêu chuẩn tinh gọn, ổn định 100%.
 
 4. **Kiểm Thử & Đồng Bộ Triển Khai:**
    - **Backend:** 12/12 Unit Tests `AuthControllerTest.java` đạt Pass, `./mvnw clean package -DskipTests` đạt `BUILD SUCCESS`.
    - **Frontend:** `npx tsc --noEmit` đạt 0 lỗi typecheck.
-   - **Đồng bộ Git:** Toàn bộ mã nguồn đã được commit và push lên GitHub `origin/main` (`commit 60f242b`), sẵn sàng build Docker trên AWS EC2.
+   - **Đồng bộ Git:** Toàn bộ mã nguồn đã được commit và push lên GitHub `origin/main` (`commit 2513956`), sẵn sàng build Docker trên AWS EC2.
 
 ### Session [2026-09-02] (Phần 1) - Nâng Cấp Trợ Lý AI Tự Động Thiết Lập Kế Hoạch Tài Chính, Tạo Toàn Bộ Ngân Sách & Ghi Nhận Thu Nhập 1-Chạm
 

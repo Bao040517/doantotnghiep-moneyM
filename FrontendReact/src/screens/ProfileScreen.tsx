@@ -19,13 +19,13 @@ import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
 import { VietQRCard } from "../components/features/VietQRCard";
+import { ScreenHeader } from "../components/common/ScreenHeader";
 import { QrCode, User, Moon, Sun, Camera, Building2, PiggyBank, Phone, LogOut } from "lucide-react-native";
 import { colors } from "../constants/colors";
 import { UserSummary } from "../types";
 import { authService } from "../services/authService";
 import { VIETQR_BANKS } from "../constants/banks";
 import { useAuth } from "../hooks/useAuth";
-import { useTopSafeInset } from "../utils/responsive";
 import { verifyBankAccount } from "../utils/bankAccountVerification";
 
 const AVATAR_PRESETS = [
@@ -56,7 +56,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 }) => {
   const { user: contextUser, logout: contextLogout, refreshProfile: contextRefreshProfile } = useAuth();
   const { isDark, toggleTheme, colors: themeColors } = useTheme();
-  const safeTopPadding = useTopSafeInset(10);
   const user = propUser !== undefined ? propUser : contextUser;
   const onLogout = propLogout || contextLogout;
   const onRefreshUser = propRefreshUser || contextRefreshProfile;
@@ -267,16 +266,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: safeTopPadding }]} showsVerticalScrollIndicator={false}>
-        
+      {/* ─── STICKY SAFE HEADER BAR ─── */}
+      <ScreenHeader
+        title="Thông tin cá nhân"
+        showBack={true}
+        showAvatar={false}
+        showNotif={false}
+      />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* ══════════════════════════════════════════════════════════════
             KHỐI CHA 1: THÔNG TIN CÁ NHÂN
            ══════════════════════════════════════════════════════════════ */}
         <View style={styles.blockSection}>
-          <Text style={[styles.mainHeaderTitle, { color: themeColors.textPrimary }]}>
-            Thông tin cá nhân
-          </Text>
-
           <Card style={[styles.cardSurface, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
             {/* Avatar & Tên User */}
             <View style={styles.userProfileTopRow}>
@@ -900,8 +905,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 28) + 12 : 50,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 40,
   },
 

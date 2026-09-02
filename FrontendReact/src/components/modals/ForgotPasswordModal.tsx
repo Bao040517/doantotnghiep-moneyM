@@ -35,7 +35,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
 }) => {
   const { isDark } = useTheme();
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -170,25 +170,13 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
 
     setLoading(true);
     try {
-      const res = await authService.resetPassword({
+      await authService.resetPassword({
         email: trimmedEmail,
         otp: trimmedOtp,
         newPassword,
       });
 
-      Alert.alert(
-        "Thành công! 🎉",
-        res.message || "Đặt lại mật khẩu thành công. Vui lòng đăng nhập với mật khẩu mới.",
-        [
-          {
-            text: "Đăng nhập ngay",
-            onPress: () => {
-              onClose();
-              onSuccess(trimmedEmail);
-            },
-          },
-        ]
-      );
+      setStep(3);
     } catch (e: any) {
       console.error("Reset password error:", e);
       Alert.alert(
@@ -228,6 +216,10 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
               >
                 <ArrowLeft size={20} color={isDark ? "#94A3B8" : "#64748B"} />
               </TouchableOpacity>
+            ) : step === 3 ? (
+              <View style={[styles.headerIconWrapper, { backgroundColor: "#DCFCE7" }]}>
+                <CheckCircle2 size={20} color="#16A34A" />
+              </View>
             ) : (
               <View style={styles.headerIconWrapper}>
                 <KeyRound size={20} color="#6366F1" />
@@ -236,12 +228,14 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
 
             <View style={styles.headerTitleWrapper}>
               <Text style={[styles.headerTitle, isDark ? styles.textDark : undefined]}>
-                {step === 1 ? "Quên Mật Khẩu" : "Nhập Mã OTP & Đổi MK"}
+                {step === 1 ? "Quên Mật Khẩu" : step === 2 ? "Nhập Mã OTP & Đổi MK" : "Thành Công! 🎉"}
               </Text>
               <Text style={[styles.headerSubtitle, isDark ? styles.textMutedDark : undefined]}>
                 {step === 1
                   ? "Nhận mã xác thực 6 số qua Gmail"
-                  : `Mã đã gửi tới ${trimmedEmail}`}
+                  : step === 2
+                  ? `Mã đã gửi tới ${trimmedEmail}`
+                  : "Mật khẩu của bạn đã được cập nhật"}
               </Text>
             </View>
 
@@ -279,7 +273,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                   style={styles.actionBtn}
                 />
               </View>
-            ) : (
+            ) : step === 2 ? (
               // ──── STEP 2: NHẬP OTP & MẬT KHẨU MỚI ────
               <View>
                 {/* OTP Input */}
@@ -387,6 +381,33 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                   variant="primary"
                   onPress={handleResetPassword}
                   loading={loading}
+                  style={styles.actionBtn}
+                />
+              </View>
+            ) : (
+              // ──── STEP 3: MÀN HÌNH THÀNH CÔNG RỰC RỠ ────
+              <View style={styles.successWrapper}>
+                <View style={styles.successIconOuter}>
+                  <View style={styles.successIconBg}>
+                    <CheckCircle2 size={48} color="#16A34A" strokeWidth={2.6} />
+                  </View>
+                </View>
+
+                <Text style={[styles.successMainTitle, isDark ? styles.textDark : undefined]}>
+                  Đặt Lại Mật Khẩu Thành Công! 🎉
+                </Text>
+
+                <Text style={[styles.successDescription, isDark ? styles.textMutedDark : undefined]}>
+                  Mật khẩu tài khoản <Text style={{ fontWeight: "700", color: "#4F46E5" }}>{trimmedEmail}</Text> đã được cập nhật thành công. Vui lòng đăng nhập với mật khẩu mới.
+                </Text>
+
+                <Button
+                  title="Đăng Nhập Ngay 🚀"
+                  variant="primary"
+                  onPress={() => {
+                    onClose();
+                    onSuccess(trimmedEmail);
+                  }}
                   style={styles.actionBtn}
                 />
               </View>
@@ -561,5 +582,43 @@ const styles = StyleSheet.create({
   },
   textMutedDark: {
     color: "#94A3B8",
+  },
+  successWrapper: {
+    alignItems: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 8,
+  },
+  successIconOuter: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: "#F0FDF4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: "#BBF7D0",
+  },
+  successIconBg: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successMainTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0F172A",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  successDescription: {
+    fontSize: 13,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
   },
 });

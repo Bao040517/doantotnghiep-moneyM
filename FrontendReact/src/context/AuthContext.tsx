@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { Platform, Alert } from "react-native";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { Platform, Alert, AppState, AppStateStatus } from "react-native";
 import { safeStorage } from "../services/storage";
 import { UserSummary, LoginPayload, RegisterPayload } from "../types";
 import { authService } from "../services/authService";
@@ -33,6 +33,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<UserSummary | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const isAuthenticatingRef = useRef<boolean>(false);
 
   // Initial auth check on app launch
   useEffect(() => {
@@ -72,6 +73,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
+  // Tự động xóa phiên đăng nhập & xoá cache token mỗi khi thoát khỏi app (Bảo mật cấp ngân hàng)
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (
+        (nextAppState === "background" || (Platform.OS === "ios" && nextAppState === "inactive")) &&
+        !isAuthenticatingRef.current
+      ) {
+        try {
+          await safeStorage.removeItem("token");
+          await safeStorage.removeItem("refreshToken");
+          setToken(null);
+          setUser(null);
+        } catch (e) {
+          console.warn("[AuthContext] Error clearing session on app exit:", e);
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   // Silent profile refresh (does NOT toggle isLoading or unmount navigators)
   const refreshProfile = useCallback(async () => {
     try {
@@ -85,30 +110,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (payload: LoginPayload) => {
-    const res = await authService.login(payload);
-    const activeToken = res.token || res.accessToken || "";
-    await safeStorage.setItem("token", activeToken);
-    if (res.refreshToken) {
-      await safeStorage.setItem("refreshToken", res.refreshToken);
+    isAuthenticatingRef.current = true;
+    try {
+      const res = await authService.login(payload);
+      const activeToken = res.token || res.accessToken || "";
+      await safeStorage.setItem("token", activeToken);
+      if (res.refreshToken) {
+        await safeStorage.setItem("refreshToken", res.refreshToken);
+      }
+      setToken(activeToken);
+      setUser(res.user);
+      return res;
+    } finally {
+      isAuthenticatingRef.current = false;
     }
-    setToken(activeToken);
-    setUser(res.user);
-    return res;
   };
 
   const register = async (payload: RegisterPayload) => {
-    const res = await authService.register(payload);
-    const activeToken = res.token || res.accessToken || "";
-    await safeStorage.setItem("token", activeToken);
-    if (res.refreshToken) {
-      await safeStorage.setItem("refreshToken", res.refreshToken);
+    isAuthenticatingRef.current = true;
+    try {
+      const res = await authService.register(payload);
+      const activeToken = res.token || res.accessToken || "";
+      await safeStorage.setItem("token", activeToken);
+      if (res.refreshToken) {
+        await safeStorage.setItem("refreshToken", res.refreshToken);
+      }
+      setToken(activeToken);
+      setUser(res.user);
+      return res;
+    } finally {
+      isAuthenticatingRef.current = false;
     }
-    setToken(activeToken);
-    setUser(res.user);
-    return res;
   };
 
   const loginWithGoogle = async () => {
+    isAuthenticatingRef.current = true;
     try {
       if (GOOGLE_CLIENT_ID_WEB === "NOT_SET") {
         Alert.alert(
@@ -171,6 +207,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (e: any) {
       console.error("Google login error:", e);
       throw e;
+    } finally {
+      isAuthenticatingRef.current = false;
     }
   };
 

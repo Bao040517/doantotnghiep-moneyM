@@ -63,6 +63,7 @@ public enum ErrorCode {
     // --- Auth ---
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Bạn cần đăng nhập để thực hiện thao tác này."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Tên đăng nhập hoặc mật khẩu không đúng."),
+    GOOGLE_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "Xác thực Google không thành công. Vui lòng thử lại."),
     REFRESH_TOKEN_EXPIRED(
             HttpStatus.UNAUTHORIZED, "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."),
     INVALID_REFRESH_TOKEN(

@@ -7,8 +7,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
-  ActivityIndicator,
 } from "react-native";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
@@ -37,7 +35,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   const trimmedEmail = email.trim();
   const trimmedName = name.trim();
@@ -55,23 +52,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setName("");
     setEmail("");
     setPassword("");
-  };
-
-  const { loginWithGoogle } = useAuth();
-
-  const handleGoogleLogin = async () => {
-    setGoogleLoading(true);
-    try {
-      await loginWithGoogle();
-    } catch (e: any) {
-      console.error("Google login error:", e);
-      Alert.alert(
-        "Lỗi",
-        e.response?.data?.message || e.message || "Đăng nhập Google thất bại, vui lòng thử lại"
-      );
-    } finally {
-      setGoogleLoading(false);
-    }
   };
 
   const handleSubmit = async () => {
@@ -106,17 +86,30 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setLoading(true);
     try {
       if (isRegister) {
-        await onRegister({ name: trimmedName, email: trimmedEmail, password });
+        if (!onRegister) return;
+        await onRegister({
+          name: trimmedName,
+          email: trimmedEmail,
+          password,
+        });
       } else {
-        await onLogin({ email: trimmedEmail, password });
+        if (!onLogin) return;
+        await onLogin({
+          email: trimmedEmail,
+          password,
+        });
       }
     } catch (e: any) {
-      console.error("Login error detail:", e);
-      let errMsg = e.response?.data?.message || e.message || "Đã có lỗi xảy ra, vui lòng thử lại";
-      if (e.response?.status === 401 || e.response?.data?.errorCode === "INVALID_CREDENTIALS") {
-        errMsg = "Tên đăng nhập hoặc mật khẩu không đúng.";
+      console.error("Auth error:", e);
+      // Hiển thị thông báo thân thiện chuẩn xác cho người dùng
+      if (e.response?.data?.errorCode === "INVALID_CREDENTIALS" || e.response?.status === 401) {
+        Alert.alert("Thông báo", "Tên đăng nhập hoặc mật khẩu không đúng.");
+      } else {
+        Alert.alert(
+          "Lỗi",
+          e.response?.data?.message || e.message || "Thao tác thất bại, vui lòng thử lại"
+        );
       }
-      Alert.alert("Lỗi", errMsg);
     } finally {
       setLoading(false);
     }
@@ -232,36 +225,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             loading={loading}
             style={styles.submitBtn}
           />
-
-          {/* ──── Divider ──── */}
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, isDark ? styles.dividerLineDark : undefined]} />
-            <Text style={[styles.dividerText, isDark ? styles.textMutedDark : undefined]}>
-              hoặc
-            </Text>
-            <View style={[styles.dividerLine, isDark ? styles.dividerLineDark : undefined]} />
-          </View>
-
-          {/* ──── Google Sign-In Button ──── */}
-          <TouchableOpacity
-            style={[styles.googleBtn, isDark ? styles.googleBtnDark : undefined]}
-            onPress={handleGoogleLogin}
-            disabled={googleLoading}
-            activeOpacity={0.7}
-          >
-            {googleLoading ? (
-              <ActivityIndicator size="small" color={isDark ? "#F8FAFC" : "#1F2937"} />
-            ) : (
-              <>
-                <View style={styles.googleIconWrapper}>
-                  <Text style={styles.googleIconG}>G</Text>
-                </View>
-                <Text style={[styles.googleBtnText, isDark ? styles.googleBtnTextDark : undefined]}>
-                  Tiếp tục với Google
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
 
           <Button
             title={
@@ -388,62 +351,5 @@ const styles = StyleSheet.create({
   },
   switchBtn: {
     marginTop: 12,
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#E2E8F0",
-  },
-  dividerLineDark: {
-    backgroundColor: "#334155",
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 13,
-    color: colors.slate500,
-    fontWeight: "500",
-  },
-  googleBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "#D1D5DB",
-    borderRadius: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 20,
-    marginBottom: 4,
-  },
-  googleBtnDark: {
-    backgroundColor: "#1E293B",
-    borderColor: "#475569",
-  },
-  googleIconWrapper: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#4285F4",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  googleIconG: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-  googleBtnText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1F2937",
-  },
-  googleBtnTextDark: {
-    color: "#F8FAFC",
   },
 });

@@ -74,9 +74,4 @@ export const authService = {
     }>("/bank/lookup", { bin, accountNumber });
     return response.data;
   },
-
-  googleLogin: async (idToken: string): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>("/auth/google", { idToken });
-    return response.data;
-  },
 };

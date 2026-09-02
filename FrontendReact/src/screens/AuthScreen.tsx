@@ -92,10 +92,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       }
     } catch (e: any) {
       console.error("Login error detail:", e);
-      Alert.alert(
-        "Lỗi",
-        e.response?.data?.message || e.message || "Đã có lỗi xảy ra, vui lòng thử lại"
-      );
+      let errMsg = e.response?.data?.message || e.message || "Đã có lỗi xảy ra, vui lòng thử lại";
+      if (e.response?.status === 401 || e.response?.data?.errorCode === "INVALID_CREDENTIALS") {
+        errMsg = "Tên đăng nhập hoặc mật khẩu không đúng.";
+      }
+      Alert.alert("Lỗi", errMsg);
     } finally {
       setLoading(false);
     }

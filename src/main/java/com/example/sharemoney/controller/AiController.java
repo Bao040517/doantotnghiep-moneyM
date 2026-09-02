@@ -68,7 +68,20 @@ public class AiController {
                                                                 ? goalPlanData.getTargetMonths()
                                                                 : 3))
                         .build();
-
         return ResponseEntity.ok(savingsGoalService.createSavingsGoal(userId, req));
+    }
+
+    /**
+     * POST /api/ai/assistant/confirm-financial-plan — 1-chạm tạo toàn bộ Ngân sách & Ghi nhận Thu
+     * nhập
+     */
+    @PostMapping("/assistant/confirm-financial-plan")
+    public ResponseEntity<java.util.Map<String, Object>> confirmFinancialPlan(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "false")
+                    boolean asExpenses,
+            @RequestBody AiAssistantResponse.FinancialPlanData planData) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(
+                aiAssistantService.confirmFinancialPlan(userId, planData, asExpenses));
     }
 }

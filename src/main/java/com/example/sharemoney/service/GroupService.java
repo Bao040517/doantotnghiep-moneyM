@@ -70,8 +70,12 @@ public class GroupService {
                     count++;
 
                     // Gửi thông báo Realtime & Push Notification cho thành viên được thêm vào nhóm
-                    String message = String.format("%s đã thêm bạn vào nhóm \"%s\".", owner.getName(), group.getName());
-                    notificationService.sendNotification(memberUser.getId(), message, "GROUP_MEMBER_ADDED");
+                    String message =
+                            String.format(
+                                    "%s đã thêm bạn vào nhóm \"%s\".",
+                                    owner.getName(), group.getName());
+                    notificationService.sendNotification(
+                            memberUser.getId(), message, "GROUP_MEMBER_ADDED");
                 }
             }
         }
@@ -213,8 +217,12 @@ public class GroupService {
 
         // Gửi thông báo Realtime & Push Notification cho thành viên vừa được thêm
         User currentAdder = userRepository.findById(currentUserId).orElse(null);
-        String adderName = (currentAdder != null && currentAdder.getName() != null) ? currentAdder.getName() : "Một thành viên";
-        String message = String.format("%s đã thêm bạn vào nhóm \"%s\".", adderName, group.getName());
+        String adderName =
+                (currentAdder != null && currentAdder.getName() != null)
+                        ? currentAdder.getName()
+                        : "Một thành viên";
+        String message =
+                String.format("%s đã thêm bạn vào nhóm \"%s\".", adderName, group.getName());
         notificationService.sendNotification(newUser.getId(), message, "GROUP_MEMBER_ADDED");
     }
 
@@ -268,8 +276,12 @@ public class GroupService {
 
             // Báo cho chủ nhóm nếu có thành viên mới tự quét mã QR tham gia
             if (group.getOwner() != null && !group.getOwner().getId().equals(currentUser.getId())) {
-                String message = String.format("%s đã tham gia vào nhóm \"%s\" qua mã QR / liên kết mời.", currentUser.getName(), group.getName());
-                notificationService.sendNotification(group.getOwner().getId(), message, "GROUP_MEMBER_ADDED");
+                String message =
+                        String.format(
+                                "%s đã tham gia vào nhóm \"%s\" qua mã QR / liên kết mời.",
+                                currentUser.getName(), group.getName());
+                notificationService.sendNotification(
+                        group.getOwner().getId(), message, "GROUP_MEMBER_ADDED");
             }
         }
 

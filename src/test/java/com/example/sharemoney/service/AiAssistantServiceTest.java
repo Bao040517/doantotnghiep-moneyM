@@ -388,4 +388,81 @@ class AiAssistantServiceTest {
         assertEquals(1, response.getGoalPlanData().getCutDownSuggestions().size());
         assertEquals(2, response.getQuickReplies().size());
     }
+
+    @Test
+    @DisplayName(
+            "Thiết lập kế hoạch tài chính đa mục: Lương 15tr, tiền nhà 2tr, tiền điện 500k, tiền nước 200k, ăn uống 1tr5, đi chơi 500k")
+    void testFinancialPlanSetup_MultiExpensesAndSalary() {
+        AiAssistantRequest req =
+                AiAssistantRequest.builder()
+                        .message(
+                                "Toio muốn trở thành người giàu nhất thế giới. Đầu tiên tôi cần thiết lập chi tiêu. Tháng 9 tôi nhận lương 15 triệu. Tiền nhà phai mất 2 triệu tiền ddieennj 500k tiềề nước 200k tiềề ăn uống 1tr5 tiền đi chơi 500k.")
+                        .build();
+
+        AiAssistantResponse response = aiAssistantService.chat(userId, req);
+
+        assertNotNull(response);
+        assertEquals("SETUP_FINANCIAL_PLAN", response.getIntent());
+        assertNotNull(response.getFinancialPlanData());
+
+        AiAssistantResponse.FinancialPlanData plan = response.getFinancialPlanData();
+        assertEquals(9, plan.getTargetMonth());
+        assertEquals(new BigDecimal("15000000"), plan.getTotalIncome());
+        assertEquals(1, plan.getIncomes().size());
+        assertEquals(new BigDecimal("15000000"), plan.getIncomes().get(0).getAmount());
+
+        // 5 khoản ngân sách: nhà 2tr, điện 500k, nước 200k, ăn 1.5tr, chơi 500k = 4.700.000đ
+        assertEquals(5, plan.getBudgets().size());
+        assertEquals(new BigDecimal("4700000"), plan.getTotalExpense());
+        assertEquals(new BigDecimal("10300000"), plan.getNetSavings());
+        assertEquals(69, plan.getSavingsRate()); // 10.3 / 15 * 100 = 68.67% -> 69%
+        assertNotNull(response.getQuickReplies());
+    }
+
+    @Test
+    @DisplayName("Xác nhận kế hoạch tài chính - 1-chạm tạo ngân sách và thu nhập")
+    void testConfirmFinancialPlan_Success() {
+        com.example.sharemoney.entity.User user =
+                com.example.sharemoney.entity.User.builder()
+                        .id(userId)
+                        .name("Bảo")
+                        .email("test@example.com")
+                        .build();
+        when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(user));
+        when(walletRepository.findByUser_Id(userId)).thenReturn(List.of(mainWallet));
+        when(categoryRepository.findByUser_Id(userId))
+                .thenReturn(List.of(salaryCategory, foodCategory));
+
+        AiAssistantResponse.FinancialPlanData planData =
+                AiAssistantResponse.FinancialPlanData.builder()
+                        .targetMonth(9)
+                        .targetYear(2026)
+                        .totalIncome(new BigDecimal("15000000"))
+                        .totalExpense(new BigDecimal("4700000"))
+                        .incomes(
+                                List.of(
+                                        AiAssistantResponse.IncomeItem.builder()
+                                                .name("Lương tháng 9")
+                                                .amount(new BigDecimal("15000000"))
+                                                .categoryName("Thu nhập")
+                                                .build()))
+                        .budgets(
+                                List.of(
+                                        AiAssistantResponse.BudgetItem.builder()
+                                                .name("Ăn uống")
+                                                .limitAmount(new BigDecimal("1500000"))
+                                                .categoryName("Ăn uống")
+                                                .isFixed(false)
+                                                .build()))
+                        .build();
+
+        java.util.Map<String, Object> res =
+                aiAssistantService.confirmFinancialPlan(userId, planData, false);
+
+        assertNotNull(res);
+        assertEquals("SUCCESS", res.get("status"));
+        assertEquals(1, res.get("recordedIncomes"));
+        assertEquals(1, res.get("appliedBudgets"));
+        assertEquals("BUDGETS", res.get("mode"));
+    }
 }

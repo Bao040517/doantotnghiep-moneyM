@@ -167,13 +167,16 @@ public class BudgetService {
                                                                 .getId()
                                                                 .equals(prev.getCategory().getId())
                                                         && java.util.Objects.equals(
-                                                                c.getName() != null ? c.getName().trim() : "",
+                                                                c.getName() != null
+                                                                        ? c.getName().trim()
+                                                                        : "",
                                                                 prevName));
 
                 boolean existsInDb =
                         !prevName.isEmpty()
-                                ? budgetRepository.existsByUser_IdAndCategory_IdAndMonthAndYearAndName(
-                                        userId, prev.getCategory().getId(), m, y, prevName)
+                                ? budgetRepository
+                                        .existsByUser_IdAndCategory_IdAndMonthAndYearAndName(
+                                                userId, prev.getCategory().getId(), m, y, prevName)
                                 : budgetRepository.existsByUser_IdAndCategory_IdAndMonthAndYear(
                                         userId, prev.getCategory().getId(), m, y);
 
@@ -205,12 +208,17 @@ public class BudgetService {
                             !prevName.isEmpty()
                                     ? budgetRepository
                                             .findByUser_IdAndCategory_IdAndMonthAndYearAndName(
-                                                    userId, prev.getCategory().getId(), m, y, prevName)
+                                                    userId,
+                                                    prev.getCategory().getId(),
+                                                    m,
+                                                    y,
+                                                    prevName)
                                     : budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
                                             userId, prev.getCategory().getId(), m, y);
                     if (inDb != null && !inDb.isEmpty()) {
                         for (Budget b : inDb) {
-                            if (currentBudgets.stream().noneMatch(cb -> cb.getId().equals(b.getId()))) {
+                            if (currentBudgets.stream()
+                                    .noneMatch(cb -> cb.getId().equals(b.getId()))) {
                                 currentBudgets.add(b);
                             }
                         }
@@ -272,9 +280,7 @@ public class BudgetService {
     // ─────────────────────────────────────────────────────────────
     // Helper: xác định mốc thời gian bắt đầu tính chi tiêu
     // ─────────────────────────────────────────────────────────────
-    /**
-     * Không còn sử dụng getSinceDateTime vì quy tắc mới là đếm toàn bộ tháng (hồi tố).
-     */
+    /** Không còn sử dụng getSinceDateTime vì quy tắc mới là đếm toàn bộ tháng (hồi tố). */
     private java.time.LocalDateTime getSinceDateTime(Budget budget, int year, int month) {
         return null;
     }

@@ -41,9 +41,12 @@ public class VietQrService {
 
         var lookup =
                 bankLookupService.lookupAccount(receiver.getBankBin(), receiver.getBankAccountNo());
-        if (!lookup.isVerified() || lookup.getAccountName() == null || lookup.getAccountName().isBlank()) {
+        if (!lookup.isVerified()
+                || lookup.getAccountName() == null
+                || lookup.getAccountName().isBlank()) {
             return VietQrResponse.builder()
-                    .message("STK hoặc chủ tài khoản chưa được ngân hàng xác thực. Không thể tạo mã QR.")
+                    .message(
+                            "STK hoặc chủ tài khoản chưa được ngân hàng xác thực. Không thể tạo mã QR.")
                     .build();
         }
 

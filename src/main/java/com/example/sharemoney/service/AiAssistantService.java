@@ -3,11 +3,15 @@ package com.example.sharemoney.service;
 import com.example.sharemoney.dto.request.AiAssistantRequest;
 import com.example.sharemoney.dto.response.AiAssistantResponse;
 import com.example.sharemoney.entity.Budget;
+import com.example.sharemoney.entity.BudgetType;
 import com.example.sharemoney.entity.Category;
 import com.example.sharemoney.entity.SavingsGoal;
 import com.example.sharemoney.entity.Transaction;
 import com.example.sharemoney.entity.TransactionType;
+import com.example.sharemoney.entity.User;
 import com.example.sharemoney.entity.Wallet;
+import com.example.sharemoney.exception.AppException;
+import com.example.sharemoney.exception.ErrorCode;
 import com.example.sharemoney.repository.BudgetRepository;
 import com.example.sharemoney.repository.CategoryRepository;
 import com.example.sharemoney.repository.SavingsGoalRepository;
@@ -20,6 +24,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -33,6 +38,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -345,25 +351,39 @@ public class AiAssistantService {
         sb.append(
                 "  \"reply\": \"Câu trả lời bằng tiếng Việt tự nhiên, xưng hô 'mình' - 'bạn' hoặc gọi tên người dùng, dùng emoji sinh động, phân tích trực tiếp dựa vào số liệu thực tế ở trên\",\n");
         sb.append(
-                "  \"intent\": \"PLAN_SAVINGS_GOAL | CREATE_TRANSACTION | QUERY_INSIGHT | GENERAL_CHAT\",\n");
+                "  \"intent\": \"SETUP_FINANCIAL_PLAN | PLAN_SAVINGS_GOAL | CREATE_TRANSACTION | QUERY_INSIGHT | GENERAL_CHAT\",\n");
+        sb.append(
+                "  \"financialPlanData\": { chỉ khi intent=SETUP_FINANCIAL_PLAN: planTitle, targetMonth, targetYear, totalIncome, totalExpense, netSavings, savingsRate (0-100), incomes: [{name, amount, categoryName}], budgets: [{name, limitAmount, categoryName, isFixed}] },\n");
         sb.append(
                 "  \"goalPlanData\": { chỉ khi intent=PLAN_SAVINGS_GOAL và đã có số tiền/thời gian cụ thể: goalName, targetAmount, targetMonths, monthlySavingsNeeded, dailySavingsNeeded, feasibilityScore (0-100), cutDownSuggestions: [{emoji, categoryName, currentSpending, suggestedSpending, monthlySavings, description}], deadlineDate },\n");
         sb.append(
                 "  \"transactionData\": { chỉ khi intent=CREATE_TRANSACTION: amount, categoryName, note, paymentMethod, transactionType (EXPENSE/INCOME) },\n");
         sb.append("  \"quickReplies\": [\"gợi ý 1-chạm 1\", \"gợi ý 2\", \"gợi ý 3\"]\n");
+        sb.append("}\n\n");
         sb.append("HƯỚNG DẪN XỬ LÝ THEO TỪNG TÌNH HUỐNG:\n");
         sb.append(
-                "1. Khi người dùng nói về mục tiêu/ước mơ/dự định (VD: 'tôi muốn đi du lịch đà lạt', 'muốn mua iPhone 16 Pro Max 30tr trong 3 tháng', 'dự định mua xe máy'):\n");
+                "1. Khi người dùng khai báo kế hoạch tài chính, thu nhập và ngân sách chi tiêu tháng (VD: 'Tháng 9 tôi nhận lương 15 triệu. Tiền nhà mất 2 triệu, tiền điện 500k, tiền nước 200k, ăn uống 1tr5, đi chơi 500k', 'Thiết lập chi tiêu tháng này: lương 20tr, tiền trọ 3tr...'):\n");
+        sb.append("   - Đặt intent='SETUP_FINANCIAL_PLAN'.\n");
+        sb.append(
+                "   - Bóc tách đầy đủ các khoản thu nhập vào incomes (VD: [{name: 'Lương tháng 9', amount: 15000000, categoryName: 'Tiền lương'}]).\n");
+        sb.append(
+                "   - Bóc tách từng khoản ngân sách/chi phí vào budgets (VD: [{name: 'Tiền nhà', limitAmount: 2000000, categoryName: 'Nhà ở / Thuê nhà', isFixed: true}, {name: 'Tiền điện', limitAmount: 500000, categoryName: 'Hoá đơn & Tiện ích', isFixed: true}, {name: 'Tiền nước', limitAmount: 200000, categoryName: 'Hoá đơn & Tiện ích', isFixed: true}, {name: 'Ăn uống', limitAmount: 1500000, categoryName: 'Ăn uống', isFixed: false}, {name: 'Đi chơi, giải trí', limitAmount: 500000, categoryName: 'Giải trí', isFixed: false}]).\n");
+        sb.append(
+                "   - Tính totalIncome, totalExpense, netSavings = totalIncome - totalExpense, savingsRate = (netSavings / totalIncome) * 100.\n");
+        sb.append(
+                "   - Soạn reply tổng kết truyền cảm hứng, khen ngợi tỷ lệ tiết kiệm và hỏi người dùng có muốn áp dụng tạo toàn bộ ngân sách và ghi nhận thu nhập ngay không.\n");
+        sb.append(
+                "2. Khi người dùng nói về mục tiêu/ước mơ/dự định (VD: 'tôi muốn đi du lịch đà lạt', 'muốn mua iPhone 16 Pro Max 30tr trong 3 tháng', 'dự định mua xe máy'):\n");
         sb.append(
                 "   - Nếu ĐÃ CÓ số tiền và thời gian: Tính toán chi tiết kế hoạch (monthlySavingsNeeded = targetAmount / targetMonths, dailySavingsNeeded = monthlySavingsNeeded / 30), phân tích số dư và chi tiêu thực tế của người dùng để tính feasibilityScore và gợi ý cắt giảm cụ thể (VD: cắt bớt Ăn uống, Mua sắm từ dữ liệu ở trên).\n");
         sb.append(
                 "   - Nếu CHƯA CÓ số tiền hoặc thời gian cụ thể (VD: 'tôi muốn đi du lịch đà lạt', 'dự định mua xe'): Đặt intent='PLAN_SAVINGS_GOAL', goalPlanData=null. Phân tích nhẹ tình hình tài chính của bạn (số dư ví, thu chi), cổ vũ nhiệt tình cho mục tiêu đó, ước lượng chi phí phổ biến và hỏi người dùng dự tính bao nhiêu tiền & trong mấy tháng. Cung cấp 3 quickReplies gợi ý số tiền/tháng cụ thể (VD: ['Đi du lịch Đà Lạt 3tr trong 2 tháng', 'Đi du lịch Đà Lạt 5tr trong 3 tháng', 'Đi du lịch Đà Lạt 10tr trong 6 tháng']).\n");
         sb.append(
-                "2. Khi người dùng muốn ghi chép giao dịch (VD: 'Ăn bún bò 55k MoMo', 'Đi Grab 35k tiền mặt'):\n");
+                "3. Khi người dùng muốn ghi chép giao dịch (VD: 'Ăn bún bò 55k MoMo', 'Đi Grab 35k tiền mặt'):\n");
         sb.append(
                 "   - Trích xuất amount, categoryName từ danh sách danh mục có sẵn, note, paymentMethod, transactionType.\n");
         sb.append(
-                "3. Khi người dùng hỏi thăm về tình hình tài chính, thu chi, số dư (VD: 'Tháng này tiêu bao nhiêu cafe?', 'Tình hình tài chính thế nào?'):\n");
+                "4. Khi người dùng hỏi thăm về tình hình tài chính, thu chi, số dư (VD: 'Tháng này tiêu bao nhiêu cafe?', 'Tình hình tài chính thế nào?'):\n");
         sb.append(
                 "   - Dùng chính xác số liệu trong DỮ LIỆU TÀI CHÍNH THỰC TẾ ở trên để trả lời rõ ràng, chi tiết, kèm lời khuyên quản lý tài chính hữu ích.\n");
 
@@ -382,6 +402,58 @@ public class AiAssistantService {
 
             AiAssistantResponse.AiAssistantResponseBuilder builder =
                     AiAssistantResponse.builder().reply(reply).intent(intent);
+
+            // Parse financialPlanData
+            if (root.has("financialPlanData") && !root.get("financialPlanData").isNull()) {
+                JsonNode fp = root.get("financialPlanData");
+                List<AiAssistantResponse.IncomeItem> incomes = new ArrayList<>();
+                if (fp.has("incomes") && fp.get("incomes").isArray()) {
+                    for (JsonNode inc : fp.get("incomes")) {
+                        incomes.add(
+                                AiAssistantResponse.IncomeItem.builder()
+                                        .name(getJsonText(inc, "name"))
+                                        .amount(getJsonBigDecimal(inc, "amount"))
+                                        .categoryName(getJsonText(inc, "categoryName"))
+                                        .build());
+                    }
+                }
+
+                List<AiAssistantResponse.BudgetItem> budgets = new ArrayList<>();
+                if (fp.has("budgets") && fp.get("budgets").isArray()) {
+                    for (JsonNode b : fp.get("budgets")) {
+                        budgets.add(
+                                AiAssistantResponse.BudgetItem.builder()
+                                        .name(getJsonText(b, "name"))
+                                        .limitAmount(getJsonBigDecimal(b, "limitAmount"))
+                                        .categoryName(getJsonText(b, "categoryName"))
+                                        .isFixed(
+                                                b.has("isFixed")
+                                                        ? b.get("isFixed").asBoolean()
+                                                        : false)
+                                        .build());
+                    }
+                }
+
+                builder.financialPlanData(
+                        AiAssistantResponse.FinancialPlanData.builder()
+                                .planTitle(getJsonText(fp, "planTitle"))
+                                .targetMonth(
+                                        fp.has("targetMonth")
+                                                ? fp.get("targetMonth").asInt()
+                                                : null)
+                                .targetYear(
+                                        fp.has("targetYear") ? fp.get("targetYear").asInt() : null)
+                                .totalIncome(getJsonBigDecimal(fp, "totalIncome"))
+                                .totalExpense(getJsonBigDecimal(fp, "totalExpense"))
+                                .netSavings(getJsonBigDecimal(fp, "netSavings"))
+                                .savingsRate(
+                                        fp.has("savingsRate")
+                                                ? fp.get("savingsRate").asInt()
+                                                : null)
+                                .incomes(incomes)
+                                .budgets(budgets)
+                                .build());
+            }
 
             // Parse goalPlanData
             if (root.has("goalPlanData") && !root.get("goalPlanData").isNull()) {
@@ -458,6 +530,26 @@ public class AiAssistantService {
             UUID userId, String userMessage, FinancialContext ctx) {
         String lower = userMessage.toLowerCase();
         NumberFormat fmt = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("vi-VN"));
+
+        // 0. Phát hiện ý định thiết lập kế hoạch tài chính toàn diện / ngân sách nhiều mục
+        if (containsAny(
+                        lower,
+                        "thiết lập chi tiêu",
+                        "thiết lập ngân sách",
+                        "kế hoạch chi tiêu",
+                        "kế hoạch tháng",
+                        "lập ngân sách")
+                || ((lower.contains("lương") || lower.contains("thu nhập"))
+                        && (lower.contains("tiền nhà")
+                                || lower.contains("tiền trọ")
+                                || lower.contains("tiền điện")
+                                || lower.contains("tiền nước")
+                                || lower.contains("ddieennj")
+                                || lower.contains("tiềề")
+                                || lower.contains("ăn uống")
+                                || lower.contains("đi chơi")))) {
+            return handleFinancialPlanHeuristic(userMessage, lower, ctx, fmt);
+        }
 
         // 1. Phát hiện ý định hỏi thống kê (Ưu tiên kiểm tra trước)
         if (containsAny(
@@ -560,6 +652,444 @@ public class AiAssistantService {
                                 "Ăn bún bò 55k MoMo",
                                 "Tình hình thu chi tháng này"))
                 .build();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // XỬ LÝ THIẾT LẬP KẾ HOẠCH TÀI CHÍNH & NGÂN SÁCH ĐA MỤC
+    // ─────────────────────────────────────────────────────
+    private AiAssistantResponse handleFinancialPlanHeuristic(
+            String original, String lower, FinancialContext ctx, NumberFormat fmt) {
+        // 1. Tìm tháng
+        int targetMonth = LocalDate.now().getMonthValue();
+        int targetYear = LocalDate.now().getYear();
+        Matcher mMonth =
+                Pattern.compile("tháng\\s+(\\d{1,2})", Pattern.CASE_INSENSITIVE).matcher(lower);
+        if (mMonth.find()) {
+            try {
+                int m = Integer.parseInt(mMonth.group(1));
+                if (m >= 1 && m <= 12) targetMonth = m;
+            } catch (Exception ignored) {
+            }
+        }
+
+        List<AiAssistantResponse.IncomeItem> incomes = new ArrayList<>();
+        List<AiAssistantResponse.BudgetItem> budgets = new ArrayList<>();
+
+        // 2. Thu nhập / Lương
+        BigDecimal incomeAmount =
+                extractAmountAfterKeywords(lower, "lương", "nhận lương", "thu nhập");
+        if (incomeAmount != null && incomeAmount.compareTo(BigDecimal.ZERO) > 0) {
+            incomes.add(
+                    AiAssistantResponse.IncomeItem.builder()
+                            .name("Lương tháng " + targetMonth)
+                            .amount(incomeAmount)
+                            .categoryName("Tiền lương")
+                            .build());
+        }
+
+        // 3. Tiền nhà / tiền trọ
+        BigDecimal houseAmount =
+                extractAmountAfterKeywords(lower, "tiền nhà", "tiền trọ", "tiền phòng", "thuê nhà");
+        if (houseAmount != null && houseAmount.compareTo(BigDecimal.ZERO) > 0) {
+            budgets.add(
+                    AiAssistantResponse.BudgetItem.builder()
+                            .name("Tiền nhà")
+                            .limitAmount(houseAmount)
+                            .categoryName("Nhà ở / Thuê nhà")
+                            .isFixed(true)
+                            .build());
+        }
+
+        // 4. Tiền điện
+        BigDecimal electricityAmount =
+                extractAmountAfterKeywords(lower, "tiền điện", "điện", "ddieennj", "tiền ddieennj");
+        if (electricityAmount != null && electricityAmount.compareTo(BigDecimal.ZERO) > 0) {
+            budgets.add(
+                    AiAssistantResponse.BudgetItem.builder()
+                            .name("Tiền điện")
+                            .limitAmount(electricityAmount)
+                            .categoryName("Hoá đơn & Tiện ích")
+                            .isFixed(true)
+                            .build());
+        }
+
+        // 5. Tiền nước
+        BigDecimal waterAmount =
+                extractAmountAfterKeywords(lower, "tiền nước", "tiềề nước", "nước", "nuoc");
+        if (waterAmount != null && waterAmount.compareTo(BigDecimal.ZERO) > 0) {
+            budgets.add(
+                    AiAssistantResponse.BudgetItem.builder()
+                            .name("Tiền nước")
+                            .limitAmount(waterAmount)
+                            .categoryName("Hoá đơn & Tiện ích")
+                            .isFixed(true)
+                            .build());
+        }
+
+        // 6. Ăn uống
+        BigDecimal foodAmount =
+                extractAmountAfterKeywords(
+                        lower, "tiền ăn uống", "tiềề ăn uống", "ăn uống", "tiền ăn", "ăn");
+        if (foodAmount != null && foodAmount.compareTo(BigDecimal.ZERO) > 0) {
+            budgets.add(
+                    AiAssistantResponse.BudgetItem.builder()
+                            .name("Ăn uống")
+                            .limitAmount(foodAmount)
+                            .categoryName("Ăn uống")
+                            .isFixed(false)
+                            .build());
+        }
+
+        // 7. Đi chơi / giải trí
+        BigDecimal funAmount =
+                extractAmountAfterKeywords(
+                        lower, "tiền đi chơi", "đi chơi", "giải trí", "cafe", "cà phê");
+        if (funAmount != null && funAmount.compareTo(BigDecimal.ZERO) > 0) {
+            budgets.add(
+                    AiAssistantResponse.BudgetItem.builder()
+                            .name("Đi chơi, giải trí")
+                            .limitAmount(funAmount)
+                            .categoryName("Giải trí")
+                            .isFixed(false)
+                            .build());
+        }
+
+        // 8. Xăng xe / di chuyển
+        BigDecimal travelAmount =
+                extractAmountAfterKeywords(
+                        lower, "tiền xăng", "xăng xe", "xăng", "di chuyển", "grab");
+        if (travelAmount != null && travelAmount.compareTo(BigDecimal.ZERO) > 0) {
+            budgets.add(
+                    AiAssistantResponse.BudgetItem.builder()
+                            .name("Di chuyển, xăng xe")
+                            .limitAmount(travelAmount)
+                            .categoryName("Di chuyển")
+                            .isFixed(false)
+                            .build());
+        }
+
+        // 9. Mua sắm
+        BigDecimal shopAmount =
+                extractAmountAfterKeywords(lower, "tiền mua sắm", "mua sắm", "shopping", "quần áo");
+        if (shopAmount != null && shopAmount.compareTo(BigDecimal.ZERO) > 0) {
+            budgets.add(
+                    AiAssistantResponse.BudgetItem.builder()
+                            .name("Mua sắm")
+                            .limitAmount(shopAmount)
+                            .categoryName("Mua sắm")
+                            .isFixed(false)
+                            .build());
+        }
+
+        BigDecimal totalIncome =
+                incomes.stream()
+                        .map(AiAssistantResponse.IncomeItem::getAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalExpense =
+                budgets.stream()
+                        .map(AiAssistantResponse.BudgetItem::getLimitAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal netSavings = totalIncome.subtract(totalExpense);
+        int savingsRate =
+                (totalIncome.compareTo(BigDecimal.ZERO) > 0
+                                && netSavings.compareTo(BigDecimal.ZERO) > 0)
+                        ? netSavings
+                                .multiply(BigDecimal.valueOf(100))
+                                .divide(totalIncome, 0, RoundingMode.HALF_UP)
+                                .intValue()
+                        : 0;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(
+                "Chủ tịch tương lai ơi, mục tiêu trở thành người giàu nhất thế giới nghe cực kỳ truyền cảm hứng luôn! 🚀\n\n");
+        sb.append("Cùng mình tổng hợp bức tranh tài chính Tháng ")
+                .append(targetMonth)
+                .append(" siêu đỉnh của bạn nhé:\n");
+        if (totalIncome.compareTo(BigDecimal.ZERO) > 0) {
+            sb.append("💵 **Thu nhập:** ").append(fmt.format(totalIncome)).append("\n");
+        }
+        sb.append("💸 **Tổng chi tiêu dự kiến:** ").append(fmt.format(totalExpense)).append("\n");
+        for (var b : budgets) {
+            sb.append("  • ")
+                    .append(b.getName())
+                    .append(": ")
+                    .append(fmt.format(b.getLimitAmount()))
+                    .append("\n");
+        }
+        sb.append("\n🎯 **Dòng tiền thặng dư:** ")
+                .append(fmt.format(netSavings))
+                .append("/tháng!\n\n");
+        if (savingsRate > 0) {
+            sb.append("Tỷ lệ tiết kiệm của bạn đạt tới **")
+                    .append(savingsRate)
+                    .append("%** — một con số siêu ấn tượng! ");
+            sb.append("Với ")
+                    .append(fmt.format(netSavings))
+                    .append(
+                            " tích lũy mỗi tháng, hành trình tích sản của bạn đang có khởi đầu cực kỳ vững chắc.\n\n");
+        }
+        sb.append(
+                "Bạn có muốn mình tạo toàn bộ ngân sách và cộng thu nhập này vào ví để bắt đầu theo dõi không?");
+
+        AiAssistantResponse.FinancialPlanData planData =
+                AiAssistantResponse.FinancialPlanData.builder()
+                        .planTitle("Kế hoạch tài chính Tháng " + targetMonth + "/" + targetYear)
+                        .targetMonth(targetMonth)
+                        .targetYear(targetYear)
+                        .totalIncome(totalIncome)
+                        .totalExpense(totalExpense)
+                        .netSavings(netSavings)
+                        .savingsRate(savingsRate)
+                        .incomes(incomes)
+                        .budgets(budgets)
+                        .build();
+
+        return AiAssistantResponse.builder()
+                .reply(sb.toString())
+                .intent("SETUP_FINANCIAL_PLAN")
+                .financialPlanData(planData)
+                .quickReplies(
+                        List.of(
+                                "Áp dụng ngân sách tháng " + targetMonth,
+                                "Ghi nhận là đã chi",
+                                "Tình hình thu chi tháng này"))
+                .build();
+    }
+
+    // ─────────────────────────────────────────────────────
+    // XÁC NHẬN & TỰ ĐỘNG THIẾT LẬP KẾ HOẠCH TÀI CHÍNH
+    // ─────────────────────────────────────────────────────
+    @Transactional
+    public Map<String, Object> confirmFinancialPlan(
+            UUID userId, AiAssistantResponse.FinancialPlanData planData, boolean asExpenses) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        List<Wallet> wallets = walletRepository.findByUser_Id(userId);
+        Wallet targetWallet = wallets.isEmpty() ? null : wallets.get(0);
+
+        if (targetWallet == null) {
+            targetWallet =
+                    Wallet.builder()
+                            .user(user)
+                            .name("Ví chính")
+                            .balance(BigDecimal.ZERO)
+                            .currency("VND")
+                            .build();
+            targetWallet = walletRepository.save(targetWallet);
+        }
+
+        int targetMonth =
+                (planData.getTargetMonth() != null && planData.getTargetMonth() > 0)
+                        ? planData.getTargetMonth()
+                        : LocalDate.now().getMonthValue();
+        int targetYear =
+                (planData.getTargetYear() != null && planData.getTargetYear() > 0)
+                        ? planData.getTargetYear()
+                        : LocalDate.now().getYear();
+
+        int recordedIncomes = 0;
+        BigDecimal totalIncomeRecorded = BigDecimal.ZERO;
+        if (planData.getIncomes() != null) {
+            for (AiAssistantResponse.IncomeItem inc : planData.getIncomes()) {
+                if (inc.getAmount() == null || inc.getAmount().compareTo(BigDecimal.ZERO) <= 0)
+                    continue;
+                String catName =
+                        inc.getCategoryName() != null && !inc.getCategoryName().isBlank()
+                                ? inc.getCategoryName()
+                                : "Tiền lương";
+                Category cat = findOrCreateCategory(user, catName, TransactionType.INCOME);
+
+                Transaction tx =
+                        Transaction.builder()
+                                .wallet(targetWallet)
+                                .category(cat)
+                                .amount(inc.getAmount())
+                                .type(TransactionType.INCOME)
+                                .note(
+                                        inc.getName() != null && !inc.getName().isBlank()
+                                                ? inc.getName()
+                                                : "Thu nhập Lương")
+                                .transactionDate(LocalDateTime.now())
+                                .build();
+                transactionRepository.save(tx);
+                targetWallet.setBalance(targetWallet.getBalance().add(inc.getAmount()));
+                recordedIncomes++;
+                totalIncomeRecorded = totalIncomeRecorded.add(inc.getAmount());
+            }
+            walletRepository.save(targetWallet);
+        }
+
+        int appliedBudgets = 0;
+        int recordedExpenses = 0;
+        BigDecimal totalExpenseRecorded = BigDecimal.ZERO;
+
+        if (planData.getBudgets() != null) {
+            for (AiAssistantResponse.BudgetItem b : planData.getBudgets()) {
+                if (b.getLimitAmount() == null
+                        || b.getLimitAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                String catName =
+                        b.getCategoryName() != null && !b.getCategoryName().isBlank()
+                                ? b.getCategoryName()
+                                : (b.getName() != null ? b.getName() : "Chi tiêu");
+                Category cat = findOrCreateCategory(user, catName, TransactionType.EXPENSE);
+
+                if (asExpenses) {
+                    // Ghi nhận trực tiếp vào giao dịch chi tiêu
+                    Transaction tx =
+                            Transaction.builder()
+                                    .wallet(targetWallet)
+                                    .category(cat)
+                                    .amount(b.getLimitAmount())
+                                    .type(TransactionType.EXPENSE)
+                                    .note(b.getName() != null ? b.getName() : catName)
+                                    .transactionDate(LocalDateTime.now())
+                                    .build();
+                    transactionRepository.save(tx);
+                    targetWallet.setBalance(targetWallet.getBalance().subtract(b.getLimitAmount()));
+                    recordedExpenses++;
+                    totalExpenseRecorded = totalExpenseRecorded.add(b.getLimitAmount());
+                } else {
+                    // Tạo hoặc cập nhật Ngân sách
+                    String bName =
+                            b.getName() != null && !b.getName().isBlank()
+                                    ? b.getName().trim()
+                                    : cat.getName();
+                    List<Budget> existingList =
+                            budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYearAndName(
+                                    userId, cat.getId(), targetMonth, targetYear, bName);
+                    Budget budget;
+                    if (existingList != null && !existingList.isEmpty()) {
+                        budget = existingList.get(0);
+                    } else {
+                        budget =
+                                Budget.builder()
+                                        .user(user)
+                                        .category(cat)
+                                        .name(bName)
+                                        .month(targetMonth)
+                                        .year(targetYear)
+                                        .createdAt(LocalDateTime.now())
+                                        .isRecurring(true)
+                                        .build();
+                    }
+                    budget.setLimitAmount(b.getLimitAmount());
+                    budget.setType(
+                            Boolean.TRUE.equals(b.getIsFixed())
+                                    ? BudgetType.BILL
+                                    : BudgetType.FLEXIBLE);
+                    budgetRepository.save(budget);
+                    appliedBudgets++;
+                }
+            }
+            if (asExpenses) {
+                walletRepository.save(targetWallet);
+            }
+        }
+
+        NumberFormat fmt = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("vi-VN"));
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("status", "SUCCESS");
+        res.put("targetMonth", targetMonth);
+        res.put("targetYear", targetYear);
+        res.put("recordedIncomes", recordedIncomes);
+        res.put("totalIncomeRecorded", totalIncomeRecorded);
+        res.put("appliedBudgets", appliedBudgets);
+        res.put("recordedExpenses", recordedExpenses);
+        res.put("totalExpenseRecorded", totalExpenseRecorded);
+        res.put("mode", asExpenses ? "EXPENSES" : "BUDGETS");
+        res.put(
+                "message",
+                asExpenses
+                        ? String.format(
+                                "🎉 Đã ghi nhận %d khoản thu (+%s) và %d giao dịch chi (-%s) vào sổ chi tiêu thành công!",
+                                recordedIncomes,
+                                fmt.format(totalIncomeRecorded),
+                                recordedExpenses,
+                                fmt.format(totalExpenseRecorded))
+                        : String.format(
+                                "🎉 Đã thiết lập thành công %d ngân sách chi tiêu và ghi nhận thu nhập lương (+%s) cho Tháng %d/%d!",
+                                appliedBudgets,
+                                fmt.format(totalIncomeRecorded),
+                                targetMonth,
+                                targetYear));
+        return res;
+    }
+
+    private Category findOrCreateCategory(User user, String categoryName, TransactionType type) {
+        List<Category> userCategories = categoryRepository.findByUser_Id(user.getId());
+        for (Category c : userCategories) {
+            if (c.getName().equalsIgnoreCase(categoryName)) {
+                return c;
+            }
+        }
+        String lower = categoryName.toLowerCase();
+        for (Category c : userCategories) {
+            String cLower = c.getName().toLowerCase();
+            if (cLower.contains(lower) || lower.contains(cLower)) {
+                return c;
+            }
+        }
+        Category newCat =
+                Category.builder()
+                        .user(user)
+                        .name(categoryName)
+                        .type(type)
+                        .iconName(guessEmoji(categoryName))
+                        .build();
+        return categoryRepository.save(newCat);
+    }
+
+    private BigDecimal extractAmountAfterKeywords(String text, String... keywords) {
+        for (String kw : keywords) {
+            Pattern p =
+                    Pattern.compile(
+                            Pattern.quote(kw)
+                                    + "[^\\d\\n]{0,35}?(\\d+[.,]?\\d*)\\s*(triệu|tr|củ|chai|k|nghìn|ngàn|cành)?(?:\\s*(\\d+))?",
+                            Pattern.CASE_INSENSITIVE);
+            Matcher m = p.matcher(text);
+            if (m.find()) {
+                String num = m.group(1);
+                String unit = m.group(2);
+                String decimalPart = m.group(3);
+                return parseAmountWithUnits(num, unit, decimalPart);
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal parseAmountWithUnits(String numStr, String unitStr, String decimalPart) {
+        if (numStr == null || numStr.isBlank()) return null;
+        try {
+            double val = Double.parseDouble(numStr.replace(",", "."));
+            if (unitStr == null) {
+                if (decimalPart != null) {
+                    val = val * 1_000_000 + Double.parseDouble(decimalPart) * 100_000;
+                } else if (val < 1000) {
+                    val = val * 1_000_000;
+                }
+            } else {
+                String u = unitStr.toLowerCase();
+                if (u.equals("triệu") || u.equals("tr") || u.equals("củ") || u.equals("chai")) {
+                    if (decimalPart != null) {
+                        double dec = Double.parseDouble(decimalPart);
+                        val = val * 1_000_000 + (dec < 10 ? dec * 100_000 : dec * 10_000);
+                    } else {
+                        val = val * 1_000_000;
+                    }
+                } else if (u.equals("k")
+                        || u.equals("nghìn")
+                        || u.equals("ngàn")
+                        || u.equals("cành")) {
+                    val = val * 1_000;
+                }
+            }
+            return BigDecimal.valueOf(val).setScale(0, RoundingMode.HALF_UP);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private AiAssistantResponse handleGoalPlanHeuristic(

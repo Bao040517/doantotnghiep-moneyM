@@ -3,10 +3,10 @@ package com.example.sharemoney.controller;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.example.sharemoney.dto.BankLookupResponse;
 import com.example.sharemoney.dto.request.UpdateAvatarRequest;
 import com.example.sharemoney.dto.request.UpdatePhoneRequest;
 import com.example.sharemoney.dto.request.UpdateQrRequest;
-import com.example.sharemoney.dto.BankLookupResponse;
 import com.example.sharemoney.dto.response.UserSummaryResponse;
 import com.example.sharemoney.entity.User;
 import com.example.sharemoney.exception.AppException;

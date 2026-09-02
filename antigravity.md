@@ -61,6 +61,35 @@ Dự án đã chuyển dịch từ một ứng dụng chia tiền nhóm đơn th
 56. **Chuẩn Hóa Xác Thực Đăng Ký Tài Khoản Mới (Gmail Format & Alphanumeric Password Enforcer):** Kiểm soát nghiêm ngặt luồng đăng ký user mới trên toàn bộ hệ thống: Bắt buộc email đăng ký phải đúng định dạng Gmail (`@gmail.com`), mật khẩu tối thiểu 6 ký tự và bắt buộc phải chứa đồng thời cả chữ cái lẫn chữ số. Tích hợp checklist yêu cầu trực quan realtime đổi màu xanh `✓` trên Frontend và bảo vệ 2 lớp với Bean Validation `@Pattern` trên Spring Boot Backend.
 57. **Gỡ Bỏ Hoàn Toàn Luồng OCR & Quét Hóa Đơn Khỏi Dự Án (Complete Receipt OCR Decommissioning):** Gỡ bỏ toàn bộ mã nguồn, endpoints, DTOs, cấu hình bên thứ 3 (Mindee / ZXing / Jsoup), các nút bấm và modal liên quan đến tính năng quét OCR hóa đơn giấy / E-Invoice khỏi toàn bộ Backend và Frontend. Chuyển đổi bộ quét Camera sang chức năng thuần túy quét mã QR tham gia nhóm (`GROUP_INVITE`) và kết nối thành viên (`USER_PROFILE`).
 58. **Chuẩn Hóa Kết Nối AWS EC2 - Supabase Cloud, Thông Báo Nhóm 2 Chiều & Tinh Gọn UX Thêm Thành Viên (Cloud DB Sync, 2-Way Group Notifications & Seamless Modal Flow):** Khắc phục triệt để lỗi schema mismatch trên EC2 Supabase Cloud, kiểm thử thông suốt End-to-End Live API (200 OK), gỡ bỏ trùng lặp request gây lỗi 409 `ALREADY_GROUP_MEMBER`, tích hợp thông báo đẩy đa kênh (Realtime WebSocket + Push Notification) khi thêm thành viên vào nhóm và tối ưu hóa đóng tự động modal quét QR.
+59. **Trợ Lý AI Tự Động Thiết Lập Kế Hoạch Tài Chính, Tạo Toàn Bộ Ngân Sách & Ghi Nhận Thu Nhập 1-Chạm (Autonomous AI Financial Planner & Full-Budget / Income Setup Engine):** Nâng cấp Google Gemini AI và bộ giải mã Heuristic Fallback Engine nhận diện ý định `SETUP_FINANCIAL_PLAN` khi người dùng khai báo kế hoạch thu chi tháng (Lương, tiền nhà, tiền điện, tiền nước, ăn uống, đi chơi...). Trả về Thẻ Hành Động Kế Hoạch Tài Chính `FinancialPlanCard` trực quan với phân tích thặng dư dòng tiền, tỷ lệ tiết kiệm (%) và 2 nút 1-chạm: `⚡ Tạo Toàn Bộ Ngân Sách Tháng (Khuyên dùng)` và `📝 Ghi nhận là đã chi tiêu thực tế` giúp người dùng quản lý tài chính hoàn toàn tự động chỉ với 1 tin nhắn.
+
+### Session [2026-09-02] - Nâng Cấp Trợ Lý AI Tự Động Thiết Lập Kế Hoạch Tài Chính, Tạo Toàn Bộ Ngân Sách & Ghi Nhận Thu Nhập 1-Chạm
+
+**✅ Đã hoàn thành (Compact Procedure):**
+
+1. **Mở Rộng Ý Định AI & DTO Phản Hồi (`AiAssistantResponse.java` & `AiAssistantService.java`):**
+   - Bổ sung cấu trúc `FinancialPlanData` gồm: `planTitle`, `targetMonth`, `targetYear`, `totalIncome`, `totalExpense`, `netSavings`, `savingsRate`, danh sách các khoản thu nhập `incomes` và ngân sách chi tiêu `budgets`.
+   - Cập nhật System Prompt cho Google Gemini 3.6 Flash để nhận diện ý định `SETUP_FINANCIAL_PLAN` và tự động trích xuất JSON có cấu trúc khi người dùng nhắn các câu lệnh thiết lập kế hoạch chi tiêu tháng.
+
+2. **Nâng Cấp Bộ Giải Mã Heuristic Fallback Engine (`handleFinancialPlanHeuristic`):**
+   - Tự động phát hiện ý định thiết lập ngân sách và thu nhập đa mục ngay cả khi không có kết nối API Key hoặc người dùng gõ sai chính tả (*"Toio muốn trở thành người giàu nhất thế giới. Đầu tiên tôi cần thiết lập chi tiêu. Tháng 9 tôi nhận lương 15 triệu. Tiền nhà phai mất 2 triệu tiền ddieennj 500k tiềề nước 200k tiềề ăn uống 1tr5 tiền đi chơi 500k"*).
+   - Bóc tách chuẩn xác từng khoản thu nhập (Lương 15tr) và 5 khoản ngân sách (Tiền nhà 2tr, Tiền điện 500k, Tiền nước 200k, Ăn uống 1.5tr, Đi chơi 500k).
+   - Tính toán tổng thu, tổng dự chi (4.7tr), thặng dư tích lũy (+10.3tr) và tỷ lệ tiết kiệm (69%).
+
+3. **API Thực Thi Tự Động 1-Chạm Backend (`POST /api/ai/assistant/confirm-financial-plan`):**
+   - Phương thức `confirmFinancialPlan(userId, planData, asExpenses)` tự động:
+     - Ghi nhận giao dịch Thu nhập Lương vào ví chính của người dùng.
+     - Khi chọn tạo ngân sách (`asExpenses = false`): Tự động tìm/tạo danh mục và tạo toàn bộ bản ghi Ngân sách tháng (`Budget`) trong `budgetRepository` với loại Cố định `BudgetType.BILL` (tiền nhà, điện, nước) hoặc Linh hoạt `BudgetType.FLEXIBLE` (ăn uống, giải trí).
+     - Khi chọn ghi nhận chi tiêu (`asExpenses = true`): Tự động tạo các giao dịch chi tiêu (`Transaction`) và trừ số dư ví.
+
+4. **Thẻ Hành Động Kế Hoạch Tài Chính Trên Frontend (`AiChatbotModal.tsx`):**
+   - Xây dựng component `FinancialPlanCard` với thiết kế Dark Glassmorphism sang trọng, hiển thị chi tiết danh sách thu nhập (xanh lá), danh sách hạn mức ngân sách (cam/tím), hộp tổng kết dòng tiền ròng & tỷ lệ tiết kiệm.
+   - Tích hợp 2 nút bấm thao tác 1-chạm: `⚡ Tạo Toàn Bộ Ngân Sách Tháng` và `📝 Ghi nhận là đã chi tiêu thực tế`, tự động gọi API và hiển thị tin nhắn chúc mừng trong khung chat.
+
+5. **Kiểm Thử Tự Động Toàn Diện:**
+   - Bổ sung các bài test chuyên sâu trong `AiAssistantServiceTest.java`: `testFinancialPlanSetup_MultiExpensesAndSalary` và `testConfirmFinancialPlan_Success`.
+   - Chạy thành công **17/17 tests** (`BUILD SUCCESS`).
+   - Kiểm tra `npx tsc --noEmit` đạt 0 lỗi typecheck và format mã nguồn sạch với `mvn spotless:apply`.
 
 ### Session [2026-09-01 / 2026-09-02] - Chuẩn Hóa Kết Nối AWS EC2 Supabase Cloud, Thông Báo Đa Kênh Khi Thêm Thành Viên & Tối Ưu UX Quét QR
 

@@ -63,7 +63,8 @@ public class BankLookupService {
     /** Tra cứu tên chủ tài khoản thật qua Napas247 / VietQR Open API */
     public BankLookupResponse lookupAccount(String bin, String accountNumber) {
         String cleanBin = bin != null ? bin.trim() : "";
-        String cleanAccNo = accountNumber != null ? accountNumber.trim().replaceAll("\\s+", "") : "";
+        String cleanAccNo =
+                accountNumber != null ? accountNumber.trim().replaceAll("\\s+", "") : "";
 
         if (!cleanBin.matches("^[0-9]{6}$") || !cleanAccNo.matches("^[0-9]{6,19}$")) {
             return BankLookupResponse.builder()
@@ -77,9 +78,9 @@ public class BankLookupService {
         // 1. Kiểm tra nếu có cấu hình VietQR API Key thật
         boolean hasVietQrCredentials =
                 vietqrClientId != null
-                && !vietqrClientId.isBlank()
-                && vietqrApiKey != null
-                && !vietqrApiKey.isBlank();
+                        && !vietqrClientId.isBlank()
+                        && vietqrApiKey != null
+                        && !vietqrApiKey.isBlank();
         if (hasVietQrCredentials) {
             try {
                 Map<String, String> body = new HashMap<>();
@@ -110,7 +111,10 @@ public class BankLookupService {
                 if (response.statusCode() == 200) {
                     JsonNode root = objectMapper.readTree(response.body());
                     String code = root.has("code") ? root.get("code").asText() : "";
-                    String desc = root.has("desc") ? root.get("desc").asText() : "Tài khoản không tồn tại tại ngân hàng đã chọn";
+                    String desc =
+                            root.has("desc")
+                                    ? root.get("desc").asText()
+                                    : "Tài khoản không tồn tại tại ngân hàng đã chọn";
 
                     if ("00".equals(code)) {
                         JsonNode data = root.get("data");
@@ -140,7 +144,11 @@ public class BankLookupService {
                                 .message("Ngân hàng không trả về tên chủ tài khoản")
                                 .build();
                     } else {
-                        log.warn("[BankLookup] VietQR lookup rejected account {}: code={}, desc={}", cleanAccNo, code, desc);
+                        log.warn(
+                                "[BankLookup] VietQR lookup rejected account {}: code={}, desc={}",
+                                cleanAccNo,
+                                code,
+                                desc);
                         return BankLookupResponse.builder()
                                 .bin(cleanBin)
                                 .accountNumber(cleanAccNo)

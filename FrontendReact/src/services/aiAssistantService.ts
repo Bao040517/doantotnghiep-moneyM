@@ -40,9 +40,35 @@ export interface TransactionData {
   transactionType: "EXPENSE" | "INCOME";
 }
 
+export interface IncomeItem {
+  name: string;
+  amount: number;
+  categoryName?: string;
+}
+
+export interface BudgetItem {
+  name: string;
+  limitAmount: number;
+  categoryName?: string;
+  isFixed?: boolean;
+}
+
+export interface FinancialPlanData {
+  planTitle?: string;
+  targetMonth?: number;
+  targetYear?: number;
+  totalIncome: number;
+  totalExpense: number;
+  netSavings: number;
+  savingsRate?: number;
+  incomes: IncomeItem[];
+  budgets: BudgetItem[];
+}
+
 export interface AiAssistantResponse {
   reply: string;
-  intent: "PLAN_SAVINGS_GOAL" | "CREATE_TRANSACTION" | "QUERY_INSIGHT" | "GENERAL_CHAT";
+  intent: "SETUP_FINANCIAL_PLAN" | "PLAN_SAVINGS_GOAL" | "CREATE_TRANSACTION" | "QUERY_INSIGHT" | "GENERAL_CHAT";
+  financialPlanData?: FinancialPlanData;
   goalPlanData?: GoalPlanData;
   transactionData?: TransactionData;
   quickReplies?: string[];
@@ -57,6 +83,19 @@ export interface SavingsGoalResponse {
   status: string;
 }
 
+export interface FinancialPlanAppliedResponse {
+  status: string;
+  targetMonth: number;
+  targetYear: number;
+  recordedIncomes: number;
+  totalIncomeRecorded: number;
+  appliedBudgets: number;
+  recordedExpenses: number;
+  totalExpenseRecorded: number;
+  mode: "BUDGETS" | "EXPENSES";
+  message: string;
+}
+
 // ── API ──
 export const aiAssistantService = {
   chat: async (request: AiAssistantRequest): Promise<AiAssistantResponse> => {
@@ -66,6 +105,17 @@ export const aiAssistantService = {
 
   confirmGoal: async (goalPlanData: GoalPlanData): Promise<SavingsGoalResponse> => {
     const response = await api.post<SavingsGoalResponse>("/ai/assistant/confirm-goal", goalPlanData);
+    return response.data;
+  },
+
+  confirmFinancialPlan: async (
+    planData: FinancialPlanData,
+    asExpenses = false
+  ): Promise<FinancialPlanAppliedResponse> => {
+    const response = await api.post<FinancialPlanAppliedResponse>(
+      `/ai/assistant/confirm-financial-plan?asExpenses=${asExpenses}`,
+      planData
+    );
     return response.data;
   },
 };

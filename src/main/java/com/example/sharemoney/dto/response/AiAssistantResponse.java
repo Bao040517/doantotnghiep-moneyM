@@ -19,6 +19,46 @@ public class AiAssistantResponse {
     private TransactionData transactionData;
     private List<String> quickReplies;
 
+    private FinancialPlanData financialPlanData;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FinancialPlanData {
+        private String planTitle; // Ví dụ: "Kế hoạch tài chính & Ngân sách Tháng 9/2026"
+        private Integer targetMonth;
+        private Integer targetYear;
+        private BigDecimal totalIncome;
+        private BigDecimal totalExpense;
+        private BigDecimal netSavings;
+        private Integer savingsRate; // 0-100 (%)
+        private List<IncomeItem> incomes;
+        private List<BudgetItem> budgets;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class IncomeItem {
+        private String name; // "Lương tháng 9"
+        private BigDecimal amount;
+        private String categoryName; // "Tiền lương"
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BudgetItem {
+        private String name; // "Tiền nhà", "Tiền điện", "Tiền nước", "Ăn uống", "Đi chơi"
+        private BigDecimal limitAmount;
+        private String
+                categoryName; // "Nhà ở / Thuê nhà", "Tiền điện", "Tiền nước", "Ăn uống", "Giải trí"
+        private Boolean isFixed; // true nếu là chi phí bắt buộc cố định (nhà, điện, nước...)
+    }
+
     @Data
     @Builder
     @NoArgsConstructor

@@ -71,7 +71,9 @@ public class NotificationService {
                     "PAYMENT_NOTIFY" -> "💰 Tiền về! ShareMoney";
             case "REMIND_DEBT", "DEBT_REMINDER" -> "🔔 Lời nhắc nợ từ bạn bè";
             case "EXPENSE_CREATED", "EXPENSE_UPDATED" -> "🧾 Chi tiêu nhóm ShareMoney";
-            case "GROUP_MEMBER_ADDED", "GROUP_JOINED", "GROUP_INVITED" -> "👥 Nhóm chi tiêu ShareMoney";
+            case "GROUP_MEMBER_ADDED",
+                    "GROUP_JOINED",
+                    "GROUP_INVITED" -> "👥 Nhóm chi tiêu ShareMoney";
             case "WARNING",
                     "Z_SCORE_ANOMALY",
                     "BUDGET_OVER",

@@ -66,8 +66,7 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<UserSummaryResponse> searchByPhone(
-            @RequestParam String phone) {
+    public ResponseEntity<UserSummaryResponse> searchByPhone(@RequestParam String phone) {
         User user =
                 userRepository
                         .findByPhone(phone)
@@ -76,8 +75,7 @@ public class UserController {
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<UserSummaryResponse> getUserById(
-            @PathVariable UUID userId) {
+    public ResponseEntity<UserSummaryResponse> getUserById(@PathVariable UUID userId) {
         User user =
                 userRepository
                         .findById(userId)
@@ -163,9 +161,7 @@ public class UserController {
                         .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         validateBankAccount(
-                request.getBankBin(),
-                request.getBankAccountNo(),
-                request.getBankAccountName());
+                request.getBankBin(), request.getBankAccountNo(), request.getBankAccountName());
         validateBankAccount(
                 request.getSavingsBankBin(),
                 request.getSavingsBankAccountNo(),
@@ -189,8 +185,7 @@ public class UserController {
     }
 
     @PostMapping("/me/push-token")
-    public ResponseEntity<Void> updateMyPushToken(
-            @RequestBody Map<String, String> request) {
+    public ResponseEntity<Void> updateMyPushToken(@RequestBody Map<String, String> request) {
         UUID userId = SecurityUtils.getCurrentUserId();
         User user =
                 userRepository

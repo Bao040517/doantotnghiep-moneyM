@@ -312,7 +312,8 @@ public class FinancialAdvisorService {
     // FEATURE 2: Smart Alerts (Thuật toán Cảnh Báo Thông Minh)
     // Phân biệt rõ:
     // - Khoản Linh hoạt (Flexible): Đánh giá theo Tốc độ đốt tiền (Burn-Rate) dự phóng cuối tháng
-    // - Khoản Hóa đơn / Cố định / Đột xuất (Bill, Fixed, One-off): Không nhân theo ngày, so sánh trực tiếp với Tháng trước & TB 3 tháng
+    // - Khoản Hóa đơn / Cố định / Đột xuất (Bill, Fixed, One-off): Không nhân theo ngày, so sánh
+    // trực tiếp với Tháng trước & TB 3 tháng
     // ═══════════════════════════════════════════════════════════════
 
     private List<SpendingWarning> generateWarnings(
@@ -344,7 +345,9 @@ public class FinancialAdvisorService {
             String catName = entry.getKey();
             BigDecimal currentSpent = entry.getValue();
 
-            if (catName == null || currentSpent == null || currentSpent.compareTo(BigDecimal.ZERO) <= 0) {
+            if (catName == null
+                    || currentSpent == null
+                    || currentSpent.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
 
@@ -360,21 +363,34 @@ public class FinancialAdvisorService {
 
             if (isBill) {
                 // ─── NHÓM 1: HÓA ĐƠN / CỐ ĐỊNH / ĐỘT XUẤT (BILL & ONE-OFF) ───
-                // Tuyệt đối không nhân burn-rate theo ngày. So sánh trực tiếp thực chi với Tháng trước & TB 3 tháng.
-                BigDecimal refBaseline = avg3Month.compareTo(BigDecimal.ZERO) > 0 ? avg3Month : lastMonthSpent;
+                // Tuyệt đối không nhân burn-rate theo ngày. So sánh trực tiếp thực chi với Tháng
+                // trước & TB 3 tháng.
+                BigDecimal refBaseline =
+                        avg3Month.compareTo(BigDecimal.ZERO) > 0 ? avg3Month : lastMonthSpent;
                 if (refBaseline.compareTo(BigDecimal.ZERO) <= 0) {
                     continue; // Chưa đủ lịch sử so sánh
                 }
 
-                int increaseVsAvg3Month = avg3Month.compareTo(BigDecimal.ZERO) > 0
-                        ? currentSpent.subtract(avg3Month).multiply(BigDecimal.valueOf(100)).divide(avg3Month, 0, RoundingMode.HALF_UP).intValue()
-                        : 0;
+                int increaseVsAvg3Month =
+                        avg3Month.compareTo(BigDecimal.ZERO) > 0
+                                ? currentSpent
+                                        .subtract(avg3Month)
+                                        .multiply(BigDecimal.valueOf(100))
+                                        .divide(avg3Month, 0, RoundingMode.HALF_UP)
+                                        .intValue()
+                                : 0;
 
-                int increaseVsLastMonth = (lastMonthSpent != null && lastMonthSpent.compareTo(BigDecimal.ZERO) > 0)
-                        ? currentSpent.subtract(lastMonthSpent).multiply(BigDecimal.valueOf(100)).divide(lastMonthSpent, 0, RoundingMode.HALF_UP).intValue()
-                        : 0;
+                int increaseVsLastMonth =
+                        (lastMonthSpent != null && lastMonthSpent.compareTo(BigDecimal.ZERO) > 0)
+                                ? currentSpent
+                                        .subtract(lastMonthSpent)
+                                        .multiply(BigDecimal.valueOf(100))
+                                        .divide(lastMonthSpent, 0, RoundingMode.HALF_UP)
+                                        .intValue()
+                                : 0;
 
-                // Chỉ cảnh báo nếu chi tiêu >= 100.000đ và tăng > 25% so với tháng trước hoặc TB 3 tháng
+                // Chỉ cảnh báo nếu chi tiêu >= 100.000đ và tăng > 25% so với tháng trước hoặc TB 3
+                // tháng
                 if (currentSpent.compareTo(BigDecimal.valueOf(100000)) < 0) continue;
                 if (increaseVsAvg3Month < 25 && increaseVsLastMonth < 25) continue;
 
@@ -383,28 +399,48 @@ public class FinancialAdvisorService {
 
                 String message;
                 if (increaseVsLastMonth >= 25 && lastMonthSpent.compareTo(BigDecimal.ZERO) > 0) {
-                    message = String.format(
-                            "Khoản %s tháng này tăng +%d%% so với tháng trước (chi thực tế %s so với %s tháng trước).",
-                            catName, increaseVsLastMonth, formatVND(currentSpent), formatVND(lastMonthSpent));
+                    message =
+                            String.format(
+                                    "Khoản %s tháng này tăng +%d%% so với tháng trước (chi thực tế %s so với %s tháng trước).",
+                                    catName,
+                                    increaseVsLastMonth,
+                                    formatVND(currentSpent),
+                                    formatVND(lastMonthSpent));
                 } else {
-                    message = String.format(
-                            "Khoản %s phát sinh cao hơn +%d%% so với trung bình 3 tháng (chi thực tế %s so với mức chuẩn %s).",
-                            catName, increaseVsAvg3Month, formatVND(currentSpent), formatVND(avg3Month));
+                    message =
+                            String.format(
+                                    "Khoản %s phát sinh cao hơn +%d%% so với trung bình 3 tháng (chi thực tế %s so với mức chuẩn %s).",
+                                    catName,
+                                    increaseVsAvg3Month,
+                                    formatVND(currentSpent),
+                                    formatVND(avg3Month));
                 }
 
                 BigDecimal diffAmount = currentSpent.subtract(refBaseline);
-                String impactSummary = String.format(
-                        "Chênh lệch tăng +%s so với mức chi tiêu định kỳ thông thường.",
-                        formatVND(diffAmount));
+                String impactSummary =
+                        String.format(
+                                "Chênh lệch tăng +%s so với mức chi tiêu định kỳ thông thường.",
+                                formatVND(diffAmount));
 
                 String actionableTip;
                 String lowerCat = catName.toLowerCase();
-                if (lowerCat.contains("điện") || lowerCat.contains("nước") || lowerCat.contains("mạng") || lowerCat.contains("wifi") || lowerCat.contains("dịch vụ")) {
-                    actionableTip = "💡 Gợi ý: Kiểm tra lại các thiết bị tiêu thụ điện/nước công suất cao hoặc rà soát lại hóa đơn dịch vụ tháng này.";
-                } else if (lowerCat.contains("y tế") || lowerCat.contains("thuốc") || lowerCat.contains("khám") || lowerCat.contains("bệnh") || lowerCat.contains("viện")) {
-                    actionableTip = "💡 Đây là khoản chi y tế đột xuất. Bạn có thể trích từ Quỹ dự phòng/Điểm dừng an toàn hoặc tái cân bằng giảm các khoản Ăn uống, Mua sắm.";
+                if (lowerCat.contains("điện")
+                        || lowerCat.contains("nước")
+                        || lowerCat.contains("mạng")
+                        || lowerCat.contains("wifi")
+                        || lowerCat.contains("dịch vụ")) {
+                    actionableTip =
+                            "💡 Gợi ý: Kiểm tra lại các thiết bị tiêu thụ điện/nước công suất cao hoặc rà soát lại hóa đơn dịch vụ tháng này.";
+                } else if (lowerCat.contains("y tế")
+                        || lowerCat.contains("thuốc")
+                        || lowerCat.contains("khám")
+                        || lowerCat.contains("bệnh")
+                        || lowerCat.contains("viện")) {
+                    actionableTip =
+                            "💡 Đây là khoản chi y tế đột xuất. Bạn có thể trích từ Quỹ dự phòng/Điểm dừng an toàn hoặc tái cân bằng giảm các khoản Ăn uống, Mua sắm.";
                 } else {
-                    actionableTip = "💡 Hãy kiểm tra lại các khoản phí phát sinh hoặc điều chỉnh ngân sách các tháng tiếp theo cho phù hợp.";
+                    actionableTip =
+                            "💡 Hãy kiểm tra lại các khoản phí phát sinh hoặc điều chỉnh ngân sách các tháng tiếp theo cho phù hợp.";
                 }
 
                 warnings.add(
@@ -432,21 +468,28 @@ public class FinancialAdvisorService {
                 if (avg3Month.compareTo(BigDecimal.ZERO) <= 0) continue;
 
                 // Tránh cảnh báo ảo 2 ngày đầu tháng trừ khi đã chi quá 50% trung bình tháng
-                if (dayOfMonth < 3 && currentSpent.compareTo(avg3Month.multiply(BigDecimal.valueOf(0.5))) < 0) {
+                if (dayOfMonth < 3
+                        && currentSpent.compareTo(avg3Month.multiply(BigDecimal.valueOf(0.5)))
+                                < 0) {
                     continue;
                 }
 
-                BigDecimal dailyBurnRate = currentSpent.divide(BigDecimal.valueOf(effectiveDay), 0, RoundingMode.HALF_UP);
-                BigDecimal projectedSpend = monthProgress > 0
-                        ? currentSpent.divide(BigDecimal.valueOf(monthProgress), 0, RoundingMode.HALF_UP)
-                        : currentSpent;
+                BigDecimal dailyBurnRate =
+                        currentSpent.divide(
+                                BigDecimal.valueOf(effectiveDay), 0, RoundingMode.HALF_UP);
+                BigDecimal projectedSpend =
+                        monthProgress > 0
+                                ? currentSpent.divide(
+                                        BigDecimal.valueOf(monthProgress), 0, RoundingMode.HALF_UP)
+                                : currentSpent;
 
                 BigDecimal diff = projectedSpend.subtract(avg3Month);
                 if (diff.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-                int increasePercent = diff.multiply(BigDecimal.valueOf(100))
-                        .divide(avg3Month, 0, RoundingMode.HALF_UP)
-                        .intValue();
+                int increasePercent =
+                        diff.multiply(BigDecimal.valueOf(100))
+                                .divide(avg3Month, 0, RoundingMode.HALF_UP)
+                                .intValue();
 
                 // Chỉ cảnh báo nếu tốc độ dự phóng tăng > 25%
                 if (increasePercent < 25) continue;
@@ -455,10 +498,18 @@ public class FinancialAdvisorService {
 
                 BigDecimal recommendedDailyLimit;
                 if (avg3Month.compareTo(currentSpent) > 0) {
-                    recommendedDailyLimit = avg3Month.subtract(currentSpent)
-                            .divide(BigDecimal.valueOf(remainingDays), 0, RoundingMode.HALF_UP);
+                    recommendedDailyLimit =
+                            avg3Month
+                                    .subtract(currentSpent)
+                                    .divide(
+                                            BigDecimal.valueOf(remainingDays),
+                                            0,
+                                            RoundingMode.HALF_UP);
                 } else {
-                    recommendedDailyLimit = dailyBurnRate.multiply(BigDecimal.valueOf(0.3)).setScale(0, RoundingMode.HALF_UP);
+                    recommendedDailyLimit =
+                            dailyBurnRate
+                                    .multiply(BigDecimal.valueOf(0.3))
+                                    .setScale(0, RoundingMode.HALF_UP);
                 }
 
                 String severity = increasePercent >= 60 ? "HIGH" : "MEDIUM";
@@ -467,28 +518,34 @@ public class FinancialAdvisorService {
                 String impactSummary;
 
                 if (severity.equals("HIGH")) {
-                    message = String.format(
-                            "🔴 Đốt tiền quá nhanh! Đang chi trung bình %s/ngày (gấp %.1f lần bình thường).",
-                            formatVND(dailyBurnRate),
-                            projectedSpend.doubleValue() / avg3Month.doubleValue());
-                    impactSummary = String.format(
-                            "Dự kiến cả tháng lên tới %s (thâm hụt +%s so với mức chuẩn %s).",
-                            formatVND(projectedSpend),
-                            formatVND(projectedOver),
-                            formatVND(avg3Month));
-                    actionableTip = String.format(
-                            "💡 Hành động ngay: Hạn chế chi tối đa %s/ngày trong %d ngày còn lại hoặc thực hiện Tái cân bằng ngân sách để bù đắp.",
-                            formatVND(recommendedDailyLimit), remainingDays);
+                    message =
+                            String.format(
+                                    "🔴 Đốt tiền quá nhanh! Đang chi trung bình %s/ngày (gấp %.1f lần bình thường).",
+                                    formatVND(dailyBurnRate),
+                                    projectedSpend.doubleValue() / avg3Month.doubleValue());
+                    impactSummary =
+                            String.format(
+                                    "Dự kiến cả tháng lên tới %s (thâm hụt +%s so với mức chuẩn %s).",
+                                    formatVND(projectedSpend),
+                                    formatVND(projectedOver),
+                                    formatVND(avg3Month));
+                    actionableTip =
+                            String.format(
+                                    "💡 Hành động ngay: Hạn chế chi tối đa %s/ngày trong %d ngày còn lại hoặc thực hiện Tái cân bằng ngân sách để bù đắp.",
+                                    formatVND(recommendedDailyLimit), remainingDays);
                 } else {
-                    message = String.format(
-                            "⚠️ Tốc độ chi tiêu tăng %d%% so với trung bình 3 tháng.",
-                            increasePercent);
-                    impactSummary = String.format(
-                            "Dự kiến cuối tháng sẽ chạm mốc %s (cao hơn bình thường %s).",
-                            formatVND(projectedSpend), formatVND(projectedOver));
-                    actionableTip = String.format(
-                            "💡 Khuyến nghị: Giới hạn chi tối đa %s/ngày trong %d ngày tới để giữ an toàn ngân sách.",
-                            formatVND(recommendedDailyLimit), remainingDays);
+                    message =
+                            String.format(
+                                    "⚠️ Tốc độ chi tiêu tăng %d%% so với trung bình 3 tháng.",
+                                    increasePercent);
+                    impactSummary =
+                            String.format(
+                                    "Dự kiến cuối tháng sẽ chạm mốc %s (cao hơn bình thường %s).",
+                                    formatVND(projectedSpend), formatVND(projectedOver));
+                    actionableTip =
+                            String.format(
+                                    "💡 Khuyến nghị: Giới hạn chi tối đa %s/ngày trong %d ngày tới để giữ an toàn ngân sách.",
+                                    formatVND(recommendedDailyLimit), remainingDays);
                 }
 
                 warnings.add(
@@ -524,22 +581,63 @@ public class FinancialAdvisorService {
     }
 
     /**
-     * Nhận diện danh mục Hóa đơn / Cố định / Đột xuất (Bill, Fixed, One-off).
-     * Tuyệt đối không áp dụng burn-rate theo ngày, mà so sánh trực tiếp với tháng trước & TB 3 tháng.
+     * Nhận diện danh mục Hóa đơn / Cố định / Đột xuất (Bill, Fixed, One-off). Tuyệt đối không áp
+     * dụng burn-rate theo ngày, mà so sánh trực tiếp với tháng trước & TB 3 tháng.
      */
     private boolean isBillCategory(String catName) {
         if (catName == null) return false;
         String lower = catName.toLowerCase().trim();
         List<String> billKeywords =
                 Arrays.asList(
-                        "điện", "tiền điện", "nước", "tiền nước", "nhà", "tiền nhà", "thuê nhà",
-                        "mạng", "internet", "wifi", "truyền hình", "rác", "tiền rác",
-                        "trả góp", "lãi vay", "vay", "bảo hiểm", "học phí", "học tập", "viễn thông",
-                        "cố định", "định kỳ", "bill", "hóa đơn", "phí liên lạc", "phí quản lý",
-                        "phí giữ xe", "gửi xe", "chung cư", "phí dịch vụ", "cước", "thuê bao",
-                        "y tế", "khám", "khám bệnh", "thuốc", "bệnh viện", "viện phí", "nha khoa",
-                        "sửa xe", "sửa nhà", "sửa chữa", "đám tiệc", "hiếu hỷ", "cưới hỏi", "sinh nhật",
-                        "biếu tặng", "thuế", "phạt");
+                        "điện",
+                        "tiền điện",
+                        "nước",
+                        "tiền nước",
+                        "nhà",
+                        "tiền nhà",
+                        "thuê nhà",
+                        "mạng",
+                        "internet",
+                        "wifi",
+                        "truyền hình",
+                        "rác",
+                        "tiền rác",
+                        "trả góp",
+                        "lãi vay",
+                        "vay",
+                        "bảo hiểm",
+                        "học phí",
+                        "học tập",
+                        "viễn thông",
+                        "cố định",
+                        "định kỳ",
+                        "bill",
+                        "hóa đơn",
+                        "phí liên lạc",
+                        "phí quản lý",
+                        "phí giữ xe",
+                        "gửi xe",
+                        "chung cư",
+                        "phí dịch vụ",
+                        "cước",
+                        "thuê bao",
+                        "y tế",
+                        "khám",
+                        "khám bệnh",
+                        "thuốc",
+                        "bệnh viện",
+                        "viện phí",
+                        "nha khoa",
+                        "sửa xe",
+                        "sửa nhà",
+                        "sửa chữa",
+                        "đám tiệc",
+                        "hiếu hỷ",
+                        "cưới hỏi",
+                        "sinh nhật",
+                        "biếu tặng",
+                        "thuế",
+                        "phạt");
         return billKeywords.stream().anyMatch(lower::contains);
     }
 

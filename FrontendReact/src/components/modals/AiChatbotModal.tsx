@@ -20,9 +20,25 @@ import {
   AiAssistantResponse,
   AiChatMessage,
   GoalPlanData,
+  FinancialPlanData,
 } from "../../services/aiAssistantService";
 import { financialServices } from "../../services/financialServices";
-import { X, Send, Sparkles, Target, Receipt, TrendingUp, Bot, User, Zap, CheckCircle2 } from "lucide-react-native";
+import {
+  X,
+  Send,
+  Sparkles,
+  Target,
+  Receipt,
+  TrendingUp,
+  Bot,
+  User,
+  Zap,
+  CheckCircle2,
+  PieChart,
+  ArrowUpRight,
+  ArrowDownRight,
+  Calendar,
+} from "lucide-react-native";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -33,6 +49,7 @@ interface ChatBubble {
   content: string;
   timestamp: Date;
   intent?: string;
+  financialPlanData?: FinancialPlanData;
   goalPlanData?: GoalPlanData;
   transactionData?: AiAssistantResponse["transactionData"];
   quickReplies?: string[];
@@ -316,6 +333,249 @@ const txCardStyles = StyleSheet.create({
   savedBtnText: { color: "#10B981", fontSize: 12, fontWeight: "600" },
 });
 
+// ── Financial Plan Action Card ──
+const FinancialPlanCard: React.FC<{
+  bubbleId: string;
+  data: FinancialPlanData;
+  isApplying: boolean;
+  appliedMode: "BUDGETS" | "EXPENSES" | null;
+  onApply: (bubbleId: string, data: FinancialPlanData, asExpenses: boolean) => void;
+}> = ({ bubbleId, data, isApplying, appliedMode, onApply }) => {
+  const scaleAnim = useRef(new Animated.Value(0.92)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const isApplied = appliedMode !== null;
+
+  return (
+    <Animated.View style={[planCardStyles.wrapper, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
+      <View style={planCardStyles.card}>
+        {/* Header */}
+        <View style={planCardStyles.header}>
+          <View style={planCardStyles.headerIcon}>
+            <PieChart size={18} color="#3B82F6" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={planCardStyles.title}>🎯 {data.planTitle || "Kế Hoạch Ngân Sách Tháng"}</Text>
+            <Text style={planCardStyles.subtitle}>
+              Tháng {data.targetMonth || new Date().getMonth() + 1}/{data.targetYear || new Date().getFullYear()} · {data.budgets?.length || 0} danh mục dự chi
+            </Text>
+          </View>
+        </View>
+
+        {/* Incomes Section */}
+        {data.incomes && data.incomes.length > 0 && (
+          <View style={planCardStyles.section}>
+            <Text style={planCardStyles.sectionTitle}>💵 Thu nhập dự kiến:</Text>
+            {data.incomes.map((inc, i) => (
+              <View key={i} style={planCardStyles.itemRow}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                  <ArrowUpRight size={14} color="#10B981" />
+                  <Text style={planCardStyles.itemName}>{inc.name}</Text>
+                </View>
+                <Text style={planCardStyles.incomeValue}>+{formatVND(inc.amount)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Budgets Section */}
+        {data.budgets && data.budgets.length > 0 && (
+          <View style={planCardStyles.section}>
+            <Text style={planCardStyles.sectionTitle}>📊 Hạn mức ngân sách chi tiêu:</Text>
+            {data.budgets.map((b, i) => (
+              <View key={i} style={planCardStyles.itemRow}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                  <ArrowDownRight size={14} color={b.isFixed ? "#F59E0B" : "#818CF8"} />
+                  <Text style={planCardStyles.itemName}>{b.name}</Text>
+                  {b.isFixed && <Text style={planCardStyles.fixedBadge}>Cố định</Text>}
+                </View>
+                <Text style={planCardStyles.expenseValue}>{formatVND(b.limitAmount)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Cashflow & Savings Summary */}
+        <View style={planCardStyles.summaryBox}>
+          <View style={planCardStyles.summaryItem}>
+            <Text style={planCardStyles.summaryLabel}>Tổng thu</Text>
+            <Text style={[planCardStyles.summaryValue, { color: "#10B981" }]}>{formatVND(data.totalIncome)}</Text>
+          </View>
+          <View style={planCardStyles.summaryDivider} />
+          <View style={planCardStyles.summaryItem}>
+            <Text style={planCardStyles.summaryLabel}>Dự chi</Text>
+            <Text style={[planCardStyles.summaryValue, { color: "#EF4444" }]}>{formatVND(data.totalExpense)}</Text>
+          </View>
+          <View style={planCardStyles.summaryDivider} />
+          <View style={planCardStyles.summaryItem}>
+            <Text style={planCardStyles.summaryLabel}>Tích lũy</Text>
+            <Text style={[planCardStyles.summaryValue, { color: "#3B82F6" }]}>+{formatVND(data.netSavings)}</Text>
+          </View>
+        </View>
+
+        {data.savingsRate != null && data.savingsRate > 0 && (
+          <View style={planCardStyles.rateRow}>
+            <Sparkles size={14} color="#F59E0B" />
+            <Text style={planCardStyles.rateText}>
+              Tỷ lệ tiết kiệm dự kiến: <Text style={{ color: "#10B981", fontWeight: "700" }}>{data.savingsRate}%</Text> dòng tiền
+            </Text>
+          </View>
+        )}
+
+        {/* Action Buttons */}
+        {isApplied ? (
+          <View style={planCardStyles.appliedBox}>
+            <CheckCircle2 size={16} color="#10B981" />
+            <Text style={planCardStyles.appliedText}>
+              {appliedMode === "BUDGETS"
+                ? "Đã tạo toàn bộ Ngân sách & Ghi nhận Thu nhập!"
+                : "Đã ghi nhận toàn bộ vào Sổ chi tiêu!"}
+            </Text>
+          </View>
+        ) : (
+          <View style={{ gap: 8, marginTop: 10 }}>
+            {/* Primary Action: Tạo Ngân Sách */}
+            <TouchableOpacity
+              style={planCardStyles.primaryBtn}
+              onPress={() => onApply(bubbleId, data, false)}
+              disabled={isApplying}
+              activeOpacity={0.8}
+            >
+              {isApplying ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Zap size={16} color="#FFFFFF" />
+                  <Text style={planCardStyles.primaryBtnText}>⚡ Tạo Toàn Bộ Ngân Sách Tháng (Khuyên dùng)</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Secondary Action: Ghi nhận chi tiêu thực tế */}
+            <TouchableOpacity
+              style={planCardStyles.secondaryBtn}
+              onPress={() => onApply(bubbleId, data, true)}
+              disabled={isApplying}
+              activeOpacity={0.8}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Receipt size={14} color="#94A3B8" />
+                <Text style={planCardStyles.secondaryBtnText}>📝 Ghi nhận là các khoản đã chi thực tế</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </Animated.View>
+  );
+};
+
+const planCardStyles = StyleSheet.create({
+  wrapper: { marginTop: 8, marginBottom: 4 },
+  card: {
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(59,130,246,0.3)",
+    backgroundColor: "#1E293B",
+  },
+  header: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  headerIcon: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(59,130,246,0.15)",
+    alignItems: "center", justifyContent: "center", marginRight: 10,
+  },
+  title: { fontSize: 15, fontWeight: "700", color: "#F8FAFC" },
+  subtitle: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
+  section: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  sectionTitle: { fontSize: 12, fontWeight: "600", color: "#CBD5E1", marginBottom: 6 },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.04)",
+  },
+  itemName: { fontSize: 12, color: "#E2E8F0" },
+  fixedBadge: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#F59E0B",
+    backgroundColor: "rgba(245,158,11,0.12)",
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  incomeValue: { fontSize: 12, fontWeight: "700", color: "#10B981" },
+  expenseValue: { fontSize: 12, fontWeight: "600", color: "#CBD5E1" },
+  summaryBox: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 10,
+    padding: 10,
+    marginVertical: 6,
+  },
+  summaryItem: { flex: 1, alignItems: "center" },
+  summaryLabel: { fontSize: 10, color: "#64748B", marginBottom: 2 },
+  summaryValue: { fontSize: 13, fontWeight: "800" },
+  summaryDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.08)", marginHorizontal: 4 },
+  rateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(245,158,11,0.08)",
+    padding: 8,
+    borderRadius: 8,
+    marginVertical: 4,
+  },
+  rateText: { fontSize: 11, color: "#F8FAFC" },
+  appliedBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "rgba(16,185,129,0.12)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.3)",
+  },
+  appliedText: { fontSize: 12, fontWeight: "700", color: "#10B981" },
+  primaryBtn: {
+    backgroundColor: "#2563EB",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+  secondaryBtn: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  secondaryBtnText: { color: "#94A3B8", fontSize: 12, fontWeight: "500" },
+});
+
 // ── Typing Indicator ──
 const TypingIndicator: React.FC = () => {
   const dot1 = useRef(new Animated.Value(0)).current;
@@ -457,6 +717,7 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({ visible, onClose
           content: response.reply,
           timestamp: new Date(),
           intent: response.intent,
+          financialPlanData: response.financialPlanData,
           goalPlanData: response.goalPlanData,
           transactionData: response.transactionData,
           quickReplies: response.quickReplies,
@@ -502,6 +763,34 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({ visible, onClose
 
   const [savingTxId, setSavingTxId] = useState<string | null>(null);
   const [savedTxIds, setSavedTxIds] = useState<Set<string>>(new Set());
+
+  // Apply Financial Plan (Batch Budgets & Salary)
+  const [applyingPlanId, setApplyingPlanId] = useState<string | null>(null);
+  const [appliedPlanModes, setAppliedPlanModes] = useState<Map<string, "BUDGETS" | "EXPENSES">>(new Map());
+
+  const handleApplyFinancialPlan = useCallback(
+    async (bubbleId: string, planData: FinancialPlanData, asExpenses = false) => {
+      setApplyingPlanId(bubbleId);
+      try {
+        const res = await aiAssistantService.confirmFinancialPlan(planData, asExpenses);
+        setAppliedPlanModes((prev) => new Map(prev).set(bubbleId, asExpenses ? "EXPENSES" : "BUDGETS"));
+        const successBubble: ChatBubble = {
+          id: genId(),
+          role: "assistant",
+          content: res.message,
+          timestamp: new Date(),
+          intent: "GENERAL_CHAT",
+          quickReplies: ["Xem tab Ngân Sách", "Xem số dư ví", "Tình hình thu chi tháng này"],
+        };
+        setMessages((prev) => [...prev, successBubble]);
+      } catch (error: any) {
+        Alert.alert("Lỗi", "Không thể thiết lập kế hoạch tài chính. Vui lòng thử lại!");
+      } finally {
+        setApplyingPlanId(null);
+      }
+    },
+    []
+  );
 
   // Save detected transaction
   const handleSaveTransaction = useCallback(
@@ -575,6 +864,17 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({ visible, onClose
                 {item.content}
               </Text>
             </View>
+
+            {/* Financial Plan Card */}
+            {item.financialPlanData && (
+              <FinancialPlanCard
+                bubbleId={item.id}
+                data={item.financialPlanData}
+                isApplying={applyingPlanId === item.id}
+                appliedMode={appliedPlanModes.get(item.id) || null}
+                onApply={handleApplyFinancialPlan}
+              />
+            )}
 
             {/* Goal Plan Card */}
             {item.goalPlanData && (

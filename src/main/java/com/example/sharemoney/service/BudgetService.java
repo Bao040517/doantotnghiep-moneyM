@@ -391,16 +391,15 @@ public class BudgetService {
         BigDecimal flexibleSpent = totalExpense.subtract(totalBillSpent);
         if (flexibleSpent.compareTo(BigDecimal.ZERO) < 0) flexibleSpent = BigDecimal.ZERO;
 
-        // 5. Raw Safe Balance
+        // 5. Raw Safe Balance (Số dư khả dụng thực tế)
         BigDecimal rawSafeBalance = totalIncome.subtract(totalBills).subtract(flexibleSpent);
         if (rawSafeBalance.compareTo(BigDecimal.ZERO) < 0) rawSafeBalance = BigDecimal.ZERO;
 
-        // 3. Savings (40% of Raw Safe Balance)
-        BigDecimal totalSavings =
-                rawSafeBalance.multiply(new BigDecimal("0.4")).setScale(2, RoundingMode.HALF_UP);
+        // Bỏ quy tắc 40% tự động trích ảo để hiển thị 100% số tiền thực tế
+        BigDecimal totalSavings = BigDecimal.ZERO;
 
         // 6. Safe Balance Total
-        BigDecimal safeBalanceTotal = rawSafeBalance.subtract(totalSavings);
+        BigDecimal safeBalanceTotal = rawSafeBalance;
 
         // 6. Safe Balance Daily
         LocalDate today = LocalDate.now();

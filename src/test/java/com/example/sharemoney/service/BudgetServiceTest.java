@@ -295,9 +295,8 @@ class BudgetServiceTest {
         assertNotNull(result);
         assertEquals(0, new BigDecimal("10000000").compareTo(result.getTotalIncome()));
         // Raw safe = 10M - 0 (bills) - 3M (flexible) = 7M
-        // Savings = 7M * 0.4 = 2.8M
-        // Safe total = 7M - 2.8M = 4.2M
-        assertEquals(0, new BigDecimal("4200000.00").compareTo(result.getSafeBalanceTotal()));
+        // Hiển thị 100% số tiền thực tế: Safe total = 7M
+        assertEquals(0, new BigDecimal("7000000").compareTo(result.getSafeBalanceTotal()));
         assertTrue(result.getDaysLeft() > 0);
     }
 }

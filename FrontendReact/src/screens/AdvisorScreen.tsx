@@ -9,7 +9,7 @@ import {
   DeviceEventEmitter,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { Sparkles } from "lucide-react-native";
+import { Sparkles, Lightbulb, Scale, BarChart2, AlertTriangle } from "lucide-react-native";
 import { colors } from "../constants/colors";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../services/api";
@@ -385,6 +385,10 @@ export const AdvisorScreen: React.FC = () => {
               activeSection === "plan" && styles.sectionPillActive,
             ]}
           >
+            <Lightbulb
+              size={15}
+              color={activeSection === "plan" ? colors.white : "#2563EB"}
+            />
             <Text
               style={[
                 styles.sectionPillText,
@@ -392,7 +396,7 @@ export const AdvisorScreen: React.FC = () => {
                 activeSection === "plan" && styles.sectionPillTextActive,
               ]}
             >
-              💡 Gợi ý chi tiêu
+              Gợi ý chi tiêu
             </Text>
           </TouchableOpacity>
 
@@ -407,6 +411,10 @@ export const AdvisorScreen: React.FC = () => {
               activeSection === "rebalance" && styles.sectionPillActive,
             ]}
           >
+            <Scale
+              size={15}
+              color={activeSection === "rebalance" ? colors.white : "#2563EB"}
+            />
             <Text
               style={[
                 styles.sectionPillText,
@@ -414,7 +422,7 @@ export const AdvisorScreen: React.FC = () => {
                 activeSection === "rebalance" && styles.sectionPillTextActive,
               ]}
             >
-              ⚖️ Tái cân bằng {isAllRebalanced ? "(✓)" : activeRebalancePlan?.hasOverspending ? `(${activeRebalancePlan.overspentItems?.length || 0})` : ""}
+              Tái cân bằng {isAllRebalanced ? "(✓)" : activeRebalancePlan?.hasOverspending ? `(${activeRebalancePlan.overspentItems?.length || 0})` : ""}
             </Text>
           </TouchableOpacity>
 
@@ -429,6 +437,10 @@ export const AdvisorScreen: React.FC = () => {
               activeSection === "habits" && styles.sectionPillActive,
             ]}
           >
+            <BarChart2
+              size={15}
+              color={activeSection === "habits" ? colors.white : "#2563EB"}
+            />
             <Text
               style={[
                 styles.sectionPillText,
@@ -436,7 +448,7 @@ export const AdvisorScreen: React.FC = () => {
                 activeSection === "habits" && styles.sectionPillTextActive,
               ]}
             >
-              📊 Thói quen
+              Thói quen
             </Text>
           </TouchableOpacity>
 
@@ -451,6 +463,10 @@ export const AdvisorScreen: React.FC = () => {
               activeSection === "alerts" && styles.sectionPillActive,
             ]}
           >
+            <AlertTriangle
+              size={15}
+              color={activeSection === "alerts" ? colors.white : "#2563EB"}
+            />
             <Text
               style={[
                 styles.sectionPillText,
@@ -458,7 +474,7 @@ export const AdvisorScreen: React.FC = () => {
                 activeSection === "alerts" && styles.sectionPillTextActive,
               ]}
             >
-              ⚠️ Cảnh báo ({warnings.length})
+              Cảnh báo ({warnings.length})
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -587,6 +603,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Inbox } from "lucide-react-native";
+import { Inbox, AlertTriangle } from "lucide-react-native";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
 import { CategoryIcon } from "../ui/CategoryIcon";
@@ -98,7 +98,9 @@ export const BudgetPlanSection: React.FC<BudgetPlanSectionProps> = ({
           activeOpacity={0.9}
         >
           <View style={styles.rebalanceBannerLeft}>
-            <Text style={{ fontSize: 24, marginRight: 10 }}>🚨</Text>
+            <View style={{ marginRight: 10, justifyContent: "center" }}>
+              <AlertTriangle size={22} color="#EF4444" />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.rebalanceBannerTitle}>
                 Phát hiện {rebalancePlan.overspentItems.length} khoản chi tiêu lố (+{fmt(rebalancePlan.totalOverspent)})

@@ -790,7 +790,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             activeOpacity={1}
           >
             <View style={styles.configModalHeader}>
-              <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>Chọn ảnh đại diện 👤</Text>
+              <Text style={[styles.configModalTitle, { color: themeColors.textPrimary }]}>Chọn ảnh đại diện</Text>
               <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setAvatarModalVisible(false)}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
@@ -803,7 +803,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               activeOpacity={0.8}
             >
               <View style={styles.galleryIconCircle}>
-                <Text style={{ fontSize: 20 }}>📸</Text>
+                <Camera size={20} color="#2563EB" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.galleryPickTitle}>Tải ảnh từ điện thoại</Text>

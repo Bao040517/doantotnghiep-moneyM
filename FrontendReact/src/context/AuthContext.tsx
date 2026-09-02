@@ -9,7 +9,9 @@ import * as WebBrowser from "expo-web-browser";
 WebBrowser.maybeCompleteAuthSession();
 
 // Google OAuth2 constants
-const GOOGLE_CLIENT_ID_WEB = "NOT_SET"; // Will be replaced with real Client ID
+const GOOGLE_CLIENT_ID_WEB =
+  process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
+  "273294037353-v96k6smbe50vv7of3a39obvu0nam70af.apps.googleusercontent.com";
 
 interface AuthContextType {
   user: UserSummary | null;

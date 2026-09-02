@@ -84,6 +84,7 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
   const [selectedSplitUserIds, setSelectedSplitUserIds] = useState<string[]>([]);
   const [splitType, setSplitType] = useState<"EQUAL" | "EXACT">("EQUAL");
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
+  const [manualUserIds, setManualUserIds] = useState<string[]>([]);
   const [savingExpense, setSavingExpense] = useState(false);
 
   // VietQR settlement state
@@ -174,41 +175,99 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
     }
     const formatted = parseInt(cleanDigits, 10).toLocaleString("vi-VN");
     setAmount(formatted);
+
+    if (splitType === "EXACT" && selectedSplitUserIds.length > 1) {
+      const balanced = recalculateAmounts(customAmounts, selectedSplitUserIds, manualUserIds, formatted);
+      setCustomAmounts(balanced);
+    }
+  };
+
+  const recalculateAmounts = (
+    currentAmounts: Record<string, string>,
+    selectedIds: string[],
+    manualIds: string[],
+    totalAmountStr: string,
+    lastEditedId?: string
+  ) => {
+    const rawTotal = parseFloat(totalAmountStr.replace(/\./g, "")) || 0;
+    if (rawTotal <= 0 || selectedIds.length <= 1) {
+      return currentAmounts;
+    }
+
+    const updated: Record<string, string> = { ...currentAmounts };
+
+    const activeManualIds = selectedIds.filter((id) => {
+      const val = parseFloat((updated[id] || "").replace(/\./g, "")) || 0;
+      return manualIds.includes(id) && val > 0;
+    });
+
+    const unassignedIds = selectedIds.filter((id) => !activeManualIds.includes(id));
+
+    if (unassignedIds.length === 1) {
+      const autoId = unassignedIds[0];
+      let manualSum = 0;
+      activeManualIds.forEach((id) => {
+        manualSum += parseFloat((updated[id] || "0").replace(/\./g, "")) || 0;
+      });
+
+      const remainder = rawTotal - manualSum;
+      updated[autoId] = remainder >= 0 ? remainder.toLocaleString("vi-VN") : "0";
+    } else if (selectedIds.length === 2 && lastEditedId) {
+      const otherId = selectedIds.find((id) => id !== lastEditedId);
+      if (otherId) {
+        const myVal = parseFloat((updated[lastEditedId] || "0").replace(/\./g, "")) || 0;
+        const remainder = rawTotal - myVal;
+        updated[otherId] = remainder >= 0 ? remainder.toLocaleString("vi-VN") : "0";
+      }
+    }
+
+    return updated;
   };
 
   const handleCustomAmountChange = (targetUserId: string, text: string) => {
     const cleanDigits = text.replace(/\D/g, "");
     const formatted = cleanDigits ? parseInt(cleanDigits, 10).toLocaleString("vi-VN") : "";
 
-    const updatedAmounts = { ...customAmounts, [targetUserId]: formatted };
-
-    const rawTotal = parseFloat(amount.replace(/\./g, "")) || 0;
-    if (rawTotal > 0 && selectedSplitUserIds.length > 1) {
-      const otherSelectedIds = selectedSplitUserIds.filter((id) => id !== targetUserId);
-      const filledOtherIds = otherSelectedIds.filter((id) => {
-        const val = parseFloat((updatedAmounts[id] || "").replace(/\./g, "")) || 0;
-        return val > 0;
-      });
-      const emptyOtherIds = otherSelectedIds.filter((id) => {
-        const val = parseFloat((updatedAmounts[id] || "").replace(/\./g, "")) || 0;
-        return val === 0;
-      });
-
-      if (emptyOtherIds.length === 1 && cleanDigits) {
-        const lastId = emptyOtherIds[0];
-        let currentSum = parseFloat(cleanDigits, 10);
-        filledOtherIds.forEach((id) => {
-          currentSum += parseFloat((updatedAmounts[id] || "0").replace(/\./g, "")) || 0;
-        });
-
-        const remainder = rawTotal - currentSum;
-        if (remainder >= 0) {
-          updatedAmounts[lastId] = remainder.toLocaleString("vi-VN");
-        }
+    let newManual = [...manualUserIds];
+    if (cleanDigits && parseInt(cleanDigits, 10) > 0) {
+      if (!newManual.includes(targetUserId)) {
+        newManual.push(targetUserId);
       }
+    } else {
+      newManual = newManual.filter((id) => id !== targetUserId);
+    }
+    setManualUserIds(newManual);
+
+    const newAmounts = { ...customAmounts, [targetUserId]: formatted };
+    const balanced = recalculateAmounts(newAmounts, selectedSplitUserIds, newManual, amount, targetUserId);
+    setCustomAmounts(balanced);
+  };
+
+  const handleToggleMemberExact = (uId: string) => {
+    let newSelected: string[];
+    let newManual = [...manualUserIds];
+
+    if (selectedSplitUserIds.includes(uId)) {
+      if (selectedSplitUserIds.length <= 1) {
+        Alert.alert("Thông báo", "Phải có ít nhất 1 người tham gia");
+        return;
+      }
+      newSelected = selectedSplitUserIds.filter((id) => id !== uId);
+      newManual = newManual.filter((id) => id !== uId);
+      setManualUserIds(newManual);
+    } else {
+      newSelected = [...selectedSplitUserIds, uId];
     }
 
-    setCustomAmounts(updatedAmounts);
+    setSelectedSplitUserIds(newSelected);
+
+    const newAmounts: Record<string, string> = {};
+    newSelected.forEach((id) => {
+      newAmounts[id] = customAmounts[id] || "";
+    });
+
+    const balanced = recalculateAmounts(newAmounts, newSelected, newManual, amount);
+    setCustomAmounts(balanced);
   };
 
   const handleAutoFillRemainder = () => {
@@ -654,17 +713,7 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
                     return (
                       <View key={`exact-${uId}`} style={[styles.memberInputRow, isSelected && styles.memberInputRowActive]}>
                         <TouchableOpacity
-                          onPress={() => {
-                            if (isSelected) {
-                              if (selectedSplitUserIds.length > 1) {
-                                setSelectedSplitUserIds(selectedSplitUserIds.filter((id) => id !== uId));
-                              } else {
-                                Alert.alert("Thông báo", "Phải có ít nhất 1 người tham gia");
-                              }
-                            } else {
-                              setSelectedSplitUserIds([...selectedSplitUserIds, uId]);
-                            }
-                          }}
+                          onPress={() => handleToggleMemberExact(uId)}
                           style={styles.memberCardLeft}
                           activeOpacity={0.7}
                         >
@@ -687,8 +736,12 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
                             <Text style={[styles.memberCardName, isSelected && styles.memberCardNameActive]} numberOfLines={1}>
                               {uName} {uId === user?.id ? "(Bạn)" : ""}
                             </Text>
-                            <Text style={styles.memberCardRole}>
-                              {isSelected ? "Được phân chia" : "Không tham gia"}
+                            <Text style={[styles.memberCardRole, isSelected && !manualUserIds.includes(uId) && parseFloat((customAmounts[uId] || "").replace(/\./g, "")) > 0 && selectedSplitUserIds.length > 1 && { color: "#059669", fontWeight: "700" }]}>
+                              {isSelected
+                                ? !manualUserIds.includes(uId) && parseFloat((customAmounts[uId] || "").replace(/\./g, "")) > 0 && selectedSplitUserIds.length > 1
+                                  ? "🤖 Tự động bù"
+                                  : "Được phân chia"
+                                : "Không tham gia"}
                             </Text>
                           </View>
                         </TouchableOpacity>
@@ -706,7 +759,7 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
                           </View>
                         ) : (
                           <TouchableOpacity
-                            onPress={() => setSelectedSplitUserIds([...selectedSplitUserIds, uId])}
+                            onPress={() => handleToggleMemberExact(uId)}
                             style={styles.amountBadgeInactive}
                           >
                             <Text style={styles.amountBadgeInactiveText}>+ Thêm</Text>

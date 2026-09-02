@@ -118,15 +118,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
       }
 
-      // Safe cross-platform redirect URI
+      // Safe cross-platform redirect URI matching Google Cloud Console
       let redirectUri: string;
       if (Platform.OS === "web" && typeof window !== "undefined" && window?.location?.origin) {
         redirectUri = window.location.origin;
       } else {
-        redirectUri = AuthSession.makeRedirectUri({
-          scheme: "sharemoney",
-          preferLocalhost: true,
-        });
+        // Expo Auth Proxy URL registered in Google Cloud Console
+        redirectUri = "https://auth.expo.io/@ducbao/FrontendReact";
       }
 
       // Build Google OAuth2 Authorization URL
@@ -136,7 +134,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         `&redirect_uri=${encodeURIComponent(redirectUri)}` +
         `&response_type=id_token` +
         `&scope=${encodeURIComponent("openid email profile")}` +
-        `&nonce=${Date.now()}`;
+        `&nonce=${Date.now()}` +
+        `&prompt=select_account`;
 
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
 

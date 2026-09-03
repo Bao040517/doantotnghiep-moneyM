@@ -71,7 +71,7 @@ public class DebtService {
         Map<UUID, BigDecimal> balances = calculateNetBalances(unsettledSplits, userMap);
 
         // Bước 4: Chạy thuật toán Greedy rút gọn nợ
-        List<SettlementTransaction> transactions = greedySettle(balances, userMap);
+        List<SettlementTransaction> transactions = greedySettle(balances, userMap, unsettledSplits);
 
         // Bước 5: Build response
         List<MemberBalance> memberBalances =
@@ -126,16 +126,9 @@ public class DebtService {
     //   - Lấy người nợ nhiều nhất (max debtor) và người được nợ nhiều nhất (max creditor)
     //   - Tạo 1 giao dịch: debtor → creditor với amount = min(|debt|, credit)
     //   - Cập nhật balance, lặp lại đến khi hết nợ
-    //
-    // Ví dụ:
-    //   A=-100k, B=+50k, C=+50k
-    //   → A trả B 50k, A trả C 50k  (2 giao dịch)
-    //
-    //   A=-100k, B=-50k, C=+150k
-    //   → A trả C 100k, B trả C 50k  (2 giao dịch thay vì 3)
     // ─────────────────────────────────────────────────────────────
     private List<SettlementTransaction> greedySettle(
-            Map<UUID, BigDecimal> balanceMap, Map<UUID, User> userMap) {
+            Map<UUID, BigDecimal> balanceMap, Map<UUID, User> userMap, List<ExpenseSplit> unsettledSplits) {
 
         // Dùng mutable copy để không làm ảnh hưởng map gốc
         Map<UUID, BigDecimal> remaining = new HashMap<>(balanceMap);
@@ -170,11 +163,33 @@ public class DebtService {
             // Số tiền giao dịch = min(credit, |debt|)
             BigDecimal payment = maxCredit.min(maxDebt.negate());
 
+            final UUID finalDebtorId = maxDebtorId;
+            final UUID finalCreditorId = maxCreditorId;
+            boolean hasPending = unsettledSplits.stream().anyMatch(s ->
+                    Boolean.TRUE.equals(s.getExpense().getIsPendingRevision()) &&
+                            (s.getUser().getId().equals(finalDebtorId) || s.getExpense().getPayer().getId().equals(finalDebtorId) ||
+                             s.getUser().getId().equals(finalCreditorId) || s.getExpense().getPayer().getId().equals(finalCreditorId))
+            );
+
+            String pendingMsg = null;
+            if (hasPending) {
+                pendingMsg = unsettledSplits.stream()
+                        .filter(s -> Boolean.TRUE.equals(s.getExpense().getIsPendingRevision()) &&
+                                (s.getUser().getId().equals(finalDebtorId) || s.getExpense().getPayer().getId().equals(finalDebtorId) ||
+                                 s.getUser().getId().equals(finalCreditorId) || s.getExpense().getPayer().getId().equals(finalCreditorId)))
+                        .map(s -> s.getExpense().getTitle())
+                        .findFirst()
+                        .map(t -> "Khoản chi \"" + t + "\" đang có yêu cầu chỉnh sửa chưa hoàn tất.")
+                        .orElse("Khoản chi liên quan đang có yêu cầu chỉnh sửa chưa hoàn tất.");
+            }
+
             result.add(
                     SettlementTransaction.builder()
                             .from(toUserSummary(userMap.get(maxDebtorId)))
                             .to(toUserSummary(userMap.get(maxCreditorId)))
                             .amount(payment.setScale(0, java.math.RoundingMode.HALF_UP))
+                            .hasPendingRevision(hasPending)
+                            .pendingRevisionMessage(pendingMsg)
                             .build());
 
             // Cập nhật balance
@@ -421,7 +436,7 @@ public class DebtService {
             Map<UUID, BigDecimal> balances = calculateNetBalances(unsettledSplits, userMap);
 
             // Chạy Greedy để ra danh sách giao dịch tối giản
-            List<SettlementTransaction> settlements = greedySettle(balances, userMap);
+            List<SettlementTransaction> settlements = greedySettle(balances, userMap, unsettledSplits);
 
             // Lọc ra các giao dịch liên quan đến user hiện tại
             for (SettlementTransaction tx : settlements) {

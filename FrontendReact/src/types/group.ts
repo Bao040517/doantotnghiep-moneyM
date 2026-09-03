@@ -71,6 +71,7 @@ export interface GroupExpense {
   splitCount?: number;
   createdAt?: string;
   currentUserSplitAmount?: number;
+  isPendingRevision?: boolean;
   /** @deprecated Use payer.id instead */
   payerId?: string;
   /** @deprecated Use payer.name instead */
@@ -100,6 +101,8 @@ export interface GroupDebtDetail {
   bankAccountName?: string;
   amount: number; // positive = other owes me, negative = I owe other
   type?: "OWED" | "OWING";
+  hasPendingRevision?: boolean;
+  pendingRevisionMessage?: string;
 }
 
 export interface GroupDebtSummary {

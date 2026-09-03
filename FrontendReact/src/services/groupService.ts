@@ -20,6 +20,10 @@ export const groupService = {
     api.put<any>(`/groups/${groupId}/expenses/${expenseId}`, payload).then((res) => res.data),
   deleteExpense: (groupId: string, expenseId: string) =>
     api.delete<void>(`/groups/${groupId}/expenses/${expenseId}`).then((res) => res.data),
+  requestExpenseRevision: (groupId: string, expenseId: string, payload: { proposedTitle?: string; proposedAmount?: number; revisionNote?: string }) =>
+    api.post<any>(`/groups/${groupId}/expenses/${expenseId}/request-revision`, payload).then((res) => res.data),
+  rejectExpenseRevision: (groupId: string, expenseId: string) =>
+    api.post<any>(`/groups/${groupId}/expenses/${expenseId}/reject-revision`).then((res) => res.data),
   getPastMembers: () =>
     api.get<Array<{ id: string; name: string; email?: string; phone?: string }>>("/groups/past-members").then((res) => res.data),
   getGroupDebts: (groupId: string) => api.get<{ transactions: any[] }>(`/groups/${groupId}/debts`).then((res) => res.data),

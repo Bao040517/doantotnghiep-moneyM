@@ -38,5 +38,7 @@ public class DebtSummaryResponse {
         private UserSummaryResponse from; // người trả
         private UserSummaryResponse to; // người nhận
         private BigDecimal amount;
+        private boolean hasPendingRevision; // Khoản chi liên quan đang chờ xác nhận chỉnh sửa
+        private String pendingRevisionMessage;
     }
 }

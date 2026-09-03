@@ -96,6 +96,15 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
   const [remindDebtData, setRemindDebtData] = useState<any | null>(null);
 
   const handleStartDebtPayment = (debtItem: any) => {
+    if (debtItem?.hasPendingRevision) {
+      Alert.alert(
+        "Khoản chi chưa hoàn tất",
+        debtItem.pendingRevisionMessage ||
+          "Khoản chi này đang có yêu cầu chỉnh sửa từ thành viên nhóm và chưa được chủ khoản chi xác nhận. Vui lòng đợi chủ khoản chi cập nhật trước khi thanh toán để tránh sai lệch số tiền!",
+        [{ text: "Đã hiểu" }]
+      );
+      return;
+    }
     const creditorAccNo = debtItem.to?.bankAccountNo;
     if (creditorAccNo) {
       // Đã có STK ngân hàng -> Bypass selector, mở thẳng QR sandbox

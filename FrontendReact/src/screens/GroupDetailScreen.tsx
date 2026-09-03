@@ -158,6 +158,15 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   const [pendingSent, setPendingSent] = useState<string[]>([]);
 
   const handleStartDebtPayment = (debtItem: any) => {
+    if (debtItem?.hasPendingRevision) {
+      Alert.alert(
+        "Khoản chi chưa hoàn tất",
+        debtItem.pendingRevisionMessage ||
+          "Khoản chi này đang có yêu cầu chỉnh sửa từ thành viên nhóm và chưa được chủ khoản chi xác nhận. Vui lòng đợi chủ khoản chi cập nhật trước khi thanh toán để tránh sai lệch số tiền!",
+        [{ text: "Đã hiểu" }]
+      );
+      return;
+    }
     const creditorAccNo = debtItem.to?.bankAccountNo;
     if (creditorAccNo) {
       // Đã có STK ngân hàng -> Bypass selector, mở thẳng QR sandbox
@@ -565,9 +574,16 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                     <CategoryIcon name={exp.category || "Khác"} size={26} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.expenseTitle}>{exp.title}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text style={styles.expenseTitle}>{exp.title}</Text>
+                      {exp.isPendingRevision && (
+                        <View style={styles.pendingRevisionTag}>
+                          <Text style={styles.pendingRevisionTagText}>⚠️ Chờ sửa</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={styles.expensePayer}>
-                      <Text style={{ fontWeight: "700" }}>{exp.payer?.name || "Thành viên"}</Text> đã trả · chia {exp.splitCount || group.members?.length || 1} người
+                      <Text style={{ fontWeight: "700" }}>{exp.payer?.name || "Thành viên"}</Text> đã trả · chia {exp.splitCount || group?.members?.length || 1} người
                     </Text>
                   </View>
                   <Text style={styles.expenseAmount}>{fmt(exp.amount)}</Text>
@@ -2663,5 +2679,18 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
     marginTop: 12,
     fontWeight: "500",
+  },
+  pendingRevisionTag: {
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  pendingRevisionTagText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#B45309",
   },
 });

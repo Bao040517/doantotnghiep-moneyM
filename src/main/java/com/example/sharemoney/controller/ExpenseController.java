@@ -84,6 +84,26 @@ public class ExpenseController {
         return ResponseEntity.ok(expenseService.updateExpense(groupId, expenseId, req, userId));
     }
 
+    /** POST /api/groups/{groupId}/expenses/{expenseId}/request-revision Gửi yêu cầu chỉnh sửa khoản chi */
+    @PostMapping("/{expenseId}/request-revision")
+    public ResponseEntity<ExpenseDetailResponse> requestExpenseRevision(
+            @PathVariable UUID groupId,
+            @PathVariable UUID expenseId,
+            @Valid @RequestBody com.example.sharemoney.dto.request.RequestExpenseRevisionRequest req) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(
+                expenseService.requestExpenseRevision(groupId, expenseId, req, userId));
+    }
+
+    /** POST /api/groups/{groupId}/expenses/{expenseId}/reject-revision Từ chối yêu cầu chỉnh sửa khoản chi */
+    @PostMapping("/{expenseId}/reject-revision")
+    public ResponseEntity<ExpenseDetailResponse> rejectExpenseRevision(
+            @PathVariable UUID groupId, @PathVariable UUID expenseId) {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(
+                expenseService.rejectExpenseRevision(groupId, expenseId, userId));
+    }
+
     /** DELETE /api/groups/{groupId}/expenses/{expenseId} Xoá khoản chi (cascade xoá splits). */
     @DeleteMapping("/{expenseId}")
     public ResponseEntity<Void> deleteExpense(

@@ -20,6 +20,14 @@ public class ExpenseDetailResponse {
     private List<SplitResponse> splits;
     private LocalDateTime createdAt;
 
+    private boolean isPendingRevision;
+    private UserSummaryResponse revisionRequester;
+    private String revisionNote;
+    private String proposedTitle;
+    private BigDecimal proposedAmount;
+    private boolean canDelete;
+    private boolean canEditDirectly;
+
     @Getter
     @Builder
     public static class SplitResponse {

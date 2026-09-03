@@ -324,4 +324,113 @@ class ExpenseServiceTest {
         verify(eventPublisher, never())
                 .publishEvent(any(com.example.sharemoney.event.ExpenseCreatedEvent.class));
     }
+
+    @Test
+    @DisplayName("Test 9: Xóa khoản chi khi không phải người trả tiền hoặc chủ nhóm → UNAUTHORIZED_EXPENSE_DELETION")
+    void testDeleteExpense_Fails_NonPayerNonOwner_Unauthorized() {
+        UUID expenseId = UUID.randomUUID();
+        Expense expense =
+                Expense.builder()
+                        .id(expenseId)
+                        .group(group)
+                        .payer(userA) // Người trả là userA
+                        .title("Ăn trưa")
+                        .amount(new BigDecimal("100000"))
+                        .category("Ăn uống")
+                        .build();
+
+        when(groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userBId)).thenReturn(true);
+        when(expenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
+
+        // userB cố tình xóa khoản chi của userA
+        AppException ex =
+                assertThrows(
+                        AppException.class,
+                        () -> expenseService.deleteExpense(groupId, expenseId, userBId));
+        assertEquals(ErrorCode.UNAUTHORIZED_EXPENSE_DELETION, ex.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("Test 10: Xóa khoản chi thành công khi là người trả tiền")
+    void testDeleteExpense_Success_Payer() {
+        UUID expenseId = UUID.randomUUID();
+        Expense expense =
+                Expense.builder()
+                        .id(expenseId)
+                        .group(group)
+                        .payer(userA)
+                        .title("Ăn trưa")
+                        .amount(new BigDecimal("100000"))
+                        .category("Ăn uống")
+                        .build();
+
+        when(groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userAId)).thenReturn(true);
+        when(expenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
+
+        expenseService.deleteExpense(groupId, expenseId, userAId);
+
+        verify(expenseRepository).delete(expense);
+        verify(eventPublisher).publishEvent(any(com.example.sharemoney.event.ExpenseDeletedEvent.class));
+    }
+
+    @Test
+    @DisplayName("Test 11: Thành viên gửi yêu cầu chỉnh sửa khoản chi → isPendingRevision = true và gửi thông báo cho Payer")
+    void testRequestExpenseRevision_Success() {
+        UUID expenseId = UUID.randomUUID();
+        Expense expense =
+                Expense.builder()
+                        .id(expenseId)
+                        .group(group)
+                        .payer(userA)
+                        .title("Cà phê sáng")
+                        .amount(new BigDecimal("90000"))
+                        .category("Ăn uống")
+                        .build();
+
+        when(groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userBId)).thenReturn(true);
+        when(expenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
+        when(userRepository.findById(userBId)).thenReturn(Optional.of(userB));
+        when(expenseRepository.save(any())).thenReturn(expense);
+
+        com.example.sharemoney.dto.request.RequestExpenseRevisionRequest req =
+                com.example.sharemoney.dto.request.RequestExpenseRevisionRequest.builder()
+                        .proposedTitle("Cà phê sáng + bánh mì")
+                        .proposedAmount(new BigDecimal("120000"))
+                        .revisionNote("Bạn nhớ cộng thêm bánh mì 30k nhé")
+                        .build();
+
+        var res = expenseService.requestExpenseRevision(groupId, expenseId, req, userBId);
+
+        assertTrue(res.isPendingRevision());
+        assertEquals("Bạn nhớ cộng thêm bánh mì 30k nhé", res.getRevisionNote());
+        verify(notificationService).sendNotification(eq(userAId), anyString(), eq("EXPENSE_REVISION_REQUESTED"));
+    }
+
+    @Test
+    @DisplayName("Test 12: Người trả tiền từ chối yêu cầu chỉnh sửa → reset isPendingRevision = false")
+    void testRejectExpenseRevision_Success() {
+        UUID expenseId = UUID.randomUUID();
+        Expense expense =
+                Expense.builder()
+                        .id(expenseId)
+                        .group(group)
+                        .payer(userA)
+                        .title("Cà phê sáng")
+                        .amount(new BigDecimal("90000"))
+                        .category("Ăn uống")
+                        .isPendingRevision(true)
+                        .revisionRequester(userB)
+                        .revisionNote("Ghi chú sai")
+                        .build();
+
+        when(groupMemberRepository.existsByGroup_IdAndUser_Id(groupId, userAId)).thenReturn(true);
+        when(expenseRepository.findById(expenseId)).thenReturn(Optional.of(expense));
+        when(expenseRepository.save(any())).thenReturn(expense);
+
+        var res = expenseService.rejectExpenseRevision(groupId, expenseId, userAId);
+
+        assertFalse(res.isPendingRevision());
+        assertNull(res.getRevisionNote());
+        verify(notificationService).sendNotification(eq(userBId), anyString(), eq("EXPENSE_REVISION_REJECTED"));
+    }
 }

@@ -40,6 +40,13 @@ public enum ErrorCode {
             HttpStatus.BAD_REQUEST, "Không thể sửa hoặc xoá khoản chi đã được thanh toán."),
     CANNOT_MODIFY_SYSTEM_EXPENSE(
             HttpStatus.BAD_REQUEST, "Không thể sửa hoặc xoá khoản chi tự động của hệ thống."),
+    UNAUTHORIZED_EXPENSE_DELETION(
+            HttpStatus.FORBIDDEN, "Chỉ người trả tiền hoặc chủ nhóm mới có quyền xóa khoản chi này."),
+    UNAUTHORIZED_EXPENSE_REVISION(
+            HttpStatus.FORBIDDEN, "Bạn không có quyền thao tác trên yêu cầu chỉnh sửa này."),
+    EXPENSE_PENDING_REVISION(
+            HttpStatus.BAD_REQUEST,
+            "Khoản chi này đang có yêu cầu chỉnh sửa từ thành viên nhóm chưa được giải quyết."),
     TRANSACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy giao dịch."),
 
     // --- PFM (Personal Financial Management) ---

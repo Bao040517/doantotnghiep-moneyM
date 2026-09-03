@@ -59,6 +59,28 @@ public class Expense {
     @Column(length = 50)
     private String category;
 
+    /** Cờ đánh dấu khoản chi đang có yêu cầu chỉnh sửa từ thành viên nhóm */
+    @Column(name = "is_pending_revision")
+    @Builder.Default
+    private Boolean isPendingRevision = false;
+
+    /** Thành viên gửi yêu cầu chỉnh sửa */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "revision_requester_id")
+    private User revisionRequester;
+
+    /** Ghi chú / lý do yêu cầu chỉnh sửa */
+    @Column(name = "revision_note", length = 500)
+    private String revisionNote;
+
+    /** Tiêu đề đề xuất */
+    @Column(name = "proposed_title", length = 200)
+    private String proposedTitle;
+
+    /** Số tiền đề xuất */
+    @Column(name = "proposed_amount", precision = 15, scale = 2)
+    private BigDecimal proposedAmount;
+
     /**
      * orphanRemoval = true: khi splits bị remove khỏi list, JPA tự xoá record trong DB — dùng khi
      * UPDATE expense. CascadeType.ALL: khi xoá Expense, tự xoá toàn bộ splits.

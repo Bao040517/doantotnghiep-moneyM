@@ -19,4 +19,5 @@ public class ExpenseResponse {
     private int splitCount;
     private LocalDateTime createdAt;
     private BigDecimal currentUserSplitAmount;
+    private boolean isPendingRevision;
 }

@@ -74,6 +74,11 @@ export interface GroupExpense {
   createdAt?: string;
   currentUserSplitAmount?: number;
   isPendingRevision?: boolean;
+  pendingRevision?: boolean;
+  revisionRequester?: { id: string; name: string; email?: string; avatarUrl?: string };
+  revisionNote?: string;
+  proposedTitle?: string;
+  proposedAmount?: number;
   /** @deprecated Use payer.id instead */
   payerId?: string;
   /** @deprecated Use payer.name instead */

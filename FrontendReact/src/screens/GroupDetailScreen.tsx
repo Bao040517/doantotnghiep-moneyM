@@ -576,35 +576,56 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                 <Text style={styles.emptySubText}>Bấm "+ Thêm hóa đơn" để tạo khoản chi đầu tiên!</Text>
               </View>
             ) : (
-              expenses.map((exp) => (
-                <TouchableOpacity
-                  key={exp.id}
-                  style={styles.expenseCard}
-                  onPress={() => {
-                    setSelectedExpenseId(exp.id);
-                    setExpenseDetailVisible(true);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.expenseIconBg}>
-                    <CategoryIcon name={exp.category || "Khác"} size={26} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Text style={styles.expenseTitle}>{exp.title}</Text>
-                      {exp.isPendingRevision && (
-                        <View style={styles.pendingRevisionTag}>
-                          <Text style={styles.pendingRevisionTagText}>⚠️ Chờ sửa</Text>
+              expenses.map((exp) => {
+                const isPending = Boolean(exp.isPendingRevision ?? (exp as any).pendingRevision);
+                return (
+                  <TouchableOpacity
+                    key={exp.id}
+                    style={[
+                      styles.expenseCard,
+                      isPending && styles.expenseCardPending
+                    ]}
+                    onPress={() => {
+                      setSelectedExpenseId(exp.id);
+                      setExpenseDetailVisible(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[
+                      styles.expenseIconBg,
+                      isPending && { backgroundColor: "#FEF3C7" }
+                    ]}>
+                      <CategoryIcon name={exp.category || "Khác"} size={26} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                        <Text style={[styles.expenseTitle, isPending && { color: "#92400E" }]}>{exp.title}</Text>
+                        {isPending && (
+                          <View style={styles.pendingRevisionTag}>
+                            <Text style={styles.pendingRevisionTagText}>⚠️ Có yêu cầu sửa</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.expensePayer}>
+                        <Text style={{ fontWeight: "700" }}>{exp.payer?.name || "Thành viên"}</Text> đã trả · chia {exp.splitCount || group?.members?.length || 1} người
+                      </Text>
+                      {isPending && (exp.proposedAmount || exp.proposedTitle) && (
+                        <View style={styles.proposedPreviewRow}>
+                          <Text style={styles.proposedPreviewText}>
+                            Đề xuất: {exp.proposedTitle ? `"${exp.proposedTitle}" ` : ""}{exp.proposedAmount ? `(${fmt(exp.proposedAmount)})` : ""}
+                          </Text>
                         </View>
                       )}
                     </View>
-                    <Text style={styles.expensePayer}>
-                      <Text style={{ fontWeight: "700" }}>{exp.payer?.name || "Thành viên"}</Text> đã trả · chia {exp.splitCount || group?.members?.length || 1} người
-                    </Text>
-                  </View>
-                  <Text style={styles.expenseAmount}>{fmt(exp.amount)}</Text>
-                </TouchableOpacity>
-              ))
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text style={[styles.expenseAmount, isPending && { color: "#D97706" }]}>{fmt(exp.amount)}</Text>
+                      {isPending && (
+                        <Text style={{ fontSize: 10, color: "#D97706", fontWeight: "700", marginTop: 2 }}>Bấm để duyệt 👆</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
             )}
           </View>
         )}
@@ -2708,5 +2729,28 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     color: "#B45309",
+  },
+  expenseCardPending: {
+    backgroundColor: "#FFFDF7",
+    borderColor: "#F59E0B",
+    borderWidth: 2,
+    shadowColor: "#F59E0B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  proposedPreviewRow: {
+    marginTop: 4,
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+  proposedPreviewText: {
+    fontSize: 11,
+    color: "#B45309",
+    fontWeight: "700",
   },
 });

@@ -6,6 +6,8 @@ import { Button } from "../ui/Button";
 import { groupService } from "../../services/groupService";
 import { colors } from "../../constants/colors";
 
+import { useAuth } from "../../hooks/useAuth";
+
 interface ExpenseDetailBottomSheetProps {
   visible: boolean;
   groupId: string;
@@ -21,6 +23,7 @@ export const ExpenseDetailBottomSheet: React.FC<ExpenseDetailBottomSheetProps> =
   onClose,
   onRefresh,
 }) => {
+  const { user: currentUser } = useAuth();
   const [detail, setDetail] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -119,6 +122,42 @@ export const ExpenseDetailBottomSheet: React.FC<ExpenseDetailBottomSheetProps> =
     }
   };
 
+  const handleAcceptRevisionDirectly = () => {
+    const newTitle = detail?.proposedTitle || detail?.title || "";
+    const newAmount = detail?.proposedAmount ? Number(detail.proposedAmount) : (detail?.amount ? Number(detail.amount) : 0);
+
+    Alert.alert(
+      "Chấp nhận yêu cầu chỉnh sửa",
+      `Bạn có muốn áp dụng đề xuất và cập nhật khoản chi này?\n\n• Tiêu đề: "${newTitle}"\n• Số tiền: ${fmt(newAmount)}`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Chấp nhận & Cập nhật",
+          style: "default",
+          onPress: async () => {
+            setSubmitting(true);
+            try {
+              await groupService.updateExpense(groupId, expenseId!, {
+                paidBy: detail?.payer?.id || "",
+                title: newTitle,
+                amount: newAmount,
+                category: detail?.category || "Ăn uống",
+                splitUserIds: detail?.splits?.map((s: any) => s.user?.id || s.id) || [],
+              });
+              Alert.alert("Thành công 🎉", "Đã chấp nhận và cập nhật khoản chi!");
+              fetchDetail();
+              onRefresh();
+            } catch (e: any) {
+              Alert.alert("Lỗi", e.response?.data?.message || "Không thể cập nhật khoản chi");
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleApplyProposedRevision = () => {
     if (detail?.proposedTitle) setTitle(detail.proposedTitle);
     if (detail?.proposedAmount) setAmount(Math.round(detail.proposedAmount).toLocaleString("vi-VN"));
@@ -127,21 +166,24 @@ export const ExpenseDetailBottomSheet: React.FC<ExpenseDetailBottomSheetProps> =
 
   const handleRejectRevision = () => {
     Alert.alert(
-      "Từ chối yêu cầu",
-      "Bạn có chắc muốn từ chối yêu cầu chỉnh sửa này và giữ nguyên khoản chi?",
+      "Hủy bỏ / Từ chối yêu cầu",
+      "Bạn có chắc muốn hủy bỏ/từ chối yêu cầu chỉnh sửa này và giữ nguyên khoản chi?",
       [
-        { text: "Hủy", style: "cancel" },
+        { text: "Đóng", style: "cancel" },
         {
-          text: "Từ chối",
+          text: "Xác nhận hủy",
           style: "destructive",
           onPress: async () => {
+            setSubmitting(true);
             try {
               await groupService.rejectExpenseRevision(groupId, expenseId!);
-              Alert.alert("Thành công", "Đã từ chối yêu cầu chỉnh sửa.");
+              Alert.alert("Thành công", "Đã hủy bỏ yêu cầu chỉnh sửa.");
               fetchDetail();
               onRefresh();
             } catch (e: any) {
               Alert.alert("Lỗi", e.response?.data?.message || "Không thể từ chối yêu cầu");
+            } finally {
+              setSubmitting(false);
             }
           },
         },
@@ -175,6 +217,11 @@ export const ExpenseDetailBottomSheet: React.FC<ExpenseDetailBottomSheetProps> =
   };
 
   const fmt = (n?: number) => (Math.abs(Math.round(Number(n) || 0))).toLocaleString("vi-VN") + " ₫";
+
+  const isPending = Boolean(detail?.isPendingRevision ?? detail?.pendingRevision);
+  const isPayer = detail?.payer?.id === currentUser?.id;
+  const isRequester = detail?.revisionRequester?.id === currentUser?.id;
+  const canManageRevision = Boolean(detail?.canEditDirectly || isPayer || isRequester);
 
   const getModalTitle = () => {
     if (isEditing) return "Chỉnh Sửa Khoản Chi";
@@ -247,7 +294,7 @@ export const ExpenseDetailBottomSheet: React.FC<ExpenseDetailBottomSheetProps> =
       ) : (
         <ScrollView style={styles.detailContent} showsVerticalScrollIndicator={false}>
           {/* Revision Banner if pending revision */}
-          {detail.isPendingRevision && (
+          {isPending && (
             <View style={styles.pendingRevisionCard}>
               <View style={styles.revisionHeaderRow}>
                 <Text style={styles.revisionIcon}>⚠️</Text>
@@ -262,23 +309,35 @@ export const ExpenseDetailBottomSheet: React.FC<ExpenseDetailBottomSheetProps> =
               {detail.proposedTitle || detail.proposedAmount ? (
                 <View style={styles.proposedBox}>
                   <Text style={styles.proposedLabel}>Đề xuất:</Text>
-                  {detail.proposedTitle ? <Text style={styles.proposedValue}>• Tên: {detail.proposedTitle}</Text> : null}
-                  {detail.proposedAmount ? <Text style={styles.proposedValue}>• Tiền: {fmt(detail.proposedAmount)}</Text> : null}
+                  {detail.proposedTitle ? <Text style={styles.proposedValue}>• Tên mới: <Text style={{ fontWeight: "800" }}>"{detail.proposedTitle}"</Text></Text> : null}
+                  {detail.proposedAmount ? (
+                    <Text style={styles.proposedValue}>
+                      • Số tiền mới: <Text style={{ fontWeight: "800", color: "#059669" }}>{fmt(detail.proposedAmount)}</Text>{" "}
+                      <Text style={{ color: "#9CA3AF", textDecorationLine: "line-through", fontSize: 11 }}>({fmt(detail.amount)})</Text>
+                    </Text>
+                  ) : null}
                 </View>
               ) : null}
 
-              {detail.canEditDirectly ? (
-                <View style={styles.revisionActionRow}>
-                  <TouchableOpacity style={styles.acceptRevisionBtn} onPress={handleApplyProposedRevision}>
-                    <Text style={styles.acceptRevisionText}>Áp dụng & Sửa</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.rejectRevisionBtn} onPress={handleRejectRevision}>
-                    <Text style={styles.rejectRevisionText}>Từ chối</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <Text style={styles.waitingPayerNotice}>⏳ Đang chờ chủ khoản chi xem xét và cập nhật</Text>
-              )}
+              {/* 2 NÚT HÀNH ĐỘNG: CHẤP NHẬN & HỦY BỎ */}
+              <View style={styles.revisionActionRow}>
+                <TouchableOpacity
+                  style={styles.acceptRevisionBtn}
+                  onPress={handleAcceptRevisionDirectly}
+                  disabled={submitting}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.acceptRevisionText}>✓ Chấp nhận</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.rejectRevisionBtn}
+                  onPress={handleRejectRevision}
+                  disabled={submitting}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.rejectRevisionText}>✕ Hủy bỏ yêu cầu</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -433,33 +492,40 @@ const styles = StyleSheet.create({
   revisionActionRow: {
     flexDirection: "row",
     gap: 10,
-    marginTop: 4,
+    marginTop: 8,
   },
   acceptRevisionBtn: {
     flex: 1,
-    backgroundColor: "#D97706",
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: "#10B981",
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
   acceptRevisionText: {
     color: "#FFFFFF",
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   rejectRevisionBtn: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    paddingVertical: 8,
-    borderRadius: 10,
+    backgroundColor: "#FEE2E2",
+    borderWidth: 1.5,
+    borderColor: "#FCA5A5",
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
   rejectRevisionText: {
-    color: "#4B5563",
+    color: "#DC2626",
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   waitingPayerNotice: {
     fontSize: 12,

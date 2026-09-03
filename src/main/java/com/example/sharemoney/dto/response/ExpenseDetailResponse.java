@@ -1,5 +1,6 @@
 package com.example.sharemoney.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,12 +21,18 @@ public class ExpenseDetailResponse {
     private List<SplitResponse> splits;
     private LocalDateTime createdAt;
 
+    @JsonProperty("isPendingRevision")
     private boolean isPendingRevision;
+
     private UserSummaryResponse revisionRequester;
     private String revisionNote;
     private String proposedTitle;
     private BigDecimal proposedAmount;
+
+    @JsonProperty("canDelete")
     private boolean canDelete;
+
+    @JsonProperty("canEditDirectly")
     private boolean canEditDirectly;
 
     @Getter

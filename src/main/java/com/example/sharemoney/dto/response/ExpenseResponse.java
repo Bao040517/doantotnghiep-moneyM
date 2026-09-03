@@ -1,5 +1,6 @@
 package com.example.sharemoney.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -19,5 +20,12 @@ public class ExpenseResponse {
     private int splitCount;
     private LocalDateTime createdAt;
     private BigDecimal currentUserSplitAmount;
+
+    @JsonProperty("isPendingRevision")
     private boolean isPendingRevision;
+
+    private UserSummaryResponse revisionRequester;
+    private String revisionNote;
+    private String proposedTitle;
+    private BigDecimal proposedAmount;
 }

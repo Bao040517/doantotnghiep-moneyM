@@ -415,7 +415,7 @@ public class ExpenseService {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Từ chối yêu cầu chỉnh sửa khoản chi (Dành cho người trả tiền hoặc chủ nhóm)
+    // Từ chối/Huỷ bỏ yêu cầu chỉnh sửa khoản chi (Dành cho người trả tiền, chủ nhóm hoặc người yêu cầu)
     // ─────────────────────────────────────────────────────────────
     @Transactional
     public ExpenseDetailResponse rejectExpenseRevision(
@@ -435,7 +435,8 @@ public class ExpenseService {
 
         boolean isPayer = expense.getPayer() != null && expense.getPayer().getId().equals(userId);
         boolean isOwner = expense.getGroup().getOwner() != null && expense.getGroup().getOwner().getId().equals(userId);
-        if (!isPayer && !isOwner) {
+        boolean isRequester = expense.getRevisionRequester() != null && expense.getRevisionRequester().getId().equals(userId);
+        if (!isPayer && !isOwner && !isRequester) {
             throw new AppException(ErrorCode.UNAUTHORIZED_EXPENSE_REVISION);
         }
 
@@ -454,7 +455,7 @@ public class ExpenseService {
             String groupStr = (groupName != null && !groupName.isBlank()) ? String.format(" ở nhóm \"%s\"", groupName.trim()) : "";
             String message =
                     String.format(
-                            "Yêu cầu chỉnh sửa khoản chi \"%s\"%s của bạn đã bị từ chối bởi người thanh toán.",
+                            "Yêu cầu chỉnh sửa khoản chi \"%s\"%s của bạn đã bị từ chối/huỷ bỏ bởi người thanh toán.",
                             expense.getTitle(), groupStr);
             notificationService.sendNotification(
                     prevRequester.getId(), message, "EXPENSE_REVISION_REJECTED");
@@ -602,6 +603,10 @@ public class ExpenseService {
                 .createdAt(expense.getCreatedAt())
                 .currentUserSplitAmount(userSplit)
                 .isPendingRevision(Boolean.TRUE.equals(expense.getIsPendingRevision()))
+                .revisionRequester(expense.getRevisionRequester() != null ? toUserSummary(expense.getRevisionRequester()) : null)
+                .revisionNote(expense.getRevisionNote())
+                .proposedTitle(expense.getProposedTitle())
+                .proposedAmount(expense.getProposedAmount())
                 .build();
     }
 

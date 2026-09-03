@@ -362,6 +362,40 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
     }
   };
 
+  const handleAutoFillRemainder = () => {
+    const rawNumber = parseFloat(amount.replace(/\./g, "")) || 0;
+    if (rawNumber <= 0 || selectedSplitUserIds.length === 0) return;
+
+    let currentSum = 0;
+    const filledUserIds: string[] = [];
+    const emptyUserIds: string[] = [];
+
+    selectedSplitUserIds.forEach((uId) => {
+      const val = parseFloat((customAmounts[uId] || "0").replace(/\./g, "")) || 0;
+      if (val > 0) {
+        currentSum += val;
+        filledUserIds.push(uId);
+      } else {
+        emptyUserIds.push(uId);
+      }
+    });
+
+    const remainder = rawNumber - currentSum;
+    if (remainder <= 0) return;
+
+    const targets = emptyUserIds.length > 0 ? emptyUserIds : selectedSplitUserIds;
+    const perPerson = Math.floor(remainder / targets.length);
+    const lastBonus = remainder - perPerson * targets.length;
+
+    const newAmounts = { ...customAmounts };
+    targets.forEach((uId, idx) => {
+      const prevVal = emptyUserIds.length > 0 ? 0 : (parseFloat((customAmounts[uId] || "0").replace(/\./g, "")) || 0);
+      const added = perPerson + (idx === targets.length - 1 ? lastBonus : 0);
+      newAmounts[uId] = (prevVal + added).toLocaleString("vi-VN");
+    });
+    setCustomAmounts(newAmounts);
+  };
+
   const handleSaveExpense = async () => {
     const rawNumber = parseFloat(amount.replace(/\./g, "")) || 0;
     if (!title.trim() || rawNumber <= 0 || !groupId || !group) {
@@ -2806,11 +2840,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 14,
     fontWeight: "800",
-  },
-  adminTagText: {
-    color: colors.indigo600,
-    fontSize: 10,
-    fontWeight: "700",
   },
   removeMemberBtn: {
     padding: 8,

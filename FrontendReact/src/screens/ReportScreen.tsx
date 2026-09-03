@@ -11,6 +11,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Modal,
+  Dimensions,
 } from "react-native";
 import Svg, { Line, Polyline, Circle, Text as SvgText, G } from "react-native-svg";
 import { Card } from "../components/ui/Card";
@@ -71,6 +72,7 @@ export const ReportScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
   const [showDetail, setShowDetail] = useState(false);
   const [selectedSliceIndex, setSelectedSliceIndex] = useState<number | null>(null);
+  const [donutContainerWidth, setDonutContainerWidth] = useState<number>(0);
   const [expandedExpenseSections, setExpandedExpenseSections] = useState<Record<string, boolean>>({});
 
   // Interactive Modal state for 5 summary cards
@@ -453,7 +455,15 @@ export const ReportScreen: React.FC = () => {
           ) : (
             <>
               {/* ─── DONUT CHART WITH >=5% THRESHOLD & DASHED LEADER LINES ─── */}
-              <View style={styles.donutLeaderChartWrapper}>
+              <View
+                style={styles.donutLeaderChartWrapper}
+                onLayout={(e) => {
+                  const w = Math.round(e.nativeEvent.layout.width);
+                  if (w > 0 && Math.abs(w - donutContainerWidth) > 5) {
+                    setDonutContainerWidth(w);
+                  }
+                }}
+              >
                 {(() => {
                   const total = activeBreakdown.reduce((acc, item) => acc + (item.totalAmount || 0), 0);
 
@@ -490,16 +500,10 @@ export const ReportScreen: React.FC = () => {
                     });
                   }
 
-                  // 2. Kích thước lớn, vành dày & rộng (Nép sát 2 lề)
-                  const chartW = 350;
-                  const chartH = 290;
-                  const cx = 175;
-                  const cy = 145;
-                  const R_outer = 96;
-                  const strokeWidth = 38;
-                  const R_mid = R_outer - strokeWidth / 2; // 77
-                  const circumference = 2 * Math.PI * R_mid; // ~483.8
-                  const gap = chartItems.length > 1 ? 6 : 0;
+                  // 2. Kích thước & Tọa độ biểu đồ Donut nép sát 2 lề
+                  const { width: windowWidth } = Dimensions.get("window");
+                  const chartW = donutContainerWidth > 0 ? donutContainerWidth : Math.max(320, Math.min(windowWidth - 72, 380));
+                  const CALLOUT_WIDTH = 84; // Độ rộng khối chú thích sát lề
 
                   let accumulatedFraction = 0;
                   const rawSlices = chartItems.map((item, idx) => {
@@ -512,73 +516,156 @@ export const ReportScreen: React.FC = () => {
                     const endAngle = accumulatedFraction * 2 * Math.PI - Math.PI / 2;
                     const midAngle = (startAngle + endAngle) / 2;
 
-                    // Dasharray
-                    const sliceLength = fraction * circumference;
-                    const drawLength = Math.max(0.1, sliceLength - gap);
-                    const strokeDasharray = `${drawLength} ${circumference}`;
-                    const strokeDashoffset = -(startFraction * circumference + gap / 2);
-
                     const isSelected = selectedSliceIndex === idx;
                     const color = item.isOther ? "#94A3B8" : CHART_COLORS[idx % CHART_COLORS.length];
-                    const pctStr = `${Math.round(fraction * 100)}%`;
+                    const pctStr = Math.round(fraction * 100) + '%';
 
-                    // Tọa độ đường dẫn chỉ định (Leader line)
-                    const p1x = cx + R_outer * Math.cos(midAngle);
-                    const p1y = cy + R_outer * Math.sin(midAngle);
-
-                    const extDist = 10;
-                    const p2x = cx + (R_outer + extDist) * Math.cos(midAngle);
-                    const p2y = cy + (R_outer + extDist) * Math.sin(midAngle);
-
+                    // Điểm trên nửa bên phải nếu cos(midAngle) >= 0, nửa bên trái nếu cos(midAngle) < 0
                     const isRight = Math.cos(midAngle) >= 0;
-                    // Đường kẻ ngang nối thẳng sát lề (trái/phải)
-                    const p3x = isRight ? chartW - 86 : 86;
-                    const p3y = p2y;
 
                     return {
                       item,
                       idx,
                       color,
                       pctStr,
-                      strokeDasharray,
-                      strokeDashoffset,
-                      isSelected,
-                      p1: { x: p1x, y: p1y },
-                      p2: { x: p2x, y: p2y },
-                      p3: { x: p3x, y: p3y },
+                      fraction,
+                      startFraction,
+                      midAngle,
                       isRight,
+                      isSelected,
                     };
                   });
 
-                  // Tránh đè nhãn theo phương dọc (De-collision)
-                  const rightSlices = rawSlices.filter((s) => s.isRight).sort((a, b) => a.p3.y - b.p3.y);
-                  for (let i = 1; i < rightSlices.length; i++) {
-                    if (rightSlices[i].p3.y - rightSlices[i - 1].p3.y < 38) {
-                      rightSlices[i].p3.y = rightSlices[i - 1].p3.y + 38;
-                    }
-                  }
+                  const leftSlices = rawSlices.filter((s) => !s.isRight).sort((a, b) => a.midAngle - b.midAngle);
+                  const rightSlices = rawSlices.filter((s) => s.isRight).sort((a, b) => a.midAngle - b.midAngle);
 
-                  const leftSlices = rawSlices.filter((s) => !s.isRight).sort((a, b) => a.p3.y - b.p3.y);
-                  for (let i = 1; i < leftSlices.length; i++) {
-                    if (leftSlices[i].p3.y - leftSlices[i - 1].p3.y < 38) {
-                      leftSlices[i].p3.y = leftSlices[i - 1].p3.y + 38;
+                  const maxSideItems = Math.max(leftSlices.length, rightSlices.length, 1);
+                  const ITEM_HEIGHT = 44;
+                  const chartH = Math.max(260, maxSideItems * ITEM_HEIGHT + 36);
+                  const cx = chartW / 2;
+                  const cy = chartH / 2;
+                  const R_outer = Math.min(68, Math.max(50, Math.floor(cx - CALLOUT_WIDTH - 24)));
+                  const strokeWidth = 24;
+                  const R_mid = R_outer - strokeWidth / 2;
+                  const circumference = 2 * Math.PI * R_mid;
+                  const gap = chartItems.length > 1 ? 4 : 0;
+
+                  // Phân bổ Y đều đặn không đè lên nhau
+                  const computeDistributedY = (slices: typeof rawSlices) => {
+                    if (slices.length === 0) return [];
+                    const minGap = 42;
+                    const topMargin = 22;
+                    const bottomMargin = chartH - 22;
+
+                    if (slices.length === 1) {
+                      const idealY = cy + R_outer * Math.sin(slices[0].midAngle);
+                      return [Math.max(topMargin, Math.min(bottomMargin, idealY))];
                     }
-                  }
+
+                    const indexed = slices.map((s, i) => ({
+                      i,
+                      y: Math.max(topMargin, Math.min(bottomMargin, cy + R_outer * Math.sin(s.midAngle))),
+                    })).sort((a, b) => a.y - b.y);
+
+                    // Lượt 1: Đẩy xuống từ trên xuống
+                    for (let k = 1; k < indexed.length; k++) {
+                      if (indexed[k].y < indexed[k - 1].y + minGap) {
+                        indexed[k].y = indexed[k - 1].y + minGap;
+                      }
+                    }
+
+                    // Lượt 2: Kéo lên nếu chạm đáy
+                    if (indexed[indexed.length - 1].y > bottomMargin) {
+                      indexed[indexed.length - 1].y = bottomMargin;
+                      for (let k = indexed.length - 2; k >= 0; k--) {
+                        if (indexed[k].y > indexed[k + 1].y - minGap) {
+                          indexed[k].y = indexed[k + 1].y - minGap;
+                        }
+                      }
+                    }
+
+                    // Lượt 3: Điều chỉnh nếu chạm đỉnh
+                    if (indexed[0].y < topMargin) {
+                      const diff = topMargin - indexed[0].y;
+                      for (let k = 0; k < indexed.length; k++) {
+                        indexed[k].y = Math.min(bottomMargin, indexed[k].y + diff);
+                      }
+                    }
+
+                    const result = new Array(slices.length);
+                    indexed.forEach((item) => {
+                      result[item.i] = item.y;
+                    });
+                    return result;
+                  };
+
+                  const leftYs = computeDistributedY(leftSlices);
+                  const rightYs = computeDistributedY(rightSlices);
+
+                  const processedSlices = rawSlices.map((slice) => {
+                    const sliceLength = slice.fraction * circumference;
+                    const drawLength = Math.max(0.1, sliceLength - gap);
+                    const strokeDasharray = drawLength + ' ' + circumference;
+                    const strokeDashoffset = -(slice.startFraction * circumference + gap / 2);
+
+                    // Tọa độ p1: điểm neo trên vòng cung Donut
+                    const p1x = cx + R_outer * Math.cos(slice.midAngle);
+                    const p1y = cy + R_outer * Math.sin(slice.midAngle);
+
+                    let targetY = cy;
+                    if (!slice.isRight) {
+                      const lIdx = leftSlices.findIndex((s) => s.idx === slice.idx);
+                      targetY = lIdx >= 0 ? leftYs[lIdx] : p1y;
+                    } else {
+                      const rIdx = rightSlices.findIndex((s) => s.idx === slice.idx);
+                      targetY = rIdx >= 0 ? rightYs[rIdx] : p1y;
+                    }
+
+                    // Tọa độ p3: điểm chạm trực tiếp vào lề chú thích
+                    const p3x = slice.isRight ? chartW - CALLOUT_WIDTH - 4 : CALLOUT_WIDTH + 4;
+                    const p3y = targetY;
+
+                    // Tọa độ p2: điểm gãy khúc (elbow) để tạo đoạn thẳng ngang hoàn hảo p2 -> p3
+                    let p2x: number;
+                    if (slice.isRight) {
+                      const naturalElbow = cx + (R_outer + 12) * Math.cos(slice.midAngle);
+                      p2x = Math.max(cx + R_outer + 8, Math.min(naturalElbow, p3x - 12));
+                    } else {
+                      const naturalElbow = cx + (R_outer + 12) * Math.cos(slice.midAngle);
+                      p2x = Math.min(cx - R_outer - 8, Math.max(naturalElbow, p3x + 12));
+                    }
+                    const p2y = targetY;
+
+                    return {
+                      ...slice,
+                      strokeDasharray,
+                      strokeDashoffset,
+                      p1: { x: p1x, y: p1y },
+                      p2: { x: p2x, y: p2y },
+                      p3: { x: p3x, y: p3y },
+                      targetY,
+                    };
+                  });
 
                   return (
                     <View style={[styles.donutLeaderBox, { width: chartW, height: chartH }]}>
                       {/* SVG Canvas for Donut + Dashed Leader Lines */}
                       <Svg width={chartW} height={chartH} style={StyleSheet.absoluteFill}>
-                        {/* Leader Lines (Đường kẻ nét đứt dẫn tới chú thích sát lề) */}
-                        {rawSlices.map((slice) => (
-                          <Polyline
-                            key={`leader_${slice.idx}`}
-                            points={`${slice.p1.x},${slice.p1.y} ${slice.p2.x},${slice.p2.y} ${slice.p3.x},${slice.p3.y}`}
-                            stroke={slice.isSelected ? slice.color : "#CBD5E1"}
-                            strokeDasharray="3 3"
-                            strokeWidth={slice.isSelected ? 2 : 1.2}
-                            fill="none"
-                          />
+                        {/* Leader Lines (Đường nét đứt dẫn tới chú thích sát lề) */}
+                        {processedSlices.map((slice) => (
+                          <G key={'leader_grp_' + slice.idx}>
+                            <Polyline
+                              points={slice.p1.x + ',' + slice.p1.y + ' ' + slice.p2.x + ',' + slice.p2.y + ' ' + slice.p3.x + ',' + slice.p3.y}
+                              stroke={slice.isSelected ? slice.color : (isDark ? "#64748B" : "#CBD5E1")}
+                              strokeDasharray="3 3"
+                              strokeWidth={slice.isSelected ? 2 : 1.2}
+                              fill="none"
+                            />
+                            {/* Điểm chấm tròn neo trên vòng cung */}
+                            <Circle cx={slice.p1.x} cy={slice.p1.y} r={2.5} fill={slice.color} />
+                            {/* Điểm chấm tròn kết thúc sát nhãn chú thích */}
+                            <Circle cx={slice.p3.x} cy={slice.p3.y} r={2} fill={slice.isSelected ? slice.color : "#94A3B8"} />
+                          </G>
                         ))}
 
                         {/* Donut Slices */}
@@ -592,10 +679,10 @@ export const ReportScreen: React.FC = () => {
                             fill="none"
                           />
                         ) : (
-                          <G rotation="-90" origin={`${cx}, ${cy}`}>
-                            {rawSlices.map((slice) => (
+                          <G rotation="-90" origin={cx + ', ' + cy}>
+                            {processedSlices.map((slice) => (
                               <Circle
-                                key={`donut_slice_${slice.idx}`}
+                                key={'donut_slice_' + slice.idx}
                                 cx={cx}
                                 cy={cy}
                                 r={R_mid}
@@ -615,19 +702,79 @@ export const ReportScreen: React.FC = () => {
                         )}
                       </Svg>
 
-                      {/* ─── CALLOUT LABELS NÉP SÁT 2 LỀ ─── */}
-                      {rawSlices.map((slice) => {
+                      {/* ─── LỖ TRÒN TRUNG TÂM (TỔNG / CHI TIẾT DANH MỤC ĐƯỢC CHỌN) ─── */}
+                      <View
+                        style={[
+                          styles.donutCenterHole,
+                          {
+                            width: (R_outer - strokeWidth) * 2 + 10,
+                            height: (R_outer - strokeWidth) * 2 + 10,
+                            borderRadius: (R_outer - strokeWidth) + 5,
+                            left: cx - ((R_outer - strokeWidth) + 5),
+                            top: cy - ((R_outer - strokeWidth) + 5),
+                            backgroundColor: isDark ? themeColors.surface : colors.white,
+                            borderColor: isDark ? themeColors.border : "#F1F5F9",
+                          },
+                        ]}
+                      >
+                        {selectedSliceIndex !== null && chartItems[selectedSliceIndex] ? (
+                          (() => {
+                            const selItem = chartItems[selectedSliceIndex];
+                            return (
+                              <View style={{ alignItems: "center", paddingHorizontal: 4 }}>
+                                <CategoryIcon name={selItem.categoryName || selItem.categoryIcon} size={18} />
+                                <Text
+                                  style={[
+                                    styles.donutCenterActiveName,
+                                    { color: isDark ? themeColors.textPrimary : colors.slate800 },
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {selItem.categoryName}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.donutCenterActiveVal,
+                                    { color: CHART_COLORS[selectedSliceIndex % CHART_COLORS.length] },
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {fmt(selItem.totalAmount)}
+                                </Text>
+                              </View>
+                            );
+                          })()
+                        ) : (
+                          <View style={{ alignItems: "center" }}>
+                            <Text style={styles.donutCenterTotalLabel}>
+                              {activeTab === "expense" ? "Tổng chi" : "Tổng thu"}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.donutCenterTotalVal,
+                                { color: isDark ? themeColors.textPrimary : (activeTab === "expense" ? "#FF2E55" : "#059669") },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {fmt(total)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* ─── CHÚ THÍCH GẮN THEO LỀ TRÁI & LỀ PHẢI ─── */}
+                      {processedSlices.map((slice) => {
                         if (slice.isRight) {
+                          // Gắn sát lề phải
                           return (
                             <TouchableOpacity
-                              key={`callout_label_${slice.idx}`}
+                              key={'callout_label_' + slice.idx}
                               style={[
-                                styles.calloutLabelAbsolute,
+                                styles.calloutLabelRight,
                                 {
                                   right: 0,
-                                  top: slice.p3.y - 18,
-                                  alignItems: "flex-end",
-                                  width: 84,
+                                  top: slice.targetY - 18,
+                                  width: CALLOUT_WIDTH,
                                 },
                               ]}
                               onPress={() =>
@@ -635,15 +782,16 @@ export const ReportScreen: React.FC = () => {
                               }
                               activeOpacity={0.8}
                             >
-                              <View style={styles.calloutPillRow}>
-                                <CategoryIcon name={slice.item.categoryName || slice.item.categoryIcon} size={14} />
-                                <Text style={[styles.calloutPctText, { color: slice.color }]}>
+                              <View style={styles.calloutPillRowRight}>
+                                <Text style={[styles.calloutPctText, { color: slice.color, textAlign: "right" }]}>
                                   {slice.pctStr}
                                 </Text>
+                                <CategoryIcon name={slice.item.categoryName || slice.item.categoryIcon} size={14} />
                               </View>
                               <Text
                                 style={[
                                   styles.calloutNameText,
+                                  { textAlign: "right", color: isDark ? themeColors.textPrimary : "#475569" },
                                   slice.isSelected && { fontWeight: "900", color: slice.color },
                                 ]}
                                 numberOfLines={1}
@@ -653,16 +801,16 @@ export const ReportScreen: React.FC = () => {
                             </TouchableOpacity>
                           );
                         } else {
+                          // Gắn sát lề trái
                           return (
                             <TouchableOpacity
-                              key={`callout_label_${slice.idx}`}
+                              key={'callout_label_' + slice.idx}
                               style={[
-                                styles.calloutLabelAbsolute,
+                                styles.calloutLabelLeft,
                                 {
                                   left: 0,
-                                  top: slice.p3.y - 18,
-                                  alignItems: "flex-start",
-                                  width: 84,
+                                  top: slice.targetY - 18,
+                                  width: CALLOUT_WIDTH,
                                 },
                               ]}
                               onPress={() =>
@@ -670,15 +818,16 @@ export const ReportScreen: React.FC = () => {
                               }
                               activeOpacity={0.8}
                             >
-                              <View style={styles.calloutPillRow}>
+                              <View style={styles.calloutPillRowLeft}>
                                 <CategoryIcon name={slice.item.categoryName || slice.item.categoryIcon} size={14} />
-                                <Text style={[styles.calloutPctText, { color: slice.color }]}>
+                                <Text style={[styles.calloutPctText, { color: slice.color, textAlign: "left" }]}>
                                   {slice.pctStr}
                                 </Text>
                               </View>
                               <Text
                                 style={[
                                   styles.calloutNameText,
+                                  { textAlign: "left", color: isDark ? themeColors.textPrimary : "#475569" },
                                   slice.isSelected && { fontWeight: "900", color: slice.color },
                                 ]}
                                 numberOfLines={1}
@@ -1391,6 +1540,7 @@ const styles = StyleSheet.create({
   /* ─── LEADER-LINE DONUT CHART STYLES ─── */
   donutLeaderChartWrapper: {
     marginVertical: 10,
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1411,40 +1561,30 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     borderColor: "#F1F5F9",
+    zIndex: 10,
   },
-  donutCenterTotalLabel: {
-    fontSize: 10.5,
-    fontWeight: "700",
-    color: colors.slate500,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  donutCenterTotalVal: {
-    fontSize: 15,
-    fontWeight: "900",
-    marginTop: 2,
-  },
-  donutCenterActiveName: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: colors.slate800,
-    marginTop: 2,
-  },
-  donutCenterActiveVal: {
-    fontSize: 14,
-    fontWeight: "900",
-    marginTop: 1,
-  },
-
-  /* Callout Labels Attached to Leader Lines */
-  calloutLabelAbsolute: {
+  calloutLabelLeft: {
     position: "absolute",
-    maxWidth: 95,
+    alignItems: "flex-start",
+    zIndex: 5,
   },
-  calloutPillRow: {
+  calloutLabelRight: {
+    position: "absolute",
+    alignItems: "flex-end",
+    zIndex: 5,
+  },
+  calloutPillRowLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    justifyContent: "flex-start",
+    gap: 4,
+    marginBottom: 2,
+  },
+  calloutPillRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 4,
     marginBottom: 2,
   },
   calloutPctText: {
@@ -1455,6 +1595,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: "#475569",
+    maxWidth: 82,
+  },
+  donutCenterTotalLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.slate500,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  donutCenterTotalVal: {
+    fontSize: 13.5,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  donutCenterActiveName: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.slate800,
+    marginTop: 2,
+    textAlign: "center",
+  },
+  donutCenterActiveVal: {
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 1,
   },
 
   /* Accordion */

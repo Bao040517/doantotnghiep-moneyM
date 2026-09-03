@@ -815,12 +815,16 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({ visible, onClose
           (c) => c.name.toLowerCase() === txData.categoryName.toLowerCase()
         ) || categories.find((c) => c.type === targetType) || categories[0];
 
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const nowDate = new Date();
+        const localIsoDate = `${nowDate.getFullYear()}-${pad(nowDate.getMonth() + 1)}-${pad(nowDate.getDate())}T${pad(nowDate.getHours())}:${pad(nowDate.getMinutes())}:${pad(nowDate.getSeconds())}`;
+
         await financialServices.createTransaction(targetWallet.id, {
           amount: txData.amount,
           categoryId: matchedCat?.id || "",
           note: txData.note || `${isExpense ? "Chi tiêu" : "Thu nhập"}: ${txData.categoryName}`,
           type: isExpense ? "EXPENSE" : "INCOME",
-          transactionDate: new Date().toISOString(),
+          transactionDate: localIsoDate,
         });
 
         setSavedTxIds((prev) => new Set([...prev, bubbleId]));

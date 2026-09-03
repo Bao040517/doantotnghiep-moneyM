@@ -182,12 +182,16 @@ export const TransferBottomSheet: React.FC<TransferBottomSheetProps> = ({
       const finalNote = `[${selectedBank?.shortName} - ${accountNumber}] ${note}`.trim();
       const finalLinkedBudgetId = linkedBudgetId || matchingBudget?.budgetId;
 
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const nowDate = new Date();
+      const localIsoDate = `${nowDate.getFullYear()}-${pad(nowDate.getMonth() + 1)}-${pad(nowDate.getDate())}T${pad(nowDate.getHours())}:${pad(nowDate.getMinutes())}:${pad(nowDate.getSeconds())}`;
+
       const txRes = await financialServices.createTransaction(walletId, {
         amount: rawAmount,
         type: "EXPENSE",
         categoryId: categoryId,
         note: finalNote,
-        transactionDate: new Date().toISOString(),
+        transactionDate: localIsoDate,
         isSplit: false,
         linkedBudgetId: finalLinkedBudgetId,
       });

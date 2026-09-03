@@ -129,6 +129,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       return;
     }
 
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const now = new Date();
+    const localIsoDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
     setLoading(true);
     try {
       await onAddTransaction(selectedWalletId, {
@@ -136,7 +140,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         amount: rawNumber,
         type,
         note: note.trim(),
-        transactionDate: new Date().toISOString(),
+        transactionDate: localIsoDate,
       });
       setAmount("");
       setNote("");

@@ -7,7 +7,6 @@ import {
   Text,
   ActivityIndicator,
   Keyboard,
-  TouchableWithoutFeedback,
   Alert,
 } from "react-native";
 import { BottomSheet } from "../ui/BottomSheet";
@@ -170,8 +169,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View>
+        <View>
 
         {/* Wallet Selector (Dropdown List) */}
         {wallets.length > 1 && (
@@ -317,7 +315,6 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           style={styles.submitBtn}
         />
           </View>
-        </TouchableWithoutFeedback>
       </ScrollView>
     </BottomSheet>
   );

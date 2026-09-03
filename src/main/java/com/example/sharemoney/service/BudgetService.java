@@ -373,8 +373,8 @@ public class BudgetService {
         for (Budget b : budgets) {
             if (b.getType() != null && "BILL".equals(b.getType().name())) {
                 BigDecimal spent =
-                        transactionRepository.sumAllExpenseByCategoryAndMonth(
-                                userId, b.getCategory().getId(), year, month);
+                        transactionRepository.sumAllExpenseByLinkedBudgetAndMonth(
+                                userId, b.getId(), year, month);
                 if (spent == null) spent = BigDecimal.ZERO;
                 BigDecimal billAmt = b.getLimitAmount().max(spent);
                 totalBills = totalBills.add(billAmt);

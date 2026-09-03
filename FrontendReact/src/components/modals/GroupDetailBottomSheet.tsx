@@ -22,7 +22,7 @@ import { groupService } from "../../services/groupService";
 import { useAuth } from "../../hooks/useAuth";
 import { Group, GroupExpense, Payee } from "../../types";
 import { CategoryIcon } from "../ui/CategoryIcon";
-import { Receipt } from "lucide-react-native";
+import { Receipt, Trash2, LogOut } from "lucide-react-native";
 
 interface GroupDetailBottomSheetProps {
   visible: boolean;
@@ -158,6 +158,40 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRemoveMember = (targetMember: any) => {
+    const targetUserId = targetMember.user?.id || targetMember.id;
+    const targetName = targetMember.user?.name || "thành viên này";
+    const isSelf = targetUserId === user?.id;
+
+    Alert.alert(
+      isSelf ? "Rời khỏi nhóm" : "Xóa thành viên",
+      isSelf
+        ? `Bạn có chắc chắn muốn rời khỏi nhóm "${group?.name}"?`
+        : `Bạn có chắc chắn muốn xóa "${targetName}" ra khỏi nhóm?`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: isSelf ? "Rời nhóm" : "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await groupService.removeMemberFromGroup(groupId!, targetUserId);
+              Alert.alert("Thành công", isSelf ? "Đã rời nhóm thành công" : `Đã xóa ${targetName} khỏi nhóm`);
+              if (isSelf) {
+                onClose();
+              } else {
+                fetchGroupDetails();
+              }
+            } catch (err: any) {
+              const errMsg = err?.response?.data?.message || err?.message || "Không thể thực hiện thao tác này";
+              Alert.alert("Lỗi", errMsg);
+            }
+          },
+        },
+      ]
+    );
   };
 
   useEffect(() => {
@@ -983,26 +1017,53 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
           {activeTab === "members" && (
             <View style={styles.tabContent}>
               <Text style={styles.sectionHeaderTitle}>Danh sách thành viên ({group.members?.length || 0})</Text>
-              {group.members?.map((m) => (
-                <View key={m.id} style={styles.memberRow}>
-                  <View style={styles.memberAvatarCircle}>
-                    {m.user?.avatarUrl ? (
-                      <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
-                    ) : (
-                      <Text style={styles.memberAvatarText}>{(m.user?.name || "U").charAt(0)}</Text>
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.memberName}>{m.user?.name}</Text>
-                    <Text style={styles.memberEmail}>{m.user?.email || "Chưa có email"}</Text>
-                  </View>
-                  {m.role === "ADMIN" && (
-                    <View style={styles.adminTag}>
-                      <Text style={styles.adminTagText}>ADMIN</Text>
+              {group.members?.map((m) => {
+                const mUserId = m.user?.id || m.id;
+                const isOwnerMember = m.role === "OWNER" || m.role === "owner" || group.owner?.id === mUserId;
+                const isMe = mUserId === user?.id;
+                const isCurrentUserOwner = group.owner?.id === user?.id;
+
+                return (
+                  <View key={m.id || mUserId} style={styles.memberRow}>
+                    <View style={styles.memberAvatarCircle}>
+                      {m.user?.avatarUrl ? (
+                        <Image source={{ uri: m.user.avatarUrl }} style={styles.memberAvatarImg} />
+                      ) : (
+                        <Text style={styles.memberAvatarText}>{(m.user?.name || "U").charAt(0)}</Text>
+                      )}
                     </View>
-                  )}
-                </View>
-              ))}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.memberName}>
+                        {m.user?.name} {isMe ? "(Bạn)" : ""}
+                      </Text>
+                      <Text style={styles.memberEmail}>{m.user?.email || "Chưa có email"}</Text>
+                    </View>
+
+                    {isOwnerMember ? (
+                      <View style={styles.adminTag}>
+                        <Text style={styles.adminTagText}>CHỦ NHÓM</Text>
+                      </View>
+                    ) : isCurrentUserOwner ? (
+                      <TouchableOpacity
+                        onPress={() => handleRemoveMember(m)}
+                        style={styles.removeMemberBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Trash2 size={16} color={colors.rose500} strokeWidth={2} />
+                      </TouchableOpacity>
+                    ) : isMe ? (
+                      <TouchableOpacity
+                        onPress={() => handleRemoveMember(m)}
+                        style={styles.leaveGroupBtn}
+                        activeOpacity={0.7}
+                      >
+                        <LogOut size={14} color={colors.rose600} strokeWidth={2} style={{ marginRight: 4 }} />
+                        <Text style={styles.leaveGroupBtnText}>Rời nhóm</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                );
+              })}
             </View>
           )}
         </ScrollView>
@@ -1474,6 +1535,26 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800",
     color: colors.emerald700,
+  },
+  removeMemberBtn: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#FEE2E2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  leaveGroupBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#FEE2E2",
+  },
+  leaveGroupBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.rose600,
   },
   qrWrapper: {
     marginTop: 16,

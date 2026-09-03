@@ -37,6 +37,7 @@ export const groupService = {
   searchUserByPhone: (phone: string) => api.get<{ id: string; name: string; phone: string }>(`/users/search?phone=${encodeURIComponent(phone)}`).then((res) => res.data),
   getUserById: (userId: string) => api.get<any>(`/users/${userId}`).then((res) => res.data),
   addMemberToGroup: (groupId: string, userId: string) => api.post(`/groups/${groupId}/members`, { userId }).then((res) => res.data),
+  removeMemberFromGroup: (groupId: string, memberId: string) => api.delete(`/groups/${groupId}/members/${memberId}`).then((res) => res.data),
   getGroupPreview: (groupId: string) => api.get<any>(`/groups/${groupId}/preview`).then((res) => res.data),
   joinGroup: (groupId: string) => api.post<Group>(`/groups/${groupId}/join`).then((res) => res.data),
 };

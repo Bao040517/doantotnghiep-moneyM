@@ -24,6 +24,15 @@ public enum ErrorCode {
     GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy nhóm."),
     NOT_GROUP_MEMBER(HttpStatus.FORBIDDEN, "Bạn không phải thành viên nhóm này."),
     ALREADY_GROUP_MEMBER(HttpStatus.CONFLICT, "Người dùng đã là thành viên của nhóm này."),
+    MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy thành viên trong nhóm."),
+    DEBT_NOT_SETTLED(
+            HttpStatus.BAD_REQUEST,
+            "Không thể xóa hoặc rời nhóm khi chưa tất toán công nợ (số dư nợ phải bằng 0)."),
+    OWNER_CANNOT_LEAVE(
+            HttpStatus.BAD_REQUEST,
+            "Chủ nhóm không thể tự rời nhóm. Vui lòng chuyển quyền chủ nhóm trước."),
+    CANNOT_REMOVE_OWNER(
+            HttpStatus.BAD_REQUEST, "Không thể xóa chủ nhóm ra khỏi nhóm."),
 
     // --- Expense ---
     EXPENSE_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy khoản chi tiêu."),

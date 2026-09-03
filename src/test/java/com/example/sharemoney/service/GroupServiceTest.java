@@ -38,6 +38,7 @@ class GroupServiceTest {
     @Mock private GroupMemberRepository groupMemberRepository;
     @Mock private UserRepository userRepository;
     @Mock private NotificationService notificationService;
+    @Mock private DebtService debtService;
 
     @InjectMocks private GroupService groupService;
 
@@ -349,5 +350,66 @@ class GroupServiceTest {
         assertEquals("Nhóm Bạn Thân", response.getName());
         assertEquals(2, response.getMemberCount());
         verify(groupMemberRepository).save(any(GroupMember.class));
+    }
+
+    @Test
+    @DisplayName("Xóa thành viên: Thành công khi số dư nợ bằng 0")
+    void testRemoveMember_Success_ZeroDebt() {
+        UUID memberId = UUID.randomUUID();
+        User memberUser = User.builder().id(memberId).name("Tran B").email("b@example.com").build();
+        GroupMember gm = GroupMember.builder().id(UUID.randomUUID()).group(group).user(memberUser).role("member").build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroup_IdAndUser_Id(groupId, memberId)).thenReturn(Optional.of(gm));
+        when(debtService.calculateGroupDebts(groupId, userId)).thenReturn(
+                com.example.sharemoney.dto.response.DebtSummaryResponse.builder()
+                        .memberBalances(List.of(
+                                com.example.sharemoney.dto.response.DebtSummaryResponse.MemberBalance.builder()
+                                        .user(com.example.sharemoney.dto.response.UserSummaryResponse.builder().id(memberId).build())
+                                        .balance(java.math.BigDecimal.ZERO)
+                                        .build()
+                        ))
+                        .build()
+        );
+
+        assertDoesNotThrow(() -> groupService.removeMember(groupId, memberId, userId));
+        verify(groupMemberRepository).delete(gm);
+        verify(notificationService).sendNotification(eq(memberId), anyString(), eq("GROUP_MEMBER_REMOVED"));
+    }
+
+    @Test
+    @DisplayName("Xóa thành viên: Thất bại khi thành viên còn nợ chưa thanh toán")
+    void testRemoveMember_Fails_DebtNotSettled() {
+        UUID memberId = UUID.randomUUID();
+        User memberUser = User.builder().id(memberId).name("Tran B").email("b@example.com").build();
+        GroupMember gm = GroupMember.builder().id(UUID.randomUUID()).group(group).user(memberUser).role("member").build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroup_IdAndUser_Id(groupId, memberId)).thenReturn(Optional.of(gm));
+        when(debtService.calculateGroupDebts(groupId, userId)).thenReturn(
+                com.example.sharemoney.dto.response.DebtSummaryResponse.builder()
+                        .memberBalances(List.of(
+                                com.example.sharemoney.dto.response.DebtSummaryResponse.MemberBalance.builder()
+                                        .user(com.example.sharemoney.dto.response.UserSummaryResponse.builder().id(memberId).build())
+                                        .balance(new java.math.BigDecimal("-50000"))
+                                        .build()
+                        ))
+                        .build()
+        );
+
+        AppException ex = assertThrows(AppException.class, () -> groupService.removeMember(groupId, memberId, userId));
+        assertEquals(ErrorCode.DEBT_NOT_SETTLED, ex.getErrorCode());
+        verify(groupMemberRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Xóa thành viên: Chủ nhóm không thể tự rời nhóm")
+    void testRemoveMember_Fails_OwnerCannotLeave() {
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        GroupMember ownerGm = GroupMember.builder().id(UUID.randomUUID()).group(group).user(user).role("owner").build();
+        when(groupMemberRepository.findByGroup_IdAndUser_Id(groupId, userId)).thenReturn(Optional.of(ownerGm));
+
+        AppException ex = assertThrows(AppException.class, () -> groupService.removeMember(groupId, userId, userId));
+        assertEquals(ErrorCode.OWNER_CANNOT_LEAVE, ex.getErrorCode());
     }
 }

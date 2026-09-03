@@ -29,6 +29,7 @@ public class GroupService {
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final DebtService debtService;
 
     // ─────────────────────────────────────────────────────────────
     // Tạo nhóm mới + tự động thêm người tạo làm "owner"
@@ -287,6 +288,63 @@ public class GroupService {
 
         int memberCount = groupMemberRepository.findByGroup_Id(groupId).size();
         return toGroupResponse(group, memberCount);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Xóa thành viên khỏi nhóm hoặc tự rời nhóm
+    // ─────────────────────────────────────────────────────────────
+    @Transactional
+    public void removeMember(UUID groupId, UUID memberIdToDelete, UUID requesterId) {
+        Group group =
+                groupRepository
+                        .findById(groupId)
+                        .orElseThrow(() -> new AppException(ErrorCode.GROUP_NOT_FOUND));
+
+        GroupMember memberToDelete =
+                groupMemberRepository
+                        .findByGroup_IdAndUser_Id(groupId, memberIdToDelete)
+                        .orElseThrow(() -> new AppException(ErrorCode.MEMBER_NOT_FOUND));
+
+        boolean isOwner = group.getOwner() != null && group.getOwner().getId().equals(requesterId);
+        boolean isSelf = requesterId.equals(memberIdToDelete);
+
+        if (!isOwner && !isSelf) {
+            throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        // Không cho phép xóa chủ nhóm
+        if (group.getOwner() != null && group.getOwner().getId().equals(memberIdToDelete)) {
+            if (isSelf) {
+                throw new AppException(ErrorCode.OWNER_CANNOT_LEAVE);
+            } else {
+                throw new AppException(ErrorCode.CANNOT_REMOVE_OWNER);
+            }
+        }
+
+        // KIỂM TRA QUY TẮC CÔNG NỢ BẰNG 0 (Zero Debt Balance Rule)
+        com.example.sharemoney.dto.response.DebtSummaryResponse debts =
+                debtService.calculateGroupDebts(groupId, requesterId);
+
+        java.math.BigDecimal memberBalance =
+                debts.getMemberBalances().stream()
+                        .filter(mb -> mb.getUser().getId().equals(memberIdToDelete))
+                        .findFirst()
+                        .map(com.example.sharemoney.dto.response.DebtSummaryResponse.MemberBalance::getBalance)
+                        .orElse(java.math.BigDecimal.ZERO);
+
+        if (memberBalance.compareTo(java.math.BigDecimal.ZERO) != 0) {
+            throw new AppException(ErrorCode.DEBT_NOT_SETTLED);
+        }
+
+        groupMemberRepository.delete(memberToDelete);
+
+        // Gửi thông báo cho thành viên bị xóa
+        if (isOwner && !isSelf) {
+            String message =
+                    String.format("Bạn đã được xóa khỏi nhóm \"%s\".", group.getName());
+            notificationService.sendNotification(
+                    memberIdToDelete, message, "GROUP_MEMBER_REMOVED");
+        }
     }
 
     // ─────────────────────────────────────────────────────────────

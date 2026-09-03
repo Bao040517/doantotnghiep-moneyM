@@ -487,6 +487,25 @@
 
 ---
 
+### 🔹 Luồng 7.5: Xóa thành viên & Rời khỏi nhóm an toàn (`Zero-Debt Balance Protection`)
+- **1. Sự kiện kích hoạt:** 
+  - Chủ nhóm (`OWNER`) bấm nút xóa 🗑️ cạnh một thành viên trong tab *Thành viên*.
+  - Hoặc thành viên (`MEMBER`) tự bấm *"Rời nhóm"* trên `GroupDetailScreen.tsx`.
+- **2. API tiếp nhận:** `DELETE /api/groups/{groupId}/members/{memberId}`.
+- **3. File xử lý dữ liệu (`GroupService.java`):**
+  - **Kiểm tra quyền hạn:** Chỉ Chủ nhóm mới được xóa thành viên khác; Thành viên chỉ được tự rời nhóm của mình; Chủ nhóm không được tự rời nếu chưa chuyển nhượng quyền chủ nhóm (`OWNER_CANNOT_LEAVE`).
+  - **Kiểm định Tất toán Công nợ (Zero-Debt Integrity Rule):** Gọi `DebtService.calculateGroupDebts(groupId, requesterId)`. 
+  - Truy vấn số dư nợ ròng (`net balance`) của thành viên cần xóa.
+  - Nếu `balance != 0` (đang nợ người khác hoặc được người khác nợ) $\rightarrow$ Ngăn chặn và trả về lỗi `HTTP 400 Bad Request` (`DEBT_NOT_SETTLED`).
+  - Nếu `balance == 0` (đã sòng phẳng 100%) $\rightarrow$ Thực hiện xóa khỏi bảng `group_members`.
+  - Bắn thông báo Push / Realtime `GROUP_MEMBER_REMOVED` cho thành viên bị xóa.
+- **4. Thao tác Cơ sở dữ liệu:**
+  - `SELECT * FROM group_members WHERE group_id = ? AND user_id = ?`.
+  - `DELETE FROM group_members WHERE id = ?`.
+- **5. Dữ liệu Phản hồi:** `HTTP 204 No Content` (Xóa thành công) hoặc `HTTP 400 Bad Request` (`DEBT_NOT_SETTLED`).
+
+---
+
 ## 8. PHÂN HỆ THUẬT TOÁN GREEDY RÚT GỌN NỢ & QUYẾT TOÁN VIETQR (DEBT SETTLEMENT)
 
 ---

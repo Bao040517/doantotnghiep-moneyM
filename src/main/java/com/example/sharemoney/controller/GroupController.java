@@ -90,6 +90,15 @@ public class GroupController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    /** DELETE /api/groups/{groupId}/members/{memberId} Xóa thành viên hoặc tự rời nhóm. */
+    @org.springframework.web.bind.annotation.DeleteMapping("/{groupId}/members/{memberId}")
+    public ResponseEntity<Void> removeMember(
+            @PathVariable UUID groupId, @PathVariable UUID memberId) {
+        UUID currentUserId = SecurityUtils.getCurrentUserId();
+        groupService.removeMember(groupId, memberId, currentUserId);
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * GET /api/groups/debts/summary Trả về tổng số tiền user đang nợ (totalOwing) và được nợ
      * (totalOwed) xuyên suốt tất cả các nhóm. Dùng để tính Safe-to-Spend trên WalletTab.

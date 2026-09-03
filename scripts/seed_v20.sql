@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE TABLE IF NOT EXISTS transaction_splits (
     id UUID PRIMARY KEY,
-    transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    parent_transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
     category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
     amount NUMERIC(19, 4) NOT NULL,
     note TEXT,

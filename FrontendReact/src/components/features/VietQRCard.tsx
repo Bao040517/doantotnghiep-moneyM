@@ -129,9 +129,13 @@ export const VietQRCard: React.FC<VietQRCardProps> = ({
 
   // Chuỗi QR Payload chuẩn Napas247 / VietQR có mã CRC16
   const qrPayload = useMemo(() => {
-    if (!verified) return "";
-    return generateEMVCoPayload(realBin, displayAccountNo, displayAmount, displayDescription);
-  }, [realBin, displayAccountNo, displayAmount, displayDescription, verified]);
+    let cleanAcc = (displayAccountNo || "").trim().replace(/\s/g, "");
+    if (cleanAcc.includes("_")) {
+      cleanAcc = cleanAcc.split("_")[0];
+    }
+    if (!cleanAcc || cleanAcc.length < 4) return "";
+    return generateEMVCoPayload(realBin, cleanAcc, displayAmount, displayDescription);
+  }, [realBin, displayAccountNo, displayAmount, displayDescription]);
 
   const handleCopy = (text: string, label: string) => {
     setCopiedField(label);

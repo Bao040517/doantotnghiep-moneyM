@@ -206,13 +206,15 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
             name: recentPayee.name || verified.accountName || "Người nhận gần nhất",
             bankBin: verified.bin,
             bankAccount: verified.accountNumber,
-            accountName: verified.accountName,
+            accountName: verified.accountName || recentPayee.accountName,
             source: "saved",
           }, true);
           onClose();
         } catch (error: any) {
           Alert.alert("Không thể tạo QR", error?.message || "STK chưa được ngân hàng xác thực.");
         }
+      } else {
+        Alert.alert("Chưa có số tài khoản", "Người nhận này chưa có số tài khoản ngân hàng. Vui lòng chuyển sang tab 'Thêm mới' hoặc chọn 'Đã trả tiền mặt'.");
       }
     } else if (activeTab === "saved") {
       if (selectedPayee && selectedPayee.bankAccount) {
@@ -222,12 +224,14 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
             ...selectedPayee,
             bankBin: verified.bin,
             bankAccount: verified.accountNumber,
-            accountName: verified.accountName,
+            accountName: verified.accountName || selectedPayee.accountName,
           }, false);
           onClose();
         } catch (error: any) {
           Alert.alert("Không thể tạo QR", error?.message || "STK chưa được ngân hàng xác thực.");
         }
+      } else {
+        Alert.alert("Chưa có số tài khoản", "Người nhận này chưa có số tài khoản ngân hàng. Vui lòng chuyển sang tab 'Thêm mới' hoặc chọn 'Đã trả tiền mặt'.");
       }
     } else if (activeTab === "new") {
       if (!newBankBin) {
@@ -242,7 +246,6 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
       try {
         verifiedAccount = await verifyBankAccount(newBankBin, newAccNo);
       } catch (error: any) {
-        setLookupVerified(false);
         Alert.alert("Không thể tạo QR", error?.message || "STK chưa được ngân hàng xác thực.");
         return;
       }
@@ -259,9 +262,12 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
       };
 
       try {
-        // Tự động lưu vào danh bạ đã lưu để tái sử dụng
-        const saved = await payeeService.savePayee(payload);
-        onSelectPayee(saved, newSaveDefault);
+        if (newSaveDefault) {
+          const saved = await payeeService.savePayee(payload);
+          onSelectPayee(saved, true);
+        } else {
+          onSelectPayee({ ...payload, source: "saved" }, false);
+        }
         onClose();
       } catch {
         onSelectPayee({ ...payload, source: "saved" }, newSaveDefault);
@@ -385,7 +391,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
   const isQRDisabled =
     (activeTab === "recent" && (!recentPayee || !recentPayee.bankAccount)) ||
     (activeTab === "saved" && (!selectedPayee || !selectedPayee.bankAccount)) ||
-    (activeTab === "new" && (!newBankBin || !newAccNo.trim() || !lookupVerified || lookupLoading)) ||
+    (activeTab === "new" && (!newBankBin || !newAccNo.trim())) ||
     isSubmitting;
 
   // Validation Cash button

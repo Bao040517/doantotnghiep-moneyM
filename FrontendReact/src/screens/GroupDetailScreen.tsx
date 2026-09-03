@@ -914,6 +914,21 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         }}
         onSelectPayee={handleSelectPayeeForDebt}
         defaultAmount={pendingSettleDebt?.amount}
+        onOfflineSettle={async (payeeName, note) => {
+          if (!pendingSettleDebt) return;
+          try {
+            const toUserId = pendingSettleDebt.to?.id;
+            if (groupId && toUserId) {
+              await groupService.notifyPayment(groupId, { toUserId, amount: pendingSettleDebt.amount });
+              showToast(`Đã ghi nhận thanh toán tiền mặt cho ${payeeName}! 💵`, "success");
+            }
+            setPayeeSelectorVisible(false);
+            setPendingSettleDebt(null);
+            fetchGroupDetails();
+          } catch {
+            showToast("Không thể ghi nhận thanh toán", "error");
+          }
+        }}
       />
 
       {/* ─── BANKING SANDBOX GATEWAY MODAL ─── */}
@@ -1448,6 +1463,23 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
         visible={payeeSelectorVisible}
         onClose={() => setPayeeSelectorVisible(false)}
         onSelectPayee={handleSelectPayeeForDebt}
+        onOfflineSettle={async (payeeName, note) => {
+          if (!pendingSettleDebt && !qrSettleDebt) return;
+          try {
+            const toUserId = pendingSettleDebt?.to?.id || qrSettleDebt?.toUserId;
+            const amt = pendingSettleDebt?.amount || qrSettleDebt?.amount || 0;
+            if (groupId && toUserId) {
+              await groupService.notifyPayment(groupId, { toUserId, amount: amt });
+              showToast(`Đã ghi nhận thanh toán tiền mặt cho ${payeeName}! 💵`, "success");
+            }
+            setPayeeSelectorVisible(false);
+            setPendingSettleDebt(null);
+            setQrSettleDebt(null);
+            fetchGroupDetails();
+          } catch {
+            showToast("Không thể ghi nhận thanh toán", "error");
+          }
+        }}
       />
 
       {/* ─── GROUP QR LIGHTBOX MODAL ─── */}

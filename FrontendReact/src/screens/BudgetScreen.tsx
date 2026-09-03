@@ -444,6 +444,7 @@ export const BudgetScreen: React.FC = () => {
           type: "EXPENSE",
           categoryId: b.categoryId,
           linkedBudgetId: b.budgetId,
+          paymentMethod: "CASH",
           note: note?.trim() || `Đã thanh toán cho ${payeeName.trim() || b.name || b.categoryName}`,
         });
       }
@@ -470,6 +471,7 @@ export const BudgetScreen: React.FC = () => {
           type: "EXPENSE",
           categoryId: sandboxDebtInfo.categoryId,
           linkedBudgetId: sandboxDebtInfo.budgetId,
+          paymentMethod: "VIETQR",
           note: `Thanh toán VietQR cho ${sandboxDebtInfo.toName || sandboxDebtInfo.groupName || "ngân sách"}`,
         });
       }
@@ -483,7 +485,7 @@ export const BudgetScreen: React.FC = () => {
         const newData = await financialServices.getBudgetSummary(year, month);
         setBudgets(newData || []);
       } catch (e) {}
-      showToast(`Đã thanh toán ${(amount || 0).toLocaleString("vi-VN")} ₫! 🎉`, "success");
+      showToast(`Không thể ghi nhận giao dịch: ${err.response?.data?.message || err.message || "Lỗi không xác định"}`, "error");
     }
   };
 

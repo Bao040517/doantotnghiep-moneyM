@@ -263,15 +263,17 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       if (gId && toUserId) {
         await groupService.notifyPayment(gId, { toUserId, amount });
       }
-      showToast("Đã mô phỏng thanh toán Sandbox thành công! 🎉", "success");
+      showToast("Đã gửi thông báo thanh toán tới chủ nợ! ⏳", "success");
       setSandboxVisible(false);
       setSelectedDebt(null);
+      setPendingDebtForSelector(null);
       loadGroupData();
     } catch (e: any) {
       console.error(e);
-      showToast("Đã ghi nhận giao dịch Sandbox!", "success");
+      showToast("Đã ghi nhận giao dịch! 🎉", "success");
       setSandboxVisible(false);
       setSelectedDebt(null);
+      setPendingDebtForSelector(null);
       loadGroupData();
     }
   };
@@ -647,6 +649,22 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         }}
         onSelectPayee={handleSelectPayeeForGroupDebt}
         defaultAmount={pendingDebtForSelector?.amount}
+        onOfflineSettle={async (payeeName, note) => {
+          if (!pendingDebtForSelector) return;
+          try {
+            const gId = pendingDebtForSelector.groupId;
+            const toUserId = pendingDebtForSelector.otherMemberId;
+            if (gId && toUserId) {
+              await groupService.notifyPayment(gId, { toUserId, amount: pendingDebtForSelector.amount });
+            }
+            showToast(`Đã ghi nhận thanh toán tiền mặt ${pendingDebtForSelector.amount.toLocaleString("vi-VN")} ₫ cho ${payeeName}! 💵`, "success");
+            setPayeeSelectorVisible(false);
+            setPendingDebtForSelector(null);
+            loadGroupData();
+          } catch {
+            showToast("Không thể ghi nhận thanh toán", "error");
+          }
+        }}
       />
 
       {/* Payment Sandbox Simulation Modal */}

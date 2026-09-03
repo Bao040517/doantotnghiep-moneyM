@@ -4,21 +4,32 @@ export interface VerifiedBankAccount {
   accountName?: string;
 }
 
-/** Xác thực định dạng số tài khoản (6-19 số) và mã BIN (6 số). Không gọi API bên ngoài để tránh phát sinh chi phí. */
+/** Xác thực và chuẩn hóa thông tin số tài khoản / mã BIN VietQR */
 export async function verifyBankAccount(
   bin: string | undefined,
   accountNumber: string | undefined,
   accountName?: string
 ): Promise<VerifiedBankAccount> {
-  const cleanBin = (bin || "").trim();
-  const cleanAccountNumber = (accountNumber || "").replace(/\s/g, "");
+  const cleanBin = (bin || "").trim().replace(/\D/g, "");
+  let cleanAccountNumber = (accountNumber || "").trim().replace(/\s/g, "");
 
-  if (!/^\d{6}$/.test(cleanBin) || !/^\d{6,19}$/.test(cleanAccountNumber)) {
-    throw new Error("Mã ngân hàng hoặc số tài khoản không đúng định dạng (yêu cầu từ 6 đến 19 chữ số).");
+  // Nếu có suffix dạng _username trong seed data (vd: 1012345678_ducbaoddb1705), làm sạch để lấy đúng STK
+  if (cleanAccountNumber.includes("_")) {
+    const parts = cleanAccountNumber.split("_");
+    if (parts[0] && parts[0].length >= 4) {
+      cleanAccountNumber = parts[0];
+    }
+  }
+
+  // BIN ngân hàng chuẩn 6 số (mặc định MBBank 970422 nếu rỗng)
+  const validBin = cleanBin.length === 6 ? cleanBin : (cleanBin || "970422");
+
+  if (!cleanAccountNumber || cleanAccountNumber.length < 4) {
+    throw new Error("Số tài khoản ngân hàng không hợp lệ (yêu cầu từ 4 ký tự).");
   }
 
   return {
-    bin: cleanBin,
+    bin: validBin,
     accountNumber: cleanAccountNumber,
     accountName: accountName?.trim() || "",
   };

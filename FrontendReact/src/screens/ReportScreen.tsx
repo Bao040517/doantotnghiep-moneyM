@@ -623,7 +623,7 @@ export const ReportScreen: React.FC = () => {
                                 {
                                   right: 0,
                                   top: slice.p3.y - 18,
-                                  alignItems: "flex-start",
+                                  alignItems: "flex-end",
                                   width: 84,
                                 },
                               ]}

@@ -1013,6 +1013,21 @@ export const GroupDetailBottomSheet: React.FC<GroupDetailBottomSheetProps> = ({
         }}
         onSelectPayee={handleSelectPayeeForDebt}
         defaultAmount={pendingSettleDebt?.amount}
+        onOfflineSettle={async (payeeName, note) => {
+          if (!pendingSettleDebt) return;
+          try {
+            const toUserId = pendingSettleDebt.to?.id;
+            if (groupId && toUserId) {
+              await groupService.notifyPayment(groupId, { toUserId, amount: pendingSettleDebt.amount });
+            }
+            Alert.alert("Thành công", `Đã ghi nhận thanh toán tiền mặt cho ${payeeName}! 💵`);
+            setPayeeSelectorVisible(false);
+            setPendingSettleDebt(null);
+            fetchGroupDetails();
+          } catch {
+            Alert.alert("Lỗi", "Không thể ghi nhận thanh toán");
+          }
+        }}
       />
 
       {/* ─── BANKING SANDBOX GATEWAY MODAL ─── */}

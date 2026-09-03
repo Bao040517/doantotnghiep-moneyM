@@ -227,12 +227,35 @@ Bộ dữ liệu **Seed V18 (`seed_v18.sql` & `generate_seed_v18.js`)** là phi�
 
 ---
 
-## 17. Tóm tắt các Script đang sử dụng
-*   `generate_seed_v18.js`: **Kịch bản thế hệ mới nhất V18**, sửa lỗi `DYNAMIC` → `FLEXIBLE`, kế thừa toàn bộ V17.
-*   `seed_v18.sql`: **File SQL thành phẩm V18** sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / AWS).
-*   `seed_v17.sql` / `generate_seed_v17.js`: Bản lưu trữ thế hệ V17 (có lỗi DEFAULT DYNAMIC).
-*   `seed_v16.sql` / `generate_seed_v16.js`: Bản lưu trữ thế hệ V16.
-*   `seed_v15.sql` / `generate_seed_v15.js`: Bản lưu trữ thế hệ V15.
+---
+
+## 18. Đặc tả Bộ dữ liệu mẫu V20 (Seed V20 Data Specs)
+
+Bộ dữ liệu **Seed V20 (`seed_v20.sql` & `build_v20.js`)** là phiên bản tối ưu hóa toàn diện nhất:
+*   **Email User A chính thức:** `ducbaoddb1705@gmail.com` (Dương Đức Bảo - Thông Thái).
+*   **Độ sâu dữ liệu 5 User personas phong phú:**
+    *   **User A (`ducbaoddb1705@gmail.com`):** **56 tháng** (01/2022 $\rightarrow$ 09/2026, hỗ trợ biểu đồ 5 năm và 6 tháng).
+    *   **User B (`nguyenvanb@gmail.com`):** **12 tháng** (10/2025 $\rightarrow$ 09/2026).
+    *   **User C (`nguyenvanc@gmail.com`):** **11 tháng** (11/2025 $\rightarrow$ 09/2026).
+    *   **User D (`phamvand@gmail.com`):** **10 tháng** (12/2025 $\rightarrow$ 09/2026).
+    *   **User E (`hoangthie@gmail.com`):** **9 tháng** (01/2026 $\rightarrow$ 09/2026).
+*   **Mốc thời gian thực tế Tháng 09/2026 (Live Cutoff 03/09/2026):**
+    *   Dữ liệu giao dịch 3 ngày đầu tháng 9 (01/09, 02/09, 03/09/2026) cho tất cả 5 user personas (Lương, Tiền nhà, Ăn uống Lễ 2/9, Cà phê sáng, Grab, Nhu yếu phẩm).
+    *   Toàn bộ ngân sách Tháng 09/2026 (`FLEXIBLE`, `BILL`) với các hóa đơn đầu tháng sẵn sàng nút `✓ Trả ngay` (VietQR P2P & PayOS).
+    *   Nhóm "Hội Bạn Thân (A - B - C)" có sẵn 3 khoản chi tiêu & công nợ Lễ 2/9 (Haidilao, thuê xe dã ngoại Vũng Tàu, homestay Hồ Tràm).
+    *   Quả chuông 🔔 có 4 thông báo chưa đọc cho User A (`ducbaoddb1705@gmail.com`).
+*   **Tuân thủ ACID & Ràng buộc PFM:**
+    *   Hạn mức ngân sách `<= 2.000.000 VNĐ`, tổng tài sản ròng `<= 25.000.000 VNĐ`.
+    *   100% Entity Parity với Spring Boot JPA Hibernate (`BudgetType.FLEXIBLE`, `BudgetType.BILL`).
+
+---
+
+## 19. Tóm tắt các Script đang sử dụng
+*   `build_v20.js`: **Kịch bản thế hệ mới nhất V20**, thiết lập User A `ducbaoddb1705@gmail.com`, độ sâu 9 - 56 tháng, mốc 03/09/2026.
+*   `seed_v20.sql`: **File SQL thành phẩm V20** sẵn sàng thực thi trực tiếp trên PostgreSQL (Supabase / AWS).
+*   `build_v19.js` / `seed_v19.sql`: Bản lưu trữ thế hệ V19.
+*   `generate_seed_v18.js` / `seed_v18.sql`: Bản lưu trữ thế hệ V18.
 *   `check_entities.js`: Tool nội bộ quét file `.java` và validate cấu trúc cột `NOT NULL`.
+
 
 

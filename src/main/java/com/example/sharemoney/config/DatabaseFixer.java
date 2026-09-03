@@ -25,6 +25,22 @@ public class DatabaseFixer {
                             + "tag_id UUID NOT NULL, "
                             + "PRIMARY KEY (transaction_id, tag_id)"
                             + ")");
+            try (java.sql.Connection conn = jdbcTemplate.getDataSource().getConnection()) {
+                String driver = conn.getMetaData().getDriverName().toLowerCase();
+                if (driver.contains("postgresql") || driver.contains("postgres")) {
+                    jdbcTemplate.execute(
+                            "DO $$ BEGIN "
+                                    + "IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'transaction_splits') THEN "
+                                    + "  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transaction_splits' AND column_name = 'parent_transaction_id') THEN "
+                                    + "    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transaction_splits' AND column_name = 'transaction_id') THEN "
+                                    + "      ALTER TABLE transaction_splits RENAME COLUMN transaction_id TO parent_transaction_id; "
+                                    + "    ELSE "
+                                    + "      ALTER TABLE transaction_splits ADD COLUMN parent_transaction_id UUID REFERENCES transactions(id) ON DELETE CASCADE; "
+                                    + "    END IF; "
+                                    + "  END IF; "
+                                    + "END IF; END $$;");
+                }
+            } catch (Exception ignored) {}
             jdbcTemplate.execute(
                     "UPDATE transactions SET exclude_from_budget = false WHERE exclude_from_budget IS NULL");
             jdbcTemplate.execute(

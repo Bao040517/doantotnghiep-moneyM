@@ -14,6 +14,7 @@ import com.example.sharemoney.exception.ErrorCode;
 import com.example.sharemoney.repository.ExpenseRepository;
 import com.example.sharemoney.repository.GroupMemberRepository;
 import com.example.sharemoney.repository.GroupRepository;
+import com.example.sharemoney.repository.PaymentRepository;
 import com.example.sharemoney.repository.UserRepository;
 import com.example.sharemoney.security.SecurityUtils;
 import java.util.List;
@@ -30,6 +31,7 @@ public class GroupService {
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
     private final ExpenseRepository expenseRepository;
+    private final PaymentRepository paymentRepository;
     private final NotificationService notificationService;
     private final DebtService debtService;
 
@@ -83,7 +85,7 @@ public class GroupService {
             }
         }
 
-        return toGroupResponse(group, count, 0);
+        return toGroupResponse(group, count, 0, 0);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -125,13 +127,21 @@ public class GroupService {
                                 java.util.stream.Collectors.toMap(
                                         arr -> (UUID) arr[0], arr -> (Long) arr[1]));
 
+        List<Object[]> pendingPaymentCounts = paymentRepository.countPendingPaymentsByGroupIds(groupIds);
+        java.util.Map<UUID, Long> pendingPaymentMap =
+                pendingPaymentCounts.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        arr -> (UUID) arr[0], arr -> (Long) arr[1]));
+
         return memberships.stream()
                 .map(
                         gm -> {
                             Group g = gm.getGroup();
                             int count = countMap.getOrDefault(g.getId(), 0L).intValue();
                             int pendingCount = pendingMap.getOrDefault(g.getId(), 0L).intValue();
-                            return toGroupResponse(g, count, pendingCount);
+                            int pendingPaymentCount = pendingPaymentMap.getOrDefault(g.getId(), 0L).intValue();
+                            return toGroupResponse(g, count, pendingCount, pendingPaymentCount);
                         })
                 .toList();
     }
@@ -166,6 +176,7 @@ public class GroupService {
                         .toList();
 
         int pendingCount = (int) expenseRepository.countByGroup_IdAndIsPendingRevisionTrue(groupId);
+        int pendingPaymentCount = (int) paymentRepository.countByGroup_IdAndStatus(groupId, "pending");
 
         return GroupDetailResponse.builder()
                 .id(group.getId())
@@ -175,6 +186,8 @@ public class GroupService {
                 .owner(toUserSummary(group.getOwner()))
                 .members(members)
                 .pendingRevisionCount(pendingCount)
+                .pendingPaymentCount(pendingPaymentCount)
+                .hasPendingPayment(pendingPaymentCount > 0)
                 .createdAt(group.getCreatedAt())
                 .build();
     }
@@ -301,7 +314,8 @@ public class GroupService {
 
         int memberCount = groupMemberRepository.findByGroup_Id(groupId).size();
         int pendingCount = (int) expenseRepository.countByGroup_IdAndIsPendingRevisionTrue(groupId);
-        return toGroupResponse(group, memberCount, pendingCount);
+        int pendingPaymentCount = (int) paymentRepository.countByGroup_IdAndStatus(groupId, "pending");
+        return toGroupResponse(group, memberCount, pendingCount, pendingPaymentCount);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -367,7 +381,8 @@ public class GroupService {
     // ─────────────────────────────────────────────────────────────
     // Helper methods
     // ─────────────────────────────────────────────────────────────
-    private GroupResponse toGroupResponse(Group group, int memberCount, int pendingRevisionCount) {
+    private GroupResponse toGroupResponse(
+            Group group, int memberCount, int pendingRevisionCount, int pendingPaymentCount) {
         return GroupResponse.builder()
                 .id(group.getId())
                 .name(group.getName())
@@ -376,6 +391,8 @@ public class GroupService {
                 .owner(toUserSummary(group.getOwner()))
                 .memberCount(memberCount)
                 .pendingRevisionCount(pendingRevisionCount)
+                .pendingPaymentCount(pendingPaymentCount)
+                .hasPendingPayment(pendingPaymentCount > 0)
                 .createdAt(group.getCreatedAt())
                 .build();
     }

@@ -301,7 +301,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   const handleNotifyPayment = async (toUserId: string, amount: number, creditorName: string) => {
     try {
       await groupService.notifyPayment(groupId, { toUserId, amount });
-      showToast(`Đã báo chuyển tiền cho ${creditorName}! ⏳`, "success");
+      showToast(`Đã gửi thông báo thanh toán tới ${creditorName}! ⏳`, "success");
       fetchGroupDetails();
     } catch (e: any) {
       showToast(e.response?.data?.message || "Lỗi khi báo chuyển tiền", "error");
@@ -309,13 +309,26 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   };
 
   const handleApproveSettle = async (debtorId: string, amount: number, debtorName: string) => {
-    try {
-      await groupService.approveSettle(groupId, { debtorId, amount });
-      showToast(`Đã xác nhận thanh toán xong từ ${debtorName}! 🎉`, "success");
-      fetchGroupDetails();
-    } catch (e: any) {
-      showToast(e.response?.data?.message || "Lỗi khi xác nhận thanh toán", "error");
-    }
+    Alert.alert(
+      "Xác nhận đã nhận tiền",
+      `Bạn xác nhận đã nhận đủ ${fmt(amount)} từ ${debtorName}?\n\nKhoản nợ này sẽ được gạch bỏ và quyết toán tự động trên hệ thống.`,
+      [
+        { text: "Để sau", style: "cancel" },
+        {
+          text: "Xác nhận đã nhận ✓",
+          style: "default",
+          onPress: async () => {
+            try {
+              await groupService.approveSettle(groupId, { debtorId, amount });
+              showToast(`Đã xác nhận thanh toán xong từ ${debtorName}! 🎉`, "success");
+              fetchGroupDetails();
+            } catch (e: any) {
+              showToast(e.response?.data?.message || "Lỗi khi xác nhận thanh toán", "error");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleAmountChange = (text: string) => {
@@ -676,21 +689,35 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                       </View>
 
                       {isPending ? (
-                        <TouchableOpacity
-                          onPress={() => handleApproveSettle(debtorId, t.amount, debtorName)}
-                          style={styles.approveCompactBtn}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.approveCompactBtnText}>✓ Xác nhận</Text>
-                        </TouchableOpacity>
+                        <View style={{ alignItems: "flex-end", gap: 4 }}>
+                          <View style={styles.pendingNotificationBadge}>
+                            <Text style={styles.pendingNotificationBadgeText}>💰 Đã báo chuyển</Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleApproveSettle(debtorId, t.amount, debtorName)}
+                            style={styles.approveCompactBtn}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.approveCompactBtnText}>✓ Xác nhận đã nhận</Text>
+                          </TouchableOpacity>
+                        </View>
                       ) : (
-                        <TouchableOpacity
-                          onPress={() => setRemindDebtData(t)}
-                          style={styles.remindCompactBtn}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.remindCompactBtnText}>🔔 Nhắc nợ</Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: "row", gap: 6 }}>
+                          <TouchableOpacity
+                            onPress={() => handleApproveSettle(debtorId, t.amount, debtorName)}
+                            style={styles.manualSettleBtn}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.manualSettleBtnText}>✓ Đã nhận</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => setRemindDebtData(t)}
+                            style={styles.remindCompactBtn}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.remindCompactBtnText}>🔔 Nhắc nợ</Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
                     </View>
                   );
@@ -742,16 +769,25 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
 
                       {isSentPending ? (
                         <View style={styles.pendingCompactTag}>
-                          <Text style={styles.pendingCompactTagText}>⏳ Chờ duyệt</Text>
+                          <Text style={styles.pendingCompactTagText}>⏳ Đang chờ duyệt</Text>
                         </View>
                       ) : (
-                        <TouchableOpacity
-                          onPress={() => handleStartDebtPayment(t)}
-                          style={styles.payNowCompactBtn}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.payNowCompactBtnText}>Trả nợ 📲</Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: "row", gap: 6 }}>
+                          <TouchableOpacity
+                            onPress={() => handleNotifyPayment(creditorId, t.amount, creditorName)}
+                            style={styles.cashNotifyBtn}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.cashNotifyBtnText}>💵 Báo chuyển</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleStartDebtPayment(t)}
+                            style={styles.payNowCompactBtn}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.payNowCompactBtnText}>Trả nợ 📲</Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
                     </View>
                   );
@@ -902,7 +938,17 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
           setPendingSettleDebt(null);
         }}
         onPaymentSuccess={async (amt, toUserId) => {
-          // Webhook backend đã tự xử lý approveSettle, chỉ cần refresh data
+          if (toUserId && groupId) {
+            try {
+              await groupService.notifyPayment(groupId, {
+                toUserId: toUserId,
+                amount: amt,
+              });
+              showToast("Đã gửi thông báo thanh toán tới chủ nợ! ⏳", "success");
+            } catch (e) {
+              console.log("Failed to notify payment:", e);
+            }
+          }
           fetchGroupDetails();
         }}
       />
@@ -1837,7 +1883,7 @@ const styles = StyleSheet.create({
   },
   remindCompactBtn: {
     backgroundColor: "#fef3c7",
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
@@ -1848,9 +1894,49 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#b45309",
   },
+  manualSettleBtn: {
+    backgroundColor: "#dcfce7",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#86efac",
+  },
+  manualSettleBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#166534",
+  },
+  cashNotifyBtn: {
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  cashNotifyBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#b45309",
+  },
+  pendingNotificationBadge: {
+    backgroundColor: "#d1fae5",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#6ee7b7",
+    alignSelf: "flex-end",
+  },
+  pendingNotificationBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#065f46",
+  },
   approveCompactBtn: {
     backgroundColor: "#10b981",
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 12,
   },
@@ -1861,7 +1947,7 @@ const styles = StyleSheet.create({
   },
   payNowCompactBtn: {
     backgroundColor: "#f43f5e",
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 12,
   },

@@ -23,6 +23,8 @@ export interface GroupListItem {
   owner?: { id: string; name: string; email?: string; avatarUrl?: string };
   memberCount?: number;
   pendingRevisionCount?: number;
+  pendingPaymentCount?: number;
+  hasPendingPayment?: boolean;
   members?: GroupMember[];
   createdAt?: string;
 }
@@ -37,6 +39,8 @@ export interface GroupDetail {
   members: GroupMember[];
   memberCount?: number;
   pendingRevisionCount?: number;
+  pendingPaymentCount?: number;
+  hasPendingPayment?: boolean;
   createdAt?: string;
 }
 

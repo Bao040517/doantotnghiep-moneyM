@@ -18,6 +18,8 @@ public class GroupDetailResponse {
     private UserSummaryResponse owner;
     private List<MemberResponse> members;
     private int pendingRevisionCount;
+    private int pendingPaymentCount;
+    private boolean hasPendingPayment;
     private LocalDateTime createdAt;
 
     @Getter

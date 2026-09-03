@@ -406,17 +406,27 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           {groups.map((g, idx) => {
             const pendingCount = g.pendingRevisionCount || 0;
             const hasPendingRevision = pendingCount > 0;
+            const paymentCount = g.pendingPaymentCount || 0;
+            const hasPendingPayment = Boolean(g.hasPendingPayment || paymentCount > 0);
 
             return (
               <TouchableOpacity
                 key={g.id || `group-${idx}`}
                 style={[
                   styles.groupCard,
-                  hasPendingRevision && styles.groupCardPendingRevision
+                  hasPendingRevision && styles.groupCardPendingRevision,
+                  hasPendingPayment && styles.groupCardPendingPayment,
                 ]}
                 onPress={() => setSelectedGroupId(g.id)}
                 activeOpacity={0.85}
               >
+                {/* 💵 Badge $$ ở góc trên bên trái khi có thành viên vừa thanh toán */}
+                {hasPendingPayment && (
+                  <View style={styles.pendingPaymentBadge}>
+                    <Text style={styles.pendingPaymentBadgeText}>$$</Text>
+                  </View>
+                )}
+
                 {/* 🔔 Badge số lượng yêu cầu chỉnh sửa ở góc trên bên phải */}
                 {hasPendingRevision && (
                   <View style={styles.pendingRevisionBadge}>
@@ -437,6 +447,12 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     <Users size={13} color="#10B981" strokeWidth={2} />
                     <Text style={styles.memberCountText}>{g.members?.length || g.memberCount || 0} thành viên</Text>
                   </View>
+
+                  {hasPendingPayment && (
+                    <View style={styles.pendingPaymentTag}>
+                      <Text style={styles.pendingPaymentTagText}>💵 {paymentCount} đã trả</Text>
+                    </View>
+                  )}
 
                   {hasPendingRevision && (
                     <View style={styles.pendingRevisionTag}>
@@ -899,6 +915,16 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
+  groupCardPendingPayment: {
+    borderColor: "#10B981",
+    borderWidth: 2.5,
+    backgroundColor: "#F0FDF4",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 5,
+  },
   pendingRevisionBadge: {
     position: "absolute",
     top: -8,
@@ -925,6 +951,33 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textAlign: "center",
   },
+  pendingPaymentBadge: {
+    position: "absolute",
+    top: -8,
+    left: -8,
+    zIndex: 20,
+    backgroundColor: "#10B981",
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  pendingPaymentBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: -0.5,
+  },
   pendingRevisionTag: {
     backgroundColor: "#FEF3C7",
     borderColor: "#FDE68A",
@@ -937,6 +990,20 @@ const styles = StyleSheet.create({
   pendingRevisionTagText: {
     fontSize: 10,
     color: "#B45309",
+    fontWeight: "800",
+  },
+  pendingPaymentTag: {
+    backgroundColor: "#D1FAE5",
+    borderColor: "#A7F3D0",
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  pendingPaymentTagText: {
+    fontSize: 10,
+    color: "#065F46",
     fontWeight: "800",
   },
   groupImage: {

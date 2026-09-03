@@ -39,6 +39,7 @@ class GroupServiceTest {
     @Mock private GroupMemberRepository groupMemberRepository;
     @Mock private UserRepository userRepository;
     @Mock private ExpenseRepository expenseRepository;
+    @Mock private com.example.sharemoney.repository.PaymentRepository paymentRepository;
     @Mock private NotificationService notificationService;
     @Mock private DebtService debtService;
 

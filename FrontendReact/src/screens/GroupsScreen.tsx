@@ -403,24 +403,50 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           </TouchableOpacity>
 
           {/* Group Items */}
-          {groups.map((g, idx) => (
-            <TouchableOpacity
-              key={g.id || `group-${idx}`}
-              style={styles.groupCard}
-              onPress={() => setSelectedGroupId(g.id)}
-            >
-              <Image
-                source={{ uri: g.avatarUrl || GROUP_IMAGES[idx % GROUP_IMAGES.length] }}
-                style={styles.groupImage}
-                resizeMode="cover"
-              />
-              <Text style={styles.groupNameText} numberOfLines={2}>{g.name}</Text>
-              <View style={styles.memberBadge}>
-                <Users size={13} color="#10B981" strokeWidth={2} />
-                <Text style={styles.memberCountText}>{g.members?.length || g.memberCount || 0} thành viên</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          {groups.map((g, idx) => {
+            const pendingCount = g.pendingRevisionCount || 0;
+            const hasPendingRevision = pendingCount > 0;
+
+            return (
+              <TouchableOpacity
+                key={g.id || `group-${idx}`}
+                style={[
+                  styles.groupCard,
+                  hasPendingRevision && styles.groupCardPendingRevision
+                ]}
+                onPress={() => setSelectedGroupId(g.id)}
+                activeOpacity={0.85}
+              >
+                {/* 🔔 Badge số lượng yêu cầu chỉnh sửa ở góc trên bên phải */}
+                {hasPendingRevision && (
+                  <View style={styles.pendingRevisionBadge}>
+                    <Text style={styles.pendingRevisionBadgeText}>
+                      {pendingCount > 99 ? "99+" : pendingCount}
+                    </Text>
+                  </View>
+                )}
+
+                <Image
+                  source={{ uri: g.avatarUrl || GROUP_IMAGES[idx % GROUP_IMAGES.length] }}
+                  style={styles.groupImage}
+                  resizeMode="cover"
+                />
+                <Text style={styles.groupNameText} numberOfLines={2}>{g.name}</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                  <View style={styles.memberBadge}>
+                    <Users size={13} color="#10B981" strokeWidth={2} />
+                    <Text style={styles.memberCountText}>{g.members?.length || g.memberCount || 0} thành viên</Text>
+                  </View>
+
+                  {hasPendingRevision && (
+                    <View style={styles.pendingRevisionTag}>
+                      <Text style={styles.pendingRevisionTagText}>✏️ {pendingCount} sửa</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
 
@@ -861,6 +887,57 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
+    position: "relative",
+  },
+  groupCardPendingRevision: {
+    borderColor: "#F59E0B",
+    borderWidth: 2.5,
+    backgroundColor: "#FFFDF7",
+    shadowColor: "#F59E0B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  pendingRevisionBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    zIndex: 20,
+    backgroundColor: "#EF4444",
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.45,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  pendingRevisionBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  pendingRevisionTag: {
+    backgroundColor: "#FEF3C7",
+    borderColor: "#FDE68A",
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  pendingRevisionTagText: {
+    fontSize: 10,
+    color: "#B45309",
+    fontWeight: "800",
   },
   groupImage: {
     width: "100%",

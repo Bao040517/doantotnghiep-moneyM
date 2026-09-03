@@ -92,15 +92,21 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
   const renderIcon = (type?: string) => {
     switch (type) {
       case "DEBT_REMINDER":
+      case "REMIND_DEBT":
         return <Bell size={18} color="#0F172A" strokeWidth={2} />;
       case "PAYMENT_NOTIFY":
+      case "PAYMENT_RECEIVED":
         return <ArrowUpRight size={18} color="#0F172A" strokeWidth={2} />;
       case "PAYMENT_APPROVED":
         return <CheckCircle2 size={18} color="#0F172A" strokeWidth={2} />;
+      case "EXPENSE_REVISION_REQUESTED":
+      case "EXPENSE_REVISION_REJECTED":
+      case "WARNING":
+      case "BUDGET_WARNING":
+      case "Z_SCORE_ANOMALY":
+        return <AlertTriangle size={18} color="#0F172A" strokeWidth={2} />;
       case "SYSTEM":
         return <Megaphone size={18} color="#0F172A" strokeWidth={2} />;
-      case "WARNING":
-        return <AlertTriangle size={18} color="#0F172A" strokeWidth={2} />;
       default:
         return <Mail size={18} color="#0F172A" strokeWidth={2} />;
     }
@@ -108,12 +114,26 @@ export const NotificationsBottomSheet: React.FC<NotificationsBottomSheetProps> =
 
   const getTitle = (type?: string) => {
     switch (type) {
-      case "DEBT_REMINDER": return "Nhắc nợ";
-      case "PAYMENT_NOTIFY": return "Thông báo thanh toán";
-      case "PAYMENT_APPROVED": return "Thanh toán được phê duyệt";
-      case "SYSTEM": return "Hệ thống";
-      case "WARNING": return "Cảnh báo";
-      default: return "Thông báo mới";
+      case "DEBT_REMINDER":
+      case "REMIND_DEBT":
+        return "Nhắc nợ";
+      case "PAYMENT_NOTIFY":
+      case "PAYMENT_RECEIVED":
+        return "Thông báo nhận tiền";
+      case "PAYMENT_APPROVED":
+        return "Thanh toán thành công";
+      case "EXPENSE_REVISION_REQUESTED":
+        return "Yêu cầu chỉnh sửa chi tiêu";
+      case "EXPENSE_REVISION_REJECTED":
+        return "Yêu cầu chỉnh sửa bị từ chối";
+      case "BUDGET_WARNING":
+      case "WARNING":
+      case "Z_SCORE_ANOMALY":
+        return "Cảnh báo chi tiêu";
+      case "SYSTEM":
+        return "Hệ thống";
+      default:
+        return "Thông báo mới";
     }
   };
 

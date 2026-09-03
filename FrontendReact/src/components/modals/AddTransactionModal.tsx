@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
+  Alert,
 } from "react-native";
 import { BottomSheet } from "../ui/BottomSheet";
 import { Input } from "../ui/Input";
@@ -116,9 +117,18 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
   const handleSubmit = async () => {
     const rawNumber = parseFloat(amount.replace(/\./g, "")) || 0;
-    if (rawNumber <= 0) return;
-    if (!selectedWalletId) return;
-    if (!selectedCategoryId) return;
+    if (rawNumber <= 0) {
+      Alert.alert("Thông báo", "Vui lòng nhập số tiền hợp lệ (> 0đ)!");
+      return;
+    }
+    if (!selectedWalletId) {
+      Alert.alert("Thông báo", "Vui lòng chọn ví để thực hiện giao dịch!");
+      return;
+    }
+    if (!selectedCategoryId) {
+      Alert.alert("Thông báo", "Vui lòng chọn danh mục cho giao dịch!");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -126,14 +136,20 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         categoryId: selectedCategoryId,
         amount: rawNumber,
         type,
-        note,
+        note: note.trim(),
         transactionDate: new Date().toISOString(),
       });
       setAmount("");
       setNote("");
       onClose();
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error("Lỗi tạo giao dịch:", e);
+      const errorMsg =
+        e.response?.data?.message ||
+        e.response?.data?.error ||
+        e.message ||
+        "Có lỗi xảy ra khi thực hiện giao dịch. Vui lòng thử lại!";
+      Alert.alert("Giao dịch không thành công", errorMsg);
     } finally {
       setLoading(false);
     }

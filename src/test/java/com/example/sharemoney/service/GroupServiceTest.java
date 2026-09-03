@@ -14,6 +14,7 @@ import com.example.sharemoney.entity.GroupMember;
 import com.example.sharemoney.entity.User;
 import com.example.sharemoney.exception.AppException;
 import com.example.sharemoney.exception.ErrorCode;
+import com.example.sharemoney.repository.ExpenseRepository;
 import com.example.sharemoney.repository.GroupMemberRepository;
 import com.example.sharemoney.repository.GroupRepository;
 import com.example.sharemoney.repository.UserRepository;
@@ -37,6 +38,7 @@ class GroupServiceTest {
     @Mock private GroupRepository groupRepository;
     @Mock private GroupMemberRepository groupMemberRepository;
     @Mock private UserRepository userRepository;
+    @Mock private ExpenseRepository expenseRepository;
     @Mock private NotificationService notificationService;
     @Mock private DebtService debtService;
 

@@ -13,6 +13,7 @@ import {
   Image,
   AppState,
   DeviceEventEmitter,
+  Alert,
 } from "react-native";
 
 import { useNavigation } from "@react-navigation/native";
@@ -82,8 +83,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
 
 
   const handleAddWallet = async (payload: WalletPayload) => {
-    await financialServices.createWallet(payload);
-    refresh();
+    try {
+      await financialServices.createWallet(payload);
+      refresh();
+    } catch (e: any) {
+      const errorMsg =
+        e.response?.data?.message || e.response?.data?.error || e.message || "Không thể tạo ví";
+      Alert.alert("Lỗi tạo ví", errorMsg);
+      throw e;
+    }
   };
 
   const handleAddTransaction = async (walletId: string, payload: Omit<TransactionPayload, "walletId">) => {

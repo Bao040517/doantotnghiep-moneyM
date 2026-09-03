@@ -387,10 +387,26 @@ public class ExpenseService {
 
         // Gửi thông báo cho Người trả tiền (Payer)
         if (expense.getPayer() != null && !expense.getPayer().getId().equals(requesterId)) {
+            String groupName = expense.getGroup() != null ? expense.getGroup().getName() : "";
+
+            StringBuilder proposedInfo = new StringBuilder();
+            if (req.getProposedAmount() != null) {
+                proposedInfo.append(String.format("mức đề xuất: %,d ₫", req.getProposedAmount().longValue()));
+            }
+            if (req.getProposedTitle() != null && !req.getProposedTitle().isBlank()) {
+                if (proposedInfo.length() > 0) {
+                    proposedInfo.append(", ");
+                }
+                proposedInfo.append(String.format("tiêu đề: \"%s\"", req.getProposedTitle().trim()));
+            }
+
+            String detailsStr = proposedInfo.length() > 0 ? " (" + proposedInfo + ")" : "";
+            String groupStr = (groupName != null && !groupName.isBlank()) ? String.format(" ở nhóm \"%s\"", groupName.trim()) : "";
+
             String message =
                     String.format(
-                            "%s đã gửi yêu cầu chỉnh sửa khoản chi \"%s\". Vui lòng kiểm tra và xác nhận.",
-                            requester.getName(), expense.getTitle());
+                            "%s đã gửi yêu cầu chỉnh sửa khoản chi \"%s\"%s%s. Vui lòng kiểm tra và xác nhận.",
+                            requester.getName(), expense.getTitle(), detailsStr, groupStr);
             notificationService.sendNotification(
                     expense.getPayer().getId(), message, "EXPENSE_REVISION_REQUESTED");
         }
@@ -434,10 +450,12 @@ public class ExpenseService {
         expenseRepository.save(expense);
 
         if (prevRequester != null && !prevRequester.getId().equals(userId)) {
+            String groupName = expense.getGroup() != null ? expense.getGroup().getName() : "";
+            String groupStr = (groupName != null && !groupName.isBlank()) ? String.format(" ở nhóm \"%s\"", groupName.trim()) : "";
             String message =
                     String.format(
-                            "Yêu cầu chỉnh sửa khoản chi \"%s\" của bạn đã bị từ chối bởi người thanh toán.",
-                            expense.getTitle());
+                            "Yêu cầu chỉnh sửa khoản chi \"%s\"%s của bạn đã bị từ chối bởi người thanh toán.",
+                            expense.getTitle(), groupStr);
             notificationService.sendNotification(
                     prevRequester.getId(), message, "EXPENSE_REVISION_REJECTED");
         }

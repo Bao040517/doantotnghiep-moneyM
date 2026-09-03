@@ -17,6 +17,7 @@ public class GroupDetailResponse {
     private String avatarUrl;
     private UserSummaryResponse owner;
     private List<MemberResponse> members;
+    private int pendingRevisionCount;
     private LocalDateTime createdAt;
 
     @Getter

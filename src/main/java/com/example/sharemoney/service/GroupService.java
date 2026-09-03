@@ -11,6 +11,7 @@ import com.example.sharemoney.entity.GroupMember;
 import com.example.sharemoney.entity.User;
 import com.example.sharemoney.exception.AppException;
 import com.example.sharemoney.exception.ErrorCode;
+import com.example.sharemoney.repository.ExpenseRepository;
 import com.example.sharemoney.repository.GroupMemberRepository;
 import com.example.sharemoney.repository.GroupRepository;
 import com.example.sharemoney.repository.UserRepository;
@@ -28,6 +29,7 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
+    private final ExpenseRepository expenseRepository;
     private final NotificationService notificationService;
     private final DebtService debtService;
 
@@ -81,7 +83,7 @@ public class GroupService {
             }
         }
 
-        return toGroupResponse(group, count);
+        return toGroupResponse(group, count, 0);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -116,12 +118,20 @@ public class GroupService {
                                 java.util.stream.Collectors.toMap(
                                         arr -> (UUID) arr[0], arr -> (Long) arr[1]));
 
+        List<Object[]> pendingCounts = expenseRepository.countPendingRevisionsByGroupIds(groupIds);
+        java.util.Map<UUID, Long> pendingMap =
+                pendingCounts.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        arr -> (UUID) arr[0], arr -> (Long) arr[1]));
+
         return memberships.stream()
                 .map(
                         gm -> {
                             Group g = gm.getGroup();
                             int count = countMap.getOrDefault(g.getId(), 0L).intValue();
-                            return toGroupResponse(g, count);
+                            int pendingCount = pendingMap.getOrDefault(g.getId(), 0L).intValue();
+                            return toGroupResponse(g, count, pendingCount);
                         })
                 .toList();
     }
@@ -155,6 +165,8 @@ public class GroupService {
                                                 .build())
                         .toList();
 
+        int pendingCount = (int) expenseRepository.countByGroup_IdAndIsPendingRevisionTrue(groupId);
+
         return GroupDetailResponse.builder()
                 .id(group.getId())
                 .name(group.getName())
@@ -162,6 +174,7 @@ public class GroupService {
                 .avatarUrl(group.getAvatarUrl())
                 .owner(toUserSummary(group.getOwner()))
                 .members(members)
+                .pendingRevisionCount(pendingCount)
                 .createdAt(group.getCreatedAt())
                 .build();
     }
@@ -287,7 +300,8 @@ public class GroupService {
         }
 
         int memberCount = groupMemberRepository.findByGroup_Id(groupId).size();
-        return toGroupResponse(group, memberCount);
+        int pendingCount = (int) expenseRepository.countByGroup_IdAndIsPendingRevisionTrue(groupId);
+        return toGroupResponse(group, memberCount, pendingCount);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -353,7 +367,7 @@ public class GroupService {
     // ─────────────────────────────────────────────────────────────
     // Helper methods
     // ─────────────────────────────────────────────────────────────
-    private GroupResponse toGroupResponse(Group group, int memberCount) {
+    private GroupResponse toGroupResponse(Group group, int memberCount, int pendingRevisionCount) {
         return GroupResponse.builder()
                 .id(group.getId())
                 .name(group.getName())
@@ -361,6 +375,7 @@ public class GroupService {
                 .avatarUrl(group.getAvatarUrl())
                 .owner(toUserSummary(group.getOwner()))
                 .memberCount(memberCount)
+                .pendingRevisionCount(pendingRevisionCount)
                 .createdAt(group.getCreatedAt())
                 .build();
     }

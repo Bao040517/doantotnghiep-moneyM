@@ -22,6 +22,7 @@ export interface GroupListItem {
   avatarUrl?: string;
   owner?: { id: string; name: string; email?: string; avatarUrl?: string };
   memberCount?: number;
+  pendingRevisionCount?: number;
   members?: GroupMember[];
   createdAt?: string;
 }
@@ -35,6 +36,7 @@ export interface GroupDetail {
   owner?: { id: string; name: string; email?: string; avatarUrl?: string };
   members: GroupMember[];
   memberCount?: number;
+  pendingRevisionCount?: number;
   createdAt?: string;
 }
 

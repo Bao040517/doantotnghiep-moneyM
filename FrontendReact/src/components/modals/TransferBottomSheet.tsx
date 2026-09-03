@@ -79,8 +79,18 @@ export const TransferBottomSheet: React.FC<TransferBottomSheetProps> = ({
       }
 
       loadData();
+    } else {
+      setAmount("");
+      setNote("");
+      setCategoryId("");
+      setGroupId("none");
+      setAccountNumber("");
+      setMatchingBudget(null);
+      setSearchBank("");
+      setSelectedBank(null);
+      setStep(0);
     }
-  }, [visible]);
+  }, [visible, initialAmount, initialNote, initialCategoryId, initialBankBin, initialAccountNumber]);
 
   const loadData = async () => {
     try {
@@ -223,7 +233,7 @@ export const TransferBottomSheet: React.FC<TransferBottomSheetProps> = ({
             </View>
 
             <Text style={styles.sectionTitle}>Ngân hàng phổ biến</Text>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.bankGrid}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.bankGrid}>
               {filteredBanks.map((bank) => (
                 <TouchableOpacity
                   key={bank.bin}
@@ -248,7 +258,7 @@ export const TransferBottomSheet: React.FC<TransferBottomSheetProps> = ({
         )}
 
         {step === 1 && selectedBank && (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.step1}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.step1}>
             <View style={styles.headerNav}>
               <TouchableOpacity onPress={() => setStep(0)} style={styles.backBtn}>
                 <ChevronLeft size={24} color={colors.slate600} />

@@ -46,6 +46,16 @@ export const SavingsScreen: React.FC = () => {
   const [monthlyContribution, setMonthlyContribution] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
 
+  useEffect(() => {
+    if (!createVisible) {
+      setGoalName("");
+      setTargetAmount("");
+      setTargetDate("");
+      setPriority("MEDIUM");
+      setMonthlyContribution("");
+    }
+  }, [createVisible]);
+
   // Deposit/Withdraw Modal state
   const [fundModalVisible, setFundModalVisible] = useState(false);
   const [fundGoalId, setFundGoalId] = useState("");
@@ -53,6 +63,12 @@ export const SavingsScreen: React.FC = () => {
   const [fundAmount, setFundAmount] = useState("");
   const [fundMode, setFundMode] = useState<"fund" | "withdraw">("fund");
   const [fundLoading, setFundLoading] = useState(false);
+
+  useEffect(() => {
+    if (!fundModalVisible) {
+      setFundAmount("");
+    }
+  }, [fundModalVisible]);
 
   // VietQR Allocate Modal state
   const [allocateQrModalVisible, setAllocateQrModalVisible] = useState(false);

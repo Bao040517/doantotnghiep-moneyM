@@ -28,6 +28,8 @@ if (typeof g.TextDecoder === "undefined") {
 
 const SockJS = require("sockjs-client");
 
+import { refreshGlobalAppData } from "../utils/eventBus";
+
 export type SubscriptionCallback = (message: any) => void;
 
 class SocketService {
@@ -79,6 +81,7 @@ class SocketService {
             } catch (e) {
               cb(message.body);
             }
+            refreshGlobalAppData();
           });
           if (sub?.id) {
             this.subscriptions.set(top, sub.id);
@@ -144,6 +147,7 @@ class SocketService {
         } catch (e) {
           callback(message.body);
         }
+        refreshGlobalAppData();
       });
 
       this.subscriptions.set(topic, subscription.id);

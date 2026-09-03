@@ -148,6 +148,22 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [savingExpense, setSavingExpense] = useState(false);
 
+  useEffect(() => {
+    if (!isAddingExpense) {
+      setTitle("");
+      setAmount("");
+      setCategory("Ăn uống");
+      setCategoryDropdownOpen(false);
+      setPayerDropdownOpen(false);
+      setSplitMode("all");
+      setSplitType("EQUAL");
+      setCustomAmounts({});
+      if (group?.members && group.members.length > 0) {
+        setSelectedSplitUserIds(group.members.map((m: any) => m.user?.id || m.id));
+      }
+    }
+  }, [isAddingExpense]);
+
   // VietQR settlement state
   const [qrSettleDebt, setQrSettleDebt] = useState<any | null>(null);
   const [sandboxVisible, setSandboxVisible] = useState(false);

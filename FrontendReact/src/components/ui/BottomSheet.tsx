@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, View, StyleSheet, TouchableWithoutFeedback, Text, Pressable } from "react-native";
+import { Modal, View, StyleSheet, TouchableWithoutFeedback, Text, Pressable, Keyboard } from "react-native";
 import { colors } from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -17,7 +17,13 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({ visible, onClose, titl
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => {
+            Keyboard.dismiss();
+            onClose();
+          }}
+        />
 
         <View
           style={[
@@ -29,12 +35,18 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({ visible, onClose, titl
           ]}
         >
           {title && (
-            <View style={[styles.header, { borderBottomColor: isDark ? themeColors.divider : colors.slate100 }]}>
+            <Pressable
+              onPress={Keyboard.dismiss}
+              style={[styles.header, { borderBottomColor: isDark ? themeColors.divider : colors.slate100 }]}
+            >
               <Text style={[styles.title, { color: themeColors.textPrimary }]}>{title}</Text>
               <View style={styles.headerRightContainer}>
                 {headerRight}
                 <Pressable
-                  onPress={onClose}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    onClose();
+                  }}
                   hitSlop={10}
                   style={[
                     styles.closeBtnWrapper,
@@ -44,7 +56,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({ visible, onClose, titl
                   <Text style={[styles.closeBtn, { color: themeColors.textSecondary }]}>✕</Text>
                 </Pressable>
               </View>
-            </View>
+            </Pressable>
           )}
           <View style={{ flexShrink: 1 }}>
             {children}

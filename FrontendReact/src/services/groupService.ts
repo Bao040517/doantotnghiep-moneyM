@@ -1,11 +1,15 @@
 import { api } from "./api";
 import { GroupListItem, GroupDetail, GroupExpense, GroupDebtSummary, Group } from "../types";
+import { refreshGlobalAppData } from "../utils/eventBus";
 
 export const groupService = {
   getGroups: () => api.get<GroupListItem[]>("/groups").then((res) => res.data),
   getGroupDetail: (groupId: string) => api.get<GroupDetail>(`/groups/${groupId}`).then((res) => res.data),
   createGroup: (payload: { name: string; description?: string; avatarUrl?: string; memberIds?: string[] }) =>
-    api.post<Group>("/groups", payload).then((res) => res.data),
+    api.post<Group>("/groups", payload).then((res) => {
+      refreshGlobalAppData();
+      return res.data;
+    }),
   updateGroupAvatar: (groupId: string, avatarUrl: string) =>
     api.put<GroupDetail>(`/groups/${groupId}/avatar`, { avatarUrl }).then((res) => res.data),
   getGroupExpenses: (groupId: string, page = 0, size = 50) =>
@@ -13,13 +17,22 @@ export const groupService = {
   exportExpenses: (groupId: string) =>
     api.get<any>(`/groups/${groupId}/expenses/export`, { responseType: "blob" }).then((res) => res.data),
   createGroupExpense: (groupId: string, payload: { title: string; amount: number; category?: string; paidBy?: string; splitUserIds?: string[]; splitAmounts?: Record<string, number> }) =>
-    api.post<GroupExpense>(`/groups/${groupId}/expenses`, payload).then((res) => res.data),
+    api.post<GroupExpense>(`/groups/${groupId}/expenses`, payload).then((res) => {
+      refreshGlobalAppData();
+      return res.data;
+    }),
   getExpenseDetail: (groupId: string, expenseId: string) =>
     api.get<any>(`/groups/${groupId}/expenses/${expenseId}`).then((res) => res.data),
   updateExpense: (groupId: string, expenseId: string, payload: { paidBy: string; title: string; amount: number; category?: string; splitUserIds?: string[]; splitAmounts?: Record<string, number> }) =>
-    api.put<any>(`/groups/${groupId}/expenses/${expenseId}`, payload).then((res) => res.data),
+    api.put<any>(`/groups/${groupId}/expenses/${expenseId}`, payload).then((res) => {
+      refreshGlobalAppData();
+      return res.data;
+    }),
   deleteExpense: (groupId: string, expenseId: string) =>
-    api.delete<void>(`/groups/${groupId}/expenses/${expenseId}`).then((res) => res.data),
+    api.delete<void>(`/groups/${groupId}/expenses/${expenseId}`).then((res) => {
+      refreshGlobalAppData();
+      return res.data;
+    }),
   requestExpenseRevision: (groupId: string, expenseId: string, payload: { proposedTitle?: string; proposedAmount?: number; revisionNote?: string }) =>
     api.post<any>(`/groups/${groupId}/expenses/${expenseId}/request-revision`, payload).then((res) => res.data),
   rejectExpenseRevision: (groupId: string, expenseId: string) =>
@@ -31,18 +44,36 @@ export const groupService = {
   remindDebt: (groupId: string, payload: { debtorId: string; amount: number; message?: string }) =>
     api.post(`/groups/${groupId}/debts/remind`, payload).then((res) => res.data),
   notifyPayment: (groupId: string, payload: { toUserId: string; amount: number }) =>
-    api.post(`/groups/${groupId}/debts/notify-payment`, payload).then((res) => res.data),
+    api.post(`/groups/${groupId}/debts/notify-payment`, payload).then((res) => {
+      refreshGlobalAppData();
+      return res.data;
+    }),
   approveSettle: (groupId: string, payload: { debtorId: string; amount: number }) =>
-    api.post(`/groups/${groupId}/debts/approve-settle`, payload).then((res) => res.data),
+    api.post(`/groups/${groupId}/debts/approve-settle`, payload).then((res) => {
+      refreshGlobalAppData();
+      return res.data;
+    }),
   getPendingDebtors: (groupId: string) =>
     api.get<string[]>(`/groups/${groupId}/debts/pending`).then((res) => res.data),
   getPendingSent: (groupId: string) =>
     api.get<string[]>(`/groups/${groupId}/debts/pending-sent`).then((res) => res.data),
   searchUserByPhone: (phone: string) => api.get<{ id: string; name: string; phone: string }>(`/users/search?phone=${encodeURIComponent(phone)}`).then((res) => res.data),
   getUserById: (userId: string) => api.get<any>(`/users/${userId}`).then((res) => res.data),
-  addMemberToGroup: (groupId: string, userId: string) => api.post(`/groups/${groupId}/members`, { userId }).then((res) => res.data),
-  removeMemberFromGroup: (groupId: string, memberId: string) => api.delete(`/groups/${groupId}/members/${memberId}`).then((res) => res.data),
+  addMemberToGroup: (groupId: string, userId: string) =>
+    api.post(`/groups/${groupId}/members`, { userId }).then((res) => {
+      refreshGlobalAppData();
+      return res.data;
+    }),
+  removeMemberFromGroup: (groupId: string, memberId: string) =>
+    api.delete(`/groups/${groupId}/members/${memberId}`).then((res) => {
+      refreshGlobalAppData();
+      return res.data;
+    }),
   getGroupPreview: (groupId: string) => api.get<any>(`/groups/${groupId}/preview`).then((res) => res.data),
-  joinGroup: (groupId: string) => api.post<Group>(`/groups/${groupId}/join`).then((res) => res.data),
+  joinGroup: (groupId: string) =>
+    api.post<Group>(`/groups/${groupId}/join`).then((res) => {
+      refreshGlobalAppData();
+      return res.data;
+    }),
 };
 

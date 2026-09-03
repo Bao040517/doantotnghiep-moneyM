@@ -1,5 +1,7 @@
 package com.example.sharemoney.dto.request;
 
+import com.example.sharemoney.config.FlexibleLocalDateTimeDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
@@ -14,6 +16,7 @@ public class UpdateTransactionRequest {
 
     @NotNull(message = "Danh mục không được để trống") private UUID categoryId;
 
+    @JsonDeserialize(using = FlexibleLocalDateTimeDeserializer.class)
     private LocalDateTime transactionDate;
 
     private String note;

@@ -44,12 +44,19 @@ export const WalletManagerBottomSheet: React.FC<WalletManagerBottomSheetProps> =
   useEffect(() => {
     if (visible) {
       setIsAdding(false);
+      setName("");
+      setBalance("");
+      setBankAccountNo("");
       Animated.timing(translateX, {
         toValue: 0,
         duration: 250,
         useNativeDriver: true,
       }).start();
     } else {
+      setName("");
+      setBalance("");
+      setBankAccountNo("");
+      setIsAdding(false);
       Animated.timing(translateX, {
         toValue: -DRAWER_WIDTH,
         duration: 200,

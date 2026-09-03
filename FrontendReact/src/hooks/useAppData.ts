@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { financialServices } from "../services/financialServices";
 import { groupService } from "../services/groupService";
 import { Wallet, BudgetSummary, MonthlySummary, Transaction, CategoryBreakdown } from "../types";
+import { DeviceEventEmitter } from "react-native";
+import { APP_DATA_REFRESH_EVENT, refreshGlobalAppData } from "../utils/eventBus";
 
 export function useAppData() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -66,7 +68,18 @@ export function useAppData() {
     fetchData();
   }, [fetchData, refreshTrigger]);
 
-  const refresh = () => setRefreshTrigger((prev) => prev + 1);
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(APP_DATA_REFRESH_EVENT, () => {
+      fetchData();
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [fetchData]);
+
+  const refresh = useCallback(() => {
+    refreshGlobalAppData();
+  }, []);
 
   const totalLiabilities = 0;
 

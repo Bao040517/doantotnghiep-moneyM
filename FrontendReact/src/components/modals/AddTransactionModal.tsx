@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, ActivityIndicator } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
+} from "react-native";
 import { BottomSheet } from "../ui/BottomSheet";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
@@ -35,13 +44,6 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   const [note, setNote] = useState(initialNote);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (visible) {
-      if (initialAmount) setAmount(initialAmount);
-      if (initialNote) setNote(initialNote);
-    }
-  }, [visible, initialAmount, initialNote]);
-
   // Dropdown states
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [walletDropdownOpen, setWalletDropdownOpen] = useState(false);
@@ -50,6 +52,22 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [loadingCategories, setLoadingCategories] = useState(false);
+
+  // Reset form fields on open / close
+  useEffect(() => {
+    if (visible) {
+      setAmount(initialAmount || "");
+      setNote(initialNote || "");
+      setType(defaultType);
+      setCategoryDropdownOpen(false);
+      setWalletDropdownOpen(false);
+    } else {
+      setAmount("");
+      setNote("");
+      setCategoryDropdownOpen(false);
+      setWalletDropdownOpen(false);
+    }
+  }, [visible, initialAmount, initialNote, defaultType]);
 
   // Sync walletId when wallets prop changes
   useEffect(() => {
@@ -77,13 +95,6 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         .finally(() => setLoadingCategories(false));
     }
   }, [visible]);
-
-  // Reset type and dropdown when defaultType changes
-  useEffect(() => {
-    setType(defaultType);
-    setCategoryDropdownOpen(false);
-    setWalletDropdownOpen(false);
-  }, [defaultType, visible]);
 
   // Auto-select first category when type changes
   useEffect(() => {
@@ -116,7 +127,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         amount: rawNumber,
         type,
         note,
-        transactionDate: new Date().toISOString().split("T")[0],
+        transactionDate: new Date().toISOString(),
       });
       setAmount("");
       setNote("");
@@ -138,7 +149,13 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       onClose={onClose}
       title={type === "EXPENSE" ? "Thêm Giao Dịch Chi Tiêu 💸" : "Nạp Tiền / Thu Nhập Vào Ví 💳"}
     >
-      <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.form}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View>
 
         {/* Wallet Selector (Dropdown List) */}
         {wallets.length > 1 && (
@@ -283,6 +300,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           loading={loading}
           style={styles.submitBtn}
         />
+          </View>
+        </TouchableWithoutFeedback>
       </ScrollView>
     </BottomSheet>
   );

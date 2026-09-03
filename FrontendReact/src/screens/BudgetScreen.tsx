@@ -198,19 +198,6 @@ export const BudgetScreen: React.FC = () => {
     }
   }, [showPayeeSetup, payeeBankBin, payeeBankAccount]);
 
-  useEffect(() => {
-    if (!modalVisible) {
-      setBudgetName("");
-      setPayeeBankBin("");
-      setPayeeBankAccount("");
-      setPayeeAccountName("");
-      setShowPayeeSetup(false);
-      setBudgetBankPickerVisible(false);
-      setBudgetSearchBank("");
-      setBudgetLookupVerified(false);
-      budgetNameInputRef.current?.clear();
-    }
-  }, [modalVisible]);
   const [limitAmount, setLimitAmount] = useState("");
   const [isMandatory, setIsMandatory] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -222,6 +209,25 @@ export const BudgetScreen: React.FC = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (!modalVisible) {
+      setBudgetName("");
+      setLimitAmount("");
+      setPayeeBankBin("");
+      setPayeeBankAccount("");
+      setPayeeAccountName("");
+      setShowPayeeSetup(false);
+      setBudgetBankPickerVisible(false);
+      setBudgetSearchBank("");
+      setBudgetLookupVerified(false);
+      setIsMandatory(false);
+      setIsRecurring(false);
+      setType("FLEXIBLE");
+      setCategoryDropdownOpen(false);
+      budgetNameInputRef.current?.clear();
+    }
+  }, [modalVisible]);
 
   const now = new Date();
   const year = now.getFullYear();

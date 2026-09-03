@@ -730,7 +730,7 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
                                 <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
                                   <Banknote size={11} color="#059669" strokeWidth={2} />
                                   <Text style={[styles.badgeText, { color: "#059669", fontWeight: "600" }]}>
-                                    Tiền mặt
+                                    Đã thanh toán
                                   </Text>
                                 </View>
                               </View>

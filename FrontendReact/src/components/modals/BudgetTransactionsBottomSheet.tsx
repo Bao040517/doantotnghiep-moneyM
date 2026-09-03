@@ -224,7 +224,7 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
                     <View style={styles.txMetaRow}>
                       {(tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) ? (
                         <View style={[styles.groupBadge, { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }]}>
-                          <Text style={[styles.groupBadgeText, { color: "#059669", fontWeight: "700" }]}>💵 Tiền mặt</Text>
+                          <Text style={[styles.groupBadgeText, { color: "#059669", fontWeight: "700" }]}>💵 Đã thanh toán</Text>
                         </View>
                       ) : (
                         <Text style={styles.txWallet}>💳 {tx.walletName || "Ví mặc định"}</Text>
@@ -242,7 +242,7 @@ export const BudgetTransactionsBottomSheet: React.FC<BudgetTransactionsBottomShe
                     <Text style={styles.txAmount}>{fmt(tx.amount)}</Text>
                     <View style={[styles.settledTag, (tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) && { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }]}>
                       <Text style={[styles.settledTagText, (tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) && { color: "#059669" }]}>
-                        {(tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) ? "Tiền mặt ✓" : "Đã trừ ví ✓"}
+                        {(tx.paymentMethod === "CASH" || (tx.note && (tx.note.includes("tiền mặt") || tx.note.includes("Tiền mặt")))) ? "Đã thanh toán ✓" : "Đã trừ ví ✓"}
                       </Text>
                     </View>
                   </View>

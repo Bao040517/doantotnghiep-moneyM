@@ -50,7 +50,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   const handleShareReceipt = async () => {
     try {
       await Share.share({
-        message: `🧾 HÓA ĐƠN GIAO DỊCH SHAREMONEY\n- Mã HĐ: ${invoiceCode}\n- Số tiền: ${isIncome ? "+" : "-"}${amountFormatted}\n- Danh mục: ${catName}\n- Hình thức: ${isCash ? "Tiền mặt" : "Chuyển khoản VietQR"}\n- Nội dung: ${transaction.note || catName}\n- Thời gian: ${formatDateStr(transaction.transactionDate || transaction.createdAt)}`,
+        message: `🧾 HÓA ĐƠN GIAO DỊCH SHAREMONEY\n- Mã HĐ: ${invoiceCode}\n- Số tiền: ${isIncome ? "+" : "-"}${amountFormatted}\n- Danh mục: ${catName}\n- Hình thức: ${isCash ? "Đã thanh toán" : "Chuyển khoản VietQR"}\n- Nội dung: ${transaction.note || catName}\n- Thời gian: ${formatDateStr(transaction.transactionDate || transaction.createdAt)}`,
       });
     } catch (e) {}
   };
@@ -118,7 +118,7 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
             <View style={styles.detailValueRow}>
               {isCash ? (
                 <View style={styles.cashBadge}>
-                  <Text style={styles.cashBadgeText}>💵 Tiền mặt</Text>
+                  <Text style={styles.cashBadgeText}>💵 Đã thanh toán</Text>
                 </View>
               ) : (
                 <View style={styles.transferBadge}>

@@ -49,7 +49,8 @@ export const getBaseUrl = () => {
 
     if (hostUri) {
       const ip = hostUri.split(":")[0];
-      if (ip && ip !== "localhost" && ip !== "127.0.0.1" && !ip.startsWith("10.0.2")) {
+      const isIpv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
+      if (isIpv4 && ip !== "127.0.0.1" && !ip.startsWith("10.0.2")) {
         return `http://${ip}:8080/api`;
       }
     }

@@ -85,8 +85,6 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
   const [isSubmittingQR, setIsSubmittingQR]     = useState(false);
   const [isSubmittingCash, setIsSubmittingCash] = useState(false);
 
-  // Animation
-  const slideAnim = useRef(new Animated.Value(SCREEN_H)).current;
 
   const selectedNewBank = newBankBin ? VIETQR_BANKS.find((b) => b.bin === newBankBin) : null;
 
@@ -137,13 +135,6 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
 
   useEffect(() => {
     if (visible) {
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        damping: 20,
-        stiffness: 200,
-        useNativeDriver: true,
-      }).start();
-
       setActiveTab(recentPayee && recentPayee.bankAccount ? "recent" : "saved");
       setLoading(true);
       payeeService.getSuggestions()
@@ -156,12 +147,6 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
         })
         .catch(() => setSuggestions([]))
         .finally(() => setLoading(false));
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: SCREEN_H,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
     }
   }, [visible, recentPayee, preselectedPayeeId]);
 
@@ -214,7 +199,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
           Alert.alert("Không thể tạo QR", error?.message || "STK chưa được ngân hàng xác thực.");
         }
       } else {
-        Alert.alert("Chưa có số tài khoản", "Người nhận này chưa có số tài khoản ngân hàng. Vui lòng chuyển sang tab 'Thêm mới' hoặc chọn 'Đã trả tiền mặt'.");
+        Alert.alert("Chưa có số tài khoản", "Người nhận này chưa có số tài khoản ngân hàng. Vui lòng chuyển sang tab 'Thêm mới' hoặc chọn 'Đã thanh toán'.");
       }
     } else if (activeTab === "saved") {
       if (selectedPayee && selectedPayee.bankAccount) {
@@ -231,7 +216,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
           Alert.alert("Không thể tạo QR", error?.message || "STK chưa được ngân hàng xác thực.");
         }
       } else {
-        Alert.alert("Chưa có số tài khoản", "Người nhận này chưa có số tài khoản ngân hàng. Vui lòng chuyển sang tab 'Thêm mới' hoặc chọn 'Đã trả tiền mặt'.");
+        Alert.alert("Chưa có số tài khoản", "Người nhận này chưa có số tài khoản ngân hàng. Vui lòng chuyển sang tab 'Thêm mới' hoặc chọn 'Đã thanh toán'.");
       }
     } else if (activeTab === "new") {
       if (!newBankBin) {
@@ -402,11 +387,9 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
     isSubmitting;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Animated.View
-          style={[styles.sheetWrapper, { transform: [{ translateY: slideAnim }] }]}
-        >
+        <View style={styles.sheetWrapper}>
           <Pressable style={{ flex: 1 }} onPress={(e) => e.stopPropagation()}>
             <KeyboardAvoidingView
               behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -796,7 +779,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
                     ) : (
                       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }}>
                         <Text style={{ fontSize: 15 }}>💵</Text>
-                        <Text style={styles.bottomCashBtnText}>Đã trả tiền mặt (Ghi sổ ngay)</Text>
+                        <Text style={styles.bottomCashBtnText}>Đã thanh toán (Ghi sổ ngay)</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -804,7 +787,7 @@ export const PayeeSelectorModal: React.FC<PayeeSelectorModalProps> = ({
               </View>
             </KeyboardAvoidingView>
           </Pressable>
-        </Animated.View>
+        </View>
       </Pressable>
 
       {/* ─── BANK PICKER SUB-MODAL ─── */}

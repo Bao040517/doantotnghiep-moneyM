@@ -315,7 +315,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
       [
         { text: "Để sau", style: "cancel" },
         {
-          text: "Xác nhận đã nhận ✓",
+          text: "Xác nhận",
           style: "default",
           onPress: async () => {
             try {
@@ -698,7 +698,7 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
                             style={styles.approveCompactBtn}
                             activeOpacity={0.8}
                           >
-                            <Text style={styles.approveCompactBtnText}>✓ Xác nhận đã nhận</Text>
+                            <Text style={styles.approveCompactBtnText}>✓ Xác nhận</Text>
                           </TouchableOpacity>
                         </View>
                       ) : (

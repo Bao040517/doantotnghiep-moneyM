@@ -40,10 +40,11 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
     List<Payment> findByGroup_IdAndPayer_IdAndStatus(UUID groupId, UUID payerId, String status);
 
-    long countByGroup_IdAndStatus(UUID groupId, String status);
+    long countByGroup_IdAndReceiver_IdAndStatus(UUID groupId, UUID receiverId, String status);
 
     @org.springframework.data.jpa.repository.Query(
-            "SELECT p.group.id, COUNT(p) FROM Payment p WHERE p.group.id IN :groupIds AND p.status = 'pending' GROUP BY p.group.id")
-    List<Object[]> countPendingPaymentsByGroupIds(
-            @org.springframework.data.repository.query.Param("groupIds") List<UUID> groupIds);
+            "SELECT p.group.id, COUNT(p) FROM Payment p WHERE p.group.id IN :groupIds AND p.receiver.id = :receiverId AND p.status = 'pending' GROUP BY p.group.id")
+    List<Object[]> countPendingPaymentsByGroupIdsAndReceiverId(
+            @org.springframework.data.repository.query.Param("groupIds") List<UUID> groupIds,
+            @org.springframework.data.repository.query.Param("receiverId") UUID receiverId);
 }

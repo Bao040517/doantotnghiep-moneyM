@@ -127,7 +127,8 @@ public class GroupService {
                                 java.util.stream.Collectors.toMap(
                                         arr -> (UUID) arr[0], arr -> (Long) arr[1]));
 
-        List<Object[]> pendingPaymentCounts = paymentRepository.countPendingPaymentsByGroupIds(groupIds);
+        List<Object[]> pendingPaymentCounts =
+                paymentRepository.countPendingPaymentsByGroupIdsAndReceiverId(groupIds, userId);
         java.util.Map<UUID, Long> pendingPaymentMap =
                 pendingPaymentCounts.stream()
                         .collect(
@@ -176,7 +177,8 @@ public class GroupService {
                         .toList();
 
         int pendingCount = (int) expenseRepository.countByGroup_IdAndIsPendingRevisionTrue(groupId);
-        int pendingPaymentCount = (int) paymentRepository.countByGroup_IdAndStatus(groupId, "pending");
+        int pendingPaymentCount =
+                (int) paymentRepository.countByGroup_IdAndReceiver_IdAndStatus(groupId, userId, "pending");
 
         return GroupDetailResponse.builder()
                 .id(group.getId())
@@ -314,7 +316,8 @@ public class GroupService {
 
         int memberCount = groupMemberRepository.findByGroup_Id(groupId).size();
         int pendingCount = (int) expenseRepository.countByGroup_IdAndIsPendingRevisionTrue(groupId);
-        int pendingPaymentCount = (int) paymentRepository.countByGroup_IdAndStatus(groupId, "pending");
+        int pendingPaymentCount =
+                (int) paymentRepository.countByGroup_IdAndReceiver_IdAndStatus(groupId, currentUser.getId(), "pending");
         return toGroupResponse(group, memberCount, pendingCount, pendingPaymentCount);
     }
 

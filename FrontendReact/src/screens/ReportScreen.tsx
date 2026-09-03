@@ -26,6 +26,7 @@ import { ReportSkeleton } from "../components/ui/SkeletonLoader";
 import { X } from "lucide-react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useTopSafeInset } from "../utils/responsive";
+import { useGlobalDataRefresh } from "../hooks/useGlobalDataRefresh";
 
 const CHART_COLORS = [
   "#FBBF24", // Vàng ấm (như Mua sắm 58%)
@@ -161,6 +162,8 @@ export const ReportScreen: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useGlobalDataRefresh(loadData);
 
   useEffect(() => {
     loadData();

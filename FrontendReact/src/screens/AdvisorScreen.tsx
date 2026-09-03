@@ -18,6 +18,7 @@ import { Toast } from "../components/ui/Toast";
 import { NotificationBottomSheet } from "../components/modals/NotificationBottomSheet";
 import { useNotifications } from "../hooks/useNotifications";
 import { useTheme } from "../context/ThemeContext";
+import { useGlobalDataRefresh } from "../hooks/useGlobalDataRefresh";
 
 // Modular Reusable Components
 import { ScreenHeader } from "../components/common/ScreenHeader";
@@ -171,6 +172,8 @@ export const AdvisorScreen: React.FC = () => {
       if (!silent) setLoading(false);
     }
   };
+
+  useGlobalDataRefresh(() => fetchAdvisorData(true));
 
   useEffect(() => {
     fetchAdvisorData();

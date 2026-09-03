@@ -22,4 +22,7 @@ public interface BudgetRepository extends JpaRepository<Budget, UUID> {
 
     boolean existsByUser_IdAndCategory_IdAndMonthAndYear(
             UUID userId, UUID categoryId, int month, int year);
+
+    List<Budget> findByUser_IdAndCategory_IdAndMonthAndYearAndNameIsNull(
+            UUID userId, UUID categoryId, int month, int year);
 }

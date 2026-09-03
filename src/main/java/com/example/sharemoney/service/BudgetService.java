@@ -79,7 +79,7 @@ public class BudgetService {
                                 userId, category.getId(), month, year, req.getName().trim());
             } else {
                 existingList =
-                        budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYear(
+                        budgetRepository.findByUser_IdAndCategory_IdAndMonthAndYearAndNameIsNull(
                                 userId, category.getId(), month, year);
             }
             if (existingList != null && !existingList.isEmpty()) {
@@ -294,15 +294,15 @@ public class BudgetService {
         if (since != null) {
             // Budget mới tạo trong tháng → chỉ đếm từ createdAt trở đi
             return isBill
-                    ? transactionRepository.sumAllExpenseByCategoryAndMonthSince(
-                            userId, catId, year, month, since)
+                    ? transactionRepository.sumAllExpenseByLinkedBudgetAndMonthSince(
+                            userId, budget.getId(), year, month, since)
                     : transactionRepository.sumExpenseByCategoryAndMonthSince(
                             userId, catId, year, month, since);
         } else {
             // Budget rollover / toàn tháng
             return isBill
-                    ? transactionRepository.sumAllExpenseByCategoryAndMonth(
-                            userId, catId, year, month)
+                    ? transactionRepository.sumAllExpenseByLinkedBudgetAndMonth(
+                            userId, budget.getId(), year, month)
                     : transactionRepository.sumExpenseByCategoryAndMonth(
                             userId, catId, year, month);
         }

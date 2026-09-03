@@ -1,6 +1,7 @@
 import axios from "axios";
 import { safeStorage } from "./storage";
 import { Platform } from "react-native";
+import { refreshGlobalAppData } from "../utils/eventBus";
 
 let Constants: any = null;
 try {
@@ -10,6 +11,27 @@ try {
 }
 
 const CLOUD_API_URL = "http://18.142.90.90:8080/api";
+
+// Các request POST này chỉ dùng để xác thực/tra cứu/tạo mã, không thay đổi
+// dữ liệu đang hiển thị nên không cần gọi lại toàn bộ API của các màn hình.
+const NON_DATA_MUTATION_PATHS = [
+  "/auth/",
+  "/bank/lookup",
+  "/ai/generate-message",
+  "/ai/assistant/chat",
+  "/notifications/",
+  "/users/me/push-token",
+  "/payos/create-payment-link",
+  "/payments/qr-code",
+];
+
+const shouldRefreshAppData = (config: { method?: string; url?: string }) => {
+  const method = config.method?.toLowerCase();
+  if (!method || !["post", "put", "patch", "delete"].includes(method)) return false;
+
+  const url = config.url || "";
+  return !NON_DATA_MUTATION_PATHS.some((path) => url.startsWith(path));
+};
 
 export const getBaseUrl = () => {
   // 0. Production / Environment configured URL
@@ -89,6 +111,9 @@ api.interceptors.response.use(
   (response) => {
     if (__DEV__) {
       console.log(`[API SUCCESS] ${response.config.method?.toUpperCase()} ${response.config.url} - Status: ${response.status}`);
+    }
+    if (shouldRefreshAppData(response.config)) {
+      refreshGlobalAppData();
     }
     return response;
   },

@@ -43,6 +43,7 @@ import { HistorySkeleton } from "../components/ui/SkeletonLoader";
 import { useAuth } from "../hooks/useAuth";
 import { useNotifications } from "../hooks/useNotifications";
 import { useTheme } from "../context/ThemeContext";
+import { useGlobalDataRefresh } from "../hooks/useGlobalDataRefresh";
 
 interface DayGroup {
   dateKey: string;
@@ -104,6 +105,8 @@ export const HistoryScreen: React.FC<{ onNavigate?: (tab: string) => void }> = (
       setLoading(false);
     }
   };
+
+  useGlobalDataRefresh(loadData);
 
   useEffect(() => {
     loadData();

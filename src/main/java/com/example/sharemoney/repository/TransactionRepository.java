@@ -93,21 +93,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
         return unsplit.add(split);
     }
 
-    // ── Queries cho BILL budget: đếm TẤT CẢ chi phí theo category (không lọc linkedBudgetId) ──
+    // ── Queries cho BILL budget: đếm chi phí CỦA RIÊNG BUDGET ĐÓ (theo linkedBudgetId) ──
 
     @Query(
             "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
                     + "WHERE t.wallet.user.id = :userId "
                     + "AND (t.wallet.isLiability = false OR t.wallet.isLiability IS NULL) "
-                    + "AND t.category.id = :categoryId "
+                    + "AND t.linkedBudgetId = :budgetId "
                     + "AND t.type = 'EXPENSE' "
                     + "AND t.excludeFromBudget = false "
                     + "AND t.isSplit = false "
                     + "AND YEAR(t.transactionDate) = :year "
                     + "AND MONTH(t.transactionDate) = :month")
-    BigDecimal sumAllUnsplitExpenseByCategoryAndMonth(
+    BigDecimal sumAllUnsplitExpenseByLinkedBudgetAndMonth(
             @Param("userId") UUID userId,
-            @Param("categoryId") UUID categoryId,
+            @Param("budgetId") UUID budgetId,
             @Param("year") int year,
             @Param("month") int month);
 
@@ -115,22 +115,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             "SELECT COALESCE(SUM(s.amount), 0) FROM TransactionSplit s "
                     + "WHERE s.parentTransaction.wallet.user.id = :userId "
                     + "AND (s.parentTransaction.wallet.isLiability = false OR s.parentTransaction.wallet.isLiability IS NULL) "
-                    + "AND s.category.id = :categoryId "
+                    + "AND s.parentTransaction.linkedBudgetId = :budgetId "
                     + "AND s.parentTransaction.type = 'EXPENSE' "
                     + "AND s.parentTransaction.excludeFromBudget = false "
                     + "AND YEAR(s.parentTransaction.transactionDate) = :year "
                     + "AND MONTH(s.parentTransaction.transactionDate) = :month")
-    BigDecimal sumAllSplitExpenseByCategoryAndMonth(
+    BigDecimal sumAllSplitExpenseByLinkedBudgetAndMonth(
             @Param("userId") UUID userId,
-            @Param("categoryId") UUID categoryId,
+            @Param("budgetId") UUID budgetId,
             @Param("year") int year,
             @Param("month") int month);
 
-    default BigDecimal sumAllExpenseByCategoryAndMonth(
-            UUID userId, UUID categoryId, int year, int month) {
-        BigDecimal unsplit =
-                sumAllUnsplitExpenseByCategoryAndMonth(userId, categoryId, year, month);
-        BigDecimal split = sumAllSplitExpenseByCategoryAndMonth(userId, categoryId, year, month);
+    default BigDecimal sumAllExpenseByLinkedBudgetAndMonth(
+            UUID userId, UUID budgetId, int year, int month) {
+        BigDecimal unsplit = sumAllUnsplitExpenseByLinkedBudgetAndMonth(userId, budgetId, year, month);
+        BigDecimal split = sumAllSplitExpenseByLinkedBudgetAndMonth(userId, budgetId, year, month);
         return unsplit.add(split);
     }
 
@@ -188,16 +187,16 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t "
                     + "WHERE t.wallet.user.id = :userId "
                     + "AND (t.wallet.isLiability = false OR t.wallet.isLiability IS NULL) "
-                    + "AND t.category.id = :categoryId "
+                    + "AND t.linkedBudgetId = :budgetId "
                     + "AND t.type = 'EXPENSE' "
                     + "AND t.excludeFromBudget = false "
                     + "AND t.isSplit = false "
                     + "AND t.transactionDate >= :budgetCreatedAt "
                     + "AND YEAR(t.transactionDate) = :year "
                     + "AND MONTH(t.transactionDate) = :month")
-    BigDecimal sumAllUnsplitExpenseByCategoryAndMonthSince(
+    BigDecimal sumAllUnsplitExpenseByLinkedBudgetAndMonthSince(
             @Param("userId") UUID userId,
-            @Param("categoryId") UUID categoryId,
+            @Param("budgetId") UUID budgetId,
             @Param("year") int year,
             @Param("month") int month,
             @Param("budgetCreatedAt") LocalDateTime budgetCreatedAt);
@@ -206,27 +205,27 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             "SELECT COALESCE(SUM(s.amount), 0) FROM TransactionSplit s "
                     + "WHERE s.parentTransaction.wallet.user.id = :userId "
                     + "AND (s.parentTransaction.wallet.isLiability = false OR s.parentTransaction.wallet.isLiability IS NULL) "
-                    + "AND s.category.id = :categoryId "
+                    + "AND s.parentTransaction.linkedBudgetId = :budgetId "
                     + "AND s.parentTransaction.type = 'EXPENSE' "
                     + "AND s.parentTransaction.excludeFromBudget = false "
                     + "AND s.parentTransaction.transactionDate >= :budgetCreatedAt "
                     + "AND YEAR(s.parentTransaction.transactionDate) = :year "
                     + "AND MONTH(s.parentTransaction.transactionDate) = :month")
-    BigDecimal sumAllSplitExpenseByCategoryAndMonthSince(
+    BigDecimal sumAllSplitExpenseByLinkedBudgetAndMonthSince(
             @Param("userId") UUID userId,
-            @Param("categoryId") UUID categoryId,
+            @Param("budgetId") UUID budgetId,
             @Param("year") int year,
             @Param("month") int month,
             @Param("budgetCreatedAt") LocalDateTime budgetCreatedAt);
 
-    default BigDecimal sumAllExpenseByCategoryAndMonthSince(
-            UUID userId, UUID categoryId, int year, int month, LocalDateTime budgetCreatedAt) {
+    default BigDecimal sumAllExpenseByLinkedBudgetAndMonthSince(
+            UUID userId, UUID budgetId, int year, int month, LocalDateTime budgetCreatedAt) {
         BigDecimal unsplit =
-                sumAllUnsplitExpenseByCategoryAndMonthSince(
-                        userId, categoryId, year, month, budgetCreatedAt);
+                sumAllUnsplitExpenseByLinkedBudgetAndMonthSince(
+                        userId, budgetId, year, month, budgetCreatedAt);
         BigDecimal split =
-                sumAllSplitExpenseByCategoryAndMonthSince(
-                        userId, categoryId, year, month, budgetCreatedAt);
+                sumAllSplitExpenseByLinkedBudgetAndMonthSince(
+                        userId, budgetId, year, month, budgetCreatedAt);
         return unsplit.add(split);
     }
 

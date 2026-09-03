@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { financialServices } from "../services/financialServices";
 import { SavingsGoal, AutoAllocateResponse } from "../types";
+import { useGlobalDataRefresh } from "./useGlobalDataRefresh";
 
 export function useSavings(walletBalance: number, safeToSpend: number) {
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
@@ -28,6 +29,8 @@ export function useSavings(walletBalance: number, safeToSpend: number) {
       setHasAllocatedThisMonth(false);
     }
   }, []);
+
+  useGlobalDataRefresh(fetchGoals);
 
   useEffect(() => {
     fetchGoals();

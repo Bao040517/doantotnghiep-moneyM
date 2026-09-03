@@ -42,6 +42,7 @@ import { CATEGORY_ICONS, getCategoryEmoji } from "../constants/categories";
 import { useTheme } from "../context/ThemeContext";
 import { useTopSafeInset } from "../utils/responsive";
 import { verifyBankAccount } from "../utils/bankAccountVerification";
+import { useGlobalDataRefresh } from "../hooks/useGlobalDataRefresh";
 
 // The absolute core text input that NEVER re-renders to prevent ANY React Native interference with IME
 const SearchInputCore = React.memo(
@@ -250,6 +251,8 @@ export const BudgetScreen: React.FC = () => {
       setRefreshing(false);
     }
   };
+
+  useGlobalDataRefresh(fetchBudgets);
 
   useEffect(() => {
     fetchBudgets();

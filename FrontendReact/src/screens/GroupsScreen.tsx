@@ -31,6 +31,7 @@ import { useAuth } from "../hooks/useAuth";
 import { Group, GroupDebtDetail, GroupDebtSummary, Payee } from "../types";
 import { useTheme } from "../context/ThemeContext";
 import { useTopSafeInset } from "../utils/responsive";
+import { useGlobalDataRefresh } from "../hooks/useGlobalDataRefresh";
 
 const GROUP_IMAGES = [
   "https://images.unsplash.com/photo-1539635273304-0e8723e0f016?auto=format&fit=crop&w=400&q=80",
@@ -215,6 +216,8 @@ export const GroupsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       setLoading(false);
     }
   };
+
+  useGlobalDataRefresh(loadGroupData);
 
   useEffect(() => {
     loadGroupData();

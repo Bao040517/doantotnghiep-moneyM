@@ -33,6 +33,7 @@ import { useAuth } from "../hooks/useAuth";
 import { Group, GroupExpense, Payee } from "../types";
 import { CategoryIcon } from "../components/ui/CategoryIcon";
 import { useTopSafeInset } from "../utils/responsive";
+import { useGlobalDataRefresh } from "../hooks/useGlobalDataRefresh";
 
 interface GroupDetailScreenProps {
   groupId: string;
@@ -250,6 +251,8 @@ export const GroupDetailScreen: React.FC<GroupDetailScreenProps> = ({ groupId, o
       setLoading(false);
     }
   };
+
+  useGlobalDataRefresh(fetchGroupDetails);
 
   const handleRemoveMember = (targetMember: any) => {
     const targetUserId = targetMember.user?.id || targetMember.id;

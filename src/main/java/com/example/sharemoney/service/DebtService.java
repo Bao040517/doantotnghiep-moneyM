@@ -61,11 +61,28 @@ public class DebtService {
         Map<UUID, User> userMap = new HashMap<>();
         groupMemberRepository
                 .findByGroup_Id(groupId)
-                .forEach(gm -> userMap.put(gm.getUser().getId(), gm.getUser()));
+                .forEach(gm -> {
+                    if (gm != null && gm.getUser() != null) {
+                        userMap.put(gm.getUser().getId(), gm.getUser());
+                    }
+                });
+        if (group.getOwner() != null) {
+            userMap.put(group.getOwner().getId(), group.getOwner());
+        }
 
         // Bước 2: Lấy tất cả splits CHƯA trả trong nhóm
         List<ExpenseSplit> unsettledSplits =
                 expenseSplitRepository.findByExpense_Group_IdAndIsSettledFalse(groupId);
+
+        // Đảm bảo mọi user có mặt trong unsettledSplits đều có trong userMap
+        for (ExpenseSplit s : unsettledSplits) {
+            if (s.getExpense() != null && s.getExpense().getPayer() != null) {
+                userMap.putIfAbsent(s.getExpense().getPayer().getId(), s.getExpense().getPayer());
+            }
+            if (s.getUser() != null) {
+                userMap.putIfAbsent(s.getUser().getId(), s.getUser());
+            }
+        }
 
         // Bước 3: Tính số dư ròng (net balance) mỗi thành viên
         Map<UUID, BigDecimal> balances = calculateNetBalances(unsettledSplits, userMap);
@@ -76,6 +93,7 @@ public class DebtService {
         // Bước 5: Build response
         List<MemberBalance> memberBalances =
                 balances.entrySet().stream()
+                        .filter(e -> userMap.containsKey(e.getKey()) && userMap.get(e.getKey()) != null)
                         .map(
                                 e ->
                                         MemberBalance.builder()
@@ -166,18 +184,23 @@ public class DebtService {
             final UUID finalDebtorId = maxDebtorId;
             final UUID finalCreditorId = maxCreditorId;
             boolean hasPending = unsettledSplits.stream().anyMatch(s ->
-                    Boolean.TRUE.equals(s.getExpense().getIsPendingRevision()) &&
-                            (s.getUser().getId().equals(finalDebtorId) || s.getExpense().getPayer().getId().equals(finalDebtorId) ||
-                             s.getUser().getId().equals(finalCreditorId) || s.getExpense().getPayer().getId().equals(finalCreditorId))
+                    s.getExpense() != null && Boolean.TRUE.equals(s.getExpense().getIsPendingRevision()) &&
+                            ((s.getUser() != null && finalDebtorId.equals(s.getUser().getId())) ||
+                             (s.getExpense().getPayer() != null && finalDebtorId.equals(s.getExpense().getPayer().getId())) ||
+                             (s.getUser() != null && finalCreditorId.equals(s.getUser().getId())) ||
+                             (s.getExpense().getPayer() != null && finalCreditorId.equals(s.getExpense().getPayer().getId())))
             );
 
             String pendingMsg = null;
             if (hasPending) {
                 pendingMsg = unsettledSplits.stream()
-                        .filter(s -> Boolean.TRUE.equals(s.getExpense().getIsPendingRevision()) &&
-                                (s.getUser().getId().equals(finalDebtorId) || s.getExpense().getPayer().getId().equals(finalDebtorId) ||
-                                 s.getUser().getId().equals(finalCreditorId) || s.getExpense().getPayer().getId().equals(finalCreditorId)))
+                        .filter(s -> s.getExpense() != null && Boolean.TRUE.equals(s.getExpense().getIsPendingRevision()) &&
+                                ((s.getUser() != null && finalDebtorId.equals(s.getUser().getId())) ||
+                                 (s.getExpense().getPayer() != null && finalDebtorId.equals(s.getExpense().getPayer().getId())) ||
+                                 (s.getUser() != null && finalCreditorId.equals(s.getUser().getId())) ||
+                                 (s.getExpense().getPayer() != null && finalCreditorId.equals(s.getExpense().getPayer().getId()))))
                         .map(s -> s.getExpense().getTitle())
+                        .filter(java.util.Objects::nonNull)
                         .findFirst()
                         .map(t -> "Khoản chi \"" + t + "\" đang có yêu cầu chỉnh sửa chưa hoàn tất.")
                         .orElse("Khoản chi liên quan đang có yêu cầu chỉnh sửa chưa hoàn tất.");

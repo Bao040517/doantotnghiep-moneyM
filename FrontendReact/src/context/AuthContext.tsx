@@ -34,12 +34,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           try {
             const profile = await authService.getProfile();
             if (isMounted) setUser(profile);
-          } catch (e) {
-            await safeStorage.removeItem("token");
-            await safeStorage.removeItem("refreshToken");
-            if (isMounted) {
-              setToken(null);
-              setUser(null);
+          } catch (e: any) {
+            // Chỉ xóa token nếu máy chủ báo lỗi 401 Unauthorized (Token hết hạn/không hợp lệ)
+            if (e?.response?.status === 401) {
+              await safeStorage.removeItem("token");
+              await safeStorage.removeItem("refreshToken");
+              if (isMounted) {
+                setToken(null);
+                setUser(null);
+              }
             }
           }
         } else {
@@ -58,27 +61,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     initAuth();
     return () => {
       isMounted = false;
-    };
-  }, []);
-
-  // Tự động xóa phiên đăng nhập & xoá cache token mỗi khi thoát khỏi app (Bảo mật cấp ngân hàng)
-  useEffect(() => {
-    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      if (nextAppState === "background" || (Platform.OS === "ios" && nextAppState === "inactive")) {
-        try {
-          await safeStorage.removeItem("token");
-          await safeStorage.removeItem("refreshToken");
-          setToken(null);
-          setUser(null);
-        } catch (e) {
-          console.warn("[AuthContext] Error clearing session on app exit:", e);
-        }
-      }
-    };
-
-    const subscription = AppState.addEventListener("change", handleAppStateChange);
-    return () => {
-      subscription.remove();
     };
   }, []);
 

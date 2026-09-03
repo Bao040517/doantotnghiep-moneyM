@@ -325,14 +325,17 @@ public class GroupService {
         com.example.sharemoney.dto.response.DebtSummaryResponse debts =
                 debtService.calculateGroupDebts(groupId, requesterId);
 
-        java.math.BigDecimal memberBalance =
-                debts.getMemberBalances().stream()
-                        .filter(mb -> mb.getUser().getId().equals(memberIdToDelete))
-                        .findFirst()
-                        .map(com.example.sharemoney.dto.response.DebtSummaryResponse.MemberBalance::getBalance)
-                        .orElse(java.math.BigDecimal.ZERO);
+        java.math.BigDecimal memberBalance = java.math.BigDecimal.ZERO;
+        if (debts != null && debts.getMemberBalances() != null) {
+            memberBalance =
+                    debts.getMemberBalances().stream()
+                            .filter(mb -> mb != null && mb.getUser() != null && memberIdToDelete.equals(mb.getUser().getId()))
+                            .findFirst()
+                            .map(com.example.sharemoney.dto.response.DebtSummaryResponse.MemberBalance::getBalance)
+                            .orElse(java.math.BigDecimal.ZERO);
+        }
 
-        if (memberBalance.compareTo(java.math.BigDecimal.ZERO) != 0) {
+        if (memberBalance != null && memberBalance.compareTo(java.math.BigDecimal.ZERO) != 0) {
             throw new AppException(ErrorCode.DEBT_NOT_SETTLED);
         }
 

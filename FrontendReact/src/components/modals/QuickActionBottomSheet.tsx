@@ -56,10 +56,7 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
             {/* 0. Trợ lý AI Cố vấn & Lập Kế Hoạch */}
             <TouchableOpacity
               style={[styles.actionCard, styles.aiCard]}
-              onPress={() => {
-                onClose();
-                onSelectAction("ai_chat");
-              }}
+              onPress={() => onSelectAction("ai_chat")}
               activeOpacity={0.8}
             >
               <View style={[styles.iconBox, { backgroundColor: "#0F172A" }]}>
@@ -80,10 +77,7 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
             {/* 2. Tạo Chi Tiêu Thủ Công */}
             <TouchableOpacity
               style={[styles.actionCard, styles.expenseCard]}
-              onPress={() => {
-                onClose();
-                onSelectAction("expense");
-              }}
+              onPress={() => onSelectAction("expense")}
               activeOpacity={0.8}
             >
               <View style={[styles.iconBox, { backgroundColor: "#F1F5F9" }]}>
@@ -101,10 +95,7 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
             {/* 3. Tạo Nhóm */}
             <TouchableOpacity
               style={[styles.actionCard, styles.groupCard]}
-              onPress={() => {
-                onClose();
-                onSelectAction("group");
-              }}
+              onPress={() => onSelectAction("group")}
               activeOpacity={0.8}
             >
               <View style={[styles.iconBox, { backgroundColor: "#F1F5F9" }]}>
@@ -122,10 +113,7 @@ export const QuickActionBottomSheet: React.FC<QuickActionBottomSheetProps> = ({
             {/* 4. Nạp Tiền */}
             <TouchableOpacity
               style={[styles.actionCard, styles.incomeCard]}
-              onPress={() => {
-                onClose();
-                onSelectAction("income");
-              }}
+              onPress={() => onSelectAction("income")}
               activeOpacity={0.8}
             >
               <View style={[styles.iconBox, { backgroundColor: "#F1F5F9" }]}>

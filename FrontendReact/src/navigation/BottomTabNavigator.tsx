@@ -90,17 +90,20 @@ export const BottomTabNavigator: React.FC<BottomTabNavigatorProps> = () => {
   }, []);
 
   const handleSelectAction = (action: QuickActionType) => {
-    if (action === "ai_chat") {
-      setAiChatVisible(true);
-    } else if (action === "expense") {
-      setTransactionType("EXPENSE");
-      setAddModalVisible(true);
-    } else if (action === "income") {
-      setTransactionType("INCOME");
-      setAddModalVisible(true);
-    } else if (action === "group") {
-      setCreateGroupVisible(true);
-    }
+    setQuickActionVisible(false);
+    setTimeout(() => {
+      if (action === "ai_chat") {
+        setAiChatVisible(true);
+      } else if (action === "expense") {
+        setTransactionType("EXPENSE");
+        setAddModalVisible(true);
+      } else if (action === "income") {
+        setTransactionType("INCOME");
+        setAddModalVisible(true);
+      } else if (action === "group") {
+        setCreateGroupVisible(true);
+      }
+    }, 150);
   };
 
   return (
